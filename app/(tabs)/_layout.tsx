@@ -1,68 +1,92 @@
-import React from 'react';
-import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
-
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { Tabs } from "expo-router";
+import { View } from "react-native";
+import {
+  Home,
+  BarChart3,
+  Wallet,
+  Settings,
+} from "lucide-react-native";
+import { COLORS } from "@/src/constants/theme";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarActiveTintColor: COLORS.accent,
+        tabBarInactiveTintColor: COLORS.silver,
+        tabBarStyle: {
+          position: "absolute",
+          bottom: 24,
+          left: 24,
+          right: 24,
+          height: 60,
+          borderRadius: 30,
+          backgroundColor: COLORS.surface,
+          borderTopWidth: 0,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.08,
+          shadowRadius: 16,
+          elevation: 8,
+          paddingBottom: 0,
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
+          tabBarIcon: ({ color, focused }) => (
+            <View className="items-center justify-center pt-1">
+              <Home
+                size={22}
+                color={color}
+                strokeWidth={focused ? 2.5 : 1.8}
+              />
+            </View>
           ),
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="analytics"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
+          tabBarIcon: ({ color, focused }) => (
+            <View className="items-center justify-center pt-1">
+              <BarChart3
+                size={22}
+                color={color}
+                strokeWidth={focused ? 2.5 : 1.8}
+              />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="wallet"
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <View className="items-center justify-center pt-1">
+              <Wallet
+                size={22}
+                color={color}
+                strokeWidth={focused ? 2.5 : 1.8}
+              />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <View className="items-center justify-center pt-1">
+              <Settings
+                size={22}
+                color={color}
+                strokeWidth={focused ? 2.5 : 1.8}
+              />
+            </View>
           ),
         }}
       />

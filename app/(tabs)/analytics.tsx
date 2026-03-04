@@ -1,0 +1,18 @@
+import { View, Text } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+export default function AnalyticsScreen() {
+  return (
+    <SafeAreaView className="flex-1 bg-pearl" edges={["top"]}>
+      <View className="flex-1 items-center justify-center px-6">
+        <Text className="text-4xl mb-3">📊</Text>
+        <Text className="text-xl font-semibold text-midnight mb-2">
+          Análisis
+        </Text>
+        <Text className="text-silver text-center text-sm">
+          Próximamente podrás ver tendencias y patrones de tus gastos.
+        </Text>
+      </View>
+    </SafeAreaView>
+  );
+}

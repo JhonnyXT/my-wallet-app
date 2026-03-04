@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { initDatabase } from "@/src/db/db";
+import { initDatabase, hasAnyTransactions, seedDemoData } from "@/src/db/db";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 
 import "../global.css";
@@ -21,6 +21,8 @@ export default function RootLayout() {
   useEffect(() => {
     async function bootstrap() {
       await initDatabase();
+      const hasData = await hasAnyTransactions();
+      if (!hasData) await seedDemoData();
       await loadTransactions();
       await SplashScreen.hideAsync();
     }

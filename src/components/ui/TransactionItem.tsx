@@ -1,76 +1,136 @@
-import { View, Text, Pressable } from "react-native";
-import Animated, { FadeInRight } from "react-native-reanimated";
+/**
+ * TransactionItem — pixel-perfect from Figma "Visual Expense Insights Home"
+ *
+ * Figma values:
+ *   Icon circle:   56×56px, borderRadius 9999
+ *   Description:   17px, weight 800, lineHeight 25.5px
+ *   Meta label:    11px, weight 700, rgba(0,0,0,0.3), letterSpacing -0.28px
+ *   Amount:        18px, weight 800, lineHeight 27px
+ *   Row padding:   16px top/bottom
+ *   Gap icon→text: 20px
+ */
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import type { TransactionRow } from "@/src/db/db";
+import { EMOJI_TO_CATEGORY_NAME, getCategoryColor } from "@/src/constants/theme";
 
 interface TransactionItemProps {
   transaction: TransactionRow;
   index: number;
+  /** First item is full opacity; subsequent are slightly dimmed like in Figma */
+  dimmed?: boolean;
   onLongPress?: (id: number) => void;
 }
 
 function formatTime(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const isYesterday = date.toDateString() === yesterday.toDateString();
-
-  const time = date.toLocaleTimeString("es-ES", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  if (isToday) return `Hoy, ${time}`;
-  if (isYesterday) return `Ayer, ${time}`;
-
-  return date.toLocaleDateString("es-ES", {
-    day: "numeric",
-    month: "short",
+  return new Date(dateStr).toLocaleTimeString("es-ES", {
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 
 function formatAmount(amount: number): string {
-  return `- € ${amount.toLocaleString("es-ES", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  // Figma format: "€ 95.000" (Spanish thousands separator, no decimals)
+  return `€ ${Math.round(amount).toLocaleString("es-ES")}`;
+}
+
+function getCategoryName(emoji: string): string {
+  const name = EMOJI_TO_CATEGORY_NAME[emoji];
+  if (!name) return "GASTO";
+  // Capitalize first letter, rest lowercase like Figma ("Comida • 18:45")
+  return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 }
 
 export function TransactionItem({
   transaction,
   index,
+  dimmed = false,
   onLongPress,
 }: TransactionItemProps) {
+  const palette = getCategoryColor(transaction.category_emoji);
+  const categoryName = getCategoryName(transaction.category_emoji);
+  const timeStr = formatTime(transaction.date);
+
   return (
-    <Animated.View entering={FadeInRight.delay(index * 60).springify()}>
+    <Animated.View
+      entering={FadeInDown.delay(index * 40).duration(300)}
+      style={dimmed && styles.dimmed}
+    >
       <Pressable
         onLongPress={() => onLongPress?.(transaction.id)}
-        className="flex-row items-center py-4"
+        style={styles.row}
       >
-        <View className="w-11 h-11 rounded-full bg-[#F2F2F7] items-center justify-center mr-3">
-          <Text className="text-xl">{transaction.category_emoji}</Text>
+        {/* Icon circle — Figma: 56×56, borderRadius 9999, colored bg */}
+        <View style={[styles.iconCircle, { backgroundColor: palette.bg }]}>
+          <Text style={styles.emoji}>{transaction.category_emoji}</Text>
         </View>
 
-        <View className="flex-1">
-          <Text
-            className="text-[15px] font-medium text-midnight"
-            numberOfLines={1}
-          >
+        {/* Text block */}
+        <View style={styles.textBlock}>
+          <Text style={styles.description} numberOfLines={1}>
             {transaction.description}
           </Text>
-          <Text className="text-[12px] text-silver mt-0.5">
-            {formatTime(transaction.date)}
+          {/* Figma: "Comida • 18:45" */}
+          <Text style={styles.meta}>
+            {categoryName}
+            {" • "}
+            {timeStr}
           </Text>
         </View>
 
-        <Text className="text-[15px] font-semibold text-midnight">
-          {formatAmount(transaction.amount)}
-        </Text>
+        {/* Amount — Figma: 18px, weight 800 */}
+        <Text style={styles.amount}>{formatAmount(transaction.amount)}</Text>
       </Pressable>
     </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 16,    // Figma: paddingTop 16px
+    paddingBottom: 16, // Figma: paddingBottom 16px
+  },
+  dimmed: {
+    opacity: 0.4, // Figma: second item has opacity 0.4
+  },
+  iconCircle: {
+    width: 56,   // Figma: 56px
+    height: 56,  // Figma: 56px
+    borderRadius: 9999,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 20, // Figma: gap 20px between icon and text
+    flexShrink: 0,
+  },
+  emoji: {
+    fontSize: 24, // Figma: 24px
+    lineHeight: 32,
+  },
+  textBlock: {
+    flex: 1,
+    gap: 1, // Figma: gap 1px
+    marginRight: 8,
+  },
+  description: {
+    fontSize: 17,    // Figma: 17px
+    fontWeight: "800", // Figma: weight 800
+    color: "#000000",
+    lineHeight: 25.5,
+  },
+  meta: {
+    fontSize: 11,    // Figma: 11px
+    fontWeight: "700", // Figma: weight 700
+    color: "rgba(0,0,0,0.3)", // Figma: rgba(0,0,0,0.3)
+    lineHeight: 16.5,
+    letterSpacing: -0.28, // Figma: letterSpacing -0.28px
+  },
+  amount: {
+    fontSize: 18,    // Figma: 18px
+    fontWeight: "800", // Figma: weight 800
+    color: "#000000",
+    lineHeight: 27,
+    flexShrink: 0,
+  },
+});

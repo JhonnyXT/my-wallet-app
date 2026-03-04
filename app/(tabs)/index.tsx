@@ -1,104 +1,304 @@
-import { View, Text, ScrollView, Image } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Bell } from "lucide-react-native";
+import { useMemo } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Pressable,
+  StatusBar,
+} from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { Settings } from "lucide-react-native";
+import { scrollBottomPadding } from "@/src/constants/layout";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
-import { BudgetBar } from "@/src/components/ui/BudgetBar";
-import { ActionPills } from "@/src/components/ui/ActionPills";
+import { FilterChips } from "@/src/components/ui/FilterChips";
+import { CategoryChart } from "@/src/components/ui/CategoryChart";
 import { TransactionItem } from "@/src/components/ui/TransactionItem";
-import { FloatingInput } from "@/src/components/ui/FloatingInput";
 import { COLORS } from "@/src/constants/theme";
 
-function formatCurrency(amount: number): string {
-  return `€ ${amount.toLocaleString("es-ES", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatBalance(amount: number): string {
+  return `€${Math.round(amount).toLocaleString("es-ES")}`;
 }
 
+function formatDayTotal(amount: number): string {
+  return `€ ${Math.round(amount).toLocaleString("es-ES")}`;
+}
+
+type TxRow = ReturnType<typeof useFinanceStore.getState>["transactions"][0];
+
+function groupByDate(transactions: TxRow[]) {
+  const groups: { label: string; total: number; items: TxRow[] }[] = [];
+  const map = new Map<string, { label: string; total: number; items: TxRow[] }>();
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  for (const tx of transactions) {
+    const d = new Date(tx.date);
+    let key: string;
+
+    if (d.toDateString() === today.toDateString()) {
+      key = "HOY";
+    } else if (d.toDateString() === yesterday.toDateString()) {
+      key = "AYER";
+    } else {
+      key = d
+        .toLocaleDateString("es-ES", { day: "2-digit", month: "short" })
+        .toUpperCase()
+        .replace(".", "");
+    }
+
+    if (!map.has(key)) {
+      map.set(key, { label: key, total: 0, items: [] });
+      groups.push(map.get(key)!);
+    }
+    const g = map.get(key)!;
+    g.items.push(tx);
+    g.total += tx.amount;
+  }
+
+  return groups;
+}
+
+// ─── Screen ──────────────────────────────────────────────────────────────────
+
 export default function DashboardScreen() {
+  const insets = useSafeAreaInsets();
   const transactions = useFinanceStore((s) => s.transactions);
   const getTotalBalance = useFinanceStore((s) => s.getTotalBalance);
-  const getBudgetPercentage = useFinanceStore((s) => s.getBudgetPercentage);
   const deleteTransaction = useFinanceStore((s) => s.deleteTransaction);
+  const budgetLimit = useFinanceStore((s) => s.budgetLimit);
 
   const total = getTotalBalance();
-  const budgetPct = getBudgetPercentage();
-  const recentTransactions = transactions.slice(0, 10);
+  const recentTransactions = transactions.slice(0, 30);
+
+  const categoryStats = useMemo(() => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthTxs = transactions.filter((t) => new Date(t.date) >= firstDay);
+
+    const map: Record<string, { total: number; count: number }> = {};
+    for (const tx of monthTxs) {
+      if (!map[tx.category_emoji])
+        map[tx.category_emoji] = { total: 0, count: 0 };
+      map[tx.category_emoji].total += tx.amount;
+      map[tx.category_emoji].count += 1;
+    }
+    return Object.entries(map)
+      .map(([emoji, s]) => ({ emoji, ...s }))
+      .sort((a, b) => b.total - a.total);
+  }, [transactions]);
+
+  const grouped = useMemo(
+    () => groupByDate(recentTransactions),
+    [recentTransactions]
+  );
 
   return (
-    <SafeAreaView className="flex-1 bg-pearl" edges={["top"]}>
-      <View className="flex-1">
-        <ScrollView
-          className="flex-1"
-          contentContainerClassName="pb-40"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header */}
-          <View className="flex-row items-center justify-between px-6 pt-2 pb-1">
-            <View className="flex-row items-center">
-              <View className="w-10 h-10 rounded-full bg-[#E8E8ED] items-center justify-center mr-3">
-                <Text className="text-base">👤</Text>
-              </View>
-              <Text className="text-[11px] font-semibold tracking-widest text-silver uppercase">
-                Hola, Alex
-              </Text>
-            </View>
-            <Bell size={20} color={COLORS.midnight} strokeWidth={1.8} />
-          </View>
+    <SafeAreaView style={styles.screen} edges={["top"]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F5F5F5" />
 
-          {/* Hero Balance */}
-          <View className="px-6 pt-5 pb-1">
-            <Text className="text-[13px] text-silver mb-1">
-              Gastos de este mes
+      {/* ════════════════════════════════════════════════════════════════
+          SECCIÓN ESTÁTICA — se queda fija mientras se hace scroll abajo
+          ════════════════════════════════════════════════════════════════ */}
+      <View style={styles.staticHeader}>
+        {/* Balance + Settings */}
+        <View style={styles.headerRow}>
+          <Text style={styles.balanceAmount}>{formatBalance(total)}</Text>
+          <Pressable style={styles.settingsBtn}>
+            <Settings size={20} color={COLORS.slate700} strokeWidth={1.8} />
+          </Pressable>
+        </View>
+
+        {/* Chips de filtro */}
+        <FilterChips />
+
+        {/* Gráfica de categorías */}
+        {categoryStats.length > 0 ? (
+          <View style={styles.chartWrapper}>
+            <CategoryChart stats={categoryStats} budgetLimit={budgetLimit} />
+          </View>
+        ) : (
+          <View style={styles.chartPlaceholder}>
+            <Text style={styles.chartPlaceholderText}>
+              Agrega gastos para ver tus categorías
             </Text>
-            <Text className="text-[42px] font-bold text-midnight tracking-tight leading-none">
-              {formatCurrency(total)}
+          </View>
+        )}
+      </View>
+
+      {/* ════════════════════════════════════════════════════════════════
+          SECCIÓN SCROLL — solo la lista de transacciones se mueve
+          ════════════════════════════════════════════════════════════════ */}
+      <ScrollView
+        style={styles.txScrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.txScrollContent,
+          { paddingBottom: scrollBottomPadding(insets.bottom) },
+        ]}
+      >
+        {recentTransactions.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>💸</Text>
+            <Text style={styles.emptyTitle}>Sin gastos aún</Text>
+            <Text style={styles.emptySubtitle}>
+              Toca <Text style={{ fontWeight: "700" }}>+</Text> o el micrófono
+              para registrar tu primer gasto.
             </Text>
-
-            <BudgetBar percentage={budgetPct} />
           </View>
-
-          {/* Action Pills */}
-          <View className="px-6">
-            <ActionPills />
-          </View>
-
-          {/* Recent Activity */}
-          <View className="px-6 mt-7">
-            <View className="flex-row items-center justify-between mb-2">
-              <Text className="text-[15px] font-semibold text-midnight">
-                Actividad Reciente
-              </Text>
-              <Text className="text-[13px] font-medium text-accent">
-                Ver todo
-              </Text>
-            </View>
-
-            {recentTransactions.length === 0 ? (
-              <View className="items-center py-12">
-                <Text className="text-4xl mb-3">💸</Text>
-                <Text className="text-silver text-[14px] text-center">
-                  Aún no hay gastos.{"\n"}Escribe algo abajo para empezar.
-                </Text>
+        ) : (
+          grouped.map((group) => (
+            <View key={group.label} style={styles.dayGroup}>
+              {/* Cabecera de fecha */}
+              <View style={styles.dayHeader}>
+                <Text style={styles.dayLabel}>{group.label}</Text>
+                <Text style={styles.dayTotal}>{formatDayTotal(group.total)}</Text>
               </View>
-            ) : (
-              recentTransactions.map((tx, index) => (
+
+              {/* Transacciones del día */}
+              {group.items.map((tx, i) => (
                 <TransactionItem
                   key={tx.id}
                   transaction={tx}
-                  index={index}
+                  index={i}
+                  dimmed={i > 0}
                   onLongPress={deleteTransaction}
                 />
-              ))
-            )}
-          </View>
-        </ScrollView>
-
-        {/* Floating Input */}
-        <View className="absolute bottom-24 left-0 right-0">
-          <FloatingInput />
-        </View>
-      </View>
+              ))}
+            </View>
+          ))
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#F5F5F5",
+  },
+
+  // ── Cabecera fija ────────────────────────────────────────────────────────────
+  staticHeader: {
+    // Sin flex: toma solo el espacio que necesita y no hace scroll
+  },
+
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 28,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+
+  balanceAmount: {
+    fontSize: 42,
+    fontWeight: "800",
+    color: "#000000",
+    letterSpacing: -1.05,
+    lineHeight: 42,
+  },
+
+  settingsBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 9999,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+
+  chartWrapper: {
+    marginBottom: 8,
+  },
+
+  chartPlaceholder: {
+    marginHorizontal: 28,
+    marginVertical: 20,
+    height: 120,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: "#E5E7EB",
+  },
+
+  chartPlaceholderText: {
+    fontSize: 13,
+    color: "#9CA3AF",
+  },
+
+  // ── Lista con scroll ─────────────────────────────────────────────────────────
+  txScrollView: {
+    flex: 1, // ocupa todo el espacio restante
+  },
+
+  txScrollContent: {
+    paddingHorizontal: 28,
+    paddingTop: 4,
+  },
+
+  dayGroup: {
+    marginBottom: 8,
+  },
+
+  dayHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+  },
+
+  dayLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "rgba(0,0,0,0.3)",
+    letterSpacing: 1.65,
+    lineHeight: 16.5,
+  },
+
+  dayTotal: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "rgba(0,0,0,0.3)",
+    letterSpacing: -0.28,
+  },
+
+  // ── Estado vacío ─────────────────────────────────────────────────────────────
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 64,
+  },
+
+  emptyEmoji: {
+    fontSize: 48,
+    marginBottom: 14,
+  },
+
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: COLORS.slate700,
+    marginBottom: 8,
+  },
+
+  emptySubtitle: {
+    fontSize: 14,
+    color: COLORS.slate400,
+    textAlign: "center",
+    lineHeight: 21,
+  },
+});

@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import * as SQLite from "expo-sqlite";
 
 export interface TransactionRow {
   id: number;
@@ -8,22 +8,15 @@ export interface TransactionRow {
   date: string;
 }
 
-// In-memory fallback for web (dev only)
-let memoryStore: TransactionRow[] = [];
-let memoryIdCounter = 1;
-
-let _db: any = null;
+let _db: SQLite.SQLiteDatabase | null = null;
 
 async function getNativeDatabase() {
   if (_db) return _db;
-  const SQLite = require("expo-sqlite");
   _db = await SQLite.openDatabaseAsync("mywallet.db");
   return _db;
 }
 
 export async function initDatabase(): Promise<void> {
-  if (Platform.OS === "web") return;
-
   const db = await getNativeDatabase();
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
@@ -43,19 +36,6 @@ export async function insertTransaction(
   categoryEmoji: string
 ): Promise<TransactionRow> {
   const now = new Date().toISOString();
-
-  if (Platform.OS === "web") {
-    const tx: TransactionRow = {
-      id: memoryIdCounter++,
-      amount,
-      description,
-      category_emoji: categoryEmoji,
-      date: now,
-    };
-    memoryStore.unshift(tx);
-    return tx;
-  }
-
   const db = await getNativeDatabase();
   const result = await db.runAsync(
     `INSERT INTO transactions (amount, description, category_emoji, date) VALUES (?, ?, ?, ?)`,
@@ -72,35 +52,61 @@ export async function insertTransaction(
 }
 
 export async function deleteTransaction(id: number): Promise<void> {
-  if (Platform.OS === "web") {
-    memoryStore = memoryStore.filter((t) => t.id !== id);
-    return;
-  }
-
   const db = await getNativeDatabase();
   await db.runAsync(`DELETE FROM transactions WHERE id = ?`, [id]);
 }
 
 export async function getAllTransactions(): Promise<TransactionRow[]> {
-  if (Platform.OS === "web") {
-    return [...memoryStore];
-  }
-
   const db = await getNativeDatabase();
   return db.getAllAsync<TransactionRow>(
     `SELECT * FROM transactions ORDER BY date DESC`
   );
 }
 
-export async function getMonthlyTotal(): Promise<number> {
-  if (Platform.OS === "web") {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    return memoryStore
-      .filter((t) => new Date(t.date) >= firstDay)
-      .reduce((sum, t) => sum + t.amount, 0);
+export async function hasAnyTransactions(): Promise<boolean> {
+  const db = await getNativeDatabase();
+  const result = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM transactions`
+  );
+  return (result?.count ?? 0) > 0;
+}
+
+/** Inserts demo data that mirrors the Stitch "Visual Expense Insights Home" design */
+export async function seedDemoData(): Promise<void> {
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const threeDaysAgo = new Date(now);
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+  const fourDaysAgo = new Date(now);
+  fourDaysAgo.setDate(fourDaysAgo.getDate() - 4);
+  const fiveDaysAgo = new Date(now);
+  fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+
+  function d(base: Date, h: number, m: number) {
+    const t = new Date(base);
+    t.setHours(h, m, 0, 0);
+    return t.toISOString();
   }
 
+  const seed = [
+    { amount: 900,  description: "Restaurante",    emoji: "🍔", date: d(yesterday, 18, 45) },
+    { amount: 435,  description: "Uber Trip",       emoji: "🚗", date: d(yesterday, 16, 20) },
+    { amount: 3540, description: "PlayStation Store", emoji: "🎮", date: d(threeDaysAgo, 14, 10) },
+    { amount: 2250, description: "Zara",            emoji: "🛍️", date: d(fourDaysAgo, 11, 30) },
+    { amount: 3690, description: "Servicios Hogar", emoji: "💡", date: d(fiveDaysAgo, 9, 0) },
+  ];
+
+  const db = await getNativeDatabase();
+  for (const tx of seed) {
+    await db.runAsync(
+      `INSERT INTO transactions (amount, description, category_emoji, date) VALUES (?, ?, ?, ?)`,
+      [tx.amount, tx.description, tx.emoji, tx.date]
+    );
+  }
+}
+
+export async function getMonthlyTotal(): Promise<number> {
   const db = await getNativeDatabase();
   const now = new Date();
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();

@@ -1,0 +1,78 @@
+import * as SQLite from "expo-sqlite";
+import type { TransactionRow } from "./db";
+
+let _db: SQLite.SQLiteDatabase | null = null;
+
+async function getDb(): Promise<SQLite.SQLiteDatabase> {
+  if (_db) return _db;
+  _db = await SQLite.openDatabaseAsync("mywallet.db");
+  return _db;
+}
+
+export async function queryMonthTotal(
+  year: number,
+  month: number
+): Promise<number> {
+  const db = await getDb();
+  const firstDay = new Date(year, month - 1, 1).toISOString();
+  const lastDay = new Date(year, month, 0, 23, 59, 59).toISOString();
+  const result = await db.getFirstAsync<{ total: number | null }>(
+    `SELECT SUM(amount) as total FROM transactions WHERE date >= ? AND date <= ?`,
+    [firstDay, lastDay]
+  );
+  return result?.total ?? 0;
+}
+
+export async function queryYearTotal(year: number): Promise<number> {
+  const db = await getDb();
+  const firstDay = new Date(year, 0, 1).toISOString();
+  const lastDay = new Date(year, 11, 31, 23, 59, 59).toISOString();
+  const result = await db.getFirstAsync<{ total: number | null }>(
+    `SELECT SUM(amount) as total FROM transactions WHERE date >= ? AND date <= ?`,
+    [firstDay, lastDay]
+  );
+  return result?.total ?? 0;
+}
+
+export async function queryTodayTotal(): Promise<number> {
+  const db = await getDb();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const result = await db.getFirstAsync<{ total: number | null }>(
+    `SELECT SUM(amount) as total FROM transactions WHERE date >= ?`,
+    [today.toISOString()]
+  );
+  return result?.total ?? 0;
+}
+
+export async function queryYesterdayTotal(): Promise<number> {
+  const db = await getDb();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const result = await db.getFirstAsync<{ total: number | null }>(
+    `SELECT SUM(amount) as total FROM transactions WHERE date >= ? AND date < ?`,
+    [yesterday.toISOString(), today.toISOString()]
+  );
+  return result?.total ?? 0;
+}
+
+export async function queryLastNTransactions(
+  n: number
+): Promise<TransactionRow[]> {
+  const db = await getDb();
+  return db.getAllAsync<TransactionRow>(
+    `SELECT * FROM transactions ORDER BY date DESC LIMIT ?`,
+    [n]
+  );
+}
+
+export async function queryMaxTransaction(): Promise<TransactionRow | null> {
+  const db = await getDb();
+  return (
+    (await db.getFirstAsync<TransactionRow>(
+      `SELECT * FROM transactions ORDER BY amount DESC LIMIT 1`
+    )) ?? null
+  );
+}

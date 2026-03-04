@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.mywallet.app"
+      "bundleIdentifier": "com.mywallet.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.mywallet.app",
@@ -38,14 +41,16 @@
     },
     "extra": {
       "eas": {
-        "projectId": ""
-      }
+        "projectId": "9c3e0360-d70b-4e86-834b-b5588721abd6"
+      },
+      "router": {}
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
       "url": ""
-    }
+    },
+    "owner": "jhonnyxt"
   }
 }

@@ -106,7 +106,7 @@ export function FloatingInputOverlay() {
             </View>
             <View style={styles.badgeDark}>
               <Text style={styles.badgeDarkText}>
-                € {parsed.amount.toFixed(2)}
+                $ {Math.round(parsed.amount).toLocaleString("es-ES")}
               </Text>
             </View>
           </Animated.View>
@@ -127,7 +127,7 @@ export function FloatingInputOverlay() {
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             onSubmitEditing={handleSubmit}
-            placeholder="Ej: Café 4.50 o Uber 12"
+            placeholder="Ej: Café 5000 o Uber 15000"
             placeholderTextColor={COLORS.slate400}
             returnKeyType="done"
             style={styles.textInput}

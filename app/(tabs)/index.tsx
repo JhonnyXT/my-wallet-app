@@ -19,11 +19,11 @@ import { COLORS } from "@/src/constants/theme";
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatBalance(amount: number): string {
-  return `€${Math.round(amount).toLocaleString("es-ES")}`;
+  return `$${Math.round(amount).toLocaleString("es-ES")}`;
 }
 
 function formatDayTotal(amount: number): string {
-  return `€ ${Math.round(amount).toLocaleString("es-ES")}`;
+  return `$ ${Math.round(amount).toLocaleString("es-ES")}`;
 }
 
 type TxRow = ReturnType<typeof useFinanceStore.getState>["transactions"][0];

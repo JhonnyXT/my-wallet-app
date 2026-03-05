@@ -34,10 +34,8 @@ const MONTHS: Record<string, number> = {
 };
 
 function fmt(amount: number): string {
-  return `€ ${amount.toLocaleString("es-ES", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  // Pesos colombianos: sin decimales, separador de miles
+  return `$ ${Math.round(amount).toLocaleString("es-ES")}`;
 }
 
 /** Normalize: lowercase + strip accents */

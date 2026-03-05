@@ -30,8 +30,8 @@ function formatTime(dateStr: string): string {
 }
 
 function formatAmount(amount: number): string {
-  // Figma format: "€ 95.000" (Spanish thousands separator, no decimals)
-  return `€ ${Math.round(amount).toLocaleString("es-ES")}`;
+  // Pesos colombianos: "$ 95.000" (separador de miles español, sin decimales)
+  return `$ ${Math.round(amount).toLocaleString("es-ES")}`;
 }
 
 function getCategoryName(emoji: string): string {

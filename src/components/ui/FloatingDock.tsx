@@ -128,9 +128,9 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
       >
         <Mic
           size={26}
-          color={isListening ? "#0D47A1" : "#1565C0"}
+          color="#FFFFFF"
           strokeWidth={2}
-          fill={isListening ? "#0D47A1" : "none"}
+          fill={isListening ? "#FFFFFF" : "none"}
         />
       </AnimatedPressable>
     </View>
@@ -182,16 +182,16 @@ const styles = StyleSheet.create({
     width: DOCK_HEIGHT,
     height: DOCK_HEIGHT,
     borderRadius: 9999,
-    backgroundColor: "#D6EFFF",
+    backgroundColor: "#1565C0", // azul sólido original
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#93C5FD",
+    shadowColor: "#1565C0",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.4,
     shadowRadius: 16,
     elevation: 10,
   },
   micFabListening: {
-    backgroundColor: "#BFDBFE",
+    backgroundColor: "#0D47A1", // azul más oscuro al escuchar
   },
 });

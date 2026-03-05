@@ -1,15 +1,18 @@
 /**
- * CategoryChart — pixel-perfect translation of Figma "Visual Expense Insights Home"
+ * CategoryChart — "Visual Expense Insights Home 1" de Stitch
  *
- * Figma key values:
- *   Chart container:  height 300px, flexRow, alignItems flex-end, gap 16px
- *   Bar border-radius: 40px
- *   Bar padding:       24px top/bottom, 4px horizontal
- *   Ghost track:       dashed border, rgba(0,0,0,0.08), same border-radius
- *   % label:           11px, weight 800
- *   Amount label:      10px, weight 700, rgba(0,0,0,0.5)
+ * Barras de ancho fijo calculado (no flex:1) para evitar que sean demasiado
+ * anchas cuando hay menos de 4 categorías.
+ *
+ * Stitch key values:
+ *   Chart container height: 280px
+ *   Bar border-radius: 9999 (píldora perfecta)
+ *   Bar padding: 24px top/bottom
+ *   Ghost track: borde punteado, límite de presupuesto futuro
+ *   % label: 11px, weight 800
+ *   Amount label: 10px, weight 700, rgba(0,0,0,0.45)
  */
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet, Dimensions } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -31,61 +34,60 @@ interface CategoryChartProps {
   budgetLimit: number;
 }
 
-// Figma chart container height
-const CHART_H = 300;
-// Figma: tallest bar = 264px (🎮 at 118%)
-const MAX_FILL_H = 264;
-// Min height: even the smallest category shows a visible bar (Figma: shortest = 144px)
-const MIN_FILL_H = 130;
-// Ghost track height (budget limit indicator)
-const GHOST_H = 250;
+// ─── Layout constants ─────────────────────────────────────────────────────────
+const SCREEN_W   = Dimensions.get("window").width;
+const H_PADDING  = 28;    // igual que el padding horizontal de la pantalla
+const BAR_GAP    = 16;    // Figma original: gap 16px entre barras
+const NUM_BARS   = 4;
+const BAR_W      = Math.floor(
+  (SCREEN_W - H_PADDING * 2 - BAR_GAP * (NUM_BARS - 1)) / NUM_BARS
+);
 
+const CHART_H    = 260;   // altura total del contenedor
+const MAX_FILL_H = 224;   // barra más alta (categoría con mayor gasto)
+const MIN_FILL_H = 110;   // barra mínima visible
+
+// Ghost = mismo alto que la barra máxima (límite de presupuesto visual)
+const GHOST_H    = MAX_FILL_H;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtAmount(amount: number): string {
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `${Math.round(amount / 1_000)}k`;
+  if (amount >= 1_000)     return `${Math.round(amount / 1_000)}k`;
   return `${Math.round(amount)}`;
 }
 
+// ─── Bar individual ───────────────────────────────────────────────────────────
 function AnimatedBar({
-  stat,
-  fillH,
-  pct,
-  delay,
+  stat, fillH, pct, delay,
 }: {
   stat: CategoryStat;
   fillH: number;
   pct: number;
   delay: number;
 }) {
-  const palette = getCategoryColor(stat.emoji);
+  const palette    = getCategoryColor(stat.emoji);
   const heightAnim = useSharedValue(0);
-  const animStyle = useAnimatedStyle(() => ({ height: heightAnim.value }));
+  const animStyle  = useAnimatedStyle(() => ({ height: heightAnim.value }));
 
   useEffect(() => {
     heightAnim.value = withDelay(
       delay,
       withTiming(fillH, { duration: 500, easing: Easing.out(Easing.quad) })
     );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fillH, delay]);
 
   return (
-    // Column: flex 1, full chart height, bottom-aligned
     <View style={styles.column}>
-      {/* Ghost track (budget limit indicator) */}
+      {/* Ghost track — silueta del límite de presupuesto (función futura) */}
       <View style={[styles.ghost, { height: GHOST_H }]} />
 
-      {/* Animated fill bar */}
+      {/* Barra animada con color de categoría */}
       <Animated.View
-        style={[
-          styles.bar,
-          animStyle,
-          { backgroundColor: palette.bg },
-        ]}
+        style={[styles.bar, animStyle, { backgroundColor: palette.bg }]}
       >
-        {/* Emoji — top of bar */}
         <Text style={styles.emoji}>{stat.emoji}</Text>
-
-        {/* Labels — bottom of bar */}
         <View style={styles.labels}>
           <Text style={styles.pctText}>{pct}%</Text>
           <Text style={styles.amtText}>{fmtAmount(stat.total)}</Text>
@@ -95,98 +97,89 @@ function AnimatedBar({
   );
 }
 
+// ─── Chart principal ──────────────────────────────────────────────────────────
 export function CategoryChart({ stats, budgetLimit }: CategoryChartProps) {
   if (!stats.length) return null;
 
   const maxTotal = Math.max(...stats.map((s) => s.total));
 
-  const bars = stats.slice(0, 5).map((s) => {
-    const pct = budgetLimit > 0 ? Math.round((s.total / budgetLimit) * 100) : 0;
-    // Compressed scale: MIN_FILL..MAX_FILL so even small categories are visible
+  const bars = stats.slice(0, NUM_BARS).map((s) => {
+    const pct   = budgetLimit > 0 ? Math.round((s.total / budgetLimit) * 100) : 0;
     const ratio = maxTotal > 0 ? s.total / maxTotal : 0;
     const fillH = Math.round(MIN_FILL_H + ratio * (MAX_FILL_H - MIN_FILL_H));
     return { stat: s, fillH, pct };
   });
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.scrollContent}
-    >
-      {/* Chart row: bottom-aligned, fixed height */}
-      <View style={styles.chartRow}>
-        {bars.map(({ stat, fillH, pct }, i) => (
-          <AnimatedBar
-            key={stat.emoji}
-            stat={stat}
-            fillH={fillH}
-            pct={pct}
-            delay={i * 80}
-          />
-        ))}
-      </View>
-    </ScrollView>
+    <View style={styles.chartRow}>
+      {bars.map(({ stat, fillH, pct }, i) => (
+        <AnimatedBar
+          key={stat.emoji}
+          stat={stat}
+          fillH={fillH}
+          pct={pct}
+          delay={i * 80}
+        />
+      ))}
+    </View>
   );
 }
 
+// ─── Estilos ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  scrollContent: {
-    paddingHorizontal: 28, // matches Figma screen padding
-  },
   chartRow: {
     height: CHART_H,
     flexDirection: "row",
-    alignItems: "flex-end", // all bars share bottom baseline
-    gap: 16, // Figma: gap 16px between bars
+    alignItems: "flex-end",
+    paddingHorizontal: H_PADDING,
+    gap: BAR_GAP,
   },
   column: {
-    width: 72,
+    width: BAR_W,
     height: CHART_H,
     position: "relative",
-    justifyContent: "flex-end", // fill bar at bottom
+    justifyContent: "flex-end",
   },
   ghost: {
     position: "absolute",
+    bottom: 0,
     left: 0,
     right: 0,
-    bottom: 0,
-    borderRadius: 40,
+    borderRadius: 9999,
     borderWidth: 1,
     borderStyle: "dashed",
     borderColor: "rgba(0,0,0,0.10)",
-    backgroundColor: "rgba(0,0,0,0.015)", // subtle fill to make it visible
+    backgroundColor: "rgba(0,0,0,0.015)",
   },
   bar: {
-    // Animated fill — bottom-anchored
     left: 0,
     right: 0,
-    borderRadius: 40, // Figma: borderRadius 40px
-    paddingTop: 24, // Figma: paddingTop 24px
-    paddingBottom: 24, // Figma: paddingBottom 24px
-    paddingHorizontal: 4, // Figma: paddingRight/Left 4px
-    justifyContent: "space-between", // emoji top, labels bottom
+    borderRadius: 9999,
+    paddingTop: 24,
+    paddingBottom: 24,
+    paddingHorizontal: 4,
+    justifyContent: "space-between",
     alignItems: "center",
     overflow: "hidden",
   },
   emoji: {
-    fontSize: 24, // Figma: 24px
-    lineHeight: 32,
+    fontSize: 22,
+    lineHeight: 30,
   },
   labels: {
     alignItems: "center",
-    gap: 2, // Figma: gap 2px
+    gap: 2,
   },
   pctText: {
-    fontSize: 11, // Figma: 11px
-    fontWeight: "800", // Figma: weight 800
+    fontSize: 11,
+    fontWeight: "800",
     color: "#000000",
     lineHeight: 16.5,
   },
   amtText: {
-    fontSize: 10, // Figma: 10px
-    fontWeight: "700", // Figma: weight 700
-    color: "rgba(0,0,0,0.5)", // Figma: rgba(0,0,0,0.5)
+    fontSize: 10,
+    fontWeight: "700",
+    color: "rgba(0,0,0,0.45)",
     lineHeight: 15,
   },
 });

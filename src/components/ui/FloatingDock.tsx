@@ -13,7 +13,7 @@
 import { View, Pressable, StyleSheet } from "react-native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Plus, Search, Mic, MessageCircle } from "lucide-react-native";
+import { Plus, Search, Mic, MessageSquare } from "lucide-react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -88,7 +88,7 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
           style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
           android_ripple={{ color: "transparent" }}
         >
-          <Plus size={24} color="#111111" strokeWidth={2.2} />
+          <Plus size={22} color="#111111" strokeWidth={2.2} />
         </Pressable>
 
         <Pressable
@@ -96,12 +96,11 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
           style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
           android_ripple={{ color: "transparent" }}
         >
-          {/* chat_bubble relleno — idéntico al ícono de Stitch */}
-          <MessageCircle
-            size={24}
-            color={currentRoute === "chat" ? "#1565C0" : "#111111"}
-            fill={currentRoute === "chat" ? "#1565C0" : "#111111"}
-            strokeWidth={0}
+          {/* chat_bubble — outlined, coincide con Stitch "chat_bubble" icon */}
+          <MessageSquare
+            size={22}
+            color={currentRoute === "chat" ? "#2D5BFF" : "#111111"}
+            strokeWidth={2}
           />
         </Pressable>
 
@@ -111,8 +110,8 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
           android_ripple={{ color: "transparent" }}
         >
           <Search
-            size={24}
-            color={currentRoute === "analytics" ? "#1565C0" : "#111111"}
+            size={22}
+            color={currentRoute === "analytics" ? "#2D5BFF" : "#111111"}
             strokeWidth={2}
           />
         </Pressable>
@@ -139,11 +138,17 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
   );
 }
 
+// Stitch JSX:
+//   Container:  left 6.15%, right 6.15%, bottom 40px, height 64, gap 12, flexRow
+//   Pill:       flex 1, paddingV 8, paddingH 12, gap 49, bg #FFF, borderRadius 9999
+//               shadow: 0px 12px 40px rgba(0,0,0,0.08)
+//   Btn:        48×48
+//   Mic FAB:    64×64, bg #2D5BFF, shadow rgba(45,91,255,0.3)
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    left: "5%",
-    right: "5%",
+    left: "6.15%",
+    right: "6.15%",
     height: DOCK_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
@@ -151,29 +156,31 @@ const styles = StyleSheet.create({
   },
 
   // ── Pill ──────────────────────────────────────────────────────────
+  // Stitch JSX: flex 1, paddingV 8, paddingH 12, gap 49, space-between
+  // space-evenly distribuye los 3 iconos de forma uniforme sin pegarlos a los bordes
   pill: {
     flex: 1,
     height: DOCK_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
-    paddingHorizontal: 10,
+    justifyContent: "space-evenly",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
     backgroundColor: "#FFFFFF",
     borderRadius: 9999,
-    // Shadow matching Stitch
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 40,
     elevation: 10,
   },
 
   btn: {
-    width: 64,
-    height: 64,
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 999,
+    borderRadius: 9999,
   },
   btnPressed: {
     backgroundColor: "rgba(0,0,0,0.05)",
@@ -181,19 +188,19 @@ const styles = StyleSheet.create({
 
   // ── Mic FAB ───────────────────────────────────────────────────────
   micFab: {
-    width: DOCK_HEIGHT,
-    height: DOCK_HEIGHT,
+    width: 64,
+    height: 64,
     borderRadius: 9999,
-    backgroundColor: "#1565C0", // azul sólido original
+    backgroundColor: "#2D5BFF",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#1565C0",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
+    shadowColor: "#2D5BFF",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 30,
     elevation: 10,
   },
   micFabListening: {
-    backgroundColor: "#0D47A1", // azul más oscuro al escuchar
+    backgroundColor: "#1A40CC",
   },
 });

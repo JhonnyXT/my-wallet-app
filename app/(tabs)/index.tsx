@@ -65,13 +65,13 @@ function groupByDate(transactions: TxRow[]) {
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
-  const insets = useSafeAreaInsets();
-  const transactions = useFinanceStore((s) => s.transactions);
-  const getTotalBalance = useFinanceStore((s) => s.getTotalBalance);
+  const insets            = useSafeAreaInsets();
+  const transactions      = useFinanceStore((s) => s.transactions);
+  const getTotalBalance   = useFinanceStore((s) => s.getTotalBalance);
   const deleteTransaction = useFinanceStore((s) => s.deleteTransaction);
-  const budgetLimit = useFinanceStore((s) => s.budgetLimit);
+  const budgetLimit       = useFinanceStore((s) => s.budgetLimit);
 
-  const total = getTotalBalance();
+  const total              = getTotalBalance();
   const recentTransactions = transactions.slice(0, 30);
 
   const categoryStats = useMemo(() => {
@@ -98,22 +98,27 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F5F5F5" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F2F2F4" />
 
       {/* ════════════════════════════════════════════════════════════════
           SECCIÓN ESTÁTICA — se queda fija mientras se hace scroll abajo
           ════════════════════════════════════════════════════════════════ */}
       <View style={styles.staticHeader}>
-        {/* Balance + Settings */}
-        <View style={styles.headerRow}>
-          <Text style={styles.balanceAmount}>{formatBalance(total)}</Text>
+
+        {/* ── Header: [col izq: Balance + Chips] [der: Settings] ── */}
+        {/* Stitch JSX: flexRow, justifyContent space-between, alignItems flex-start */}
+        <View style={styles.headerOuter}>
+          {/* Columna izquierda: balance + chips (gap 32px como en Stitch) */}
+          <View style={styles.headerLeft}>
+            <Text style={styles.balanceAmount}>{formatBalance(total)}</Text>
+            <FilterChips />
+          </View>
+
+          {/* Icono de settings — Stitch: 40×40, sin fondo ni sombra */}
           <Pressable style={styles.settingsBtn}>
-            <Settings size={20} color={COLORS.slate700} strokeWidth={1.8} />
+            <Settings size={22} color="#000000" strokeWidth={1.6} />
           </Pressable>
         </View>
-
-        {/* Chips de filtro */}
-        <FilterChips />
 
         {/* Gráfica de categorías */}
         {categoryStats.length > 0 ? (
@@ -179,45 +184,48 @@ export default function DashboardScreen() {
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  // Stitch JSX: background '#F2F2F4'
   screen: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: "#F2F2F4",
   },
 
   // ── Cabecera fija ────────────────────────────────────────────────────────────
-  staticHeader: {
-    // Sin flex: toma solo el espacio que necesita y no hace scroll
-  },
+  staticHeader: {},
 
-  headerRow: {
+  // Stitch JSX: flexRow, justifyContent space-between, alignItems flex-start
+  // paddingH 28, paddingTop 16, paddingBottom 48
+  headerOuter: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     paddingHorizontal: 28,
     paddingTop: 16,
-    paddingBottom: 8,
+    paddingBottom: 20,
   },
 
+  // Stitch JSX: flexColumn, gap 32
+  headerLeft: {
+    flexDirection: "column",
+    gap: 32,
+    flex: 1,
+  },
+
+  // Stitch JSX: fontSize 48, fontWeight 800, letterSpacing -1.2, lineHeight 48
   balanceAmount: {
-    fontSize: 42,
+    fontSize: 48,
     fontWeight: "800",
     color: "#000000",
-    letterSpacing: -1.05,
-    lineHeight: 42,
+    letterSpacing: -1.2,
+    lineHeight: 48,
   },
 
+  // Stitch JSX: 40×40, solo icono, sin fondo ni sombra
   settingsBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 9999,
-    backgroundColor: "#FFFFFF",
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 10,
   },
 
   chartWrapper: {
@@ -227,8 +235,8 @@ const styles = StyleSheet.create({
   chartPlaceholder: {
     marginHorizontal: 28,
     marginVertical: 20,
-    height: 120,
-    borderRadius: 20,
+    height: 200,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.5,
@@ -243,7 +251,7 @@ const styles = StyleSheet.create({
 
   // ── Lista con scroll ─────────────────────────────────────────────────────────
   txScrollView: {
-    flex: 1, // ocupa todo el espacio restante
+    flex: 1,
   },
 
   txScrollContent: {
@@ -252,7 +260,7 @@ const styles = StyleSheet.create({
   },
 
   dayGroup: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
 
   dayHeader: {
@@ -262,19 +270,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
 
+  // Stitch JSX: fontSize 12, fontWeight 900, letterSpacing 2.4
   dayLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "rgba(0,0,0,0.3)",
-    letterSpacing: 1.65,
-    lineHeight: 16.5,
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#000000",
+    letterSpacing: 2.4,
+    lineHeight: 18,
   },
 
+  // Stitch JSX: fontSize 12, fontWeight 900
   dayTotal: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "rgba(0,0,0,0.3)",
-    letterSpacing: -0.28,
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#000000",
   },
 
   // ── Estado vacío ─────────────────────────────────────────────────────────────

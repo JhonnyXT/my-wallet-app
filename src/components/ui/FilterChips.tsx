@@ -10,19 +10,20 @@
 import { useState, useRef, useEffect } from "react";
 import {
   View,
-  Pressable,
   Text,
   StyleSheet,
   Modal,
   TouchableWithoutFeedback,
+  TouchableOpacity,
+  Pressable,
   Animated,
 } from "react-native";
 
 const PERIODS = ["Este mes", "Esta semana", "Este año", "Todo"];
 const WALLETS = ["Personal", "Trabajo", "Ahorros"];
 
-// ─── Chevron CSS (sin SVG, funciona igual en todas las plataformas) ──────────
-function ChevronIcon({ size = 10 }: { size?: number }) {
+// ─── Chevron CSS ─────────────────────────────────────────────────────────────
+function ChevronIcon({ size = 10, color = "#000" }: { size?: number; color?: string }) {
   return (
     <View style={{ width: size, height: size / 2, marginTop: 2 }}>
       <View
@@ -32,7 +33,7 @@ function ChevronIcon({ size = 10 }: { size?: number }) {
           top: 0,
           width: size / 2 + 1,
           height: 1.5,
-          backgroundColor: "#000",
+          backgroundColor: color,
           borderRadius: 1,
           transform: [{ rotate: "35deg" }, { translateY: 2 }],
         }}
@@ -44,7 +45,7 @@ function ChevronIcon({ size = 10 }: { size?: number }) {
           top: 0,
           width: size / 2 + 1,
           height: 1.5,
-          backgroundColor: "#000",
+          backgroundColor: color,
           borderRadius: 1,
           transform: [{ rotate: "-35deg" }, { translateY: 2 }],
         }}
@@ -178,16 +179,13 @@ function Chip({ label, onPress }: ChipProps) {
   };
 
   return (
-    <Pressable
-      ref={ref as React.RefObject<View>}
-      onPress={handlePress}
-      style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
-    >
-      <View style={styles.chipContent}>
-        <Text style={styles.chipText}>{label}</Text>
-        <ChevronIcon size={12} />
-      </View>
-    </Pressable>
+    <View ref={ref} style={styles.chip}>
+      <TouchableOpacity activeOpacity={0.7} onPress={handlePress}>
+        <View style={styles.chipContent}>
+          <Text style={styles.chipText}>{label}</Text>
+        </View>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -219,42 +217,33 @@ export function FilterChips() {
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  // ── Fila de chips ────────────────────────────────────────────────────────────
+  // ── Fila de chips ─────────────────────────────────────────────────────────────
+  // Sin paddingHorizontal: el padre (headerOuter en index.tsx) ya tiene paddingH 28
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 28,
-    paddingBottom: 20,
-    paddingTop: 12,
   },
 
+  // Estilo toggle minimalista — mismo patrón que Gasto/Ingreso en active-expense
+  // Píldora blanca con borde oscuro sutil, texto negro, chevron pequeño
+  // View externo con el borde — garantiza visibilidad en Android
   chip: {
     backgroundColor: "#FFFFFF",
     borderRadius: 9999,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 10,
+    borderWidth: 1.5,
+    borderColor: "#D4D4D4",
+    overflow: "hidden",
   },
-  chipPressed: { opacity: 0.72 },
-
   chipContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 9,
-    paddingLeft: 16,
-    paddingRight: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 22,
   },
-
   chipText: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "600",
     color: "#000000",
-    lineHeight: 18,
-    letterSpacing: -0.1,
+    lineHeight: 20,
   },
 
   // ── Dropdown ─────────────────────────────────────────────────────────────────

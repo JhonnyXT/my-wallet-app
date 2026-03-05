@@ -119,12 +119,13 @@ const styles = StyleSheet.create({
     color: "#000000",
     lineHeight: 25.5,
   },
+  // Stitch JSX: color rgba(0,0,0,0.4), fontSize 11, weight 700, letterSpacing 0.28
   meta: {
-    fontSize: 11,    // Figma: 11px
-    fontWeight: "700", // Figma: weight 700
-    color: "rgba(0,0,0,0.3)", // Figma: rgba(0,0,0,0.3)
+    fontSize: 11,
+    fontWeight: "700",
+    color: "rgba(0,0,0,0.4)",
     lineHeight: 16.5,
-    letterSpacing: -0.28, // Figma: letterSpacing -0.28px
+    letterSpacing: 0.28,
   },
   amount: {
     fontSize: 18,    // Figma: 18px

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View, Text, TouchableOpacity, TextInput, ScrollView,
   StyleSheet, Modal, TouchableWithoutFeedback,
@@ -6,7 +6,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { X, Check, Plus, ChevronDown, Edit3 } from "lucide-react-native";
+import {
+  X, Check, Plus, Edit3,
+  Calendar, RefreshCw, UtensilsCrossed, Wallet,
+} from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 
 import { useExpenseStore, DateOption, RecurrenceType, AccountType } from "@/src/store/useExpenseStore";
@@ -92,20 +95,20 @@ function SelectorSheet({
   );
 }
 
-// ─── Selector pill ────────────────────────────────────────────────────────────
-// TouchableOpacity soporta flexDirection row en Android sin bugs
-function SelPill({
-  label, emoji, onPress,
-}: { label: string; emoji?: string; onPress: () => void }) {
+// ─── Selector icon-button (icono arriba + etiqueta abajo) ─────────────────────
+function SelIconBtn({
+  icon, label, onPress,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+}) {
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={onPress}
-      style={s.selPill}
-    >
-      {emoji ? <Text style={s.selEmoji}>{emoji}</Text> : null}
-      <Text style={s.selLabel} numberOfLines={1}>{label}</Text>
-      <ChevronDown size={12} color={SLATE_400} strokeWidth={2.5} />
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={s.selIconBtn}>
+      <View style={s.selIconCircle}>
+        {icon}
+      </View>
+      <Text style={s.selIconLabel} numberOfLines={1}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -244,16 +247,28 @@ export default function ActiveExpenseScreen() {
           </View>
         </View>
 
-        {/* Selector pills 2×2 */}
-        <View style={s.selGrid}>
-          <View style={s.selRow}>
-            <SelPill label={dateLabel}    onPress={() => setActiveSheet("date")} />
-            <SelPill label={recLabel}     onPress={() => setActiveSheet("recurrence")} />
-          </View>
-          <View style={s.selRow}>
-            <SelPill label={catLabel}     onPress={() => setActiveSheet("category")} />
-            <SelPill label={accountLabel} onPress={() => setActiveSheet("account")} />
-          </View>
+        {/* Selectores — fila de 4 iconos */}
+        <View style={s.selRow}>
+          <SelIconBtn
+            icon={<Calendar size={20} color={SLATE_500} strokeWidth={1.8} />}
+            label={dateLabel}
+            onPress={() => setActiveSheet("date")}
+          />
+          <SelIconBtn
+            icon={<RefreshCw size={20} color={SLATE_500} strokeWidth={1.8} />}
+            label={recLabel}
+            onPress={() => setActiveSheet("recurrence")}
+          />
+          <SelIconBtn
+            icon={<UtensilsCrossed size={20} color={SLATE_500} strokeWidth={1.8} />}
+            label={catLabel}
+            onPress={() => setActiveSheet("category")}
+          />
+          <SelIconBtn
+            icon={<Wallet size={20} color={SLATE_500} strokeWidth={1.8} />}
+            label={accountLabel}
+            onPress={() => setActiveSheet("account")}
+          />
         </View>
 
         {/* Transcripción */}
@@ -369,29 +384,38 @@ const s = StyleSheet.create({
   },
   toggleLabel: { fontSize: 14, fontWeight: "600" },
 
-  // Selector pills — TouchableOpacity acepta flexDirection row en Android
-  selGrid: { marginBottom: 20, gap: 10 },
-  selRow:  { flexDirection: "row", gap: 10 },
-  selPill: {
+  // Selectores icon-button (fila de 4)
+  selRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+    gap: 8,
+  },
+  selIconBtn: {
     flex: 1,
-    flexDirection: "row",       // directo en TouchableOpacity, funciona en Android ✓
     alignItems: "center",
-    height: 44,
-    paddingHorizontal: 14,
-    backgroundColor: WHITE,
+    gap: 7,
+  },
+  selIconCircle: {
+    width: 52,
+    height: 52,
     borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: BORDER,
-    gap: 6,
-    // SIN overflow:hidden — esa propiedad recorta el contenido en Android
+    backgroundColor: WHITE,
+    alignItems: "center",
+    justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
     elevation: 2,
   },
-  selEmoji: { fontSize: 15 },
-  selLabel: { flex: 1, fontSize: 14, fontWeight: "500", color: "#475569" },
+  selIconLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: SLATE_500,
+    textAlign: "center",
+    letterSpacing: 0.1,
+  },
 
   // Transcripción — flex:1 llena exactamente el espacio restante
   transcriptBox: {

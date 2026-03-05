@@ -21,8 +21,8 @@ import Animated, {
   withSequence,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import { useUIStore } from "@/src/store/useUIStore";
-import { useVoiceExpense } from "@/src/features/voice/useVoiceExpense";
 import { DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -30,12 +30,14 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export function FloatingDock({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const openExpenseInput = useUIStore((s) => s.openExpenseInput);
-  const { isListening, startListening, stopListening } = useVoiceExpense();
 
   const micScale = useSharedValue(1);
   const micStyle = useAnimatedStyle(() => ({
     transform: [{ scale: micScale.value }],
   }));
+
+  // isListening ya no viene de useVoiceExpense — se maneja en el modal
+  const isListening = false;
 
   function navigateTo(name: string) {
     const route = state.routes.find((r) => r.name === name);
@@ -70,8 +72,8 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
       withSpring(0.88, { damping: 10 }),
       withSpring(1.0, { damping: 14 })
     );
-    if (isListening) stopListening();
-    else await startListening();
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push("/voice-input");
   }
 
   const currentRoute = state.routes[state.index]?.name;

@@ -1,107 +1,146 @@
 /**
- * Active Expense Input State — replica pixel-perfect de Stitch.
+ * Active Expense Input State — layout fiel al diseño Stitch.
  *
- * Flujo: voice-input → (2s) → este modal
- * Estructura:
- *   • ScrollView: Monto · Pills de selector · Data pills · Transcripción
- *   • Footer fijo: barra de acción (X | Nuevo Gasto | ✓) + tags
+ * Estructura (sin scroll):
+ *  ┌─────────────────────────────────────┐  ← insets.top
+ *  │         $ 25.000  [− Gasto][+ Ing]  │  ← monto + toggle
+ *  │  [📅 Ayer ∨]  [🔄 Una vez ∨]       │  ← selector row 1
+ *  │  [🚗 Transp ∨]  [💵 Efectivo ∨]    │  ← selector row 2
+ *  │  [🚗 Categoría · Transp] [Monto]    │  ← data pills row 1
+ *  │  [Nota · Airport shuttle ...]       │  ← data pill row 2
+ *  │  ╔ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ╗   │
+ *  │  ║  texto transcripción (flex:1)║   │  ← transcripción
+ *  │  ╚ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ╝   │
+ *  ├─────────────────────────────────────┤
+ *  │  [X]      Nuevo Gasto       [✓]    │  ← header-bar (bottom)
+ *  │  #travel  #work  #food  [+tag]     │  ← tags
+ *  └─────────────────────────────────────┘  ← insets.bottom
  */
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  View,
-  Text,
-  Pressable,
-  ScrollView,
-  TextInput,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
+  View, Text, Pressable, TextInput, ScrollView,
+  StyleSheet, Modal, TouchableWithoutFeedback,
+  LayoutAnimation, Platform, UIManager, KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { X, Check, ChevronDown, Plus, Edit3 } from "lucide-react-native";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
-import { useExpenseStore, DateOption, RecurrenceType, AccountType } from "@/src/store/useExpenseStore";
+import {
+  useExpenseStore, DateOption, RecurrenceType, AccountType,
+} from "@/src/store/useExpenseStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
+import { processVoiceInput } from "@/src/utils/voiceParser";
 
-// ─── Constantes de diseño (Stitch Figma) ─────────────────────────────────────
-const BG = "#F8FAFC";
-const BORDER = "#F1F5F9";
-const RED = "#EF4444";
-const BLUE = "#135BEC";
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// ─── Paleta ───────────────────────────────────────────────────────────────────
+const BG        = "#F8FAFC";
+const WHITE     = "#FFFFFF";
+const BORDER    = "#F1F5F9";
+const BORDER2   = "#E2E8F0";
+const BLUE      = "#135BEC";
+const RED       = "#EF4444";
+const GREEN     = "#22C55E";
 const SLATE_900 = "#0F172A";
 const SLATE_600 = "#475569";
 const SLATE_400 = "#94A3B8";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function fmtCOP(amount: number): string {
-  return `$ ${Math.round(amount).toLocaleString("es-ES")}`;
-}
-
+// ─── Opciones ─────────────────────────────────────────────────────────────────
 const DATE_OPTIONS: { key: DateOption; label: string }[] = [
-  { key: "today", label: "Hoy" },
-  { key: "yesterday", label: "Ayer" },
+  { key: "today",              label: "Hoy" },
+  { key: "yesterday",          label: "Ayer" },
   { key: "daybeforeyesterday", label: "Anteayer" },
-  { key: "custom", label: "Calendario" },
+  { key: "custom",             label: "Calendario" },
 ];
-
 const RECURRENCE_OPTIONS: { key: RecurrenceType; label: string }[] = [
-  { key: "once", label: "Una vez" },
-  { key: "weekly", label: "Semanal" },
+  { key: "once",     label: "Una vez" },
+  { key: "weekly",   label: "Semanal" },
   { key: "biweekly", label: "Quincenal" },
-  { key: "monthly", label: "Mensual" },
-  { key: "yearly", label: "Anual" },
+  { key: "monthly",  label: "Mensual" },
+  { key: "yearly",   label: "Anual" },
 ];
-
-const ACCOUNT_OPTIONS: { key: AccountType; label: string }[] = [
-  { key: "cash", label: "Efectivo" },
-  { key: "savings", label: "Ahorros" },
-  { key: "credit", label: "Tarjeta" },
+const CATEGORY_OPTIONS: { key: string; label: string; emoji: string }[] = [
+  { key: "🍔", label: "Comida",          emoji: "🍔" },
+  { key: "🚗", label: "Transporte",      emoji: "🚗" },
+  { key: "🏠", label: "Hogar",           emoji: "🏠" },
+  { key: "🛍️", label: "Compras",         emoji: "🛍️" },
+  { key: "💊", label: "Salud",           emoji: "💊" },
+  { key: "🎮", label: "Entretenimiento", emoji: "🎮" },
+  { key: "🎓", label: "Educación",       emoji: "🎓" },
+  { key: "👤", label: "Personal",        emoji: "👤" },
+  { key: "💰", label: "General",         emoji: "💰" },
 ];
-
+const ACCOUNT_OPTIONS: { key: AccountType; label: string; emoji: string }[] = [
+  { key: "cash",    label: "Efectivo",  emoji: "💵" },
+  { key: "savings", label: "Ahorros",   emoji: "🏦" },
+  { key: "credit",  label: "Tarjeta",   emoji: "💳" },
+];
 const SUGGESTED_TAGS = ["#viaje", "#trabajo", "#comida", "#salud", "#ocio"];
 
-// ─── Componente pill selector (scroll horizontal) ────────────────────────────
-function PillSelector<T extends string>({
-  options,
-  selected,
-  onSelect,
+// ─── Bottom-sheet selector ────────────────────────────────────────────────────
+interface SheetOption { key: string; label: string; emoji?: string }
+function SelectorSheet({
+  visible, title, options, selected, onSelect, onClose,
 }: {
-  options: { key: T; label: string }[];
-  selected: T;
-  onSelect: (k: T) => void;
+  visible: boolean; title: string; options: SheetOption[];
+  selected: string; onSelect: (k: string) => void; onClose: () => void;
 }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
-      {options.map((opt) => {
-        const active = opt.key === selected;
-        return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={sheet.backdrop} />
+      </TouchableWithoutFeedback>
+      <View style={sheet.container}>
+        <View style={sheet.handle} />
+        <Text style={sheet.title}>{title}</Text>
+        {options.map((opt) => (
           <Pressable
             key={opt.key}
-            onPress={() => onSelect(opt.key)}
-            style={[styles.pill, active && styles.pillActive]}
+            onPress={() => { onSelect(opt.key); onClose(); }}
+            style={({ pressed }) => [sheet.option, pressed && sheet.optionPressed]}
           >
-            <Text style={[styles.pillText, active && styles.pillTextActive]}>
+            {opt.emoji ? <Text style={sheet.optionEmoji}>{opt.emoji}</Text> : null}
+            <Text style={[sheet.optionText, opt.key === selected && sheet.optionTextActive]}>
               {opt.label}
             </Text>
-            {!active && <ChevronDown size={12} color={SLATE_600} strokeWidth={2} />}
+            {opt.key === selected && <Check size={16} color={BLUE} strokeWidth={2.5} />}
           </Pressable>
-        );
-      })}
-    </ScrollView>
+        ))}
+      </View>
+    </Modal>
   );
 }
 
-// ─── Data pill (Category / Amount / Note) ────────────────────────────────────
-function DataPill({ label, value, emoji }: { label: string; value: string; emoji?: string }) {
+// ─── Selector pill (estilo Stitch: pequeño, 34px) ─────────────────────────────
+function SelectorPill({
+  emoji, label, onPress,
+}: { emoji: string; label: string; onPress: () => void }) {
   return (
-    <View style={styles.dataPill}>
-      {emoji ? <Text style={styles.dataPillEmoji}>{emoji}</Text> : null}
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.selPill, pressed && { opacity: 0.7 }]}
+    >
+      <Text style={styles.selPillEmoji}>{emoji}</Text>
+      <Text style={styles.selPillLabel} numberOfLines={1}>{label}</Text>
+      <ChevronDown size={10} color={SLATE_400} strokeWidth={2.5} />
+    </Pressable>
+  );
+}
+
+// ─── Data pill ────────────────────────────────────────────────────────────────
+function DataPill({
+  prefix, label, value, accent, flex,
+}: { prefix?: string; label: string; value: string; accent?: boolean; flex?: boolean }) {
+  return (
+    <View style={[styles.dataPill, flex && { flex: 1 }]}>
+      {prefix ? <Text style={styles.dataPillPrefix}>{prefix}</Text> : null}
       <Text style={styles.dataPillLabel}>{label}</Text>
       <Text
-        style={[styles.dataPillValue, label === "Monto" && { color: RED }]}
+        style={[styles.dataPillValue, accent && { color: RED, fontWeight: "700" }]}
         numberOfLines={1}
       >
         {value}
@@ -110,151 +149,186 @@ function DataPill({ label, value, emoji }: { label: string; value: string; emoji
   );
 }
 
-// ─── Pantalla principal ───────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function fmtCOP(n: number) {
+  return n > 0 ? `$ ${Math.round(n).toLocaleString("es-ES")}` : "$ 0";
+}
+
+// ─── Pantalla ─────────────────────────────────────────────────────────────────
 export default function ActiveExpenseScreen() {
   const insets = useSafeAreaInsets();
-  const {
-    amount, categoryEmoji, categoryName,
-    date, note, rawTranscript, recurrence, account, tags,
-    setDate, setRecurrence, setAccount, setNote,
-    addTag, removeTag, reset,
-  } = useExpenseStore();
-
+  const store = useExpenseStore();
   const addTransaction = useFinanceStore((s) => s.addTransaction);
+
   const [tagInput, setTagInput] = useState("");
+  const [activeSheet, setActiveSheet] = useState<
+    "date" | "recurrence" | "category" | "account" | null
+  >(null);
+  const noteRef = useRef<TextInput>(null);
 
-  // ─── Guardar gasto ───────────────────────────────────────────────────────
+  // ─── Parser reactivo ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!store.note || store.note.length < 3) return;
+    const parsed = processVoiceInput(store.note);
+    LayoutAnimation.configureNext({ duration: 200, update: { type: "easeInEaseOut" } });
+    if (parsed.amount && parsed.amount > 0) store.setAmount(parsed.amount);
+    if (parsed.date) store.setDate(parsed.date);
+    if (parsed.categoryEmoji && parsed.categoryName)
+      store.setCategory(parsed.categoryEmoji, parsed.categoryName);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.note]);
+
+  // ─── Toggle gasto/ingreso ────────────────────────────────────────────────
+  function handleToggle() {
+    LayoutAnimation.configureNext({ duration: 220, update: { type: "easeInEaseOut" } });
+    store.toggleExpense();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
+
+  // ─── Confirmar ───────────────────────────────────────────────────────────
   async function handleConfirm() {
-    if (amount <= 0) return;
+    if (store.amount <= 0) return;
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await addTransaction(amount, note || rawTranscript || "Gasto por voz", categoryEmoji);
-    reset();
+    await addTransaction(
+      store.amount,
+      store.note || store.rawTranscript || "Gasto",
+      store.categoryEmoji,
+    );
+    store.reset();
     router.dismissAll();
   }
 
-  function handleClose() {
-    reset();
-    router.dismissAll();
-  }
+  function handleClose() { store.reset(); router.dismissAll(); }
 
   function handleAddTag() {
     const t = tagInput.trim().replace(/^#/, "");
-    if (t) {
-      addTag(`#${t}`);
-      setTagInput("");
-    }
+    if (t) { store.addTag(`#${t}`); setTagInput(""); }
   }
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─── Labels ──────────────────────────────────────────────────────────────
+  const dateLabel    = DATE_OPTIONS.find((o) => o.key === store.date)?.label ?? "Hoy";
+  const recLabel     = RECURRENCE_OPTIONS.find((o) => o.key === store.recurrence)?.label ?? "Una vez";
+  const accountLabel = ACCOUNT_OPTIONS.find((o) => o.key === store.account)?.label ?? "Efectivo";
+  const accountEmoji = ACCOUNT_OPTIONS.find((o) => o.key === store.account)?.emoji ?? "💵";
+  const amountColor  = store.isExpense ? RED : GREEN;
+  const displayAmt   = store.amount > 0
+    ? `${store.isExpense ? "−" : "+"} ${fmtCOP(store.amount)}`
+    : "$ 0";
+  const displayTags  = store.tags.length > 0 ? store.tags : SUGGESTED_TAGS;
+
   return (
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/* ══════════════════════════════════════════════════════════════════
-          CONTENIDO SCROLLEABLE
-          ══════════════════════════════════════════════════════════════════ */}
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* ── Monto principal ───────────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.duration(350)} style={styles.amountSection}>
-          <Text style={styles.amountText}>
-            {amount > 0 ? fmtCOP(amount) : "$ 0"}
-          </Text>
-        </Animated.View>
+      {/* ════════ HEADER (arriba, como en Stitch) ════════ */}
+      <View style={[styles.footerHeader, { paddingTop: insets.top + 8 }]}>
+        <Pressable onPress={handleClose} style={styles.footerCloseBtn} hitSlop={8}>
+          <X size={18} color={SLATE_600} strokeWidth={2} />
+        </Pressable>
+        <Text style={styles.footerTitle}>Nuevo Gasto</Text>
+        <Pressable
+          onPress={handleConfirm}
+          style={[styles.confirmBtn, store.amount <= 0 && styles.confirmBtnDisabled]}
+          disabled={store.amount <= 0}
+        >
+          <Check size={18} color={WHITE} strokeWidth={2.5} />
+        </Pressable>
+      </View>
 
-        {/* ── Pills de selección rápida ─────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(60).duration(350)} style={styles.selectorsSection}>
-          {/* Fecha */}
-          <PillSelector
-            options={DATE_OPTIONS}
-            selected={date}
-            onSelect={setDate}
-          />
-          {/* Recurrencia */}
-          <PillSelector
-            options={RECURRENCE_OPTIONS}
-            selected={recurrence}
-            onSelect={setRecurrence}
-          />
-          {/* Cuenta */}
-          <PillSelector
-            options={ACCOUNT_OPTIONS}
-            selected={account}
-            onSelect={setAccount}
-          />
-        </Animated.View>
+      {/* ════════ ÁREA DE CONTENIDO (sin scroll) ════════ */}
+      <View style={[styles.content, { paddingTop: 8 }]}>
 
-        {/* ── Data pills (resultado del parser) ────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(120).duration(350)} style={styles.dataPillsRow}>
-          <DataPill
-            emoji={categoryEmoji}
-            label="Categoría"
-            value={categoryName}
-          />
-          <DataPill
-            label="Monto"
-            value={amount > 0 ? fmtCOP(amount) : "—"}
-          />
-          <DataPill
-            label="Nota"
-            value={note || rawTranscript || "—"}
-          />
-        </Animated.View>
+        {/* ── Monto + toggle ─────────────────────────── */}
+        <View style={styles.amountSection}>
+          <Text style={[styles.amountText, { color: amountColor }]}>{displayAmt}</Text>
+          <View style={styles.toggleRow}>
+            <Pressable
+              onPress={() => !store.isExpense && handleToggle()}
+              style={[styles.toggleBtn, store.isExpense && styles.toggleActive(RED)]}
+            >
+              <Text style={[styles.toggleLabel, store.isExpense && styles.toggleLabelActive]}>
+                − Gasto
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => store.isExpense && handleToggle()}
+              style={[styles.toggleBtn, !store.isExpense && styles.toggleActive(GREEN)]}
+            >
+              <Text style={[styles.toggleLabel, !store.isExpense && styles.toggleLabelActive]}>
+                + Ingreso
+              </Text>
+            </Pressable>
+          </View>
+        </View>
 
-        {/* ── Área de transcripción editable ───────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(180).duration(350)} style={styles.transcriptBox}>
+        {/* ── Selector pills 2x2 ─────────────────────── */}
+        <View style={styles.selectorWrapper}>
+          <View style={styles.selRow}>
+            <SelectorPill emoji="📅"                label={dateLabel}        onPress={() => setActiveSheet("date")} />
+            <SelectorPill emoji="🔄"                label={recLabel}         onPress={() => setActiveSheet("recurrence")} />
+          </View>
+          <View style={styles.selRow}>
+            <SelectorPill emoji={store.categoryEmoji} label={store.categoryName} onPress={() => setActiveSheet("category")} />
+            <SelectorPill emoji={accountEmoji}       label={accountLabel}     onPress={() => setActiveSheet("account")} />
+          </View>
+        </View>
+
+        {/* ── Data pills ─────────────────────────────── */}
+        <View style={styles.dataPillsWrapper}>
+          <View style={styles.dataPillsRow}>
+            <DataPill prefix={store.categoryEmoji} label="Categoría" value={store.categoryName} flex />
+            <DataPill label="Monto" value={store.amount > 0 ? fmtCOP(store.amount) : "—"} accent />
+          </View>
+          <DataPill label="Nota" value={store.note || store.rawTranscript || "—"} />
+        </View>
+
+        {/* ── Transcripción (flex: 1) ─────────────────── */}
+        <View style={styles.transcriptWrapper}>
+          {/* Dashed border overlay */}
+          <View style={styles.transcriptBorder} pointerEvents="none" />
           <TextInput
-            value={note || rawTranscript}
-            onChangeText={setNote}
+            ref={noteRef}
+            value={store.note || store.rawTranscript}
+            onChangeText={store.setNote}
             multiline
             style={styles.transcriptInput}
             placeholderTextColor={SLATE_400}
-            placeholder="Descripción del gasto..."
+            placeholder="Describe tu gasto aquí..."
+            textAlignVertical="top"
           />
-          <View style={styles.transcriptEditIcon}>
-            <Edit3 size={16} color={SLATE_400} strokeWidth={1.5} />
-          </View>
-        </Animated.View>
-      </ScrollView>
+          <Pressable style={styles.editIcon} onPress={() => noteRef.current?.focus()}>
+            <Edit3 size={15} color={SLATE_400} strokeWidth={1.5} />
+          </Pressable>
+        </View>
 
-      {/* ══════════════════════════════════════════════════════════════════
-          FOOTER FIJO (barra de acción + tags)
-          ══════════════════════════════════════════════════════════════════ */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 8 }]}>
+      </View>
+
+      {/* ════════ FOOTER (tags en la parte inferior) ════════ */}
+      <View style={styles.footer}>
+
         {/* Tags */}
-        <View style={styles.tagsSection}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {/* Tags actuales */}
-            {(tags.length > 0 ? tags : SUGGESTED_TAGS).map((tag) => (
+        <View style={[styles.tagsBar, { paddingBottom: insets.bottom + 6 }]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tagsContent}
+          >
+            {displayTags.map((tag) => (
               <Pressable
                 key={tag}
                 onPress={() =>
-                  tags.includes(tag) ? removeTag(tag) : addTag(tag)
+                  store.tags.includes(tag) ? store.removeTag(tag) : store.addTag(tag)
                 }
-                style={[
-                  styles.tagPill,
-                  tags.includes(tag) && styles.tagPillActive,
-                ]}
+                style={[styles.tagPill, store.tags.includes(tag) && styles.tagPillActive]}
               >
-                <Text
-                  style={[
-                    styles.tagText,
-                    tags.includes(tag) && styles.tagTextActive,
-                  ]}
-                >
+                <Text style={[styles.tagText, store.tags.includes(tag) && styles.tagTextActive]}>
                   {tag}
                 </Text>
               </Pressable>
             ))}
-
-            {/* Input para nuevo tag */}
             <View style={styles.tagInputPill}>
-              <Plus size={12} color={SLATE_400} strokeWidth={2} />
+              <Plus size={11} color={SLATE_400} strokeWidth={2} />
               <TextInput
                 value={tagInput}
                 onChangeText={setTagInput}
@@ -269,257 +343,228 @@ export default function ActiveExpenseScreen() {
           </ScrollView>
         </View>
 
-        {/* Barra de acción: X | título | ✓ */}
-        <View style={styles.actionBar}>
-          {/* Botón cerrar */}
-          <Pressable onPress={handleClose} style={styles.closeBtn} hitSlop={8}>
-            <X size={18} color={SLATE_600} strokeWidth={2} />
-          </Pressable>
-
-          {/* Título centrado */}
-          <Text style={styles.actionTitle}>Nuevo Gasto</Text>
-
-          {/* Botón confirmar */}
-          <Pressable
-            onPress={handleConfirm}
-            style={[
-              styles.confirmBtn,
-              amount <= 0 && styles.confirmBtnDisabled,
-            ]}
-            disabled={amount <= 0}
-          >
-            <Check size={18} color="#FFFFFF" strokeWidth={2.5} />
-          </Pressable>
-        </View>
       </View>
+
+      {/* ════════ BOTTOM SHEETS ════════ */}
+      <SelectorSheet
+        visible={activeSheet === "date"} title="Fecha"
+        options={DATE_OPTIONS} selected={store.date}
+        onSelect={(k) => store.setDate(k as DateOption)}
+        onClose={() => setActiveSheet(null)}
+      />
+      <SelectorSheet
+        visible={activeSheet === "recurrence"} title="Recurrencia"
+        options={RECURRENCE_OPTIONS} selected={store.recurrence}
+        onSelect={(k) => store.setRecurrence(k as RecurrenceType)}
+        onClose={() => setActiveSheet(null)}
+      />
+      <SelectorSheet
+        visible={activeSheet === "category"} title="Categoría"
+        options={CATEGORY_OPTIONS} selected={store.categoryEmoji}
+        onSelect={(k) => {
+          const cat = CATEGORY_OPTIONS.find((c) => c.key === k);
+          if (cat) store.setCategory(cat.emoji, cat.label);
+        }}
+        onClose={() => setActiveSheet(null)}
+      />
+      <SelectorSheet
+        visible={activeSheet === "account"} title="Cuenta"
+        options={ACCOUNT_OPTIONS} selected={store.account}
+        onSelect={(k) => store.setAccount(k as AccountType)}
+        onClose={() => setActiveSheet(null)}
+      />
     </KeyboardAvoidingView>
   );
 }
 
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  screen: {
+  screen: { flex: 1, backgroundColor: BG },
+
+  // Área de contenido (sin scroll)
+  content: {
     flex: 1,
-    backgroundColor: BG,
-  },
-
-  // ── Scroll ─────────────────────────────────────────────────────────────────
-  scroll: { flex: 1 },
-  scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 16,
   },
 
-  // ── Monto ──────────────────────────────────────────────────────────────────
+  // Monto
   amountSection: {
     alignItems: "center",
-    paddingBottom: 24,
+    paddingTop: 4,
+    paddingBottom: 20,
   },
   amountText: {
-    fontSize: 56,
+    fontSize: 60,
     fontWeight: "700",
-    color: RED,
     letterSpacing: -1.5,
-    lineHeight: 60,
+    lineHeight: 66,
     textAlign: "center",
+    marginBottom: 12,
   },
+  toggleRow: { flexDirection: "row", gap: 8 },
+  toggleBtn: {
+    paddingVertical: 5, paddingHorizontal: 16,
+    borderRadius: 9999, borderWidth: 1.5, borderColor: BORDER2,
+    backgroundColor: WHITE,
+  },
+  toggleActive: (color: string) => ({
+    backgroundColor: color, borderColor: color,
+  }),
+  toggleLabel: { fontSize: 12, fontWeight: "600", color: SLATE_600 },
+  toggleLabelActive: { color: WHITE },
 
-  // ── Selectors ──────────────────────────────────────────────────────────────
-  selectorsSection: {
-    gap: 10,
-    marginBottom: 24,
-  },
-  pillScroll: {
-    flexGrow: 0,
-  },
-  pill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: BORDER,
-    marginRight: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  pillActive: {
-    backgroundColor: BLUE,
-    borderColor: BLUE,
-  },
-  pillText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: SLATE_900,
-    lineHeight: 20,
-  },
-  pillTextActive: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-  },
-
-  // ── Data pills ─────────────────────────────────────────────────────────────
-  dataPillsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 20,
-  },
-  dataPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 6,
+  // Selectores
+  selectorWrapper: { marginBottom: 28 },
+  selRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
+  selPill: {
+    flex: 1, height: 34,
+    flexDirection: "row", alignItems: "center", gap: 6,
     paddingHorizontal: 12,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: BORDER,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-    maxWidth: "100%",
+    backgroundColor: WHITE,
+    borderRadius: 9999, borderWidth: 1, borderColor: BORDER,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05, shadowRadius: 20, elevation: 2,
   },
-  dataPillEmoji: { fontSize: 14, lineHeight: 18 },
+  selPillEmoji: { fontSize: 13 },
+  selPillLabel: {
+    flex: 1, fontSize: 12, fontWeight: "600", color: SLATE_900,
+  },
+
+  // Data pills
+  dataPillsWrapper: { marginBottom: 16 },
+  dataPillsRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
+  dataPill: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingVertical: 6, paddingHorizontal: 12,
+    backgroundColor: WHITE, borderRadius: 9999,
+    borderWidth: 1, borderColor: BORDER,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05, shadowRadius: 20, elevation: 1,
+    alignSelf: "flex-start",
+  },
+  dataPillPrefix: { fontSize: 12 },
   dataPillLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: SLATE_600,
-    letterSpacing: -0.3,
+    fontSize: 12, fontWeight: "600", color: SLATE_600, letterSpacing: -0.3,
   },
   dataPillValue: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: SLATE_900,
-    flexShrink: 1,
+    fontSize: 12, fontWeight: "500", color: SLATE_900,
+    flexShrink: 1, maxWidth: 140,
   },
 
-  // ── Transcripción ──────────────────────────────────────────────────────────
-  transcriptBox: {
-    minHeight: 140,
-    backgroundColor: "rgba(255,255,255,0.6)",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: "#E2E8F0",
-    padding: 20,
+  // Transcripción
+  transcriptWrapper: {
+    flex: 1,
     marginBottom: 8,
+    minHeight: 120,
+  },
+  transcriptBorder: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: BORDER2,
+    backgroundColor: "rgba(255,255,255,0.5)",
   },
   transcriptInput: {
+    flex: 1,
+    padding: 20,
     fontSize: 18,
     fontWeight: "500",
     color: "#1E293B",
     lineHeight: 30,
-    flex: 1,
     textAlignVertical: "top",
+    backgroundColor: "transparent",
   },
-  transcriptEditIcon: {
-    position: "absolute",
-    right: 16,
-    bottom: 16,
-  },
+  editIcon: { position: "absolute", right: 14, bottom: 14 },
 
-  // ── Footer ─────────────────────────────────────────────────────────────────
+  // Footer (abajo)
   footer: {
-    backgroundColor: "rgba(241,245,249,0.95)",
-    borderTopWidth: 1,
+    backgroundColor: BG,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "rgba(226,232,240,0.5)",
   },
-
-  // Tags
-  tagsSection: {
-    paddingVertical: 10,
-    paddingLeft: 16,
-  },
-  tagPill: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    marginRight: 8,
-  },
-  tagPillActive: {
-    backgroundColor: "#EFF6FF",
-    borderColor: "#BFDBFE",
-  },
-  tagText: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#64748B",
-  },
-  tagTextActive: {
-    color: BLUE,
-    fontWeight: "600",
-  },
-  tagInputPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderStyle: "dashed",
-  },
-  tagInputText: {
-    fontSize: 12,
-    color: SLATE_900,
-    minWidth: 40,
-    maxWidth: 80,
-    padding: 0,
-  },
-
-  // Action bar
-  actionBar: {
+  footerHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingTop: 20,
+    paddingBottom: 14,
     paddingHorizontal: 24,
-    paddingVertical: 12,
   },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
+  footerCloseBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    alignItems: "center", justifyContent: "center",
   },
-  actionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: SLATE_900,
-    letterSpacing: -0.45,
+  footerTitle: {
+    fontSize: 18, fontWeight: "700",
+    color: SLATE_900, letterSpacing: -0.45,
   },
   confirmBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: BLUE,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: BLUE,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: BLUE, alignItems: "center", justifyContent: "center",
+    shadowColor: BLUE, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35, shadowRadius: 8, elevation: 6,
   },
-  confirmBtnDisabled: {
-    backgroundColor: "#94A3B8",
-    shadowOpacity: 0,
-    elevation: 0,
+  confirmBtnDisabled: { backgroundColor: "#CBD5E1", shadowOpacity: 0, elevation: 0 },
+
+  // Tags
+  tagsBar: {
+    backgroundColor: "rgba(241,245,249,0.9)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(226,232,240,0.5)",
+    paddingTop: 10,
   },
+  tagsContent: {
+    paddingLeft: 16, paddingRight: 16, gap: 8,
+    flexDirection: "row", alignItems: "center",
+  },
+  tagPill: {
+    paddingVertical: 6, paddingHorizontal: 16,
+    backgroundColor: WHITE, borderRadius: 9999,
+    borderWidth: 1, borderColor: BORDER2,
+  },
+  tagPillActive: { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" },
+  tagText: { fontSize: 12, fontWeight: "500", color: SLATE_600 },
+  tagTextActive: { color: BLUE, fontWeight: "600" },
+  tagInputPill: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingVertical: 6, paddingHorizontal: 12,
+    backgroundColor: WHITE, borderRadius: 9999,
+    borderWidth: 1, borderColor: BORDER2, borderStyle: "dashed",
+  },
+  tagInputText: {
+    fontSize: 12, color: SLATE_900, minWidth: 36, maxWidth: 80, padding: 0,
+  },
+});
+
+// ─── Bottom-sheet estilos ─────────────────────────────────────────────────────
+const sheet = StyleSheet.create({
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(15,23,42,0.35)",
+  },
+  container: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    backgroundColor: WHITE,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingBottom: 32, paddingTop: 12,
+    shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1, shadowRadius: 20, elevation: 20,
+  },
+  handle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: "#E2E8F0", alignSelf: "center", marginBottom: 16,
+  },
+  title: {
+    fontSize: 16, fontWeight: "700", color: SLATE_900,
+    paddingHorizontal: 20, marginBottom: 8, letterSpacing: -0.3,
+  },
+  option: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    paddingVertical: 14, paddingHorizontal: 20,
+  },
+  optionPressed: { backgroundColor: "#F8FAFC" },
+  optionEmoji: { fontSize: 20, width: 28 },
+  optionText: { flex: 1, fontSize: 15, fontWeight: "400", color: SLATE_900 },
+  optionTextActive: { fontWeight: "700", color: BLUE },
 });

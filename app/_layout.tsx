@@ -42,6 +42,14 @@ export default function RootLayout() {
             headerShown: false,
           }}
         />
+        <Stack.Screen
+          name="active-expense"
+          options={{
+            presentation: "fullScreenModal",
+            animation: "slide_from_bottom",
+            headerShown: false,
+          }}
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
     </>

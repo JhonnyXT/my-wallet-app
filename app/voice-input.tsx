@@ -33,7 +33,8 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 
 import { useVoiceStore } from "@/src/store/useVoiceStore";
-import { useUIStore } from "@/src/store/useUIStore";
+import { useExpenseStore } from "@/src/store/useExpenseStore";
+import { processVoiceInput } from "@/src/utils/voiceParser";
 
 const { width: SW } = Dimensions.get("window");
 const ORB_SIZE = 192;
@@ -118,7 +119,7 @@ export default function VoiceInputScreen() {
   const insets = useSafeAreaInsets();
   const { status, transcript, errorMessage, setStatus, setTranscript, setFinalTranscript, setError, reset } =
     useVoiceStore();
-  const openExpenseInput = useUIStore((s) => s.openExpenseInput);
+  const setFromVoice = useExpenseStore((s) => s.setFromVoice);
 
   const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isListening = status === "listening";
@@ -136,16 +137,19 @@ export default function VoiceInputScreen() {
       clearSilenceTimer();
       const trimmed = text.trim();
       if (!trimmed) return;
+
       setFinalTranscript(trimmed);
       setStatus("processing");
-      // Breve delay para mostrar "Procesando..." antes de cerrar
+
+      // 2 segundos mostrando el transcript → luego navega al modal de confirmación
       setTimeout(() => {
+        const parsed = processVoiceInput(trimmed);
+        setFromVoice(parsed);
         reset();
-        router.back();
-        openExpenseInput(trimmed);
-      }, 400);
+        router.replace("/active-expense");
+      }, 2000);
     },
-    [clearSilenceTimer, openExpenseInput, reset, setFinalTranscript, setStatus]
+    [clearSilenceTimer, reset, setFinalTranscript, setFromVoice, setStatus]
   );
 
   // ─── Listeners de voz ────────────────────────────────────────────────────
@@ -264,14 +268,11 @@ export default function VoiceInputScreen() {
       <BlurView intensity={85} tint="dark" style={StyleSheet.absoluteFillObject} />
       <View style={[StyleSheet.absoluteFillObject, styles.overlay]} />
 
-      {/* ── Header ───────────────────────────────────────────────────── */}
+      {/* ── Header: solo botón cerrar ─────────────────────────────── */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Pressable onPress={handleClose} style={styles.closeBtn} hitSlop={12}>
           <X size={20} color="rgba(255,255,255,0.7)" strokeWidth={2} />
         </Pressable>
-        <Text style={styles.headerTitle}>Gasto por Voz</Text>
-        {/* Espacio vacío transparente para centrar el título */}
-        <View style={styles.closeBtnPlaceholder} />
       </View>
 
       {/* ── Orb + Transcript ─────────────────────────────────────────── */}
@@ -341,13 +342,6 @@ export default function VoiceInputScreen() {
             : "TOCA PARA INICIAR"}
         </Text>
 
-        {/* Hint pill integrado en el footer con más separación */}
-        <View style={styles.hintPill}>
-          <Sparkles size={12} color="#94A3B8" strokeWidth={1.5} />
-          <Text style={styles.hintText}>
-            Prueba "Cena 40 mil en restaurante ayer"
-          </Text>
-        </View>
       </View>
     </View>
   );
@@ -367,15 +361,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 24,
     paddingBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    letterSpacing: -0.45,
   },
   closeBtn: {
     width: 36,
@@ -384,11 +371,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
-  },
-  // Placeholder transparente (sin fondo) solo para equilibrar el flexbox del header
-  closeBtnPlaceholder: {
-    width: 36,
-    height: 36,
   },
 
   // ── Orb ─────────────────────────────────────────────────────────────────────

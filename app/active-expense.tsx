@@ -1,52 +1,27 @@
-/**
- * Active Expense Input State — layout fiel al diseño Stitch.
- *
- * Estructura (sin scroll):
- *  ┌─────────────────────────────────────┐  ← insets.top
- *  │         $ 25.000  [− Gasto][+ Ing]  │  ← monto + toggle
- *  │  [📅 Ayer ∨]  [🔄 Una vez ∨]       │  ← selector row 1
- *  │  [🚗 Transp ∨]  [💵 Efectivo ∨]    │  ← selector row 2
- *  │  [🚗 Categoría · Transp] [Monto]    │  ← data pills row 1
- *  │  [Nota · Airport shuttle ...]       │  ← data pill row 2
- *  │  ╔ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ╗   │
- *  │  ║  texto transcripción (flex:1)║   │  ← transcripción
- *  │  ╚ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ╝   │
- *  ├─────────────────────────────────────┤
- *  │  [X]      Nuevo Gasto       [✓]    │  ← header-bar (bottom)
- *  │  #travel  #work  #food  [+tag]     │  ← tags
- *  └─────────────────────────────────────┘  ← insets.bottom
- */
 import { useState, useEffect, useRef } from "react";
 import {
-  View, Text, Pressable, TextInput, ScrollView,
+  View, Text, TouchableOpacity, TextInput, ScrollView,
   StyleSheet, Modal, TouchableWithoutFeedback,
-  LayoutAnimation, Platform, UIManager, KeyboardAvoidingView,
+  LayoutAnimation, Platform, KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { X, Check, ChevronDown, Plus, Edit3 } from "lucide-react-native";
+import { X, Check, Plus, ChevronDown, Edit3 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 
-import {
-  useExpenseStore, DateOption, RecurrenceType, AccountType,
-} from "@/src/store/useExpenseStore";
+import { useExpenseStore, DateOption, RecurrenceType, AccountType } from "@/src/store/useExpenseStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { processVoiceInput } from "@/src/utils/voiceParser";
 
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-// ─── Paleta ───────────────────────────────────────────────────────────────────
-const BG        = "#F8FAFC";
-const WHITE     = "#FFFFFF";
-const BORDER    = "#F1F5F9";
-const BORDER2   = "#E2E8F0";
+// ─── Colores ──────────────────────────────────────────────────────────────────
 const BLUE      = "#135BEC";
 const RED       = "#EF4444";
 const GREEN     = "#22C55E";
+const BG        = "#F8FAFC";
+const WHITE     = "#FFFFFF";
+const BORDER    = "#E2E8F0";
 const SLATE_900 = "#0F172A";
-const SLATE_600 = "#475569";
+const SLATE_500 = "#64748B";
 const SLATE_400 = "#94A3B8";
 
 // ─── Opciones ─────────────────────────────────────────────────────────────────
@@ -63,31 +38,31 @@ const RECURRENCE_OPTIONS: { key: RecurrenceType; label: string }[] = [
   { key: "monthly",  label: "Mensual" },
   { key: "yearly",   label: "Anual" },
 ];
-const CATEGORY_OPTIONS: { key: string; label: string; emoji: string }[] = [
-  { key: "🍔", label: "Comida",          emoji: "🍔" },
-  { key: "🚗", label: "Transporte",      emoji: "🚗" },
-  { key: "🏠", label: "Hogar",           emoji: "🏠" },
-  { key: "🛍️", label: "Compras",         emoji: "🛍️" },
-  { key: "💊", label: "Salud",           emoji: "💊" },
-  { key: "🎮", label: "Entretenimiento", emoji: "🎮" },
-  { key: "🎓", label: "Educación",       emoji: "🎓" },
-  { key: "👤", label: "Personal",        emoji: "👤" },
-  { key: "💰", label: "General",         emoji: "💰" },
+const CATEGORY_OPTIONS: { key: string; label: string }[] = [
+  { key: "🍔", label: "Comida" },
+  { key: "🚗", label: "Transporte" },
+  { key: "🏠", label: "Hogar" },
+  { key: "🛍️", label: "Compras" },
+  { key: "💊", label: "Salud" },
+  { key: "🎮", label: "Entretenimiento" },
+  { key: "🎓", label: "Educación" },
+  { key: "👤", label: "Personal" },
+  { key: "💰", label: "General" },
 ];
-const ACCOUNT_OPTIONS: { key: AccountType; label: string; emoji: string }[] = [
-  { key: "cash",    label: "Efectivo",  emoji: "💵" },
-  { key: "savings", label: "Ahorros",   emoji: "🏦" },
-  { key: "credit",  label: "Tarjeta",   emoji: "💳" },
+const ACCOUNT_OPTIONS: { key: AccountType; label: string }[] = [
+  { key: "cash",    label: "Efectivo" },
+  { key: "savings", label: "Ahorros" },
+  { key: "credit",  label: "Tarjeta" },
 ];
 const SUGGESTED_TAGS = ["#viaje", "#trabajo", "#comida", "#salud", "#ocio"];
 
 // ─── Bottom-sheet selector ────────────────────────────────────────────────────
-interface SheetOption { key: string; label: string; emoji?: string }
 function SelectorSheet({
-  visible, title, options, selected, onSelect, onClose,
+  visible, title, options, selected, accent, onSelect, onClose,
 }: {
-  visible: boolean; title: string; options: SheetOption[];
-  selected: string; onSelect: (k: string) => void; onClose: () => void;
+  visible: boolean; title: string; options: { key: string; label: string }[];
+  selected: string; accent: string;
+  onSelect: (k: string) => void; onClose: () => void;
 }) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -97,101 +72,101 @@ function SelectorSheet({
       <View style={sheet.container}>
         <View style={sheet.handle} />
         <Text style={sheet.title}>{title}</Text>
-        {options.map((opt) => (
-          <Pressable
-            key={opt.key}
-            onPress={() => { onSelect(opt.key); onClose(); }}
-            style={({ pressed }) => [sheet.option, pressed && sheet.optionPressed]}
-          >
-            {opt.emoji ? <Text style={sheet.optionEmoji}>{opt.emoji}</Text> : null}
-            <Text style={[sheet.optionText, opt.key === selected && sheet.optionTextActive]}>
-              {opt.label}
-            </Text>
-            {opt.key === selected && <Check size={16} color={BLUE} strokeWidth={2.5} />}
-          </Pressable>
+        {options.map((opt, i) => (
+          <View key={opt.key}>
+            <TouchableOpacity
+              activeOpacity={0.6}
+              onPress={() => { onSelect(opt.key); onClose(); }}
+              style={sheet.option}
+            >
+              <Text style={[sheet.optionText, opt.key === selected && { color: accent, fontWeight: "700" }]}>
+                {opt.label}
+              </Text>
+              {opt.key === selected && <Check size={16} color={accent} strokeWidth={2.5} />}
+            </TouchableOpacity>
+            {i < options.length - 1 && <View style={sheet.sep} />}
+          </View>
         ))}
       </View>
     </Modal>
   );
 }
 
-// ─── Selector pill (estilo Stitch: pequeño, 34px) ─────────────────────────────
-function SelectorPill({
-  emoji, label, onPress,
-}: { emoji: string; label: string; onPress: () => void }) {
+// ─── Selector pill ────────────────────────────────────────────────────────────
+// TouchableOpacity soporta flexDirection row en Android sin bugs
+function SelPill({
+  label, emoji, onPress,
+}: { label: string; emoji?: string; onPress: () => void }) {
   return (
-    <Pressable
+    <TouchableOpacity
+      activeOpacity={0.7}
       onPress={onPress}
-      style={({ pressed }) => [styles.selPill, pressed && { opacity: 0.7 }]}
+      style={s.selPill}
     >
-      <Text style={styles.selPillEmoji}>{emoji}</Text>
-      <Text style={styles.selPillLabel} numberOfLines={1}>{label}</Text>
-      <ChevronDown size={10} color={SLATE_400} strokeWidth={2.5} />
-    </Pressable>
+      {emoji ? <Text style={s.selEmoji}>{emoji}</Text> : null}
+      <Text style={s.selLabel} numberOfLines={1}>{label}</Text>
+      <ChevronDown size={12} color={SLATE_400} strokeWidth={2.5} />
+    </TouchableOpacity>
   );
 }
 
-// ─── Data pill ────────────────────────────────────────────────────────────────
-function DataPill({
-  prefix, label, value, accent, flex,
-}: { prefix?: string; label: string; value: string; accent?: boolean; flex?: boolean }) {
-  return (
-    <View style={[styles.dataPill, flex && { flex: 1 }]}>
-      {prefix ? <Text style={styles.dataPillPrefix}>{prefix}</Text> : null}
-      <Text style={styles.dataPillLabel}>{label}</Text>
-      <Text
-        style={[styles.dataPillValue, accent && { color: RED, fontWeight: "700" }]}
-        numberOfLines={1}
-      >
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtCOP(n: number) {
-  return n > 0 ? `$ ${Math.round(n).toLocaleString("es-ES")}` : "$ 0";
+  return `$ ${Math.round(n).toLocaleString("es-ES")}`;
 }
 
 // ─── Pantalla ─────────────────────────────────────────────────────────────────
 export default function ActiveExpenseScreen() {
   const insets = useSafeAreaInsets();
-  const store = useExpenseStore();
-  const addTransaction = useFinanceStore((s) => s.addTransaction);
+  const store  = useExpenseStore();
+  const addTx  = useFinanceStore((s) => s.addTransaction);
 
-  const [tagInput, setTagInput] = useState("");
+  const [tagInput,    setTagInput]    = useState("");
   const [activeSheet, setActiveSheet] = useState<
     "date" | "recurrence" | "category" | "account" | null
   >(null);
   const noteRef = useRef<TextInput>(null);
 
+  const isExpense  = store.isExpense;
+  const accent     = isExpense ? RED   : GREEN;
+  const accentBg   = isExpense ? "#FEF2F2" : "#F0FDF4";
+  const accentText = isExpense ? "#B91C1C" : "#15803D";
+  const title      = isExpense ? "Nuevo Gasto" : "Nuevo Ingreso";
+
   // ─── Parser reactivo ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (!store.note || store.note.length < 3) return;
+    // Texto vacío → resetear monto y volver a "Gasto" por defecto
+    if (!store.note || store.note.trim() === "") {
+      store.setAmount(0);
+      store.setIsExpense(true);
+      return;
+    }
+    if (store.note.length < 3) return;
     const parsed = processVoiceInput(store.note);
-    LayoutAnimation.configureNext({ duration: 200, update: { type: "easeInEaseOut" } });
-    if (parsed.amount && parsed.amount > 0) store.setAmount(parsed.amount);
-    if (parsed.date) store.setDate(parsed.date);
+
+    if (parsed.amount && parsed.amount > 0)
+      store.setAmount(parsed.amount);
+    if (parsed.date)
+      store.setDate(parsed.date);
     if (parsed.categoryEmoji && parsed.categoryName)
       store.setCategory(parsed.categoryEmoji, parsed.categoryName);
+    if (parsed.isExpense !== undefined)
+      store.setIsExpense(parsed.isExpense);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.note]);
 
-  // ─── Toggle gasto/ingreso ────────────────────────────────────────────────
-  function handleToggle() {
-    LayoutAnimation.configureNext({ duration: 220, update: { type: "easeInEaseOut" } });
+  async function handleToggle(toExpense: boolean) {
+    if (store.isExpense === toExpense) return;
     store.toggleExpense();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
-  // ─── Confirmar ───────────────────────────────────────────────────────────
   async function handleConfirm() {
     if (store.amount <= 0) return;
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await addTransaction(
-      store.amount,
-      store.note || store.rawTranscript || "Gasto",
+    await addTx(
+      isExpense ? store.amount : -store.amount,
+      store.note || store.rawTranscript || (isExpense ? "Gasto" : "Ingreso"),
       store.categoryEmoji,
     );
     store.reset();
@@ -205,366 +180,284 @@ export default function ActiveExpenseScreen() {
     if (t) { store.addTag(`#${t}`); setTagInput(""); }
   }
 
-  // ─── Labels ──────────────────────────────────────────────────────────────
   const dateLabel    = DATE_OPTIONS.find((o) => o.key === store.date)?.label ?? "Hoy";
   const recLabel     = RECURRENCE_OPTIONS.find((o) => o.key === store.recurrence)?.label ?? "Una vez";
+  const catLabel     = CATEGORY_OPTIONS.find((o) => o.key === store.categoryEmoji)?.label ?? store.categoryName;
   const accountLabel = ACCOUNT_OPTIONS.find((o) => o.key === store.account)?.label ?? "Efectivo";
-  const accountEmoji = ACCOUNT_OPTIONS.find((o) => o.key === store.account)?.emoji ?? "💵";
-  const amountColor  = store.isExpense ? RED : GREEN;
-  const displayAmt   = store.amount > 0
-    ? `${store.isExpense ? "−" : "+"} ${fmtCOP(store.amount)}`
-    : "$ 0";
   const displayTags  = store.tags.length > 0 ? store.tags : SUGGESTED_TAGS;
+  const displayAmt   = store.amount > 0
+    ? `${isExpense ? "−" : "+"} ${fmtCOP(store.amount)}`
+    : "$ 0";
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      {/* ════════ HEADER (arriba, como en Stitch) ════════ */}
-      <View style={[styles.footerHeader, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={handleClose} style={styles.footerCloseBtn} hitSlop={8}>
-          <X size={18} color={SLATE_600} strokeWidth={2} />
-        </Pressable>
-        <Text style={styles.footerTitle}>Nuevo Gasto</Text>
-        <Pressable
+    <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+
+      {/* ── HEADER ────────────────────────────────────────────────────────── */}
+      <View style={[s.header, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity onPress={handleClose} hitSlop={12} style={s.headerSideBtn}>
+          <X size={20} color={SLATE_500} strokeWidth={2} />
+        </TouchableOpacity>
+
+        <Text style={s.headerTitle}>{title}</Text>
+
+        <TouchableOpacity
           onPress={handleConfirm}
-          style={[styles.confirmBtn, store.amount <= 0 && styles.confirmBtnDisabled]}
           disabled={store.amount <= 0}
+          style={[s.confirmBtn, store.amount <= 0 && s.confirmBtnOff]}
         >
           <Check size={18} color={WHITE} strokeWidth={2.5} />
-        </Pressable>
+        </TouchableOpacity>
       </View>
 
-      {/* ════════ ÁREA DE CONTENIDO (sin scroll) ════════ */}
-      <View style={[styles.content, { paddingTop: 8 }]}>
+      {/* ── CONTENIDO ─────────────────────────────────────────────────────── */}
+      <View style={s.content}>
 
-        {/* ── Monto + toggle ─────────────────────────── */}
-        <View style={styles.amountSection}>
-          <Text style={[styles.amountText, { color: amountColor }]}>{displayAmt}</Text>
-          <View style={styles.toggleRow}>
-            <Pressable
-              onPress={() => !store.isExpense && handleToggle()}
-              style={[styles.toggleBtn, store.isExpense && styles.toggleActive(RED)]}
+        {/* Monto */}
+        <View style={s.amountBlock}>
+          <Text style={[s.amountText, { color: accent }]}>{displayAmt}</Text>
+
+          {/* Toggle Gasto / Ingreso */}
+          <View style={s.toggleRow}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => handleToggle(true)}
+              style={[s.toggleBtn, isExpense
+                ? { backgroundColor: RED, borderColor: RED }
+                : { backgroundColor: WHITE, borderColor: BORDER }]}
             >
-              <Text style={[styles.toggleLabel, store.isExpense && styles.toggleLabelActive]}>
+              <Text style={[s.toggleLabel, { color: isExpense ? WHITE : SLATE_500 }]}>
                 − Gasto
               </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => store.isExpense && handleToggle()}
-              style={[styles.toggleBtn, !store.isExpense && styles.toggleActive(GREEN)]}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => handleToggle(false)}
+              style={[s.toggleBtn, !isExpense
+                ? { backgroundColor: GREEN, borderColor: GREEN }
+                : { backgroundColor: WHITE, borderColor: BORDER }]}
             >
-              <Text style={[styles.toggleLabel, !store.isExpense && styles.toggleLabelActive]}>
+              <Text style={[s.toggleLabel, { color: !isExpense ? WHITE : SLATE_500 }]}>
                 + Ingreso
               </Text>
-            </Pressable>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* ── Selector pills 2x2 ─────────────────────── */}
-        <View style={styles.selectorWrapper}>
-          <View style={styles.selRow}>
-            <SelectorPill emoji="📅"                label={dateLabel}        onPress={() => setActiveSheet("date")} />
-            <SelectorPill emoji="🔄"                label={recLabel}         onPress={() => setActiveSheet("recurrence")} />
+        {/* Selector pills 2×2 */}
+        <View style={s.selGrid}>
+          <View style={s.selRow}>
+            <SelPill label={dateLabel}    onPress={() => setActiveSheet("date")} />
+            <SelPill label={recLabel}     onPress={() => setActiveSheet("recurrence")} />
           </View>
-          <View style={styles.selRow}>
-            <SelectorPill emoji={store.categoryEmoji} label={store.categoryName} onPress={() => setActiveSheet("category")} />
-            <SelectorPill emoji={accountEmoji}       label={accountLabel}     onPress={() => setActiveSheet("account")} />
+          <View style={s.selRow}>
+            <SelPill label={catLabel}     onPress={() => setActiveSheet("category")} />
+            <SelPill label={accountLabel} onPress={() => setActiveSheet("account")} />
           </View>
         </View>
 
-        {/* ── Data pills ─────────────────────────────── */}
-        <View style={styles.dataPillsWrapper}>
-          <View style={styles.dataPillsRow}>
-            <DataPill prefix={store.categoryEmoji} label="Categoría" value={store.categoryName} flex />
-            <DataPill label="Monto" value={store.amount > 0 ? fmtCOP(store.amount) : "—"} accent />
-          </View>
-          <DataPill label="Nota" value={store.note || store.rawTranscript || "—"} />
-        </View>
-
-        {/* ── Transcripción (flex: 1) ─────────────────── */}
-        <View style={styles.transcriptWrapper}>
-          {/* Dashed border overlay */}
-          <View style={styles.transcriptBorder} pointerEvents="none" />
+        {/* Transcripción */}
+        <View style={s.transcriptBox}>
           <TextInput
             ref={noteRef}
             value={store.note || store.rawTranscript}
             onChangeText={store.setNote}
             multiline
-            style={styles.transcriptInput}
+            style={s.transcriptInput}
             placeholderTextColor={SLATE_400}
-            placeholder="Describe tu gasto aquí..."
+            placeholder="Describe tu gasto o ingreso aquí..."
             textAlignVertical="top"
           />
-          <Pressable style={styles.editIcon} onPress={() => noteRef.current?.focus()}>
-            <Edit3 size={15} color={SLATE_400} strokeWidth={1.5} />
-          </Pressable>
-        </View>
-
-      </View>
-
-      {/* ════════ FOOTER (tags en la parte inferior) ════════ */}
-      <View style={styles.footer}>
-
-        {/* Tags */}
-        <View style={[styles.tagsBar, { paddingBottom: insets.bottom + 6 }]}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tagsContent}
+          {/* Lápiz edición — posición absoluta esquina inferior derecha */}
+          <TouchableOpacity
+            onPress={() => noteRef.current?.focus()}
+            style={s.editIcon}
+            hitSlop={12}
           >
-            {displayTags.map((tag) => (
-              <Pressable
-                key={tag}
-                onPress={() =>
-                  store.tags.includes(tag) ? store.removeTag(tag) : store.addTag(tag)
-                }
-                style={[styles.tagPill, store.tags.includes(tag) && styles.tagPillActive]}
-              >
-                <Text style={[styles.tagText, store.tags.includes(tag) && styles.tagTextActive]}>
-                  {tag}
-                </Text>
-              </Pressable>
-            ))}
-            <View style={styles.tagInputPill}>
-              <Plus size={11} color={SLATE_400} strokeWidth={2} />
-              <TextInput
-                value={tagInput}
-                onChangeText={setTagInput}
-                onSubmitEditing={handleAddTag}
-                placeholder="tag"
-                placeholderTextColor={SLATE_400}
-                style={styles.tagInputText}
-                returnKeyType="done"
-                autoCapitalize="none"
-              />
-            </View>
-          </ScrollView>
+            <Edit3 size={16} color="#CBD5E1" strokeWidth={1.8} />
+          </TouchableOpacity>
         </View>
 
       </View>
 
-      {/* ════════ BOTTOM SHEETS ════════ */}
-      <SelectorSheet
-        visible={activeSheet === "date"} title="Fecha"
-        options={DATE_OPTIONS} selected={store.date}
+      {/* ── TAGS ──────────────────────────────────────────────────────────── */}
+      <View style={[s.tagsBar, { paddingBottom: insets.bottom + 6 }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.tagsRow}>
+          {displayTags.map((tag) => {
+            const on = store.tags.includes(tag);
+            return (
+              <TouchableOpacity
+                key={tag}
+                activeOpacity={0.7}
+                onPress={() => on ? store.removeTag(tag) : store.addTag(tag)}
+                style={[s.tagPill,
+                  on ? { backgroundColor: accentBg, borderColor: accent }
+                     : { backgroundColor: WHITE, borderColor: BORDER }]}
+              >
+                <Text style={[s.tagText, { color: on ? accentText : SLATE_500 }]}>{tag}</Text>
+              </TouchableOpacity>
+            );
+          })}
+          <View style={s.tagInput}>
+            <Plus size={11} color={SLATE_400} strokeWidth={2} />
+            <TextInput
+              value={tagInput} onChangeText={setTagInput}
+              onSubmitEditing={handleAddTag}
+              placeholder="tag" placeholderTextColor={SLATE_400}
+              style={s.tagInputText} returnKeyType="done" autoCapitalize="none"
+            />
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* ── BOTTOM SHEETS ─────────────────────────────────────────────────── */}
+      <SelectorSheet visible={activeSheet === "date"}       title="Fecha"
+        options={DATE_OPTIONS}       selected={store.date}       accent={accent}
         onSelect={(k) => store.setDate(k as DateOption)}
-        onClose={() => setActiveSheet(null)}
-      />
-      <SelectorSheet
-        visible={activeSheet === "recurrence"} title="Recurrencia"
-        options={RECURRENCE_OPTIONS} selected={store.recurrence}
+        onClose={() => setActiveSheet(null)} />
+      <SelectorSheet visible={activeSheet === "recurrence"} title="Recurrencia"
+        options={RECURRENCE_OPTIONS} selected={store.recurrence} accent={accent}
         onSelect={(k) => store.setRecurrence(k as RecurrenceType)}
-        onClose={() => setActiveSheet(null)}
-      />
-      <SelectorSheet
-        visible={activeSheet === "category"} title="Categoría"
-        options={CATEGORY_OPTIONS} selected={store.categoryEmoji}
+        onClose={() => setActiveSheet(null)} />
+      <SelectorSheet visible={activeSheet === "category"}   title="Categoría"
+        options={CATEGORY_OPTIONS}   selected={store.categoryEmoji} accent={accent}
         onSelect={(k) => {
-          const cat = CATEGORY_OPTIONS.find((c) => c.key === k);
-          if (cat) store.setCategory(cat.emoji, cat.label);
+          const c = CATEGORY_OPTIONS.find((x) => x.key === k);
+          if (c) store.setCategory(c.key, c.label);
         }}
-        onClose={() => setActiveSheet(null)}
-      />
-      <SelectorSheet
-        visible={activeSheet === "account"} title="Cuenta"
-        options={ACCOUNT_OPTIONS} selected={store.account}
+        onClose={() => setActiveSheet(null)} />
+      <SelectorSheet visible={activeSheet === "account"}    title="Cuenta"
+        options={ACCOUNT_OPTIONS}    selected={store.account}    accent={accent}
         onSelect={(k) => store.setAccount(k as AccountType)}
-        onClose={() => setActiveSheet(null)}
-      />
+        onClose={() => setActiveSheet(null)} />
+
     </KeyboardAvoidingView>
   );
 }
 
 // ─── Estilos ──────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
 
-  // Área de contenido (sin scroll)
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
+  // Header
+  header: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 24, paddingBottom: 14,
+    backgroundColor: WHITE, borderBottomWidth: 1, borderBottomColor: BORDER,
   },
+  headerSideBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  headerTitle: { fontSize: 17, fontWeight: "700", color: SLATE_900, letterSpacing: -0.4 },
+  confirmBtn: {
+    width: 38, height: 38, borderRadius: 19, backgroundColor: BLUE,
+    alignItems: "center", justifyContent: "center",
+    shadowColor: BLUE, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
+  },
+  confirmBtnOff: { backgroundColor: "#CBD5E1", shadowOpacity: 0, elevation: 0 },
 
-  // Monto
-  amountSection: {
-    alignItems: "center",
-    paddingTop: 4,
-    paddingBottom: 20,
-  },
-  amountText: {
-    fontSize: 60,
-    fontWeight: "700",
-    letterSpacing: -1.5,
-    lineHeight: 66,
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  toggleRow: { flexDirection: "row", gap: 8 },
+  // Contenido
+  content: { flex: 1, paddingHorizontal: 24, backgroundColor: BG },
+
+  // Monto + toggle
+  amountBlock: { alignItems: "center", paddingTop: 24, paddingBottom: 24 },
+  amountText: { fontSize: 64, fontWeight: "800", letterSpacing: -2, lineHeight: 72, marginBottom: 16 },
+  toggleRow: { flexDirection: "row", gap: 10 },
   toggleBtn: {
-    paddingVertical: 5, paddingHorizontal: 16,
-    borderRadius: 9999, borderWidth: 1.5, borderColor: BORDER2,
-    backgroundColor: WHITE,
+    paddingVertical: 10, paddingHorizontal: 22,
+    borderRadius: 9999, borderWidth: 1.5,
   },
-  toggleActive: (color: string) => ({
-    backgroundColor: color, borderColor: color,
-  }),
-  toggleLabel: { fontSize: 12, fontWeight: "600", color: SLATE_600 },
-  toggleLabelActive: { color: WHITE },
+  toggleLabel: { fontSize: 14, fontWeight: "600" },
 
-  // Selectores
-  selectorWrapper: { marginBottom: 28 },
-  selRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
+  // Selector pills — TouchableOpacity acepta flexDirection row en Android
+  selGrid: { marginBottom: 20, gap: 10 },
+  selRow:  { flexDirection: "row", gap: 10 },
   selPill: {
-    flex: 1, height: 34,
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 12,
-    backgroundColor: WHITE,
-    borderRadius: 9999, borderWidth: 1, borderColor: BORDER,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05, shadowRadius: 20, elevation: 2,
-  },
-  selPillEmoji: { fontSize: 13 },
-  selPillLabel: {
-    flex: 1, fontSize: 12, fontWeight: "600", color: SLATE_900,
-  },
-
-  // Data pills
-  dataPillsWrapper: { marginBottom: 16 },
-  dataPillsRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
-  dataPill: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    paddingVertical: 6, paddingHorizontal: 12,
-    backgroundColor: WHITE, borderRadius: 9999,
-    borderWidth: 1, borderColor: BORDER,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05, shadowRadius: 20, elevation: 1,
-    alignSelf: "flex-start",
-  },
-  dataPillPrefix: { fontSize: 12 },
-  dataPillLabel: {
-    fontSize: 12, fontWeight: "600", color: SLATE_600, letterSpacing: -0.3,
-  },
-  dataPillValue: {
-    fontSize: 12, fontWeight: "500", color: SLATE_900,
-    flexShrink: 1, maxWidth: 140,
-  },
-
-  // Transcripción
-  transcriptWrapper: {
     flex: 1,
-    marginBottom: 8,
-    minHeight: 120,
+    flexDirection: "row",       // directo en TouchableOpacity, funciona en Android ✓
+    alignItems: "center",
+    height: 44,
+    paddingHorizontal: 14,
+    backgroundColor: WHITE,
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: BORDER,
+    gap: 6,
+    // SIN overflow:hidden — esa propiedad recorta el contenido en Android
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  transcriptBorder: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 16,
-    borderWidth: 1.5,
+  selEmoji: { fontSize: 15 },
+  selLabel: { flex: 1, fontSize: 14, fontWeight: "500", color: "#475569" },
+
+  // Transcripción — flex:1 llena exactamente el espacio restante
+  transcriptBox: {
+    flex: 1,                 // ocupa todo el espacio entre selectores y tags
+    borderRadius: 20,
+    borderWidth: 2,
     borderStyle: "dashed",
-    borderColor: BORDER2,
-    backgroundColor: "rgba(255,255,255,0.5)",
+    borderColor: BORDER,
+    backgroundColor: WHITE,
+    marginBottom: 4,
+    position: "relative",
   },
   transcriptInput: {
     flex: 1,
     padding: 20,
-    fontSize: 18,
-    fontWeight: "500",
-    color: "#1E293B",
-    lineHeight: 30,
-    textAlignVertical: "top",
+    paddingBottom: 36,       // espacio para el lápiz
+    fontSize: 17,
+    fontWeight: "400",
+    color: SLATE_900,
+    lineHeight: 26,
     backgroundColor: "transparent",
+    textAlignVertical: "top",
   },
-  editIcon: { position: "absolute", right: 14, bottom: 14 },
-
-  // Footer (abajo)
-  footer: {
-    backgroundColor: BG,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(226,232,240,0.5)",
+  editIcon: {
+    position: "absolute",
+    right: 14,
+    bottom: 12,
   },
-  footerHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 20,
-    paddingBottom: 14,
-    paddingHorizontal: 24,
-  },
-  footerCloseBtn: {
-    width: 32, height: 32, borderRadius: 16,
-    alignItems: "center", justifyContent: "center",
-  },
-  footerTitle: {
-    fontSize: 18, fontWeight: "700",
-    color: SLATE_900, letterSpacing: -0.45,
-  },
-  confirmBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: BLUE, alignItems: "center", justifyContent: "center",
-    shadowColor: BLUE, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35, shadowRadius: 8, elevation: 6,
-  },
-  confirmBtnDisabled: { backgroundColor: "#CBD5E1", shadowOpacity: 0, elevation: 0 },
 
   // Tags
   tagsBar: {
-    backgroundColor: "rgba(241,245,249,0.9)",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(226,232,240,0.5)",
+    backgroundColor: "rgba(241,245,249,0.98)",
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: BORDER,
     paddingTop: 10,
   },
-  tagsContent: {
-    paddingLeft: 16, paddingRight: 16, gap: 8,
-    flexDirection: "row", alignItems: "center",
-  },
-  tagPill: {
-    paddingVertical: 6, paddingHorizontal: 16,
-    backgroundColor: WHITE, borderRadius: 9999,
-    borderWidth: 1, borderColor: BORDER2,
-  },
-  tagPillActive: { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" },
-  tagText: { fontSize: 12, fontWeight: "500", color: SLATE_600 },
-  tagTextActive: { color: BLUE, fontWeight: "600" },
-  tagInputPill: {
+  tagsRow: { paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 8 },
+  tagPill: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 9999, borderWidth: 1 },
+  tagText: { fontSize: 12, fontWeight: "500" },
+  tagInput: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    paddingVertical: 6, paddingHorizontal: 12,
-    backgroundColor: WHITE, borderRadius: 9999,
-    borderWidth: 1, borderColor: BORDER2, borderStyle: "dashed",
+    paddingVertical: 7, paddingHorizontal: 12,
+    backgroundColor: WHITE, borderRadius: 9999, borderWidth: 1,
+    borderColor: BORDER, borderStyle: "dashed",
   },
-  tagInputText: {
-    fontSize: 12, color: SLATE_900, minWidth: 36, maxWidth: 80, padding: 0,
-  },
+  tagInputText: { fontSize: 12, color: SLATE_900, minWidth: 36, maxWidth: 80, padding: 0 },
 });
 
-// ─── Bottom-sheet estilos ─────────────────────────────────────────────────────
+// ─── Sheet ────────────────────────────────────────────────────────────────────
 const sheet = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15,23,42,0.35)",
-  },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(15,23,42,0.4)" },
   container: {
     position: "absolute", bottom: 0, left: 0, right: 0,
-    backgroundColor: WHITE,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingBottom: 32, paddingTop: 12,
+    backgroundColor: WHITE, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingBottom: 36, paddingTop: 12,
     shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1, shadowRadius: 20, elevation: 20,
+    shadowOpacity: 0.12, shadowRadius: 20, elevation: 24,
   },
   handle: {
-    width: 36, height: 4, borderRadius: 2,
-    backgroundColor: "#E2E8F0", alignSelf: "center", marginBottom: 16,
+    width: 36, height: 4, borderRadius: 2, backgroundColor: "#E2E8F0",
+    alignSelf: "center", marginBottom: 16,
   },
-  title: {
-    fontSize: 16, fontWeight: "700", color: SLATE_900,
-    paddingHorizontal: 20, marginBottom: 8, letterSpacing: -0.3,
-  },
+  title: { fontSize: 16, fontWeight: "700", color: SLATE_900, paddingHorizontal: 20, marginBottom: 4 },
+  sep: { height: StyleSheet.hairlineWidth, backgroundColor: BORDER, marginHorizontal: 20 },
   option: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    paddingVertical: 14, paddingHorizontal: 20,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingVertical: 15, paddingHorizontal: 20,
   },
-  optionPressed: { backgroundColor: "#F8FAFC" },
-  optionEmoji: { fontSize: 20, width: 28 },
-  optionText: { flex: 1, fontSize: 15, fontWeight: "400", color: SLATE_900 },
-  optionTextActive: { fontWeight: "700", color: BLUE },
+  optionText: { fontSize: 15, color: SLATE_900 },
 });

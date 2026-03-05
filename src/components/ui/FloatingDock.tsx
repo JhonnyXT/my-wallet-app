@@ -22,14 +22,14 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { useUIStore } from "@/src/store/useUIStore";
 import { DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
+import { useExpenseStore } from "@/src/store/useExpenseStore";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function FloatingDock({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const openExpenseInput = useUIStore((s) => s.openExpenseInput);
+  const resetExpense = useExpenseStore((s) => s.reset);
 
   const micScale = useSharedValue(1);
   const micStyle = useAnimatedStyle(() => ({
@@ -52,9 +52,9 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
   }
 
   async function handleAdd() {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigateTo("index");
-    openExpenseInput();
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    resetExpense();                       // limpia cualquier dato previo
+    router.push("/active-expense");       // abre el mismo modal de confirmación
   }
 
   async function handleChat() {

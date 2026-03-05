@@ -21,6 +21,7 @@ export interface ActiveExpense {
 interface ExpenseStore extends ActiveExpense {
   setAmount: (v: number) => void;
   toggleExpense: () => void;
+  setIsExpense: (v: boolean) => void;
   setCategory: (emoji: string, name: string) => void;
   setDate: (d: DateOption) => void;
   setCustomDate: (d: Date) => void;
@@ -51,6 +52,7 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
   ...DEFAULTS,
   setAmount: (amount) => set({ amount }),
   toggleExpense: () => set((s) => ({ isExpense: !s.isExpense })),
+  setIsExpense: (isExpense) => set({ isExpense }),
   setCategory: (categoryEmoji, categoryName) => set({ categoryEmoji, categoryName }),
   setDate: (date) => set({ date }),
   setCustomDate: (customDate) => set({ customDate, date: "custom" }),

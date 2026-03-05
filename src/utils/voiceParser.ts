@@ -115,27 +115,60 @@ function extractCategory(text: string): { emoji: string; name: string } {
 }
 
 function extractNote(text: string): string {
-  // Limpia el texto quitando cantidades y palabras de fecha para que quede como descripción
   return text
     .replace(/\d+[\.,]?\d*\s*mil/gi, "")
     .replace(/\b(hoy|ayer|anteayer|manana)\b/gi, "")
-    .replace(/\b(gaste|compre|pague|pague|gasto|costo)\b/gi, "")
+    .replace(/\b(gaste|compre|pague|gasto|costo)\b/gi, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
 
+// ─── Detecta si es gasto o ingreso ───────────────────────────────────────────
+// Devuelve true = gasto, false = ingreso, undefined = no detectado
+function extractIsExpense(text: string): boolean | undefined {
+  const n = normalize(text);
+
+  // Palabras clave de INGRESO
+  const incomeKeywords = [
+    "recibi", "recibe", "recibido", "ingrese", "ingreso",
+    "me pagaron", "me deposita", "me depositaron",
+    "cobre", "cobrado", "cobrar",
+    "salario", "sueldo", "nomina",
+    "ganancia", "vendi", "venta",
+    "me dieron", "me mandaron",
+  ];
+  if (incomeKeywords.some((kw) => n.includes(kw))) return false;
+
+  // Palabras clave de GASTO
+  const expenseKeywords = [
+    "gaste", "gasto", "compre", "compra", "pague", "pago",
+    "costo", "cuesta", "cuesto",
+    "me costo", "me cobro",
+    "sali", "fui a",
+  ];
+  if (expenseKeywords.some((kw) => n.includes(kw))) return true;
+
+  return undefined; // no se detectó, mantener estado actual
+}
+
 // ─── Función principal exportada ─────────────────────────────────────────────
 export function processVoiceInput(raw: string): Partial<ActiveExpense> {
-  const category = extractCategory(raw);
-  const note = extractNote(raw) || raw;
+  const category   = extractCategory(raw);
+  const note       = extractNote(raw) || raw;
+  const isExpense  = extractIsExpense(raw);
 
-  return {
-    amount: extractAmount(raw),
+  const result: Partial<ActiveExpense> = {
+    amount:       extractAmount(raw),
     categoryEmoji: category.emoji,
-    categoryName: category.name,
-    date: extractDate(raw),
+    categoryName:  category.name,
+    date:          extractDate(raw),
     note,
     rawTranscript: raw,
     tags: [],
   };
+
+  // Solo se incluye isExpense si fue detectado explícitamente
+  if (isExpense !== undefined) result.isExpense = isExpense;
+
+  return result;
 }

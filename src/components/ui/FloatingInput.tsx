@@ -8,6 +8,8 @@ import {
   StyleSheet,
   Modal,
   TouchableWithoutFeedback,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Sparkles, X } from "lucide-react-native";
@@ -68,19 +70,25 @@ export function FloatingInputOverlay() {
       animationType="none"
       onRequestClose={handleClose}
     >
-      <TouchableWithoutFeedback onPress={handleClose}>
-        <Animated.View
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(180)}
-          style={styles.backdrop}
-        />
-      </TouchableWithoutFeedback>
-
-      <Animated.View
-        entering={SlideInDown.springify().damping(20).stiffness(180)}
-        exiting={SlideOutDown.duration(250)}
-        style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
       >
+        {/* Área superior: toca para cerrar */}
+        <TouchableWithoutFeedback onPress={handleClose}>
+          <Animated.View
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(180)}
+            style={{ flex: 1, backgroundColor: "rgba(15,23,42,0.4)" }}
+          />
+        </TouchableWithoutFeedback>
+
+        {/* Sheet inferior */}
+        <Animated.View
+          entering={SlideInDown.springify().damping(20).stiffness(180)}
+          exiting={SlideOutDown.duration(250)}
+          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}
+        >
         {/* Handle bar */}
         <View style={styles.handle} />
 
@@ -149,21 +157,14 @@ export function FloatingInputOverlay() {
             {parsed ? `Guardar ${parsed.categoryEmoji}` : "Escribe un gasto"}
           </Text>
         </Pressable>
-      </Animated.View>
+        </Animated.View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15,23,42,0.4)",
-  },
   sheet: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: COLORS.white,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,

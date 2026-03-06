@@ -525,7 +525,8 @@ export default function ChatScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         {/* ── Messages ─────────────────────────────────────────────── */}
         <FlatList
@@ -535,6 +536,8 @@ export default function ChatScreen() {
           renderItem={renderMessage}
           contentContainerStyle={[s.list, { paddingBottom: dockPad }]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           onContentSizeChange={() =>
             flatListRef.current?.scrollToEnd({ animated: false })
           }
@@ -583,10 +586,14 @@ export default function ChatScreen() {
               style={({ pressed }) => [
                 s.sendBtn,
                 (!input.trim() || isThinking) && s.sendBtnDisabled,
-                pressed && { opacity: 0.85 },
+                pressed && { opacity: 0.7 },
               ]}
             >
-              <ArrowUp size={16} color={WHITE} strokeWidth={2.5} />
+              {isThinking ? (
+                <ActivityIndicator size={14} color={WHITE} />
+              ) : (
+                <ArrowUp size={16} color={WHITE} strokeWidth={2.5} />
+              )}
             </Pressable>
           </View>
         </View>
@@ -1010,7 +1017,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     marginRight: 6,
   },
-  sendBtnDisabled: { backgroundColor: SLATE_400 },
+  sendBtnDisabled: { opacity: 0.3 },
 });
 
 const chipSt = StyleSheet.create({

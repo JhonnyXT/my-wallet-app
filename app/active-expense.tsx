@@ -394,7 +394,12 @@ export default function ActiveExpenseScreen() {
       </View>
 
       {/* ── CONTENIDO ─────────────────────────────────────────────────────── */}
-      <View style={s.content}>
+      <ScrollView
+        style={s.content}
+        contentContainerStyle={s.contentInner}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
 
         {/* Monto */}
         <View style={s.amountBlock}>
@@ -467,6 +472,7 @@ export default function ActiveExpenseScreen() {
             placeholderTextColor={SLATE_400}
             placeholder="Describe tu gasto o ingreso aquí..."
             textAlignVertical="top"
+            scrollEnabled={false}
           />
           {/* Lápiz edición — posición absoluta esquina inferior derecha */}
           <TouchableOpacity
@@ -478,7 +484,7 @@ export default function ActiveExpenseScreen() {
           </TouchableOpacity>
         </View>
 
-      </View>
+      </ScrollView>
 
       {/* ── TAGS ──────────────────────────────────────────────────────────── */}
       <View style={[s.tagsBar, { paddingBottom: insets.bottom + 6 }]}>
@@ -585,7 +591,8 @@ const s = StyleSheet.create({
   confirmBtnOff: { backgroundColor: "#CBD5E1", shadowOpacity: 0, elevation: 0 },
 
   // Contenido
-  content: { flex: 1, paddingHorizontal: 24, backgroundColor: BG },
+  content: { flex: 1, backgroundColor: BG },
+  contentInner: { paddingHorizontal: 24, paddingBottom: 16 },
 
   // Monto + toggle
   amountBlock: { alignItems: "center", paddingTop: 24, paddingBottom: 24 },

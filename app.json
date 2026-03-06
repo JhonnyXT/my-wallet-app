@@ -21,6 +21,7 @@
     },
     "android": {
       "package": "com.mywallet.app",
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#FBFBFD",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

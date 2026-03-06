@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -6,15 +6,17 @@ import {
   StyleSheet,
   Pressable,
   StatusBar,
+  Animated,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Settings } from "lucide-react-native";
+import { router } from "expo-router";
 import { scrollBottomPadding } from "@/src/constants/layout";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
-import { FilterChips } from "@/src/components/ui/FilterChips";
+import { FilterChips, PERIODS } from "@/src/components/ui/FilterChips";
 import { CategoryChart } from "@/src/components/ui/CategoryChart";
 import { TransactionItem } from "@/src/components/ui/TransactionItem";
-import { COLORS } from "@/src/constants/theme";
+import { COLORS, ALL_CATEGORY_EMOJIS } from "@/src/constants/theme";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -22,44 +24,29 @@ function formatBalance(amount: number): string {
   return `$${Math.round(amount).toLocaleString("es-ES")}`;
 }
 
-function formatDayTotal(amount: number): string {
-  return `$ ${Math.round(amount).toLocaleString("es-ES")}`;
-}
-
 type TxRow = ReturnType<typeof useFinanceStore.getState>["transactions"][0];
 
-function groupByDate(transactions: TxRow[]) {
-  const groups: { label: string; total: number; items: TxRow[] }[] = [];
-  const map = new Map<string, { label: string; total: number; items: TxRow[] }>();
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
+function filterByPeriod(transactions: TxRow[], period: string): TxRow[] {
+  const now = new Date();
+  const todayStart    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(todayStart.getDate() - 1);
+  const weekStart     = new Date(todayStart);
+  weekStart.setDate(todayStart.getDate() - 7);
+  const monthStart    = new Date(now.getFullYear(), now.getMonth(), 1);
+  const yearStart     = new Date(now.getFullYear(), 0, 1);
 
-  for (const tx of transactions) {
+  return transactions.filter((tx) => {
     const d = new Date(tx.date);
-    let key: string;
-
-    if (d.toDateString() === today.toDateString()) {
-      key = "HOY";
-    } else if (d.toDateString() === yesterday.toDateString()) {
-      key = "AYER";
-    } else {
-      key = d
-        .toLocaleDateString("es-ES", { day: "2-digit", month: "short" })
-        .toUpperCase()
-        .replace(".", "");
+    switch (period) {
+      case "Hoy":          return d >= todayStart;
+      case "Ayer":         return d >= yesterdayStart && d < todayStart;
+      case "Esta semana":  return d >= weekStart;
+      case "Este mes":     return d >= monthStart;
+      case "Este año":     return d >= yearStart;
+      default:             return true; // "Todo"
     }
-
-    if (!map.has(key)) {
-      map.set(key, { label: key, total: 0, items: [] });
-      groups.push(map.get(key)!);
-    }
-    const g = map.get(key)!;
-    g.items.push(tx);
-    g.total += tx.amount;
-  }
-
-  return groups;
+  });
 }
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
@@ -67,18 +54,57 @@ function groupByDate(transactions: TxRow[]) {
 export default function DashboardScreen() {
   const insets            = useSafeAreaInsets();
   const transactions      = useFinanceStore((s) => s.transactions);
-  const getTotalBalance   = useFinanceStore((s) => s.getTotalBalance);
   const deleteTransaction = useFinanceStore((s) => s.deleteTransaction);
-  const budgetLimit       = useFinanceStore((s) => s.budgetLimit);
 
-  const total              = getTotalBalance();
-  const recentTransactions = transactions.slice(0, 30);
+  // Estado del filtro de periodo — "Este mes" por defecto
+  const [period, setPeriod] = useState(PERIODS[3]); // "Este mes"
 
+  // ── Balance animado (Gastos / Ingresos) ──────────────────────────────────────
+  const [showIncome, setShowIncome] = useState(false);
+  const translateY  = useRef(new Animated.Value(0)).current;
+  const balanceOpacity = useRef(new Animated.Value(1)).current;
+  const swipeStartY = useRef(0);
+
+  const { expenseTotal, incomeTotal } = useMemo(() => {
+    const now   = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const month = transactions.filter(t => new Date(t.date) >= start);
+    const exp   = month.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+    const inc   = month.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+    return { expenseTotal: exp, incomeTotal: inc };
+  }, [transactions]);
+
+  const doSwitchBalance = (toIncome: boolean) => {
+    if (toIncome === showIncome) return;
+    const outDir = toIncome ? -1 : 1; // swipe up = salir hacia arriba
+    Animated.parallel([
+      Animated.timing(translateY,    { toValue: outDir * 22, duration: 160, useNativeDriver: true }),
+      Animated.timing(balanceOpacity, { toValue: 0,           duration: 140, useNativeDriver: true }),
+    ]).start(() => {
+      setShowIncome(toIncome);
+      translateY.setValue(-outDir * 22);
+      balanceOpacity.setValue(0);
+      Animated.parallel([
+        Animated.timing(translateY,    { toValue: 0, duration: 200, useNativeDriver: true }),
+        Animated.timing(balanceOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      ]).start();
+    });
+  };
+
+  // ── Filtros de período ───────────────────────────────────────────────────────
+  const filteredTransactions = useMemo(
+    () => filterByPeriod(transactions, period),
+    [transactions, period]
+  );
+  const recentTransactions = filteredTransactions.slice(0, 3);
+
+  // ── Stats del chart (solo gastos del mes actual) ─────────────────────────────
   const categoryStats = useMemo(() => {
-    const now = new Date();
+    const now      = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthTxs = transactions.filter((t) => new Date(t.date) >= firstDay);
-
+    const monthTxs = transactions.filter(
+      t => new Date(t.date) >= firstDay && t.amount > 0
+    );
     const map: Record<string, { total: number; count: number }> = {};
     for (const tx of monthTxs) {
       if (!map[tx.category_emoji])
@@ -91,10 +117,19 @@ export default function DashboardScreen() {
       .sort((a, b) => b.total - a.total);
   }, [transactions]);
 
-  const grouped = useMemo(
-    () => groupByDate(recentTransactions),
-    [recentTransactions]
+  const totalExpenses = useMemo(
+    () => categoryStats.reduce((s, c) => s + c.total, 0),
+    [categoryStats]
   );
+
+  // Todas las categorías conocidas + emojis custom que vengan de transacciones
+  const allEmojis = useMemo(() => {
+    const known = new Set(ALL_CATEGORY_EMOJIS);
+    const extra = [...new Set(
+      transactions.map(t => t.category_emoji).filter(e => !known.has(e))
+    )];
+    return [...ALL_CATEGORY_EMOJIS, ...extra];
+  }, [transactions]);
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
@@ -106,36 +141,59 @@ export default function DashboardScreen() {
       <View style={styles.staticHeader}>
 
         {/* ── Header: [col izq: Balance + Chips] [der: Settings] ── */}
-        {/* Stitch JSX: flexRow, justifyContent space-between, alignItems flex-start */}
         <View style={styles.headerOuter}>
-          {/* Columna izquierda: balance + chips (gap 32px como en Stitch) */}
           <View style={styles.headerLeft}>
-            <Text style={styles.balanceAmount}>{formatBalance(total)}</Text>
-            <FilterChips />
+
+            {/* Balance animado — swipe ↑ para ingresos, ↓ para gastos */}
+            <Animated.View
+              style={[
+                styles.balanceSwipeArea,
+                { transform: [{ translateY }], opacity: balanceOpacity },
+              ]}
+              onTouchStart={(e) => { swipeStartY.current = e.nativeEvent.pageY; }}
+              onTouchEnd={(e) => {
+                const delta = e.nativeEvent.pageY - swipeStartY.current;
+                if (delta < -25)      doSwitchBalance(true);
+                else if (delta > 25)  doSwitchBalance(false);
+              }}
+            >
+              <Text style={[
+                styles.balanceTypeLabel,
+                showIncome && styles.balanceTypeLabelIncome,
+              ]}>
+                {showIncome ? "▲  INGRESOS" : "▼  GASTOS"}
+              </Text>
+              <Text style={[
+                styles.balanceAmount,
+                showIncome && styles.balanceAmountIncome,
+              ]}>
+                {formatBalance(showIncome ? incomeTotal : expenseTotal)}
+              </Text>
+              <Text style={styles.balanceHint}>
+                {showIncome ? "desliza ↓ para gastos" : "desliza ↑ para ingresos"}
+              </Text>
+            </Animated.View>
+
+            <FilterChips period={period} onPeriodChange={setPeriod} />
           </View>
 
-          {/* Icono de settings — Stitch: 40×40, sin fondo ni sombra */}
           <Pressable style={styles.settingsBtn}>
             <Settings size={22} color="#000000" strokeWidth={1.6} />
           </Pressable>
         </View>
 
-        {/* Gráfica de categorías */}
-        {categoryStats.length > 0 ? (
-          <View style={styles.chartWrapper}>
-            <CategoryChart stats={categoryStats} budgetLimit={budgetLimit} />
-          </View>
-        ) : (
-          <View style={styles.chartPlaceholder}>
-            <Text style={styles.chartPlaceholderText}>
-              Agrega gastos para ver tus categorías
-            </Text>
-          </View>
-        )}
+        {/* Gráfica de categorías — siempre visible */}
+        <View style={styles.chartWrapper}>
+          <CategoryChart
+            stats={categoryStats}
+            allEmojis={allEmojis}
+            totalExpenses={totalExpenses}
+          />
+        </View>
       </View>
 
       {/* ════════════════════════════════════════════════════════════════
-          SECCIÓN SCROLL — solo la lista de transacciones se mueve
+          SECCIÓN SCROLL — lista reciente (máx 2) + Ver más
           ════════════════════════════════════════════════════════════════ */}
       <ScrollView
         style={styles.txScrollView}
@@ -155,26 +213,46 @@ export default function DashboardScreen() {
             </Text>
           </View>
         ) : (
-          grouped.map((group) => (
-            <View key={group.label} style={styles.dayGroup}>
-              {/* Cabecera de fecha */}
-              <View style={styles.dayHeader}>
-                <Text style={styles.dayLabel}>{group.label}</Text>
-                <Text style={styles.dayTotal}>{formatDayTotal(group.total)}</Text>
-              </View>
+          <View style={styles.dayGroup}>
+            {/* Header RECIENTE · período activo */}
+            <View style={styles.dayHeader}>
+              <Text style={styles.dayLabel}>RECIENTE</Text>
+              <Text style={styles.dayLabelRight}>{period.toUpperCase()}</Text>
+            </View>
 
-              {/* Transacciones del día */}
-              {group.items.map((tx, i) => (
+            {recentTransactions.length === 0 ? (
+              <View style={styles.periodEmpty}>
+                <Text style={styles.periodEmptyText}>
+                  Sin registros para "{period}"
+                </Text>
+              </View>
+            ) : (
+              recentTransactions.map((tx, i) => (
                 <TransactionItem
                   key={tx.id}
                   transaction={tx}
                   index={i}
-                  dimmed={i > 0}
+                  dimmed={false}
                   onLongPress={deleteTransaction}
                 />
-              ))}
-            </View>
-          ))
+              ))
+            )}
+
+            {/* Ver más — aparece siempre que haya transacciones */}
+            {transactions.length > 0 && (
+              <View style={styles.verMasRow}>
+                <Pressable
+                  onPress={() => router.navigate("/(tabs)/analytics")}
+                  style={({ pressed }) => [
+                    styles.verMasBtn,
+                    pressed && { opacity: 0.6 },
+                  ]}
+                >
+                  <Text style={styles.verMasText}>Ver más</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -211,13 +289,38 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  balanceSwipeArea: {
+    // área táctil para el swipe
+  },
+
+  balanceTypeLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#9CA3AF",
+    letterSpacing: 1.8,
+    marginBottom: 4,
+  },
+  balanceTypeLabelIncome: {
+    color: "#059669",
+  },
+
   // Stitch JSX: fontSize 48, fontWeight 800, letterSpacing -1.2, lineHeight 48
   balanceAmount: {
     fontSize: 48,
     fontWeight: "800",
     color: "#000000",
     letterSpacing: -1.2,
-    lineHeight: 48,
+    lineHeight: 52,
+  },
+  balanceAmountIncome: {
+    color: "#059669",
+  },
+
+  balanceHint: {
+    fontSize: 11,
+    color: "#C4C4C6",
+    marginTop: 4,
+    letterSpacing: 0.2,
   },
 
   // Stitch JSX: 40×40, solo icono, sin fondo ni sombra
@@ -230,23 +333,6 @@ const styles = StyleSheet.create({
 
   chartWrapper: {
     marginBottom: 8,
-  },
-
-  chartPlaceholder: {
-    marginHorizontal: 28,
-    marginVertical: 20,
-    height: 200,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-    borderColor: "#E5E7EB",
-  },
-
-  chartPlaceholderText: {
-    fontSize: 13,
-    color: "#9CA3AF",
   },
 
   // ── Lista con scroll ─────────────────────────────────────────────────────────
@@ -279,11 +365,39 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  // Stitch JSX: fontSize 12, fontWeight 900
-  dayTotal: {
+  dayLabelRight: {
     fontSize: 12,
     fontWeight: "900",
     color: "#000000",
+    letterSpacing: 1,
+  },
+
+  // "Ver más" — siempre a la derecha
+  verMasRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 4,
+  },
+  verMasBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  verMasText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#000000",
+    letterSpacing: 0.1,
+  },
+
+  // Estado vacío para el período seleccionado
+  periodEmpty: {
+    paddingVertical: 24,
+    alignItems: "center",
+  },
+  periodEmptyText: {
+    fontSize: 13,
+    color: "#94A3B8",
+    fontStyle: "italic",
   },
 
   // ── Estado vacío ─────────────────────────────────────────────────────────────

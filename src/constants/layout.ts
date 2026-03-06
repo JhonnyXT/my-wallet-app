@@ -2,7 +2,7 @@
 export const DOCK_HEIGHT = 64;
 
 /** Gap between dock bottom edge and device bottom — Stitch JSX: bottom 40px */
-export const DOCK_BOTTOM_OFFSET = 40;
+export const DOCK_BOTTOM_OFFSET = 24;
 
 /**
  * Minimum extra space a screen's ScrollView needs at the bottom

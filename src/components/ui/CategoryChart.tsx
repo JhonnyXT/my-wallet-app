@@ -1,18 +1,12 @@
 /**
- * CategoryChart — "Visual Expense Insights Home 1" de Stitch
+ * CategoryChart — scroll horizontal de categorías
  *
- * Barras de ancho fijo calculado (no flex:1) para evitar que sean demasiado
- * anchas cuando hay menos de 4 categorías.
- *
- * Stitch key values:
- *   Chart container height: 280px
- *   Bar border-radius: 9999 (píldora perfecta)
- *   Bar padding: 24px top/bottom
- *   Ghost track: borde punteado, límite de presupuesto futuro
- *   % label: 11px, weight 800
- *   Amount label: 10px, weight 700, rgba(0,0,0,0.45)
+ * - Muestra TODAS las categorías del sistema + las que vengan de transacciones
+ * - Categorías con datos: barra animada con color, % y monto
+ * - Categorías sin datos: solo el ghost track (outline punteado) al 100%
+ * - % = (total_categoría / total_gastos_mes) × 100
  */
-import { View, Text, StyleSheet, Dimensions } from "react-native";
+import { View, Text, ScrollView, StyleSheet } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -31,33 +25,27 @@ export interface CategoryStat {
 
 interface CategoryChartProps {
   stats: CategoryStat[];
-  budgetLimit: number;
+  allEmojis: string[];
+  totalExpenses: number;
 }
 
-// ─── Layout constants ─────────────────────────────────────────────────────────
-const SCREEN_W   = Dimensions.get("window").width;
-const H_PADDING  = 28;    // igual que el padding horizontal de la pantalla
-const BAR_GAP    = 16;    // Figma original: gap 16px entre barras
-const NUM_BARS   = 4;
-const BAR_W      = Math.floor(
-  (SCREEN_W - H_PADDING * 2 - BAR_GAP * (NUM_BARS - 1)) / NUM_BARS
-);
-
-const CHART_H    = 260;   // altura total del contenedor
-const MAX_FILL_H = 224;   // barra más alta (categoría con mayor gasto)
-const MIN_FILL_H = 110;   // barra mínima visible
-
-// Ghost = mismo alto que la barra máxima (límite de presupuesto visual)
+// ─── Layout ───────────────────────────────────────────────────────────────────
+const BAR_W      = 68;
+const BAR_GAP    = 14;
+const H_PADDING  = 28;
+const CHART_H    = 260;
+const MAX_FILL_H = 218;
+const MIN_FILL_H = 88;
 const GHOST_H    = MAX_FILL_H;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function fmtAmount(amount: number): string {
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000)     return `${Math.round(amount / 1_000)}k`;
-  return `${Math.round(amount)}`;
+function fmtAmount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000)     return `${Math.round(n / 1_000)}k`;
+  return `${Math.round(n)}`;
 }
 
-// ─── Bar individual ───────────────────────────────────────────────────────────
+// ─── Barra con datos ──────────────────────────────────────────────────────────
 function AnimatedBar({
   stat, fillH, pct, delay,
 }: {
@@ -73,20 +61,17 @@ function AnimatedBar({
   useEffect(() => {
     heightAnim.value = withDelay(
       delay,
-      withTiming(fillH, { duration: 500, easing: Easing.out(Easing.quad) })
+      withTiming(fillH, { duration: 520, easing: Easing.out(Easing.quad) })
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fillH, delay]);
+  }, [fillH]);
 
   return (
     <View style={styles.column}>
-      {/* Ghost track — silueta del límite de presupuesto (función futura) */}
-      <View style={[styles.ghost, { height: GHOST_H }]} />
-
-      {/* Barra animada con color de categoría */}
-      <Animated.View
-        style={[styles.bar, animStyle, { backgroundColor: palette.bg }]}
-      >
+      {/* Ghost track detrás — referencia visual del límite */}
+      <View style={styles.ghostBehind} />
+      {/* Barra real */}
+      <Animated.View style={[styles.bar, animStyle, { backgroundColor: palette.bg }]}>
         <Text style={styles.emoji}>{stat.emoji}</Text>
         <View style={styles.labels}>
           <Text style={styles.pctText}>{pct}%</Text>
@@ -97,37 +82,66 @@ function AnimatedBar({
   );
 }
 
+// ─── Barra vacía (solo ghost) ─────────────────────────────────────────────────
+function GhostBar({ emoji }: { emoji: string }) {
+  return (
+    <View style={styles.column}>
+      <View style={styles.ghostOnly}>
+        <Text style={[styles.emoji, { opacity: 0.3 }]}>{emoji}</Text>
+        <Text style={styles.ghostPct}>0%</Text>
+      </View>
+    </View>
+  );
+}
+
 // ─── Chart principal ──────────────────────────────────────────────────────────
-export function CategoryChart({ stats, budgetLimit }: CategoryChartProps) {
-  if (!stats.length) return null;
+export function CategoryChart({ stats, allEmojis, totalExpenses }: CategoryChartProps) {
+  const maxTotal     = stats.length > 0 ? Math.max(...stats.map(s => s.total)) : 1;
+  const withDataSet  = new Set(stats.map(s => s.emoji));
 
-  const maxTotal = Math.max(...stats.map((s) => s.total));
+  // Primero las categorías con datos (mayor → menor), luego las vacías
+  const withData    = stats.map(s => s.emoji);
+  const withoutData = allEmojis.filter(e => !withDataSet.has(e));
+  const ordered     = [...withData, ...withoutData];
 
-  const bars = stats.slice(0, NUM_BARS).map((s) => {
-    const pct   = budgetLimit > 0 ? Math.round((s.total / budgetLimit) * 100) : 0;
-    const ratio = maxTotal > 0 ? s.total / maxTotal : 0;
-    const fillH = Math.round(MIN_FILL_H + ratio * (MAX_FILL_H - MIN_FILL_H));
-    return { stat: s, fillH, pct };
-  });
+  let delay = 0;
 
   return (
-    <View style={styles.chartRow}>
-      {bars.map(({ stat, fillH, pct }, i) => (
-        <AnimatedBar
-          key={stat.emoji}
-          stat={stat}
-          fillH={fillH}
-          pct={pct}
-          delay={i * 80}
-        />
-      ))}
+    <View style={{ height: CHART_H }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {ordered.map((emoji) => {
+          const stat = stats.find(s => s.emoji === emoji);
+          if (stat) {
+            const pct   = totalExpenses > 0 ? Math.round((stat.total / totalExpenses) * 100) : 0;
+            const ratio = maxTotal > 0 ? stat.total / maxTotal : 0;
+            const fillH = Math.round(MIN_FILL_H + ratio * (MAX_FILL_H - MIN_FILL_H));
+            const d     = delay;
+            delay += 80;
+            return (
+              <AnimatedBar
+                key={emoji}
+                stat={stat}
+                fillH={fillH}
+                pct={pct}
+                delay={d}
+              />
+            );
+          }
+          return <GhostBar key={emoji} emoji={emoji} />;
+        })}
+      </ScrollView>
     </View>
   );
 }
 
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  chartRow: {
+  scrollContent: {
     height: CHART_H,
     flexDirection: "row",
     alignItems: "flex-end",
@@ -140,11 +154,12 @@ const styles = StyleSheet.create({
     position: "relative",
     justifyContent: "flex-end",
   },
-  ghost: {
+  ghostBehind: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
+    height: GHOST_H,
     borderRadius: 9999,
     borderWidth: 1,
     borderStyle: "dashed",
@@ -152,15 +167,30 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.015)",
   },
   bar: {
+    position: "absolute",
+    bottom: 0,
     left: 0,
     right: 0,
     borderRadius: 9999,
-    paddingTop: 24,
-    paddingBottom: 24,
+    paddingTop: 20,
+    paddingBottom: 20,
     paddingHorizontal: 4,
     justifyContent: "space-between",
     alignItems: "center",
     overflow: "hidden",
+  },
+  ghostOnly: {
+    width: BAR_W,
+    height: GHOST_H,
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "rgba(0,0,0,0.10)",
+    backgroundColor: "rgba(0,0,0,0.015)",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 20,
+    paddingBottom: 20,
   },
   emoji: {
     fontSize: 22,
@@ -181,5 +211,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "rgba(0,0,0,0.45)",
     lineHeight: 15,
+  },
+  ghostPct: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "rgba(0,0,0,0.18)",
+    lineHeight: 16.5,
   },
 });

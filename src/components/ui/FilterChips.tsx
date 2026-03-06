@@ -1,11 +1,8 @@
 /**
- * FilterChips — chips con dropdown profesional y minimalista.
+ * FilterChips — chips de filtro en el home.
  *
- * Diseño basado en las guías oficiales de React Native para Modals y Animated API:
- *   - Entrada con spring (scale 0.92→1) + fade (opacity 0→1)
- *   - Items con separador hairline
- *   - Checkmark inline con Text (más fiable que SVG en todas las plataformas)
- *   - Ripple en Android, opacity en iOS
+ * El chip de PERIODO abre un bottom sheet (igual que ListSheet en active-expense).
+ * El chip de WALLET mantiene el dropdown minimalista original.
  */
 import { useState, useRef, useEffect } from "react";
 import {
@@ -18,43 +15,104 @@ import {
   Pressable,
   Animated,
 } from "react-native";
+import {
+  CalendarCheck,
+  Calendar,
+  CalendarDays,
+  CalendarPlus,
+  List,
+  Check,
+} from "lucide-react-native";
 
-const PERIODS = ["Este mes", "Esta semana", "Este año", "Todo"];
+// ─── Opciones ─────────────────────────────────────────────────────────────────
+
+export const PERIODS = ["Hoy", "Ayer", "Esta semana", "Este mes", "Este año", "Todo"];
 const WALLETS = ["Personal", "Trabajo", "Ahorros"];
 
-// ─── Chevron CSS ─────────────────────────────────────────────────────────────
-function ChevronIcon({ size = 10, color = "#000" }: { size?: number; color?: string }) {
+type LucideIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+
+const PERIOD_ICONS: Record<string, LucideIcon> = {
+  "Hoy":          CalendarCheck,
+  "Ayer":         Calendar,
+  "Esta semana":  CalendarDays,
+  "Este mes":     CalendarDays,
+  "Este año":     CalendarPlus,
+  "Todo":         List,
+};
+
+// ─── Colores ──────────────────────────────────────────────────────────────────
+const ACCENT   = "#135BEC";
+const SLATE_900 = "#0F172A";
+const SLATE_500 = "#64748B";
+const WHITE     = "#FFFFFF";
+const BORDER    = "#E2E8F0";
+
+// ─── PeriodSheet — bottom sheet igual a ListSheet de active-expense ───────────
+function PeriodSheet({
+  visible,
+  selected,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  selected: string;
+  onSelect: (v: string) => void;
+  onClose: () => void;
+}) {
   return (
-    <View style={{ width: size, height: size / 2, marginTop: 2 }}>
-      <View
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          width: size / 2 + 1,
-          height: 1.5,
-          backgroundColor: color,
-          borderRadius: 1,
-          transform: [{ rotate: "35deg" }, { translateY: 2 }],
-        }}
-      />
-      <View
-        style={{
-          position: "absolute",
-          right: 0,
-          top: 0,
-          width: size / 2 + 1,
-          height: 1.5,
-          backgroundColor: color,
-          borderRadius: 1,
-          transform: [{ rotate: "-35deg" }, { translateY: 2 }],
-        }}
-      />
-    </View>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={bs.backdrop} />
+      </TouchableWithoutFeedback>
+
+      <View style={bs.container}>
+        {/* Handle */}
+        <View style={bs.handle} />
+        {/* Título */}
+        <Text style={bs.title}>Periodo</Text>
+
+        {PERIODS.map((opt, i) => {
+          const Icon = PERIOD_ICONS[opt];
+          const isSel = opt === selected;
+          return (
+            <View key={opt}>
+              <TouchableOpacity
+                activeOpacity={0.6}
+                onPress={() => { onSelect(opt); onClose(); }}
+                style={bs.option}
+              >
+                <View style={bs.optionLeft}>
+                  <View style={[bs.iconBox, isSel && { backgroundColor: ACCENT + "18" }]}>
+                    {Icon && (
+                      <Icon
+                        size={18}
+                        color={isSel ? ACCENT : SLATE_500}
+                        strokeWidth={1.8}
+                      />
+                    )}
+                  </View>
+                  <Text style={[bs.optionText, isSel && bs.optionTextSelected]}>
+                    {opt}
+                  </Text>
+                </View>
+                {isSel && <Check size={16} color={ACCENT} strokeWidth={2.5} />}
+              </TouchableOpacity>
+              {i < PERIODS.length - 1 && <View style={bs.sep} />}
+            </View>
+          );
+        })}
+      </View>
+    </Modal>
   );
 }
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
+// ─── Dropdown para wallet (diseño minimalista existente) ──────────────────────
+
 interface DropdownConfig {
   options: string[];
   selected: string;
@@ -64,7 +122,6 @@ interface DropdownConfig {
   minWidth: number;
 }
 
-// ─── Dropdown modal animado ──────────────────────────────────────────────────
 function DropdownModal({
   config,
   onClose,
@@ -76,7 +133,6 @@ function DropdownModal({
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Entrada: spring suave + fade rápido
     Animated.parallel([
       Animated.spring(scaleAnim, {
         toValue: 1,
@@ -100,15 +156,13 @@ function DropdownModal({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      {/* Área invisible que cierra el dropdown */}
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={StyleSheet.absoluteFillObject} />
       </TouchableWithoutFeedback>
 
-      {/* Tarjeta animada */}
       <Animated.View
         style={[
-          styles.dropdown,
+          dd.dropdown,
           {
             top: config.y,
             left: config.x,
@@ -121,40 +175,28 @@ function DropdownModal({
         {config.options.map((opt, i) => {
           const isSelected = config.selected === opt;
           const isLast = i === config.options.length - 1;
-
           return (
             <View key={opt}>
               <Pressable
                 android_ripple={{ color: "#F0F0F0" }}
                 style={({ pressed }) => [
-                  styles.dropdownItemPressable,
-                  pressed && styles.dropdownItemPressed,
+                  dd.itemPressable,
+                  pressed && dd.itemPressed,
                 ]}
-                onPress={() => {
-                  config.onSelect(opt);
-                  onClose();
-                }}
+                onPress={() => { config.onSelect(opt); onClose(); }}
               >
-                {/* View interno obligatorio para flexDirection row en Android */}
-                <View style={styles.dropdownItemRow}>
-                  <Text
-                    style={[
-                      styles.dropdownItemText,
-                      isSelected && styles.dropdownItemTextSelected,
-                    ]}
-                  >
+                <View style={dd.itemRow}>
+                  <Text style={[dd.itemText, isSelected && dd.itemTextSelected]}>
                     {opt}
                   </Text>
                   {isSelected ? (
-                    <Text style={styles.dropdownCheck}>✓</Text>
+                    <Text style={dd.check}>✓</Text>
                   ) : (
-                    <View style={styles.dropdownCheckPlaceholder} />
+                    <View style={dd.checkPlaceholder} />
                   )}
                 </View>
               </Pressable>
-
-              {/* Separador hairline entre items (no después del último) */}
-              {!isLast && <View style={styles.separator} />}
+              {!isLast && <View style={dd.sep} />}
             </View>
           );
         })}
@@ -163,13 +205,29 @@ function DropdownModal({
   );
 }
 
-// ─── Chip individual ─────────────────────────────────────────────────────────
-interface ChipProps {
-  label: string;
-  onPress: (pos: { x: number; y: number; width: number }) => void;
+// ─── Chip ─────────────────────────────────────────────────────────────────────
+
+function Chip({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <View style={ch.chip}>
+      <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
+        <View style={ch.chipContent}>
+          <Text style={ch.chipText}>{label}</Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
 }
 
-function Chip({ label, onPress }: ChipProps) {
+// ─── Chip con measure (para dropdown posicionado) ─────────────────────────────
+
+function MeasuredChip({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: (pos: { x: number; y: number; width: number }) => void;
+}) {
   const ref = useRef<View>(null);
 
   const handlePress = () => {
@@ -179,57 +237,194 @@ function Chip({ label, onPress }: ChipProps) {
   };
 
   return (
-    <View ref={ref} style={styles.chip}>
+    <View ref={ref} style={ch.chip}>
       <TouchableOpacity activeOpacity={0.7} onPress={handlePress}>
-        <View style={styles.chipContent}>
-          <Text style={styles.chipText}>{label}</Text>
+        <View style={ch.chipContent}>
+          <Text style={ch.chipText}>{label}</Text>
         </View>
       </TouchableOpacity>
     </View>
   );
 }
 
-// ─── Componente principal ────────────────────────────────────────────────────
-export function FilterChips() {
-  const [period, setPeriod] = useState(PERIODS[0]);
-  const [wallet, setWallet] = useState(WALLETS[0]);
-  const [dropdown, setDropdown] = useState<DropdownConfig | null>(null);
+// ─── Componente principal ─────────────────────────────────────────────────────
 
-  const openPeriod = ({ x, y, width }: { x: number; y: number; width: number }) =>
-    setDropdown({ options: PERIODS, selected: period, onSelect: setPeriod, x, y, minWidth: Math.max(width, 168) });
+interface FilterChipsProps {
+  period: string;
+  onPeriodChange: (p: string) => void;
+}
+
+export function FilterChips({ period, onPeriodChange }: FilterChipsProps) {
+  const [wallet, setWallet] = useState(WALLETS[0]);
+  const [periodSheetVisible, setPeriodSheetVisible] = useState(false);
+  const [walletDropdown, setWalletDropdown] = useState<DropdownConfig | null>(null);
 
   const openWallet = ({ x, y, width }: { x: number; y: number; width: number }) =>
-    setDropdown({ options: WALLETS, selected: wallet, onSelect: setWallet, x, y, minWidth: Math.max(width, 148) });
+    setWalletDropdown({
+      options: WALLETS,
+      selected: wallet,
+      onSelect: setWallet,
+      x,
+      y,
+      minWidth: Math.max(width, 148),
+    });
 
   return (
     <>
-      <View style={styles.row}>
-        <Chip label={period} onPress={openPeriod} />
-        <Chip label={wallet} onPress={openWallet} />
+      <View style={ch.row}>
+        {/* Periodo → bottom sheet */}
+        <Chip label={period} onPress={() => setPeriodSheetVisible(true)} />
+        {/* Wallet → dropdown */}
+        <MeasuredChip label={wallet} onPress={openWallet} />
       </View>
 
-      {dropdown && (
-        <DropdownModal config={dropdown} onClose={() => setDropdown(null)} />
+      <PeriodSheet
+        visible={periodSheetVisible}
+        selected={period}
+        onSelect={onPeriodChange}
+        onClose={() => setPeriodSheetVisible(false)}
+      />
+
+      {walletDropdown && (
+        <DropdownModal
+          config={walletDropdown}
+          onClose={() => setWalletDropdown(null)}
+        />
       )}
     </>
   );
 }
 
-// ─── Estilos ─────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  // ── Fila de chips ─────────────────────────────────────────────────────────────
-  // Sin paddingHorizontal: el padre (headerOuter en index.tsx) ya tiene paddingH 28
+// ─── Estilos: bottom sheet ────────────────────────────────────────────────────
+
+const bs = StyleSheet.create({
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(15,23,42,0.4)",
+  },
+  container: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: WHITE,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 36,
+    paddingTop: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 24,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#E2E8F0",
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: SLATE_900,
+    paddingHorizontal: 20,
+    marginBottom: 4,
+  },
+  option: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  optionLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  optionText: {
+    fontSize: 15,
+    color: SLATE_900,
+  },
+  optionTextSelected: {
+    color: ACCENT,
+    fontWeight: "700",
+  },
+  sep: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: BORDER,
+    marginHorizontal: 20,
+  },
+});
+
+// ─── Estilos: dropdown wallet ─────────────────────────────────────────────────
+
+const dd = StyleSheet.create({
+  dropdown: {
+    position: "absolute",
+    backgroundColor: WHITE,
+    borderRadius: 14,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.14,
+    shadowRadius: 28,
+    elevation: 22,
+  },
+  itemPressable: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    minHeight: 50,
+  },
+  itemPressed: { backgroundColor: "#F7F7F7" },
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  itemText: {
+    fontSize: 15,
+    fontWeight: "400",
+    color: "#3A3A3A",
+    letterSpacing: -0.2,
+    flex: 1,
+  },
+  itemTextSelected: { fontWeight: "700", color: "#000000" },
+  check: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#000000",
+    marginLeft: 12,
+    lineHeight: 20,
+  },
+  checkPlaceholder: { width: 27 },
+  sep: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#EBEBEB",
+  },
+});
+
+// ─── Estilos: chip ────────────────────────────────────────────────────────────
+
+const ch = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-
-  // Estilo toggle minimalista — mismo patrón que Gasto/Ingreso en active-expense
-  // Píldora blanca con borde oscuro sutil, texto negro, chevron pequeño
-  // View externo con el borde — garantiza visibilidad en Android
   chip: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: WHITE,
     borderRadius: 9999,
     borderWidth: 1.5,
     borderColor: "#D4D4D4",
@@ -244,66 +439,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#000000",
     lineHeight: 20,
-  },
-
-  // ── Dropdown ─────────────────────────────────────────────────────────────────
-  dropdown: {
-    position: "absolute",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    overflow: "hidden",
-    // Sombra refinada: difusa y profunda (estilo iOS/Figma)
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.14,
-    shadowRadius: 28,
-    elevation: 22,
-  },
-
-  // Pressable: solo define el área táctil y fondo al presionar
-  dropdownItemPressable: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    minHeight: 50,
-  },
-  dropdownItemPressed: {
-    backgroundColor: "#F7F7F7",
-  },
-
-  // View interno: maneja el layout en fila (patrón correcto para Android)
-  dropdownItemRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  dropdownItemText: {
-    fontSize: 15,
-    fontWeight: "400",
-    color: "#3A3A3A",
-    letterSpacing: -0.2,
-    flex: 1,
-  },
-  dropdownItemTextSelected: {
-    fontWeight: "700",
-    color: "#000000",
-  },
-
-  dropdownCheck: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#000000",
-    marginLeft: 12,
-    lineHeight: 20,
-  },
-  dropdownCheckPlaceholder: {
-    width: 27, // mismo ancho que el check (15) + marginLeft (12)
-  },
-
-  // Separador hairline (1 physical pixel, se ve fino en todas las densidades)
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "#EBEBEB",
-    marginHorizontal: 0,
   },
 });

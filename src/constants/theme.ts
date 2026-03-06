@@ -112,6 +112,15 @@ export function getCategoryColor(emoji: string): { bg: string; accent: string } 
   return CATEGORY_COLORS[emoji] ?? { bg: "#F1F5F9", accent: "#64748B" };
 }
 
+/** Lista canónica de categorías del sistema (orden visual en el chart) */
+export const ALL_CATEGORY_EMOJIS: string[] = [
+  "🍔", "☕", "🍽️", "🚗", "🛍️",
+  "🏠", "🎮", "💊", "💡", "📺",
+  "🚕", "⛽", "🛒", "🏥", "💪",
+  "🎵", "💎", "📡", "📱", "🎓",
+  "💸",
+];
+
 export function guessCategoryEmoji(description: string): string {
   const lower = description.toLowerCase().trim();
 

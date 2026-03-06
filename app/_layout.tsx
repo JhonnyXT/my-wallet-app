@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { initDatabase, hasAnyTransactions, seedDemoData } from "@/src/db/db";
+import { initDatabase, countTransactions, clearTransactions, seedDemoData } from "@/src/db/db";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 
 import "../global.css";
@@ -21,8 +21,12 @@ export default function RootLayout() {
   useEffect(() => {
     async function bootstrap() {
       await initDatabase();
-      const hasData = await hasAnyTransactions();
-      if (!hasData) await seedDemoData();
+      // Re-seed si hay ≤ 10 registros (seed viejo tenía 5)
+      const count = await countTransactions();
+      if (count <= 10) {
+        await clearTransactions();
+        await seedDemoData();
+      }
       await loadTransactions();
       await SplashScreen.hideAsync();
     }

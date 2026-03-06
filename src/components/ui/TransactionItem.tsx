@@ -30,14 +30,13 @@ function formatTime(dateStr: string): string {
 }
 
 function formatAmount(amount: number): string {
-  // Pesos colombianos: "$ 95.000" (separador de miles español, sin decimales)
-  return `$ ${Math.round(amount).toLocaleString("es-ES")}`;
+  // Pesos colombianos: "$ 95.000" — siempre positivo (el color indica tipo)
+  return `$ ${Math.round(Math.abs(amount)).toLocaleString("es-ES")}`;
 }
 
 function getCategoryName(emoji: string): string {
   const name = EMOJI_TO_CATEGORY_NAME[emoji];
-  if (!name) return "GASTO";
-  // Capitalize first letter, rest lowercase like Figma ("Comida • 18:45")
+  if (!name) return "Gasto";
   return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 }
 
@@ -50,6 +49,9 @@ export function TransactionItem({
   const palette = getCategoryColor(transaction.category_emoji);
   const categoryName = getCategoryName(transaction.category_emoji);
   const timeStr = formatTime(transaction.date);
+  const isExpense = transaction.amount >= 0;
+  const tipoLabel = isExpense ? "Gasto" : "Ingreso";
+  const amountColor = isExpense ? "#000000" : "#059669";
 
   return (
     <Animated.View
@@ -60,26 +62,27 @@ export function TransactionItem({
         onLongPress={() => onLongPress?.(transaction.id)}
         style={styles.row}
       >
-        {/* Icon circle — Figma: 56×56, borderRadius 9999, colored bg */}
+        {/* Icon circle */}
         <View style={[styles.iconCircle, { backgroundColor: palette.bg }]}>
           <Text style={styles.emoji}>{transaction.category_emoji}</Text>
         </View>
 
-        {/* Text block */}
+        {/* Text block: título = categoría, meta = tipo • hora */}
         <View style={styles.textBlock}>
           <Text style={styles.description} numberOfLines={1}>
-            {transaction.description}
-          </Text>
-          {/* Figma: "Comida • 18:45" */}
-          <Text style={styles.meta}>
             {categoryName}
+          </Text>
+          <Text style={styles.meta}>
+            {tipoLabel}
             {" • "}
             {timeStr}
           </Text>
         </View>
 
-        {/* Amount — Figma: 18px, weight 800 */}
-        <Text style={styles.amount}>{formatAmount(transaction.amount)}</Text>
+        {/* Monto con color según tipo */}
+        <Text style={[styles.amount, { color: amountColor }]}>
+          {formatAmount(transaction.amount)}
+        </Text>
       </Pressable>
     </Animated.View>
   );

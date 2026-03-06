@@ -71,37 +71,92 @@ export async function hasAnyTransactions(): Promise<boolean> {
   return (result?.count ?? 0) > 0;
 }
 
-/** Inserts demo data that mirrors the Stitch "Visual Expense Insights Home" design */
+export async function countTransactions(): Promise<number> {
+  const db = await getNativeDatabase();
+  const result = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM transactions`
+  );
+  return result?.count ?? 0;
+}
+
+export async function clearTransactions(): Promise<void> {
+  const db = await getNativeDatabase();
+  await db.runAsync(`DELETE FROM transactions`);
+}
+
+/** Inserts demo data covering all filter periods */
 export async function seedDemoData(): Promise<void> {
   const now = new Date();
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const threeDaysAgo = new Date(now);
-  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-  const fourDaysAgo = new Date(now);
-  fourDaysAgo.setDate(fourDaysAgo.getDate() - 4);
-  const fiveDaysAgo = new Date(now);
-  fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
 
-  function d(base: Date, h: number, m: number) {
-    const t = new Date(base);
+  // Fecha relativa (daysAgo desde hoy) + hora
+  function d(daysAgo: number, h: number, m: number): string {
+    const t = new Date(now);
+    t.setDate(t.getDate() - daysAgo);
     t.setHours(h, m, 0, 0);
     return t.toISOString();
   }
 
-  const seed = [
-    { amount: 900,  description: "Restaurante",    emoji: "🍔", date: d(yesterday, 18, 45) },
-    { amount: 435,  description: "Uber Trip",       emoji: "🚗", date: d(yesterday, 16, 20) },
-    { amount: 3540, description: "PlayStation Store", emoji: "🎮", date: d(threeDaysAgo, 14, 10) },
-    { amount: 2250, description: "Zara",            emoji: "🛍️", date: d(fourDaysAgo, 11, 30) },
-    { amount: 3690, description: "Servicios Hogar", emoji: "💡", date: d(fiveDaysAgo, 9, 0) },
+  // Fecha en un mes anterior relativo (1 = mes pasado, 2 = hace 2 meses…)
+  function prevMonth(monthsAgo: number, day: number, h: number, m: number): string {
+    const t = new Date(now.getFullYear(), now.getMonth() - monthsAgo, day, h, m, 0, 0);
+    return t.toISOString();
+  }
+
+  const seed: { amount: number; desc: string; emoji: string; date: string }[] = [
+    // ── HOY ──────────────────────────────────────────────────────────────
+    { amount:  12500, desc: "Café mañanero",     emoji: "☕",  date: d(0,  8, 30) },
+    { amount:  45000, desc: "Almuerzo",           emoji: "🍔",  date: d(0, 13, 15) },
+    { amount:   8500, desc: "Taxi al trabajo",    emoji: "🚗",  date: d(0, 17, 50) },
+
+    // ── AYER ──────────────────────────────────────────────────────────────
+    { amount:  28000, desc: "Restaurante",        emoji: "🍔",  date: d(1, 18, 45) },
+    { amount:  15000, desc: "Uber",               emoji: "🚗",  date: d(1, 16, 20) },
+    { amount: -850000, desc: "Nómina",            emoji: "💰",  date: d(1,  9,  0) },
+
+    // ── ESTA SEMANA (2–7 días) ────────────────────────────────────────────
+    { amount:  35400, desc: "PlayStation Store",  emoji: "🎮",  date: d(2, 14, 10) },
+    { amount:  18900, desc: "Zara",               emoji: "🛍️", date: d(3, 11, 30) },
+    { amount:   9800, desc: "Farmacia",           emoji: "💊",  date: d(4, 10,  0) },
+    { amount:   5500, desc: "Gasolina",           emoji: "🚗",  date: d(5, 19, 45) },
+    { amount:  22000, desc: "Domicilio",          emoji: "🍔",  date: d(6,  8, 20) },
+
+    // ── ESTE MES (8–28 días) ──────────────────────────────────────────────
+    { amount:  85000, desc: "Arriendo",           emoji: "🏠",  date: d(8,  9,  0) },
+    { amount:  14500, desc: "H&M",                emoji: "🛍️", date: d(10, 16, 30) },
+    { amount:   6200, desc: "Starbucks",          emoji: "☕",  date: d(12,  8,  0) },
+    { amount: -200000, desc: "Freelance",         emoji: "💰",  date: d(14,  9,  0) },
+    { amount:  31000, desc: "Netflix + Spotify",  emoji: "🎮",  date: d(16, 21,  0) },
+    { amount:   9500, desc: "Transporte público", emoji: "🚗",  date: d(18,  7, 30) },
+    { amount:  42000, desc: "Cena cumpleaños",    emoji: "🍔",  date: d(20, 20,  0) },
+    { amount:  11800, desc: "Electricidad",       emoji: "💡",  date: d(22, 11,  0) },
+    { amount:  28000, desc: "Compras mercado",    emoji: "🛍️", date: d(25, 15,  0) },
+
+    // ── MES PASADO ────────────────────────────────────────────────────────
+    { amount: -500000, desc: "Salario",           emoji: "💰",  date: prevMonth(1,  1,  9,  0) },
+    { amount: 130000,  desc: "Ropa temporada",    emoji: "🛍️", date: prevMonth(1, 15, 11,  0) },
+    { amount:  28500,  desc: "Xbox Game Pass",    emoji: "🎮",  date: prevMonth(1, 20, 21,  0) },
+    { amount:  95000,  desc: "Arriendo",          emoji: "🏠",  date: prevMonth(1,  2,  9,  0) },
+    { amount:  47000,  desc: "Mecánico",          emoji: "🚗",  date: prevMonth(1, 10,  8,  0) },
+
+    // ── HACE 2 MESES ──────────────────────────────────────────────────────
+    { amount: -500000, desc: "Salario",           emoji: "💰",  date: prevMonth(2,  1,  9,  0) },
+    { amount:  62000,  desc: "Médico especialista", emoji: "💊", date: prevMonth(2,  5, 16,  0) },
+    { amount:  19000,  desc: "Café con clientes", emoji: "☕",  date: prevMonth(2, 22,  9,  0) },
+    { amount:  88000,  desc: "Arriendo",          emoji: "🏠",  date: prevMonth(2,  3, 10,  0) },
+    { amount:  35000,  desc: "Curso online",      emoji: "🎓",  date: prevMonth(2, 15, 14,  0) },
+
+    // ── HACE 3 MESES ──────────────────────────────────────────────────────
+    { amount: -500000, desc: "Salario",           emoji: "💰",  date: prevMonth(3,  1,  9,  0) },
+    { amount:  92000,  desc: "Arriendo",          emoji: "🏠",  date: prevMonth(3,  2,  9,  0) },
+    { amount:  45000,  desc: "Supermercado",      emoji: "🛍️", date: prevMonth(3, 10, 17,  0) },
+    { amount:  18000,  desc: "Internet",          emoji: "💡",  date: prevMonth(3, 15, 10,  0) },
   ];
 
   const db = await getNativeDatabase();
   for (const tx of seed) {
     await db.runAsync(
       `INSERT INTO transactions (amount, description, category_emoji, date) VALUES (?, ?, ?, ?)`,
-      [tx.amount, tx.description, tx.emoji, tx.date]
+      [tx.amount, tx.desc, tx.emoji, tx.date]
     );
   }
 }

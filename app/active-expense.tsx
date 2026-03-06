@@ -8,16 +8,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
   X, Check, Plus, Edit3,
-  Calendar, RefreshCw, UtensilsCrossed, Wallet,
+  Calendar, UtensilsCrossed, Wallet,
   Car, Home, ShoppingBag, HeartPulse, Gamepad2, GraduationCap, User,
   Banknote, Landmark, CreditCard,
   CalendarCheck, CalendarMinus, CalendarPlus,
-  Repeat, CalendarDays,
 } from "lucide-react-native";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
 
-import { useExpenseStore, DateOption, RecurrenceType, AccountType } from "@/src/store/useExpenseStore";
+import { useExpenseStore, DateOption, AccountType } from "@/src/store/useExpenseStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { processVoiceInput } from "@/src/utils/voiceParser";
 
@@ -39,23 +38,15 @@ const DATE_OPTIONS: { key: DateOption; label: string }[] = [
   { key: "daybeforeyesterday", label: "Anteayer" },
   { key: "custom",             label: "Calendario" },
 ];
-const RECURRENCE_OPTIONS: { key: RecurrenceType; label: string }[] = [
-  { key: "once",     label: "Una vez" },
-  { key: "weekly",   label: "Semanal" },
-  { key: "biweekly", label: "Quincenal" },
-  { key: "monthly",  label: "Mensual" },
-  { key: "yearly",   label: "Anual" },
-];
 const CATEGORY_OPTIONS: { key: string; label: string }[] = [
   { key: "🍔", label: "Comida" },
   { key: "🚗", label: "Transporte" },
   { key: "🏠", label: "Hogar" },
   { key: "🛍️", label: "Compras" },
-  { key: "💊", label: "Salud" },
+  { key: "🏥", label: "Salud" },
   { key: "🎮", label: "Entretenimiento" },
   { key: "🎓", label: "Educación" },
   { key: "👤", label: "Personal" },
-  { key: "💰", label: "General" },
 ];
 const ACCOUNT_OPTIONS: { key: AccountType; label: string }[] = [
   { key: "cash",    label: "Efectivo" },
@@ -69,13 +60,12 @@ type LucideIcon = React.ComponentType<{ size?: number; color?: string; strokeWid
 const CATEGORY_ICONS: Record<string, { Icon: LucideIcon; color: string; bg: string }> = {
   "🍔": { Icon: UtensilsCrossed, color: "#D2601A", bg: "#FFE8D6" },
   "🚗": { Icon: Car,             color: "#1565C0", bg: "#D6EFFF" },
-  "🏠": { Icon: Home,            color: "#1565C0", bg: "#D6EFFF" },
-  "🛍️": { Icon: ShoppingBag,    color: "#C2185B", bg: "#FDECEA" },
-  "💊": { Icon: HeartPulse,      color: "#B71C1C", bg: "#FEE2E2" },
+  "🏠": { Icon: Home,            color: "#D97706", bg: "#FEF3C7" },
+  "🛍️": { Icon: ShoppingBag,    color: "#C2185B", bg: "#FEE2E2" },
+  "🏥": { Icon: HeartPulse,      color: "#C62828", bg: "#FCE4EC" },
   "🎮": { Icon: Gamepad2,        color: "#6D28D9", bg: "#EDE9FE" },
-  "🎓": { Icon: GraduationCap,   color: "#D97706", bg: "#FEF3C7" },
-  "👤": { Icon: User,            color: "#059669", bg: "#D1FAE5" },
-  "💰": { Icon: Wallet,          color: "#64748B", bg: "#F1F5F9" },
+  "🎓": { Icon: GraduationCap,   color: "#059669", bg: "#D1FAE5" },
+  "👤": { Icon: User,            color: "#475569", bg: "#F1F5F9" },
 };
 
 // ─── Info extra de cuentas ────────────────────────────────────────────────────
@@ -92,15 +82,7 @@ const DATE_ICONS: Record<string, LucideIcon> = {
   daybeforeyesterday: CalendarMinus,
   custom:             CalendarPlus,
 };
-const REC_ICONS: Record<string, LucideIcon> = {
-  once:     Repeat,
-  weekly:   CalendarDays,
-  biweekly: CalendarDays,
-  monthly:  CalendarDays,
-  yearly:   CalendarDays,
-};
-
-// ─── Sheet: lista genérica con icono izquierdo (fecha / recurrencia) ──────────
+// ─── Sheet: lista genérica con icono izquierdo (fecha) ───────────────────────
 function ListSheet({
   visible, title, options, selected, accent, iconMap, onSelect, onClose,
 }: {
@@ -304,7 +286,7 @@ export default function ActiveExpenseScreen() {
 
   const [tagInput,      setTagInput]      = useState("");
   const [activeSheet,   setActiveSheet]   = useState<
-    "date" | "recurrence" | "category" | "account" | null
+    "date" | "category" | "account" | null
   >(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const noteRef = useRef<TextInput>(null);
@@ -350,6 +332,7 @@ export default function ActiveExpenseScreen() {
       isExpense ? store.amount : -store.amount,
       store.note || store.rawTranscript || (isExpense ? "Gasto" : "Ingreso"),
       store.categoryEmoji,
+      store.tags,
     );
     store.reset();
     router.dismissAll();
@@ -365,7 +348,6 @@ export default function ActiveExpenseScreen() {
   const dateLabel = store.date === "custom" && store.customDate
     ? store.customDate.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" })
     : DATE_OPTIONS.find((o) => o.key === store.date)?.label ?? "Hoy";
-  const recLabel     = RECURRENCE_OPTIONS.find((o) => o.key === store.recurrence)?.label ?? "Una vez";
   const catLabel     = CATEGORY_OPTIONS.find((o) => o.key === store.categoryEmoji)?.label ?? store.categoryName;
   const accountLabel = ACCOUNT_OPTIONS.find((o) => o.key === store.account)?.label ?? "Efectivo";
   const displayTags  = store.tags.length > 0 ? store.tags : SUGGESTED_TAGS;
@@ -433,19 +415,13 @@ export default function ActiveExpenseScreen() {
           </View>
         </View>
 
-        {/* Selectores — fila de 4 iconos */}
+        {/* Selectores — fila de 3 iconos */}
         <View style={s.selRow}>
           <SelIconBtn
             icon={<Calendar size={20} color={SLATE_500} strokeWidth={1.8} />}
             fieldName="FECHA"
             value={dateLabel}
             onPress={() => setActiveSheet("date")}
-          />
-          <SelIconBtn
-            icon={<RefreshCw size={20} color={SLATE_500} strokeWidth={1.8} />}
-            fieldName="RECURRENCIA"
-            value={recLabel}
-            onPress={() => setActiveSheet("recurrence")}
           />
           <SelIconBtn
             icon={<UtensilsCrossed size={20} color={SLATE_500} strokeWidth={1.8} />}
@@ -528,11 +504,6 @@ export default function ActiveExpenseScreen() {
             store.setDate(k as DateOption);
           }
         }}
-        onClose={() => setActiveSheet(null)} />
-      <ListSheet visible={activeSheet === "recurrence"} title="Recurrencia"
-        options={RECURRENCE_OPTIONS} selected={store.recurrence} accent={accent}
-        iconMap={REC_ICONS}
-        onSelect={(k) => store.setRecurrence(k as RecurrenceType)}
         onClose={() => setActiveSheet(null)} />
       <CategorySheet
         visible={activeSheet === "category"}

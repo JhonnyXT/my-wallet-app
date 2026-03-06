@@ -17,108 +17,69 @@ export const COLORS = {
 export const BUDGET_WARNING_THRESHOLD = 90;
 
 export const CATEGORY_MAP: Record<string, string> = {
-  café: "☕",
-  coffee: "☕",
-  starbucks: "☕",
-  restaurante: "🍽️",
-  restaurant: "🍽️",
-  pizza: "🍕",
-  comida: "🍔",
-  lunch: "🍔",
-  cena: "🍽️",
-  taco: "🌮",
-  uber: "🚗",
-  taxi: "🚕",
-  gasolina: "⛽",
-  gas: "⛽",
-  transporte: "🚗",
-  supermercado: "🛒",
-  mercadona: "🍎",
-  súper: "🛒",
-  super: "🛒",
-  ropa: "🛍️",
-  zara: "🛍️",
-  shopping: "🛍️",
-  compras: "🛍️",
-  farmacia: "💊",
-  médico: "🏥",
-  doctor: "🏥",
-  gym: "💪",
-  netflix: "📺",
-  spotify: "🎵",
-  suscripción: "💎",
-  alquiler: "🏠",
-  rent: "🏠",
-  luz: "💡",
-  agua: "💧",
-  internet: "📡",
-  teléfono: "📱",
+  // 🍔 Comida
+  café: "🍔", coffee: "🍔", starbucks: "🍔",
+  restaurante: "🍔", restaurant: "🍔", pizza: "🍔",
+  comida: "🍔", lunch: "🍔", cena: "🍔", taco: "🍔",
+  mercado: "🍔", supermercado: "🍔", súper: "🍔", super: "🍔",
+  domicilio: "🍔", almuerzo: "🍔",
+  // 🚗 Transporte
+  uber: "🚗", taxi: "🚗", gasolina: "🚗", gas: "🚗",
+  transporte: "🚗", bus: "🚗", metro: "🚗", moto: "🚗",
+  // 🏠 Hogar
+  arriendo: "🏠", alquiler: "🏠", rent: "🏠",
+  luz: "🏠", agua: "🏠", internet: "🏠",
+  servicios: "🏠", reparacion: "🏠", hogar: "🏠",
+  electricidad: "🏠",
+  // 🛍️ Compras
+  ropa: "🛍️", zara: "🛍️", shopping: "🛍️", compras: "🛍️",
+  gadget: "🛍️", tecnologia: "🛍️", amazon: "🛍️",
+  // 🏥 Salud
+  farmacia: "🏥", médico: "🏥", doctor: "🏥", medico: "🏥",
+  hospital: "🏥", clinica: "🏥", salud: "🏥",
+  medicamento: "🏥", cita: "🏥", gym: "🏥",
+  // 🎮 Entretenimiento
+  netflix: "🎮", spotify: "🎮", cine: "🎮", pelicula: "🎮",
+  juego: "🎮", game: "🎮", concierto: "🎮", teatro: "🎮",
+  suscripcion: "🎮", suscripción: "🎮", playstation: "🎮",
+  xbox: "🎮", gaming: "🎮",
+  // 🎓 Educación
+  curso: "🎓", libro: "🎓", educacion: "🎓", universidad: "🎓",
+  colegio: "🎓", escuela: "🎓", capacitacion: "🎓",
+  // 👤 Personal
+  personal: "👤", peluqueria: "👤", barberia: "👤",
+  cuidado: "👤", spa: "👤", belleza: "👤",
 };
 
 export const EMOJI_TO_CATEGORY_NAME: Record<string, string> = {
-  "☕": "CAFÉ",
   "🍔": "COMIDA",
-  "🍕": "COMIDA",
-  "🍽️": "RESTAURANTE",
-  "🌮": "COMIDA",
   "🚗": "TRANSPORTE",
-  "🚕": "TAXI",
-  "⛽": "GASOLINA",
+  "🏠": "HOGAR",
   "🛍️": "COMPRAS",
-  "🛒": "SÚPER",
-  "🍎": "SÚPER",
-  "💊": "FARMACIA",
   "🏥": "SALUD",
-  "💪": "GYM",
-  "📺": "ENTRETE.",
-  "🎵": "MÚSICA",
-  "🏠": "ALQUILER",
-  "💡": "SERVICIOS",
-  "📡": "INTERNET",
-  "📱": "TELÉFONO",
-  "🎮": "GAMING",
-  "💎": "SUSCRIPT.",
-  "💸": "GASTO",
+  "🎮": "ENTRETE.",
+  "🎓": "EDUCACIÓN",
+  "👤": "PERSONAL",
 };
 
-// Exact colors from Figma "Visual Expense Insights Home"
 export const CATEGORY_COLORS: Record<string, { bg: string; accent: string }> = {
-  "🍔": { bg: "#FFE8D6", accent: "#D2601A" },
-  "🍕": { bg: "#FFE8D6", accent: "#D2601A" },
-  "🍽️": { bg: "#FFE8D6", accent: "#D2601A" },
-  "☕": { bg: "#FFE8D6", accent: "#8B5E3C" },
-  "🌮": { bg: "#FFE8D6", accent: "#D2601A" },
-  "🎮": { bg: "#D6EFFF", accent: "#1565C0" },
-  "🚗": { bg: "#D6EFFF", accent: "#1565C0" },
-  "🚕": { bg: "#D6EFFF", accent: "#1565C0" },
-  "⛽": { bg: "#D6EFFF", accent: "#006064" },
-  "📡": { bg: "#D6EFFF", accent: "#0D47A1" },
-  "📱": { bg: "#D6EFFF", accent: "#0D47A1" },
-  "💪": { bg: "#D6EFFF", accent: "#0D47A1" },
-  "🛍️": { bg: "#FEE2E2", accent: "#C2185B" },
-  "🛒": { bg: "#FEE2E2", accent: "#C2185B" },
-  "🍎": { bg: "#FEE2E2", accent: "#C2185B" },
-  "💊": { bg: "#FEE2E2", accent: "#B71C1C" },
-  "🏥": { bg: "#FEE2E2", accent: "#B71C1C" },
-  "💡": { bg: "#FEF3C7", accent: "#D97706" },
-  "🏠": { bg: "#FEF3C7", accent: "#D97706" },
-  "📺": { bg: "#FEF3C7", accent: "#9C6B00" },
-  "🎵": { bg: "#FEF3C7", accent: "#9C6B00" },
-  "💎": { bg: "#FEF3C7", accent: "#7B5E00" },
-  "💸": { bg: "#F1F5F9", accent: "#64748B" },
+  "🍔": { bg: "#FFE8D6", accent: "#D2601A" },  // Comida — naranja
+  "🚗": { bg: "#D6EFFF", accent: "#1565C0" },  // Transporte — azul
+  "🏠": { bg: "#FEF3C7", accent: "#D97706" },  // Hogar — amarillo
+  "🛍️": { bg: "#FEE2E2", accent: "#C2185B" }, // Compras — rosa
+  "🏥": { bg: "#FCE4EC", accent: "#C62828" },  // Salud — rojo
+  "🎮": { bg: "#EDE9FE", accent: "#6D28D9" },  // Entretenimiento — púrpura
+  "🎓": { bg: "#D1FAE5", accent: "#059669" },  // Educación — verde
+  "👤": { bg: "#F1F5F9", accent: "#475569" },  // Personal — gris
 };
 
 export function getCategoryColor(emoji: string): { bg: string; accent: string } {
   return CATEGORY_COLORS[emoji] ?? { bg: "#F1F5F9", accent: "#64748B" };
 }
 
-/** Lista canónica de categorías del sistema (orden visual en el chart) */
+/** Lista canónica de las 8 categorías estándar del sistema */
 export const ALL_CATEGORY_EMOJIS: string[] = [
-  "🍔", "☕", "🍽️", "🚗", "🛍️",
-  "🏠", "🎮", "💊", "💡", "📺",
-  "🚕", "⛽", "🛒", "🏥", "💪",
-  "🎵", "💎", "📡", "📱", "🎓",
-  "💸",
+  "🍔", "🚗", "🏠", "🛍️", "🏥", "🎮", "🎓", "👤",
 ];
 
 export function guessCategoryEmoji(description: string): string {

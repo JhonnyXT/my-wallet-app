@@ -57,7 +57,9 @@ export default function DashboardScreen() {
   const deleteTransaction = useFinanceStore((s) => s.deleteTransaction);
 
   // Estado del filtro de periodo — "Este mes" por defecto
-  const [period, setPeriod] = useState(PERIODS[3]); // "Este mes"
+  const [period,   setPeriod]   = useState(PERIODS[3]); // "Este mes"
+  // Estado del filtro de categoría — null = Todas
+  const [category, setCategory] = useState<string | null>(null);
 
   // ── Balance animado (Gastos / Ingresos) ──────────────────────────────────────
   const [showIncome, setShowIncome] = useState(false);
@@ -91,11 +93,12 @@ export default function DashboardScreen() {
     });
   };
 
-  // ── Filtros de período ───────────────────────────────────────────────────────
-  const filteredTransactions = useMemo(
-    () => filterByPeriod(transactions, period),
-    [transactions, period]
-  );
+  // ── Filtros de período + categoría ──────────────────────────────────────────
+  const filteredTransactions = useMemo(() => {
+    let list = filterByPeriod(transactions, period);
+    if (category) list = list.filter((t) => t.category_emoji === category);
+    return list;
+  }, [transactions, period, category]);
   const recentTransactions = filteredTransactions.slice(0, 3);
 
   // ── Stats del chart (solo gastos del mes actual) ─────────────────────────────
@@ -174,7 +177,12 @@ export default function DashboardScreen() {
               </Text>
             </Animated.View>
 
-            <FilterChips period={period} onPeriodChange={setPeriod} />
+            <FilterChips
+              period={period}
+              onPeriodChange={setPeriod}
+              category={category}
+              onCategoryChange={setCategory}
+            />
           </View>
 
           <Pressable style={styles.settingsBtn}>
@@ -242,7 +250,7 @@ export default function DashboardScreen() {
             {transactions.length > 0 && (
               <View style={styles.verMasRow}>
                 <Pressable
-                  onPress={() => router.navigate("/(tabs)/analytics")}
+                  onPress={() => router.push("/analytics")}
                   style={({ pressed }) => [
                     styles.verMasBtn,
                     pressed && { opacity: 0.6 },

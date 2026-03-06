@@ -64,7 +64,7 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
 
   async function handleSearch() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigateTo("analytics");
+    router.push("/analytics");
   }
 
   async function handleMic() {
@@ -112,11 +112,7 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
           style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
           android_ripple={{ color: "transparent" }}
         >
-          <Search
-            size={22}
-            color={currentRoute === "analytics" ? "#2D5BFF" : "#111111"}
-            strokeWidth={2}
-          />
+          <Search size={22} color="#111111" strokeWidth={2} />
         </Pressable>
       </View>
 

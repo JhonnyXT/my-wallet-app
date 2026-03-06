@@ -1,10 +1,9 @@
 /**
- * CategoryChart — scroll horizontal de categorías
+ * CategoryChart — barra de progreso vertical proporcional
  *
- * - Muestra TODAS las categorías del sistema + las que vengan de transacciones
- * - Categorías con datos: barra animada con color, % y monto
- * - Categorías sin datos: solo el ghost track (outline punteado) al 100%
- * - % = (total_categoría / total_gastos_mes) × 100
+ * Ghost (100%) → emoji fijo arriba
+ * Fill         → sube desde abajo, altura = (pct/100) × GHOST_H  (sin mínimo artificial)
+ * Labels       → % y monto DEBAJO del ghost, siempre visibles
  */
 import { View, Text, ScrollView, StyleSheet } from "react-native";
 import Animated, {
@@ -30,15 +29,19 @@ interface CategoryChartProps {
 }
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
-const BAR_W      = 68;
-const BAR_GAP    = 14;
-const H_PADDING  = 28;
-const CHART_H    = 260;
-const MAX_FILL_H = 218;
-const MIN_FILL_H = 88;
-const GHOST_H    = MAX_FILL_H;
+const BAR_W    = 68;
+const BAR_GAP  = 14;
+const H_PAD    = 28;
+const GHOST_H  = 210;     // ghost = 100 %
+const CHART_H  = GHOST_H + 8;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Color semafórico ─────────────────────────────────────────────────────────
+function barColor(pct: number, emoji: string): { bg: string; pctColor: string } {
+  if (pct > 45) return { bg: "#FEE2E2", pctColor: "#DC2626" };
+  if (pct > 25) return { bg: "#FEF3C7", pctColor: "#D97706" };
+  return { bg: getCategoryColor(emoji).bg, pctColor: "#1E293B" };
+}
+
 function fmtAmount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000)     return `${Math.round(n / 1_000)}k`;
@@ -47,62 +50,66 @@ function fmtAmount(n: number): string {
 
 // ─── Barra con datos ──────────────────────────────────────────────────────────
 function AnimatedBar({
-  stat, fillH, pct, delay,
+  stat, fillH, pct, bg, pctColor, delay,
 }: {
   stat: CategoryStat;
   fillH: number;
   pct: number;
+  bg: string;
+  pctColor: string;
   delay: number;
 }) {
-  const palette    = getCategoryColor(stat.emoji);
   const heightAnim = useSharedValue(0);
   const animStyle  = useAnimatedStyle(() => ({ height: heightAnim.value }));
 
   useEffect(() => {
     heightAnim.value = withDelay(
       delay,
-      withTiming(fillH, { duration: 520, easing: Easing.out(Easing.quad) })
+      withTiming(fillH, { duration: 560, easing: Easing.out(Easing.cubic) })
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fillH]);
 
   return (
     <View style={styles.column}>
-      {/* Ghost track detrás — referencia visual del límite */}
-      <View style={styles.ghostBehind} />
-      {/* Barra real */}
-      <Animated.View style={[styles.bar, animStyle, { backgroundColor: palette.bg }]}>
+      <View style={styles.ghost}>
+        {/* Fill: sube desde abajo, detrás de todo */}
+        <Animated.View style={[styles.fill, animStyle, { backgroundColor: bg }]} />
+
+        {/* Emoji fijo arriba, sobre el fill */}
         <Text style={styles.emoji}>{stat.emoji}</Text>
-        <View style={styles.labels}>
-          <Text style={styles.pctText}>{pct}%</Text>
+
+        {/* Labels fijos en la parte inferior, sobre el fill */}
+        <View style={styles.labelsBottom}>
+          <Text style={[styles.pctText, { color: pctColor }]}>{pct}%</Text>
           <Text style={styles.amtText}>{fmtAmount(stat.total)}</Text>
         </View>
-      </Animated.View>
-    </View>
-  );
-}
-
-// ─── Barra vacía (solo ghost) ─────────────────────────────────────────────────
-function GhostBar({ emoji }: { emoji: string }) {
-  return (
-    <View style={styles.column}>
-      <View style={styles.ghostOnly}>
-        <Text style={[styles.emoji, { opacity: 0.3 }]}>{emoji}</Text>
-        <Text style={styles.ghostPct}>0%</Text>
       </View>
     </View>
   );
 }
 
-// ─── Chart principal ──────────────────────────────────────────────────────────
-export function CategoryChart({ stats, allEmojis, totalExpenses }: CategoryChartProps) {
-  const maxTotal     = stats.length > 0 ? Math.max(...stats.map(s => s.total)) : 1;
-  const withDataSet  = new Set(stats.map(s => s.emoji));
+// ─── Barra vacía ─────────────────────────────────────────────────────────────
+function GhostBar({ emoji }: { emoji: string }) {
+  return (
+    <View style={styles.column}>
+      <View style={styles.ghost}>
+        <Text style={[styles.emoji, { opacity: 0.28 }]}>{emoji}</Text>
+        <View style={styles.labelsBottom}>
+          <Text style={styles.ghostPct}>0%</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
 
-  // Primero las categorías con datos (mayor → menor), luego las vacías
-  const withData    = stats.map(s => s.emoji);
-  const withoutData = allEmojis.filter(e => !withDataSet.has(e));
-  const ordered     = [...withData, ...withoutData];
+// ─── Chart ───────────────────────────────────────────────────────────────────
+export function CategoryChart({ stats, allEmojis, totalExpenses }: CategoryChartProps) {
+  const withDataSet = new Set(stats.map(s => s.emoji));
+  const ordered = [
+    ...stats.map(s => s.emoji),
+    ...allEmojis.filter(e => !withDataSet.has(e)),
+  ];
 
   let delay = 0;
 
@@ -117,10 +124,13 @@ export function CategoryChart({ stats, allEmojis, totalExpenses }: CategoryChart
         {ordered.map((emoji) => {
           const stat = stats.find(s => s.emoji === emoji);
           if (stat) {
-            const pct   = totalExpenses > 0 ? Math.round((stat.total / totalExpenses) * 100) : 0;
-            const ratio = maxTotal > 0 ? stat.total / maxTotal : 0;
-            const fillH = Math.round(MIN_FILL_H + ratio * (MAX_FILL_H - MIN_FILL_H));
-            const d     = delay;
+            const pct   = totalExpenses > 0
+              ? Math.round((stat.total / totalExpenses) * 100)
+              : 0;
+            // Altura estrictamente proporcional — sin mínimo artificial
+            const fillH = Math.round((pct / 100) * GHOST_H);
+            const { bg, pctColor } = barColor(pct, emoji);
+            const d = delay;
             delay += 80;
             return (
               <AnimatedBar
@@ -128,6 +138,8 @@ export function CategoryChart({ stats, allEmojis, totalExpenses }: CategoryChart
                 stat={stat}
                 fillH={fillH}
                 pct={pct}
+                bg={bg}
+                pctColor={pctColor}
                 delay={d}
               />
             );
@@ -145,77 +157,75 @@ const styles = StyleSheet.create({
     height: CHART_H,
     flexDirection: "row",
     alignItems: "flex-end",
-    paddingHorizontal: H_PADDING,
+    paddingHorizontal: H_PAD,
     gap: BAR_GAP,
   },
+
   column: {
     width: BAR_W,
     height: CHART_H,
-    position: "relative",
     justifyContent: "flex-end",
-  },
-  ghostBehind: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: GHOST_H,
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: "rgba(0,0,0,0.10)",
-    backgroundColor: "rgba(0,0,0,0.015)",
-  },
-  bar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderRadius: 9999,
-    paddingTop: 20,
-    paddingBottom: 20,
-    paddingHorizontal: 4,
-    justifyContent: "space-between",
     alignItems: "center",
-    overflow: "hidden",
   },
-  ghostOnly: {
+
+  ghost: {
     width: BAR_W,
     height: GHOST_H,
     borderRadius: 9999,
     borderWidth: 1,
     borderStyle: "dashed",
     borderColor: "rgba(0,0,0,0.10)",
-    backgroundColor: "rgba(0,0,0,0.015)",
+    backgroundColor: "rgba(0,0,0,0.018)",
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingTop: 14,
+    paddingBottom: 14,
   },
+
   emoji: {
     fontSize: 22,
-    lineHeight: 30,
+    lineHeight: 28,
+    zIndex: 2,
   },
-  labels: {
+
+  // Fill: sube desde abajo, detrás del emoji y los labels
+  fill: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderRadius: 9999,
+    zIndex: 0,
+  },
+
+  // Labels fijos en la parte inferior del ghost, encima del fill
+  labelsBottom: {
     alignItems: "center",
     gap: 2,
+    zIndex: 2,
   },
+
   pctText: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#000000",
-    lineHeight: 16.5,
+    lineHeight: 15,
+    includeFontPadding: false,
   },
+
   amtText: {
     fontSize: 10,
     fontWeight: "700",
     color: "rgba(0,0,0,0.45)",
-    lineHeight: 15,
+    lineHeight: 13,
+    includeFontPadding: false,
   },
+
   ghostPct: {
     fontSize: 11,
     fontWeight: "700",
-    color: "rgba(0,0,0,0.18)",
-    lineHeight: 16.5,
+    color: "rgba(0,0,0,0.20)",
+    lineHeight: 15,
+    includeFontPadding: false,
   },
 });

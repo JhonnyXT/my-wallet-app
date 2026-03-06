@@ -1,14 +1,3 @@
-/**
- * TransactionItem — pixel-perfect from Figma "Visual Expense Insights Home"
- *
- * Figma values:
- *   Icon circle:   56×56px, borderRadius 9999
- *   Description:   17px, weight 800, lineHeight 25.5px
- *   Meta label:    11px, weight 700, rgba(0,0,0,0.3), letterSpacing -0.28px
- *   Amount:        18px, weight 800, lineHeight 27px
- *   Row padding:   16px top/bottom
- *   Gap icon→text: 20px
- */
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import type { TransactionRow } from "@/src/db/db";
@@ -17,27 +6,43 @@ import { EMOJI_TO_CATEGORY_NAME, getCategoryColor } from "@/src/constants/theme"
 interface TransactionItemProps {
   transaction: TransactionRow;
   index: number;
-  /** First item is full opacity; subsequent are slightly dimmed like in Figma */
   dimmed?: boolean;
   onLongPress?: (id: number) => void;
 }
 
-function formatTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleTimeString("es-ES", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function formatDate(dateStr: string): string {
+  const d          = new Date(dateStr);
+  const now        = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dStart     = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays   = Math.round(
+    (todayStart.getTime() - dStart.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  if (diffDays === 0) return "Hoy";
+  if (diffDays === 1) return "Ayer";
+  if (d.getFullYear() === now.getFullYear())
+    return d.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+  return d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
 }
 
 function formatAmount(amount: number): string {
-  // Pesos colombianos: "$ 95.000" — siempre positivo (el color indica tipo)
   return `$ ${Math.round(Math.abs(amount)).toLocaleString("es-ES")}`;
 }
 
 function getCategoryName(emoji: string): string {
   const name = EMOJI_TO_CATEGORY_NAME[emoji];
-  if (!name) return "Gasto";
+  if (!name) return "General";
   return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+}
+
+/** Extrae hashtags del texto (ej: "café #trabajo" → ["#trabajo"]) */
+function extractTags(text: string): string[] {
+  return (text.match(/#\w+/g) ?? []);
+}
+
+/** Devuelve el texto sin los hashtags para mostrarlo limpio como título */
+function cleanDescription(text: string): string {
+  return text.replace(/#\w+/g, "").trim();
 }
 
 export function TransactionItem({
@@ -46,12 +51,24 @@ export function TransactionItem({
   dimmed = false,
   onLongPress,
 }: TransactionItemProps) {
-  const palette = getCategoryColor(transaction.category_emoji);
+  const palette      = getCategoryColor(transaction.category_emoji);
   const categoryName = getCategoryName(transaction.category_emoji);
-  const timeStr = formatTime(transaction.date);
-  const isExpense = transaction.amount >= 0;
-  const tipoLabel = isExpense ? "Gasto" : "Ingreso";
-  const amountColor = isExpense ? "#000000" : "#059669";
+  const dateStr      = formatDate(transaction.date);
+  const isExpense    = transaction.amount >= 0;
+  const amountColor  = isExpense ? "#000000" : "#059669";
+  const amountSign   = isExpense ? "- " : "+ ";
+
+  const rawDesc = transaction.description || categoryName;
+
+  // Prioridad: columna tags (JSON), luego hashtags embebidos en la descripción
+  let tags: string[] = [];
+  if (transaction.tags && transaction.tags.trim() !== "") {
+    try { tags = JSON.parse(transaction.tags); } catch { tags = extractTags(transaction.tags); }
+  } else {
+    tags = extractTags(rawDesc);
+  }
+
+  const title = cleanDescription(rawDesc) || categoryName;
 
   return (
     <Animated.View
@@ -62,26 +79,41 @@ export function TransactionItem({
         onLongPress={() => onLongPress?.(transaction.id)}
         style={styles.row}
       >
-        {/* Icon circle */}
+        {/* Icono circular */}
         <View style={[styles.iconCircle, { backgroundColor: palette.bg }]}>
           <Text style={styles.emoji}>{transaction.category_emoji}</Text>
         </View>
 
-        {/* Text block: título = categoría, meta = tipo • hora */}
+        {/* Bloque de texto */}
         <View style={styles.textBlock}>
-          <Text style={styles.description} numberOfLines={1}>
+
+          {/* Fila superior: categoría • fecha */}
+          <Text style={styles.categoryLine}>
             {categoryName}
+            {"  ·  "}
+            {dateStr}
           </Text>
-          <Text style={styles.meta}>
-            {tipoLabel}
-            {" • "}
-            {timeStr}
+
+          {/* Descripción principal */}
+          <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+            {title}
           </Text>
+
+          {/* Tags (si los hay) */}
+          {tags.length > 0 && (
+            <View style={styles.tagsRow}>
+              {tags.map((tag) => (
+                <View key={tag} style={styles.tagPill}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
-        {/* Monto con color según tipo */}
+        {/* Monto */}
         <Text style={[styles.amount, { color: amountColor }]}>
-          {formatAmount(transaction.amount)}
+          {amountSign}{formatAmount(transaction.amount)}
         </Text>
       </Pressable>
     </Animated.View>
@@ -92,49 +124,76 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 16,    // Figma: paddingTop 16px
-    paddingBottom: 16, // Figma: paddingBottom 16px
+    paddingVertical: 14,
   },
   dimmed: {
-    opacity: 0.4, // Figma: second item has opacity 0.4
+    opacity: 0.4,
   },
   iconCircle: {
-    width: 56,   // Figma: 56px
-    height: 56,  // Figma: 56px
+    width: 52,
+    height: 52,
     borderRadius: 9999,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 20, // Figma: gap 20px between icon and text
+    marginRight: 14,
     flexShrink: 0,
   },
   emoji: {
-    fontSize: 24, // Figma: 24px
+    fontSize: 24,
     lineHeight: 32,
   },
   textBlock: {
     flex: 1,
-    gap: 1, // Figma: gap 1px
-    marginRight: 8,
+    gap: 3,
+    marginRight: 12,
+    minWidth: 0, // permite que flex recorte el texto antes de empujar el monto
   },
-  description: {
-    fontSize: 17,    // Figma: 17px
-    fontWeight: "800", // Figma: weight 800
-    color: "#000000",
-    lineHeight: 25.5,
+
+  // Categoría + fecha — pequeño, gris
+  categoryLine: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "rgba(0,0,0,0.38)",
+    lineHeight: 16,
+    letterSpacing: 0.1,
   },
-  // Stitch JSX: color rgba(0,0,0,0.4), fontSize 11, weight 700, letterSpacing 0.28
-  meta: {
-    fontSize: 11,
+
+  // Descripción — título principal
+  title: {
+    fontSize: 15,
     fontWeight: "700",
-    color: "rgba(0,0,0,0.4)",
-    lineHeight: 16.5,
-    letterSpacing: 0.28,
+    color: "#0F172A",
+    lineHeight: 21,
+    letterSpacing: -0.2,
   },
+
+  // Tags
+  tagsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    marginTop: 2,
+  },
+  tagPill: {
+    backgroundColor: "#F1F5F9",
+    borderRadius: 9999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  tagText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#475569",
+    lineHeight: 16,
+  },
+
+  // Monto — ancho mínimo reservado para que nunca lo empuje el texto
   amount: {
-    fontSize: 18,    // Figma: 18px
-    fontWeight: "800", // Figma: weight 800
-    color: "#000000",
-    lineHeight: 27,
+    fontSize: 15,
+    fontWeight: "700",
+    lineHeight: 21,
     flexShrink: 0,
+    minWidth: 110,
+    textAlign: "right",
   },
 });

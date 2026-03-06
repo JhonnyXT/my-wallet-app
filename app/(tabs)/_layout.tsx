@@ -11,7 +11,6 @@ export default function TabLayout() {
       >
         <Tabs.Screen name="index" />
         <Tabs.Screen name="chat" />
-        <Tabs.Screen name="analytics" />
         <Tabs.Screen name="wallet" options={{ href: null }} />
         <Tabs.Screen name="settings" options={{ href: null }} />
       </Tabs>

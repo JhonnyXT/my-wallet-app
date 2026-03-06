@@ -10,12 +10,23 @@ import {
   queryYesterdayTotal,
   queryLastNTransactions,
   queryMaxTransaction,
+  queryWeeklyTotals,
+  queryPrevWeekTotal,
+  type DayTotal,
 } from "@/src/db/queries";
 import type { TransactionRow } from "@/src/db/db";
+
+export interface WeeklySummaryCard {
+  type: "weekly_summary";
+  total: number;
+  prevTotal: number;
+  weekData: DayTotal[];
+}
 
 export interface NLPResult {
   text: string;
   rows?: TransactionRow[];
+  card?: WeeklySummaryCard;
 }
 
 const MONTHS: Record<string, number> = {
@@ -147,6 +158,32 @@ export async function processQuery(raw: string): Promise<NLPResult> {
     if (!tx) return { text: "No hay gastos registrados aún 📝" };
     return {
       text: `Tu mayor gasto fue **${tx.description}** por ${fmt(tx.amount)} ${tx.category_emoji}`,
+    };
+  }
+
+  // ── This week (weekly summary card) ──────────────────────────────────
+  if (/semana|semanal|esta semana|resumen|grafica|grafico|chart|diario/.test(q)) {
+    const weekData = await queryWeeklyTotals();
+    const total = weekData.reduce((sum, d) => sum + d.amount, 0);
+    const prevTotal = await queryPrevWeekTotal();
+    const changePercent =
+      prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : 0;
+
+    const changeText =
+      changePercent > 0
+        ? `Tus gastos han aumentado un **${changePercent}%** respecto a la semana pasada.`
+        : changePercent < 0
+          ? `Tus gastos han disminuido un **${Math.abs(changePercent)}%** respecto a la semana pasada. ¡Buen trabajo! 🎉`
+          : "Tus gastos se han mantenido igual que la semana pasada.";
+
+    return {
+      text: `${changeText} ¿Te gustaría establecer un límite para alguna categoría?`,
+      card: {
+        type: "weekly_summary",
+        total,
+        prevTotal,
+        weekData,
+      },
     };
   }
 

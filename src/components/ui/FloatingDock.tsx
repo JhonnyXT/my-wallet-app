@@ -79,6 +79,9 @@ export function FloatingDock({ state, navigation }: BottomTabBarProps) {
   const currentRoute = state.routes[state.index]?.name;
   const bottomPos = Math.max(insets.bottom, 0) + DOCK_BOTTOM_OFFSET;
 
+  // Ocultar el dock cuando el chat está activo (tiene su propio input)
+  if (currentRoute === "chat") return null;
+
   return (
     <View style={[styles.container, { bottom: bottomPos }]}>
       {/* ── White pill: [ + ]  [ 💬 ]  [ 🔍 ] ──────────────────── */}

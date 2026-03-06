@@ -76,3 +76,54 @@ export async function queryMaxTransaction(): Promise<TransactionRow | null> {
     )) ?? null
   );
 }
+
+export interface DayTotal {
+  day: string;
+  amount: number;
+  isToday: boolean;
+}
+
+export async function queryWeeklyTotals(): Promise<DayTotal[]> {
+  const db = await getDb();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const DAY_LABELS = ["D", "L", "M", "M", "J", "V", "S"];
+  const result: DayTotal[] = [];
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const nextD = new Date(d);
+    nextD.setDate(d.getDate() + 1);
+
+    const row = await db.getFirstAsync<{ total: number | null }>(
+      `SELECT SUM(amount) as total FROM transactions WHERE date >= ? AND date < ?`,
+      [d.toISOString(), nextD.toISOString()]
+    );
+
+    result.push({
+      day: DAY_LABELS[d.getDay()],
+      amount: Math.max(row?.total ?? 0, 0),
+      isToday: i === 0,
+    });
+  }
+
+  return result;
+}
+
+export async function queryPrevWeekTotal(): Promise<number> {
+  const db = await getDb();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const weekAgo = new Date(today);
+  weekAgo.setDate(today.getDate() - 7);
+  const twoWeeksAgo = new Date(today);
+  twoWeeksAgo.setDate(today.getDate() - 14);
+
+  const result = await db.getFirstAsync<{ total: number | null }>(
+    `SELECT SUM(amount) as total FROM transactions WHERE date >= ? AND date < ?`,
+    [twoWeeksAgo.toISOString(), weekAgo.toISOString()]
+  );
+  return Math.max(result?.total ?? 0, 0);
+}

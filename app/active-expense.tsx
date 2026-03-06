@@ -9,7 +9,12 @@ import { router } from "expo-router";
 import {
   X, Check, Plus, Edit3,
   Calendar, RefreshCw, UtensilsCrossed, Wallet,
+  Car, Home, ShoppingBag, HeartPulse, Gamepad2, GraduationCap, User,
+  Banknote, Landmark, CreditCard,
+  CalendarCheck, CalendarMinus, CalendarPlus,
+  Repeat, CalendarDays,
 } from "lucide-react-native";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
 
 import { useExpenseStore, DateOption, RecurrenceType, AccountType } from "@/src/store/useExpenseStore";
@@ -59,12 +64,50 @@ const ACCOUNT_OPTIONS: { key: AccountType; label: string }[] = [
 ];
 const SUGGESTED_TAGS = ["#viaje", "#trabajo", "#comida", "#salud", "#ocio"];
 
-// ─── Bottom-sheet selector ────────────────────────────────────────────────────
-function SelectorSheet({
-  visible, title, options, selected, accent, onSelect, onClose,
+// ─── Iconos de categoría (lucide) con paleta Stitch ───────────────────────────
+type LucideIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+const CATEGORY_ICONS: Record<string, { Icon: LucideIcon; color: string; bg: string }> = {
+  "🍔": { Icon: UtensilsCrossed, color: "#D2601A", bg: "#FFE8D6" },
+  "🚗": { Icon: Car,             color: "#1565C0", bg: "#D6EFFF" },
+  "🏠": { Icon: Home,            color: "#1565C0", bg: "#D6EFFF" },
+  "🛍️": { Icon: ShoppingBag,    color: "#C2185B", bg: "#FDECEA" },
+  "💊": { Icon: HeartPulse,      color: "#B71C1C", bg: "#FEE2E2" },
+  "🎮": { Icon: Gamepad2,        color: "#6D28D9", bg: "#EDE9FE" },
+  "🎓": { Icon: GraduationCap,   color: "#D97706", bg: "#FEF3C7" },
+  "👤": { Icon: User,            color: "#059669", bg: "#D1FAE5" },
+  "💰": { Icon: Wallet,          color: "#64748B", bg: "#F1F5F9" },
+};
+
+// ─── Info extra de cuentas ────────────────────────────────────────────────────
+const ACCOUNT_DETAILS: Record<AccountType, { Icon: LucideIcon; desc: string }> = {
+  cash:    { Icon: Banknote,    desc: "Dinero disponible" },
+  savings: { Icon: Landmark,   desc: "**** 8842" },
+  credit:  { Icon: CreditCard, desc: "Visa Platinum" },
+};
+
+// ─── Iconos de fecha y recurrencia ────────────────────────────────────────────
+const DATE_ICONS: Record<string, LucideIcon> = {
+  today:              CalendarCheck,
+  yesterday:          Calendar,
+  daybeforeyesterday: CalendarMinus,
+  custom:             CalendarPlus,
+};
+const REC_ICONS: Record<string, LucideIcon> = {
+  once:     Repeat,
+  weekly:   CalendarDays,
+  biweekly: CalendarDays,
+  monthly:  CalendarDays,
+  yearly:   CalendarDays,
+};
+
+// ─── Sheet: lista genérica con icono izquierdo (fecha / recurrencia) ──────────
+function ListSheet({
+  visible, title, options, selected, accent, iconMap, onSelect, onClose,
 }: {
-  visible: boolean; title: string; options: { key: string; label: string }[];
+  visible: boolean; title: string;
+  options: { key: string; label: string }[];
   selected: string; accent: string;
+  iconMap: Record<string, LucideIcon>;
   onSelect: (k: string) => void; onClose: () => void;
 }) {
   return (
@@ -75,40 +118,175 @@ function SelectorSheet({
       <View style={sheet.container}>
         <View style={sheet.handle} />
         <Text style={sheet.title}>{title}</Text>
-        {options.map((opt, i) => (
-          <View key={opt.key}>
-            <TouchableOpacity
-              activeOpacity={0.6}
-              onPress={() => { onSelect(opt.key); onClose(); }}
-              style={sheet.option}
-            >
-              <Text style={[sheet.optionText, opt.key === selected && { color: accent, fontWeight: "700" }]}>
-                {opt.label}
-              </Text>
-              {opt.key === selected && <Check size={16} color={accent} strokeWidth={2.5} />}
-            </TouchableOpacity>
-            {i < options.length - 1 && <View style={sheet.sep} />}
-          </View>
-        ))}
+        {options.map((opt, i) => {
+          const Icon = iconMap[opt.key];
+          const isSel = opt.key === selected;
+          return (
+            <View key={opt.key}>
+              <TouchableOpacity
+                activeOpacity={0.6}
+                onPress={() => { onSelect(opt.key); onClose(); }}
+                style={sheet.option}
+              >
+                <View style={sheet.optionLeft}>
+                  <View style={[sheet.optionIconBox, isSel && { backgroundColor: accent + "18" }]}>
+                    {Icon && <Icon size={18} color={isSel ? accent : SLATE_500} strokeWidth={1.8} />}
+                  </View>
+                  <Text style={[sheet.optionText, isSel && { color: accent, fontWeight: "700" }]}>
+                    {opt.label}
+                  </Text>
+                </View>
+                {isSel && <Check size={16} color={accent} strokeWidth={2.5} />}
+              </TouchableOpacity>
+              {i < options.length - 1 && <View style={sheet.sep} />}
+            </View>
+          );
+        })}
       </View>
     </Modal>
   );
 }
 
-// ─── Selector icon-button (icono arriba + etiqueta abajo) ─────────────────────
+// ─── Sheet: CATEGORÍA — grid 4×N + botón CONFIRMAR ────────────────────────────
+function CategorySheet({
+  visible, selected, accent, onSelect, onClose,
+}: {
+  visible: boolean; selected: string; accent: string;
+  onSelect: (k: string) => void; onClose: () => void;
+}) {
+  const [temp, setTemp] = useState(selected);
+  useEffect(() => { if (visible) setTemp(selected); }, [visible, selected]);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={sheet.backdrop} />
+      </TouchableWithoutFeedback>
+      <View style={[sheet.container, catS.container]}>
+        <View style={sheet.handle} />
+        {/* Header */}
+        <View style={catS.header}>
+          <View>
+            <Text style={catS.title}>CATEGORÍA</Text>
+            <Text style={catS.subtitle}>Elige el tipo de gasto</Text>
+          </View>
+          <TouchableOpacity onPress={onClose} hitSlop={12}>
+            <Text style={catS.cancel}>Cancelar</Text>
+          </TouchableOpacity>
+        </View>
+        {/* Grid 4 columnas */}
+        <View style={catS.grid}>
+          {CATEGORY_OPTIONS.map((cat) => {
+            const info = CATEGORY_ICONS[cat.key];
+            const isSel = temp === cat.key;
+            return (
+              <TouchableOpacity
+                key={cat.key}
+                style={catS.item}
+                onPress={() => setTemp(cat.key)}
+                activeOpacity={0.7}
+              >
+                <View style={catS.iconWrap}>
+                  <View style={[catS.iconBox, { backgroundColor: info?.bg ?? "#F1F5F9" }]}>
+                    {info
+                      ? <info.Icon size={24} color={info.color} strokeWidth={1.8} />
+                      : <Text style={{ fontSize: 20 }}>{cat.key}</Text>
+                    }
+                  </View>
+                  {isSel && (
+                    <View style={catS.checkBadge}>
+                      <Check size={10} color={WHITE} strokeWidth={3} />
+                    </View>
+                  )}
+                </View>
+                <Text style={[catS.itemLabel, isSel && catS.itemLabelSelected]}>
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {/* Botón confirmar */}
+        <TouchableOpacity
+          style={catS.confirmBtn}
+          onPress={() => {
+            const c = CATEGORY_OPTIONS.find((x) => x.key === temp);
+            if (c) onSelect(c.key);
+            onClose();
+          }}
+          activeOpacity={0.85}
+        >
+          <Text style={catS.confirmText}>CONFIRMAR</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Sheet: CUENTA — lista con icono + descripción + checkmark ────────────────
+function AccountSheet({
+  visible, selected, accent, onSelect, onClose,
+}: {
+  visible: boolean; selected: string; accent: string;
+  onSelect: (k: string) => void; onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={sheet.backdrop} />
+      </TouchableWithoutFeedback>
+      <View style={sheet.container}>
+        <View style={sheet.handle} />
+        <Text style={[sheet.title, { marginBottom: 8 }]}>Seleccionar Cuenta</Text>
+        {ACCOUNT_OPTIONS.map((opt, i) => {
+          const info = ACCOUNT_DETAILS[opt.key];
+          const isSel = opt.key === selected;
+          return (
+            <View key={opt.key}>
+              <TouchableOpacity
+                activeOpacity={0.6}
+                onPress={() => { onSelect(opt.key); onClose(); }}
+                style={accS.row}
+              >
+                <View style={[accS.iconBox, isSel && { backgroundColor: accent + "18" }]}>
+                  {info && <info.Icon size={22} color={isSel ? accent : SLATE_500} strokeWidth={1.8} />}
+                </View>
+                <View style={accS.textBlock}>
+                  <Text style={[accS.name, isSel && { color: accent, fontWeight: "700" }]}>
+                    {opt.label}
+                  </Text>
+                  <Text style={accS.desc}>{info?.desc ?? ""}</Text>
+                </View>
+                {isSel && <Check size={18} color={accent} strokeWidth={2.5} />}
+              </TouchableOpacity>
+              {i < ACCOUNT_OPTIONS.length - 1 && <View style={sheet.sep} />}
+            </View>
+          );
+        })}
+        {/* Agregar cuenta */}
+        <TouchableOpacity style={accS.addRow} activeOpacity={0.6}>
+          <Plus size={16} color={BLUE} strokeWidth={2} />
+          <Text style={accS.addText}>Agregar nueva cuenta</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Selector icon-button: círculo + tipo (gris) + valor (negro bold) ────────
 function SelIconBtn({
-  icon, label, onPress,
+  icon, fieldName, value, onPress,
 }: {
   icon: React.ReactNode;
-  label: string;
+  fieldName: string;   // p.ej. "FECHA"
+  value: string;       // p.ej. "Hoy"
   onPress: () => void;
 }) {
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={s.selIconBtn}>
-      <View style={s.selIconCircle}>
-        {icon}
-      </View>
-      <Text style={s.selIconLabel} numberOfLines={1}>{label}</Text>
+      <View style={s.selIconCircle}>{icon}</View>
+      <Text style={s.selFieldName}>{fieldName}</Text>
+      <Text style={s.selValue} numberOfLines={1}>{value}</Text>
     </TouchableOpacity>
   );
 }
@@ -124,10 +302,11 @@ export default function ActiveExpenseScreen() {
   const store  = useExpenseStore();
   const addTx  = useFinanceStore((s) => s.addTransaction);
 
-  const [tagInput,    setTagInput]    = useState("");
-  const [activeSheet, setActiveSheet] = useState<
+  const [tagInput,      setTagInput]      = useState("");
+  const [activeSheet,   setActiveSheet]   = useState<
     "date" | "recurrence" | "category" | "account" | null
   >(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const noteRef = useRef<TextInput>(null);
 
   const isExpense  = store.isExpense;
@@ -183,7 +362,9 @@ export default function ActiveExpenseScreen() {
     if (t) { store.addTag(`#${t}`); setTagInput(""); }
   }
 
-  const dateLabel    = DATE_OPTIONS.find((o) => o.key === store.date)?.label ?? "Hoy";
+  const dateLabel = store.date === "custom" && store.customDate
+    ? store.customDate.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" })
+    : DATE_OPTIONS.find((o) => o.key === store.date)?.label ?? "Hoy";
   const recLabel     = RECURRENCE_OPTIONS.find((o) => o.key === store.recurrence)?.label ?? "Una vez";
   const catLabel     = CATEGORY_OPTIONS.find((o) => o.key === store.categoryEmoji)?.label ?? store.categoryName;
   const accountLabel = ACCOUNT_OPTIONS.find((o) => o.key === store.account)?.label ?? "Efectivo";
@@ -251,22 +432,26 @@ export default function ActiveExpenseScreen() {
         <View style={s.selRow}>
           <SelIconBtn
             icon={<Calendar size={20} color={SLATE_500} strokeWidth={1.8} />}
-            label={dateLabel}
+            fieldName="FECHA"
+            value={dateLabel}
             onPress={() => setActiveSheet("date")}
           />
           <SelIconBtn
             icon={<RefreshCw size={20} color={SLATE_500} strokeWidth={1.8} />}
-            label={recLabel}
+            fieldName="RECURRENCIA"
+            value={recLabel}
             onPress={() => setActiveSheet("recurrence")}
           />
           <SelIconBtn
             icon={<UtensilsCrossed size={20} color={SLATE_500} strokeWidth={1.8} />}
-            label={catLabel}
+            fieldName="CATEGORÍA"
+            value={catLabel}
             onPress={() => setActiveSheet("category")}
           />
           <SelIconBtn
             icon={<Wallet size={20} color={SLATE_500} strokeWidth={1.8} />}
-            label={accountLabel}
+            fieldName="CUENTA"
+            value={accountLabel}
             onPress={() => setActiveSheet("account")}
           />
         </View>
@@ -327,25 +512,53 @@ export default function ActiveExpenseScreen() {
       </View>
 
       {/* ── BOTTOM SHEETS ─────────────────────────────────────────────────── */}
-      <SelectorSheet visible={activeSheet === "date"}       title="Fecha"
-        options={DATE_OPTIONS}       selected={store.date}       accent={accent}
-        onSelect={(k) => store.setDate(k as DateOption)}
+      <ListSheet visible={activeSheet === "date"} title="Fecha"
+        options={DATE_OPTIONS} selected={store.date} accent={accent}
+        iconMap={DATE_ICONS}
+        onSelect={(k) => {
+          if (k === "custom") {
+            setShowDatePicker(true);
+          } else {
+            store.setDate(k as DateOption);
+          }
+        }}
         onClose={() => setActiveSheet(null)} />
-      <SelectorSheet visible={activeSheet === "recurrence"} title="Recurrencia"
+      <ListSheet visible={activeSheet === "recurrence"} title="Recurrencia"
         options={RECURRENCE_OPTIONS} selected={store.recurrence} accent={accent}
+        iconMap={REC_ICONS}
         onSelect={(k) => store.setRecurrence(k as RecurrenceType)}
         onClose={() => setActiveSheet(null)} />
-      <SelectorSheet visible={activeSheet === "category"}   title="Categoría"
-        options={CATEGORY_OPTIONS}   selected={store.categoryEmoji} accent={accent}
+      <CategorySheet
+        visible={activeSheet === "category"}
+        selected={store.categoryEmoji}
+        accent={accent}
         onSelect={(k) => {
           const c = CATEGORY_OPTIONS.find((x) => x.key === k);
           if (c) store.setCategory(c.key, c.label);
         }}
         onClose={() => setActiveSheet(null)} />
-      <SelectorSheet visible={activeSheet === "account"}    title="Cuenta"
-        options={ACCOUNT_OPTIONS}    selected={store.account}    accent={accent}
+      <AccountSheet
+        visible={activeSheet === "account"}
+        selected={store.account}
+        accent={accent}
         onSelect={(k) => store.setAccount(k as AccountType)}
         onClose={() => setActiveSheet(null)} />
+
+      {/* ── DATE PICKER NATIVO ──────────────────────────────────────────── */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={store.customDate ?? new Date()}
+          mode="date"
+          display="default"
+          maximumDate={new Date()}
+          onChange={(event: DateTimePickerEvent, date?: Date) => {
+            setShowDatePicker(false);
+            if (event.type === "set" && date) {
+              store.setCustomDate(date);
+            }
+          }}
+        />
+      )}
 
     </KeyboardAvoidingView>
   );
@@ -389,12 +602,12 @@ const s = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 20,
-    gap: 8,
+    gap: 4,
   },
   selIconBtn: {
     flex: 1,
     alignItems: "center",
-    gap: 7,
+    gap: 5,
   },
   selIconCircle: {
     width: 52,
@@ -404,17 +617,25 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  selIconLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: SLATE_500,
+  selFieldName: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: SLATE_400,
     textAlign: "center",
-    letterSpacing: 0.1,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  selValue: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: SLATE_900,
+    textAlign: "center",
+    letterSpacing: -0.2,
   },
 
   // Transcripción — flex:1 llena exactamente el espacio restante
@@ -463,7 +684,7 @@ const s = StyleSheet.create({
   tagInputText: { fontSize: 12, color: SLATE_900, minWidth: 36, maxWidth: 80, padding: 0 },
 });
 
-// ─── Sheet ────────────────────────────────────────────────────────────────────
+// ─── Sheet base ───────────────────────────────────────────────────────────────
 const sheet = StyleSheet.create({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(15,23,42,0.4)" },
   container: {
@@ -477,11 +698,85 @@ const sheet = StyleSheet.create({
     width: 36, height: 4, borderRadius: 2, backgroundColor: "#E2E8F0",
     alignSelf: "center", marginBottom: 16,
   },
-  title: { fontSize: 16, fontWeight: "700", color: SLATE_900, paddingHorizontal: 20, marginBottom: 4 },
+  title: { fontSize: 17, fontWeight: "700", color: SLATE_900, paddingHorizontal: 20, marginBottom: 4 },
   sep: { height: StyleSheet.hairlineWidth, backgroundColor: BORDER, marginHorizontal: 20 },
   option: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingVertical: 15, paddingHorizontal: 20,
+    paddingVertical: 14, paddingHorizontal: 20,
+  },
+  optionLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  optionIconBox: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center",
   },
   optionText: { fontSize: 15, color: SLATE_900 },
+});
+
+// ─── Estilos CategorySheet ────────────────────────────────────────────────────
+const catS = StyleSheet.create({
+  container: { paddingBottom: 28 },
+  header: {
+    flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between",
+    paddingHorizontal: 20, paddingBottom: 20,
+  },
+  title: { fontSize: 13, fontWeight: "900", color: SLATE_900, letterSpacing: 1.5 },
+  subtitle: { fontSize: 12, color: SLATE_500, marginTop: 2 },
+  cancel: { fontSize: 14, fontWeight: "600", color: SLATE_500 },
+  grid: {
+    flexDirection: "row", flexWrap: "wrap",
+    paddingHorizontal: 12, gap: 4,
+    marginBottom: 20,
+  },
+  item: {
+    width: "23%",
+    alignItems: "center", gap: 8,
+    paddingVertical: 12, paddingHorizontal: 4,
+  },
+  iconWrap: {
+    position: "relative",
+  },
+  iconBox: {
+    width: 56, height: 56, borderRadius: 9999,
+    alignItems: "center", justifyContent: "center",
+  },
+  checkBadge: {
+    position: "absolute", top: -2, right: -2,
+    width: 18, height: 18, borderRadius: 9999,
+    backgroundColor: SLATE_900,
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 2, borderColor: WHITE,
+  },
+  itemLabel: {
+    fontSize: 11, fontWeight: "600", color: SLATE_500,
+    textAlign: "center", letterSpacing: 0.1,
+  },
+  itemLabelSelected: {
+    color: SLATE_900, fontWeight: "700",
+  },
+  confirmBtn: {
+    marginHorizontal: 20, paddingVertical: 16,
+    backgroundColor: SLATE_900, borderRadius: 14,
+    alignItems: "center",
+  },
+  confirmText: { fontSize: 14, fontWeight: "800", color: WHITE, letterSpacing: 1.2 },
+});
+
+// ─── Estilos AccountSheet ─────────────────────────────────────────────────────
+const accS = StyleSheet.create({
+  row: {
+    flexDirection: "row", alignItems: "center",
+    paddingVertical: 14, paddingHorizontal: 20, gap: 14,
+  },
+  iconBox: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center",
+  },
+  textBlock: { flex: 1 },
+  name: { fontSize: 15, fontWeight: "600", color: SLATE_900 },
+  desc: { fontSize: 12, color: SLATE_500, marginTop: 1 },
+  addRow: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 20, paddingTop: 12, marginTop: 4,
+  },
+  addText: { fontSize: 14, fontWeight: "600", color: BLUE },
 });

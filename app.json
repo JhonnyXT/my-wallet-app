@@ -41,7 +41,8 @@
           "microphonePermission": "MyWallet usa el micrófono para registrar gastos por voz.",
           "speechRecognitionPermission": "MyWallet transcribe tu voz localmente para registrar gastos."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

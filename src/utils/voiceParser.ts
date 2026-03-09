@@ -1,48 +1,73 @@
 /**
- * voiceParser — convierte texto de voz en datos estructurados de gasto.
- * 100% offline, sin APIs externas. Regex + mapeo de palabras clave en español.
+ * voiceParser — convierte texto de voz/texto libre en datos estructurados.
+ * 100% offline. Usa las 8 categorías estándar de MyWallet.
+ * Devuelve `null` en campos no detectados para no sobreescribir selecciones previas.
  */
 import type { ActiveExpense, DateOption } from "@/src/store/useExpenseStore";
 
-// ─── Mapa de categorías ───────────────────────────────────────────────────────
+// ─── Mapa de las 8 categorías estándar ───────────────────────────────────────
 const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
   {
-    keywords: ["uber", "taxi", "bus", "metro", "transporte", "gasolina",
-      "combustible", "shuttle", "vuelo", "avion", "tren", "moto", "peaje"],
-    emoji: "🚗", name: "Transporte",
-  },
-  {
-    keywords: ["restaurante", "almuerzo", "cena", "desayuno", "mcdonalds",
-      "pizza", "burger", "sushi", "comida", "comer", "pollo", "empanada"],
+    keywords: [
+      "restaurante", "almuerzo", "cena", "desayuno", "mcdonalds",
+      "pizza", "burger", "sushi", "comida", "comer", "pollo", "empanada",
+      "cafe", "coffee", "starbucks", "tinto", "capuchino", "latte",
+      "mercado", "supermercado", "carulla", "jumbo", "exito",
+      "tienda", "panaderia",
+    ],
     emoji: "🍔", name: "Comida",
   },
   {
-    keywords: ["cafe", "coffee", "starbucks", "tinto", "capuchino", "latte"],
-    emoji: "☕", name: "Café",
+    keywords: [
+      "uber", "taxi", "bus", "metro", "transporte", "gasolina",
+      "combustible", "shuttle", "vuelo", "avion", "tren", "moto", "peaje",
+      "parqueadero", "parqueo",
+    ],
+    emoji: "🚗", name: "Transporte",
   },
   {
-    keywords: ["supermercado", "mercado", "tienda", "zara", "ropa",
-      "compras", "exito", "carulla", "jumbo"],
+    keywords: [
+      "arriendo", "alquiler", "luz", "agua", "gas", "internet",
+      "servicios", "celular", "telefono", "hogar", "casa", "reparacion",
+      "plomero", "electricista",
+    ],
+    emoji: "🏠", name: "Hogar",
+  },
+  {
+    keywords: [
+      "zara", "ropa", "compras", "gadget", "electronico", "celular nuevo",
+      "laptop", "tablet", "zapatos", "accesorio",
+    ],
     emoji: "🛍️", name: "Compras",
   },
   {
-    keywords: ["luz", "agua", "gas", "internet", "servicios", "arriendo",
-      "alquiler", "celular", "telefono"],
-    emoji: "💡", name: "Servicios",
+    keywords: [
+      "medicina", "medico", "doctor", "farmacia", "salud", "drogueria",
+      "clinica", "hospital", "cita", "examen", "vacuna", "eps",
+    ],
+    emoji: "🏥", name: "Salud",
   },
   {
-    keywords: ["cine", "netflix", "juego", "entretenimiento", "playstation",
-      "xbox", "spotify", "concierto", "pelicula"],
+    keywords: [
+      "cine", "netflix", "juego", "entretenimiento", "playstation",
+      "xbox", "spotify", "concierto", "pelicula", "serie", "teatro",
+      "gym", "gimnasio",
+    ],
     emoji: "🎮", name: "Entretenimiento",
   },
   {
-    keywords: ["medicina", "medico", "doctor", "farmacia", "salud",
-      "drogueria", "clinica", "hospital"],
-    emoji: "💊", name: "Salud",
+    keywords: [
+      "curso", "libro", "educacion", "colegio", "universidad",
+      "clase", "taller", "seminario", "capacitacion",
+    ],
+    emoji: "🎓", name: "Educación",
   },
   {
-    keywords: ["gym", "gimnasio", "deporte", "futbol", "natacion"],
-    emoji: "🏋️", name: "Deporte",
+    keywords: [
+      "personal", "cuidado", "barberia", "peluqueria", "salon",
+      "cosmetico", "belleza", "deporte", "futbol", "natacion",
+    ],
+    emoji: "👤", name: "Personal",
   },
 ];
 
@@ -97,30 +122,23 @@ function extractAmount(text: string): number {
   return 0;
 }
 
-function extractDate(text: string): DateOption {
+function extractDate(text: string): DateOption | null {
   const n = normalize(text);
   if (/anteayer|antes de ayer/.test(n)) return "daybeforeyesterday";
   if (/\bayer\b/.test(n)) return "yesterday";
-  return "today";
+  if (/\bhoy\b/.test(n)) return "today";
+  return null; // sin mención explícita → no cambiar la fecha seleccionada
 }
 
-function extractCategory(text: string): { emoji: string; name: string } {
+/** Devuelve la categoría detectada, o null si no hay coincidencia */
+function extractCategory(text: string): { emoji: string; name: string } | null {
   const n = normalize(text);
   for (const cat of CATEGORY_MAP) {
     if (cat.keywords.some((kw) => n.includes(kw))) {
       return { emoji: cat.emoji, name: cat.name };
     }
   }
-  return { emoji: "💰", name: "General" };
-}
-
-function extractNote(text: string): string {
-  return text
-    .replace(/\d+[\.,]?\d*\s*mil/gi, "")
-    .replace(/\b(hoy|ayer|anteayer|manana)\b/gi, "")
-    .replace(/\b(gaste|compre|pague|gasto|costo)\b/gi, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+  return null; // sin match → no sobreescribir selección actual
 }
 
 // ─── Detecta si es gasto o ingreso ───────────────────────────────────────────
@@ -128,46 +146,48 @@ function extractNote(text: string): string {
 function extractIsExpense(text: string): boolean | undefined {
   const n = normalize(text);
 
-  // Palabras clave de INGRESO
   const incomeKeywords = [
     "recibi", "recibe", "recibido", "ingrese", "ingreso",
     "me pagaron", "me deposita", "me depositaron",
     "cobre", "cobrado", "cobrar",
     "salario", "sueldo", "nomina",
     "ganancia", "vendi", "venta",
-    "me dieron", "me mandaron",
+    "me dieron", "me mandaron", "me gane",
   ];
   if (incomeKeywords.some((kw) => n.includes(kw))) return false;
 
-  // Palabras clave de GASTO
   const expenseKeywords = [
     "gaste", "gasto", "compre", "compra", "pague", "pago",
-    "costo", "cuesta", "cuesto",
+    "costo", "cuesta",
     "me costo", "me cobro",
-    "sali", "fui a",
+    "sali a", "fui a",
   ];
   if (expenseKeywords.some((kw) => n.includes(kw))) return true;
 
-  return undefined; // no se detectó, mantener estado actual
+  return undefined;
 }
 
 // ─── Función principal exportada ─────────────────────────────────────────────
-export function processVoiceInput(raw: string): Partial<ActiveExpense> {
-  const category   = extractCategory(raw);
-  const note       = extractNote(raw) || raw;
-  const isExpense  = extractIsExpense(raw);
+export function processVoiceInput(raw: string): Partial<ActiveExpense> & {
+  _categoryDetected: boolean;
+  _dateDetected: boolean;
+} {
+  const category  = extractCategory(raw);
+  const date      = extractDate(raw);
+  const isExpense = extractIsExpense(raw);
+  const amount    = extractAmount(raw);
 
-  const result: Partial<ActiveExpense> = {
-    amount:       extractAmount(raw),
-    categoryEmoji: category.emoji,
-    categoryName:  category.name,
-    date:          extractDate(raw),
-    note,
+  const result: Partial<ActiveExpense> & { _categoryDetected: boolean; _dateDetected: boolean } = {
+    amount,
+    note:          raw,
     rawTranscript: raw,
-    tags: [],
+    tags:          [],
+    _categoryDetected: category !== null,
+    _dateDetected:     date !== null,
   };
 
-  // Solo se incluye isExpense si fue detectado explícitamente
+  if (category)             { result.categoryEmoji = category.emoji; result.categoryName = category.name; }
+  if (date)                   result.date      = date;
   if (isExpense !== undefined) result.isExpense = isExpense;
 
   return result;

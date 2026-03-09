@@ -57,7 +57,7 @@ export const EMOJI_TO_CATEGORY_NAME: Record<string, string> = {
   "🏠": "HOGAR",
   "🛍️": "COMPRAS",
   "🏥": "SALUD",
-  "🎮": "ENTRETE.",
+  "🎮": "ENTRETENIMIENTO",
   "🎓": "EDUCACIÓN",
   "👤": "PERSONAL",
 };

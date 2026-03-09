@@ -6,12 +6,9 @@ import {
   type TransactionRow,
 } from "@/src/db/db";
 
-const MONTHLY_BUDGET_LIMIT = 3000;
-
 interface FinanceState {
   transactions: TransactionRow[];
   isLoading: boolean;
-  budgetLimit: number;
 
   loadTransactions: () => Promise<void>;
   addTransaction: (
@@ -23,13 +20,11 @@ interface FinanceState {
   deleteTransaction: (id: number) => Promise<void>;
 
   getTotalBalance: () => number;
-  getBudgetPercentage: () => number;
 }
 
 export const useFinanceStore = create<FinanceState>((set, get) => ({
   transactions: [],
   isLoading: true,
-  budgetLimit: MONTHLY_BUDGET_LIMIT,
 
   loadTransactions: async () => {
     set({ isLoading: true });
@@ -59,10 +54,4 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       .reduce((sum, t) => sum + t.amount, 0);
   },
 
-  getBudgetPercentage: () => {
-    const total = get().getTotalBalance();
-    const limit = get().budgetLimit;
-    if (limit <= 0) return 0;
-    return Math.min(Math.round((total / limit) * 100), 100);
-  },
 }));

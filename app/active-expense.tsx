@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   View, Text, TouchableOpacity, TextInput, ScrollView,
   StyleSheet, Modal, TouchableWithoutFeedback,
-  LayoutAnimation, Platform, KeyboardAvoidingView,
+  Platform, KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -18,7 +18,9 @@ import * as Haptics from "expo-haptics";
 
 import { useExpenseStore, DateOption, AccountType } from "@/src/store/useExpenseStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
+import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { processVoiceInput } from "@/src/utils/voiceParser";
+import { formatMoneyInput } from "@/src/utils/formatMoney";
 
 // ─── Colores ──────────────────────────────────────────────────────────────────
 const BLUE      = "#135BEC";
@@ -131,9 +133,9 @@ function ListSheet({
 
 // ─── Sheet: CATEGORÍA — grid 4×N + botón CONFIRMAR ────────────────────────────
 function CategorySheet({
-  visible, selected, accent, onSelect, onClose,
+  visible, selected, accent, isExpense, onSelect, onClose,
 }: {
-  visible: boolean; selected: string; accent: string;
+  visible: boolean; selected: string; accent: string; isExpense: boolean;
   onSelect: (k: string) => void; onClose: () => void;
 }) {
   const [temp, setTemp] = useState(selected);
@@ -150,7 +152,9 @@ function CategorySheet({
         <View style={catS.header}>
           <View>
             <Text style={catS.title}>CATEGORÍA</Text>
-            <Text style={catS.subtitle}>Elige el tipo de gasto</Text>
+            <Text style={catS.subtitle}>
+              {isExpense ? "Elige el tipo de gasto" : "Elige el tipo de ingreso"}
+            </Text>
           </View>
           <TouchableOpacity onPress={onClose} hitSlop={12}>
             <Text style={catS.cancel}>Cancelar</Text>
@@ -206,12 +210,20 @@ function CategorySheet({
 }
 
 // ─── Sheet: CUENTA — lista con icono + descripción + checkmark ────────────────
+const PAYMENT_TYPE_ICONS: Record<string, LucideIcon> = {
+  cash:    Banknote,
+  debit:   CreditCard,
+  savings: Landmark,
+};
+
 function AccountSheet({
-  visible, selected, accent, onSelect, onClose,
+  visible, selected, accent, options, onSelect, onClose,
 }: {
   visible: boolean; selected: string; accent: string;
+  options: { key: string; label: string; type: string }[];
   onSelect: (k: string) => void; onClose: () => void;
 }) {
+  const displayOptions = options.length > 0 ? options : ACCOUNT_OPTIONS.map((o) => ({ key: o.key, label: o.label, type: o.key }));
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
@@ -220,8 +232,8 @@ function AccountSheet({
       <View style={sheet.container}>
         <View style={sheet.handle} />
         <Text style={[sheet.title, { marginBottom: 8 }]}>Seleccionar Cuenta</Text>
-        {ACCOUNT_OPTIONS.map((opt, i) => {
-          const info = ACCOUNT_DETAILS[opt.key];
+        {displayOptions.map((opt, i) => {
+          const Icon  = PAYMENT_TYPE_ICONS[opt.type] ?? Banknote;
           const isSel = opt.key === selected;
           return (
             <View key={opt.key}>
@@ -231,24 +243,27 @@ function AccountSheet({
                 style={accS.row}
               >
                 <View style={[accS.iconBox, isSel && { backgroundColor: accent + "18" }]}>
-                  {info && <info.Icon size={22} color={isSel ? accent : SLATE_500} strokeWidth={1.8} />}
+                  <Icon size={22} color={isSel ? accent : SLATE_500} strokeWidth={1.8} />
                 </View>
                 <View style={accS.textBlock}>
                   <Text style={[accS.name, isSel && { color: accent, fontWeight: "700" }]}>
                     {opt.label}
                   </Text>
-                  <Text style={accS.desc}>{info?.desc ?? ""}</Text>
                 </View>
                 {isSel && <Check size={18} color={accent} strokeWidth={2.5} />}
               </TouchableOpacity>
-              {i < ACCOUNT_OPTIONS.length - 1 && <View style={sheet.sep} />}
+              {i < displayOptions.length - 1 && <View style={sheet.sep} />}
             </View>
           );
         })}
-        {/* Agregar cuenta */}
-        <TouchableOpacity style={accS.addRow} activeOpacity={0.6}>
+        {/* Ir a configuración para gestionar métodos */}
+        <TouchableOpacity
+          style={accS.addRow}
+          activeOpacity={0.6}
+          onPress={() => { onClose(); router.push("/settings"); }}
+        >
           <Plus size={16} color={BLUE} strokeWidth={2} />
-          <Text style={accS.addText}>Agregar nueva cuenta</Text>
+          <Text style={accS.addText}>Gestionar métodos de pago</Text>
         </TouchableOpacity>
       </View>
     </Modal>
@@ -284,11 +299,17 @@ export default function ActiveExpenseScreen() {
   const store  = useExpenseStore();
   const addTx  = useFinanceStore((s) => s.addTransaction);
 
+  // Métodos de pago dinámicos desde settings
+  const paymentMethods = useSettingsStore((s) => s.paymentMethods);
+
   const [tagInput,      setTagInput]      = useState("");
   const [activeSheet,   setActiveSheet]   = useState<
     "date" | "category" | "account" | null
   >(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [amountEditing, setAmountEditing] = useState(false);
+  const [amountDisplay, setAmountDisplay] = useState("");
+  const amountInputRef = useRef<TextInput>(null);
   const noteRef = useRef<TextInput>(null);
 
   const isExpense  = store.isExpense;
@@ -297,32 +318,55 @@ export default function ActiveExpenseScreen() {
   const accentText = isExpense ? "#B91C1C" : "#15803D";
   const title      = isExpense ? "Nuevo Gasto" : "Nuevo Ingreso";
 
-  // ─── Parser reactivo ─────────────────────────────────────────────────────
+  // ─── Parser reactivo: actualiza selectores en tiempo real ───────────────
   useEffect(() => {
-    // Texto vacío → resetear monto y volver a "Gasto" por defecto
-    if (!store.note || store.note.trim() === "") {
+    const text = store.note?.trim() ?? "";
+
+    // Texto vacío → solo resetear el monto (NO tocar isExpense ni categoría)
+    if (!text) {
       store.setAmount(0);
-      store.setIsExpense(true);
       return;
     }
-    if (store.note.length < 3) return;
-    const parsed = processVoiceInput(store.note);
+    if (text.length < 2) return;
 
+    const parsed = processVoiceInput(text);
+
+    // Monto: actualizar siempre que haya un número detectado
     if (parsed.amount && parsed.amount > 0)
       store.setAmount(parsed.amount);
-    if (parsed.date)
+
+    // Fecha: solo si se mencionó explícitamente (ayer, hoy, anteayer)
+    if (parsed._dateDetected && parsed.date)
       store.setDate(parsed.date);
-    if (parsed.categoryEmoji && parsed.categoryName)
+
+    // Categoría: solo si se reconoció una categoría estándar
+    if (parsed._categoryDetected && parsed.categoryEmoji && parsed.categoryName)
       store.setCategory(parsed.categoryEmoji, parsed.categoryName);
+
+    // Tipo ingreso/gasto: solo si hay palabras clave explícitas
+    // (no se cambia si el usuario abrió la pantalla como ingreso)
     if (parsed.isExpense !== undefined)
       store.setIsExpense(parsed.isExpense);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.note]);
 
-  async function handleToggle(toExpense: boolean) {
-    if (store.isExpense === toExpense) return;
-    store.toggleExpense();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  function handleAmountTap() {
+    const current = store.amount > 0 ? String(Math.round(store.amount)) : "";
+    setAmountDisplay(formatMoneyInput(current));
+    setAmountEditing(true);
+    setTimeout(() => amountInputRef.current?.focus(), 50);
+  }
+
+  function handleAmountChange(text: string) {
+    const digits = text.replace(/\D/g, "");
+    setAmountDisplay(formatMoneyInput(digits));
+  }
+
+  function handleAmountBlur() {
+    const digits = amountDisplay.replace(/\D/g, "");
+    const parsed = parseFloat(digits) || 0;
+    store.setAmount(parsed);
+    setAmountEditing(false);
   }
 
   async function handleConfirm() {
@@ -349,11 +393,17 @@ export default function ActiveExpenseScreen() {
     ? store.customDate.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" })
     : DATE_OPTIONS.find((o) => o.key === store.date)?.label ?? "Hoy";
   const catLabel     = CATEGORY_OPTIONS.find((o) => o.key === store.categoryEmoji)?.label ?? store.categoryName;
-  const accountLabel = ACCOUNT_OPTIONS.find((o) => o.key === store.account)?.label ?? "Efectivo";
+  const accountLabel = paymentMethods.find((m) => m.id === store.account)?.name
+    ?? ACCOUNT_OPTIONS.find((o) => o.key === store.account)?.label
+    ?? "Efectivo";
   const displayTags  = store.tags.length > 0 ? store.tags : SUGGESTED_TAGS;
-  const displayAmt   = store.amount > 0
+  const displayAmt = store.amount > 0
     ? `${isExpense ? "−" : "+"} ${fmtCOP(store.amount)}`
-    : "$ 0";
+    : `${isExpense ? "−" : "+"} $ 0`;
+
+  const noteplaceholder = isExpense
+    ? "Describe tu gasto aquí... ej: taxi 8500 ayer"
+    : "Describe tu ingreso aquí... ej: freelance 200 mil hoy";
 
   return (
     <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : "height"}>
@@ -385,34 +435,31 @@ export default function ActiveExpenseScreen() {
 
         {/* Monto */}
         <View style={s.amountBlock}>
-          <Text style={[s.amountText, { color: accent }]}>{displayAmt}</Text>
-
-          {/* Toggle Gasto / Ingreso */}
-          <View style={s.toggleRow}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => handleToggle(true)}
-              style={[s.toggleBtn, isExpense
-                ? { backgroundColor: RED, borderColor: RED }
-                : { backgroundColor: WHITE, borderColor: BORDER }]}
-            >
-              <Text style={[s.toggleLabel, { color: isExpense ? WHITE : SLATE_500 }]}>
-                − Gasto
+          {amountEditing ? (
+            <View style={s.amountEditRow}>
+              <Text style={[s.amountSignText, { color: accent }]}>
+                {isExpense ? "−" : "+"} $
               </Text>
+              <TextInput
+                ref={amountInputRef}
+                value={amountDisplay}
+                onChangeText={handleAmountChange}
+                onBlur={handleAmountBlur}
+                onSubmitEditing={handleAmountBlur}
+                keyboardType="number-pad"
+                style={[s.amountInput, { color: accent }]}
+                returnKeyType="done"
+                placeholder="0"
+                placeholderTextColor={accent + "55"}
+                selectTextOnFocus
+              />
+            </View>
+          ) : (
+            <TouchableOpacity onPress={handleAmountTap} activeOpacity={0.7}>
+              <Text style={[s.amountText, { color: accent }]}>{displayAmt}</Text>
             </TouchableOpacity>
+          )}
 
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => handleToggle(false)}
-              style={[s.toggleBtn, !isExpense
-                ? { backgroundColor: GREEN, borderColor: GREEN }
-                : { backgroundColor: WHITE, borderColor: BORDER }]}
-            >
-              <Text style={[s.toggleLabel, { color: !isExpense ? WHITE : SLATE_500 }]}>
-                + Ingreso
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
         {/* Selectores — fila de 3 iconos */}
@@ -446,7 +493,7 @@ export default function ActiveExpenseScreen() {
             multiline
             style={s.transcriptInput}
             placeholderTextColor={SLATE_400}
-            placeholder="Describe tu gasto o ingreso aquí..."
+            placeholder={noteplaceholder}
             textAlignVertical="top"
             scrollEnabled={false}
           />
@@ -509,6 +556,7 @@ export default function ActiveExpenseScreen() {
         visible={activeSheet === "category"}
         selected={store.categoryEmoji}
         accent={accent}
+        isExpense={isExpense}
         onSelect={(k) => {
           const c = CATEGORY_OPTIONS.find((x) => x.key === k);
           if (c) store.setCategory(c.key, c.label);
@@ -518,6 +566,7 @@ export default function ActiveExpenseScreen() {
         visible={activeSheet === "account"}
         selected={store.account}
         accent={accent}
+        options={paymentMethods.map((m) => ({ key: m.id, label: m.name, type: m.type }))}
         onSelect={(k) => store.setAccount(k as AccountType)}
         onClose={() => setActiveSheet(null)} />
 
@@ -565,16 +614,29 @@ const s = StyleSheet.create({
   content: { flex: 1, backgroundColor: BG },
   contentInner: { paddingHorizontal: 24, paddingBottom: 16 },
 
-  // Monto + toggle
-  amountBlock: { alignItems: "center", paddingTop: 24, paddingBottom: 24 },
-  amountText: { fontSize: 64, fontWeight: "800", letterSpacing: -2, lineHeight: 72, marginBottom: 16 },
-  toggleRow: { flexDirection: "row", gap: 10 },
-  toggleBtn: {
-    paddingVertical: 10, paddingHorizontal: 22,
-    borderRadius: 9999, borderWidth: 1.5,
+  // Monto
+  amountBlock: { alignItems: "center", paddingTop: 28, paddingBottom: 20 },
+  amountText: { fontSize: 64, fontWeight: "800", letterSpacing: -2, lineHeight: 72 },
+  amountEditRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 4,
+    marginBottom: 16,
   },
-  toggleLabel: { fontSize: 14, fontWeight: "600" },
-
+  amountSignText: {
+    fontSize: 32,
+    fontWeight: "700",
+  },
+  amountInput: {
+    fontSize: 64,
+    fontWeight: "800",
+    letterSpacing: -2,
+    lineHeight: 72,
+    minWidth: 80,
+    maxWidth: 260,
+    padding: 0,
+    includeFontPadding: false,
+  },
   // Selectores icon-button (fila de 4)
   selRow: {
     flexDirection: "row",

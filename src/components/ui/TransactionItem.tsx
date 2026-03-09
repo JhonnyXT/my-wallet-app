@@ -1,13 +1,22 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import { useRef } from "react";
+import {
+  View, Text, StyleSheet, Animated,
+  PanResponder, TouchableOpacity,
+} from "react-native";
+import AnimatedRN, { FadeInDown } from "react-native-reanimated";
+import { Trash2 } from "lucide-react-native";
 import type { TransactionRow } from "@/src/db/db";
 import { EMOJI_TO_CATEGORY_NAME, getCategoryColor } from "@/src/constants/theme";
+
+// ─── Constantes del swipe ─────────────────────────────────────────────────────
+const DELETE_WIDTH  = 72;   // ancho del botón de eliminar
+const SWIPE_THRESH  = 48;   // mínimo para que se abra el botón
 
 interface TransactionItemProps {
   transaction: TransactionRow;
   index: number;
   dimmed?: boolean;
-  onLongPress?: (id: number) => void;
+  onLongPress?: (id: number) => void; // se mantiene por compatibilidad pero ya no se usa
 }
 
 function formatDate(dateStr: string): string {
@@ -35,12 +44,10 @@ function getCategoryName(emoji: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 }
 
-/** Extrae hashtags del texto (ej: "café #trabajo" → ["#trabajo"]) */
 function extractTags(text: string): string[] {
   return (text.match(/#\w+/g) ?? []);
 }
 
-/** Devuelve el texto sin los hashtags para mostrarlo limpio como título */
 function cleanDescription(text: string): string {
   return text.replace(/#\w+/g, "").trim();
 }
@@ -60,7 +67,6 @@ export function TransactionItem({
 
   const rawDesc = transaction.description || categoryName;
 
-  // Prioridad: columna tags (JSON), luego hashtags embebidos en la descripción
   let tags: string[] = [];
   if (transaction.tags && transaction.tags.trim() !== "") {
     try { tags = JSON.parse(transaction.tags); } catch { tags = extractTags(transaction.tags); }
@@ -70,14 +76,84 @@ export function TransactionItem({
 
   const title = cleanDescription(rawDesc) || categoryName;
 
+  // ── Swipe to delete ────────────────────────────────────────────────────────
+  const translateX  = useRef(new Animated.Value(0)).current;
+  const isOpen      = useRef(false);
+
+  const spring = (toValue: number, cb?: () => void) =>
+    Animated.spring(translateX, {
+      toValue,
+      useNativeDriver: true,
+      damping: 20,
+      stiffness: 200,
+    }).start(cb);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) =>
+        Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderMove: (_, g) => {
+        // Solo deslizar hacia la izquierda
+        const base = isOpen.current ? -DELETE_WIDTH : 0;
+        const next = Math.min(0, base + g.dx);
+        translateX.setValue(next);
+      },
+      onPanResponderRelease: (_, g) => {
+        if (isOpen.current) {
+          // Si desliza a la derecha suficiente, cierra
+          if (g.dx > 20) {
+            isOpen.current = false;
+            spring(0);
+          } else {
+            spring(-DELETE_WIDTH);
+          }
+        } else {
+          if (g.dx < -SWIPE_THRESH) {
+            isOpen.current = true;
+            spring(-DELETE_WIDTH);
+          } else {
+            spring(0);
+          }
+        }
+      },
+    })
+  ).current;
+
+  function handleDelete() {
+    // Animación de salida antes de eliminar
+    Animated.timing(translateX, {
+      toValue: -400,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => onLongPress?.(transaction.id));
+  }
+
+  function handleClose() {
+    isOpen.current = false;
+    spring(0);
+  }
+
   return (
-    <Animated.View
+    <AnimatedRN.View
       entering={FadeInDown.delay(index * 40).duration(300)}
-      style={dimmed && styles.dimmed}
+      style={[styles.wrapper, dimmed && styles.dimmed]}
     >
-      <Pressable
-        onLongPress={() => onLongPress?.(transaction.id)}
-        style={styles.row}
+      <View style={styles.container}>
+      {/* Botón de eliminar — detrás del row */}
+      <View style={styles.deleteContainer}>
+        <TouchableOpacity
+          style={styles.deleteBtn}
+          onPress={handleDelete}
+          activeOpacity={0.8}
+        >
+          <Trash2 size={20} color="#FFFFFF" strokeWidth={2} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Row que se desliza */}
+      <Animated.View
+        style={[styles.row, { transform: [{ translateX }] }]}
+        {...panResponder.panHandlers}
       >
         {/* Icono circular */}
         <View style={[styles.iconCircle, { backgroundColor: palette.bg }]}>
@@ -86,20 +162,12 @@ export function TransactionItem({
 
         {/* Bloque de texto */}
         <View style={styles.textBlock}>
-
-          {/* Fila superior: categoría • fecha */}
           <Text style={styles.categoryLine}>
-            {categoryName}
-            {"  ·  "}
-            {dateStr}
+            {categoryName}{"  ·  "}{dateStr}
           </Text>
-
-          {/* Descripción principal */}
           <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
             {title}
           </Text>
-
-          {/* Tags (si los hay) */}
           {tags.length > 0 && (
             <View style={styles.tagsRow}>
               {tags.map((tag) => (
@@ -115,19 +183,53 @@ export function TransactionItem({
         <Text style={[styles.amount, { color: amountColor }]}>
           {amountSign}{formatAmount(transaction.amount)}
         </Text>
-      </Pressable>
-    </Animated.View>
+      </Animated.View>
+      </View>
+    </AnimatedRN.View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Wrapper exterior: maneja el spacing — lo lleva la animación de Reanimated
+  wrapper: {
+    marginBottom: 8,
+  },
+  dimmed: {
+    opacity: 0.4,
+  },
+  // Contenedor visual: clip con borderRadius
+  container: {
+    position: "relative",
+    overflow: "hidden",
+    backgroundColor: "#F2F2F4",
+    borderRadius: 16,
+  },
+
+  // Botón rojo detrás
+  deleteContainer: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: DELETE_WIDTH,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 9999,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   row: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 14,
-  },
-  dimmed: {
-    opacity: 0.4,
+    backgroundColor: "#F2F2F4",
+    borderRadius: 16,
   },
   iconCircle: {
     width: 52,
@@ -146,10 +248,8 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 3,
     marginRight: 12,
-    minWidth: 0, // permite que flex recorte el texto antes de empujar el monto
+    minWidth: 0,
   },
-
-  // Categoría + fecha — pequeño, gris
   categoryLine: {
     fontSize: 12,
     fontWeight: "500",
@@ -157,8 +257,6 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     letterSpacing: 0.1,
   },
-
-  // Descripción — título principal
   title: {
     fontSize: 15,
     fontWeight: "700",
@@ -166,8 +264,6 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     letterSpacing: -0.2,
   },
-
-  // Tags
   tagsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -186,8 +282,6 @@ const styles = StyleSheet.create({
     color: "#475569",
     lineHeight: 16,
   },
-
-  // Monto — ancho mínimo reservado para que nunca lo empuje el texto
   amount: {
     fontSize: 15,
     fontWeight: "700",

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { initDatabase, countTransactions, clearTransactions, hasLegacyEmojis, seedDemoData } from "@/src/db/db";
+import { initDatabase } from "@/src/db/db";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 
 import "../global.css";
@@ -21,13 +21,6 @@ export default function RootLayout() {
   useEffect(() => {
     async function bootstrap() {
       await initDatabase();
-      // Re-seed si: pocos registros O si hay emojis de categorías antiguas
-      const count      = await countTransactions();
-      const hasLegacy  = await hasLegacyEmojis();
-      if (count <= 10 || hasLegacy) {
-        await clearTransactions();
-        await seedDemoData();
-      }
       await loadTransactions();
       await SplashScreen.hideAsync();
     }
@@ -56,9 +49,9 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
-          name="analytics"
+          name="settings"
           options={{
-            presentation: "modal",
+            presentation: "fullScreenModal",
             animation: "slide_from_bottom",
             headerShown: false,
           }}

@@ -1,170 +1,228 @@
 /**
- * FloatingDock — matches Stitch "Visual Expense Insights Home"
- *
- * Figma base values (scaled up for better visibility):
- *   Container:  left/right 5%, bottom = safeArea + 20px
- *   Pill:       white bg, borderRadius 9999, padding 10px
- *               shadow: 0px 15px 30px -5px rgba(0,0,0,0.12)
- *   Pill btns:  64×64px each
- *   Mic FAB:    68×68px, bg #D6EFFF
- *
- * Key: dock total height exported so screens calculate scrollView paddingBottom correctly.
+ * FloatingDock — componente verdaderamente flotante (position absolute)
+ * Botones: [+] [🔍] [mic]
+ * Al presionar "+": modal semi-transparente con opciones Ingreso / Gasto
  */
-import { View, Pressable, StyleSheet } from "react-native";
-import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { useState } from "react";
+import {
+  View, Pressable, StyleSheet, Modal,
+  Text, TouchableOpacity,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Plus, Search, Mic, MessageSquare } from "lucide-react-native";
+import { Plus, Search, Mic, X, ArrowUp, ArrowDown } from "lucide-react-native";
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withSequence,
+  useSharedValue, useAnimatedStyle, withSpring, withSequence,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
+import { useUIStore } from "@/src/store/useUIStore";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function FloatingDock({ state, navigation }: BottomTabBarProps) {
-  const insets = useSafeAreaInsets();
-  const resetExpense = useExpenseStore((s) => s.reset);
+export function FloatingDock() {
+  const insets         = useSafeAreaInsets();
+  const pathname       = usePathname();
+  const resetExpense   = useExpenseStore((s) => s.reset);
+  const setIsExpense   = useExpenseStore((s) => s.setIsExpense);
+  const searchOpen     = useUIStore((s) => s.searchOpen);
+  const setSearchOpen  = useUIStore((s) => s.setSearchOpen);
+  const closeSearch    = useUIStore((s) => s.closeSearch);
+
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const micScale = useSharedValue(1);
   const micStyle = useAnimatedStyle(() => ({
     transform: [{ scale: micScale.value }],
   }));
 
-  // isListening ya no viene de useVoiceExpense — se maneja en el modal
-  const isListening = false;
+  const bottomPos = Math.max(insets.bottom, 0) + DOCK_BOTTOM_OFFSET;
 
-  function navigateTo(name: string) {
-    const route = state.routes.find((r) => r.name === name);
-    if (!route) return;
-    const isFocused = state.routes[state.index]?.name === name;
-    const event = navigation.emit({
-      type: "tabPress",
-      target: route.key,
-      canPreventDefault: true,
-    });
-    if (!isFocused && !event.defaultPrevented) navigation.navigate(name);
-  }
-
-  async function handleAdd() {
+  async function handleAddPress() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    resetExpense();                       // limpia cualquier dato previo
-    router.push("/active-expense");       // abre el mismo modal de confirmación
+    setMenuOpen(true);
   }
 
-  async function handleChat() {
+  function handleClose() {
+    setMenuOpen(false);
+  }
+
+  async function handleSelectExpense() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigateTo("chat");
+    setMenuOpen(false);
+    resetExpense();
+    setIsExpense(true);
+    router.push("/active-expense");
+  }
+
+  async function handleSelectIncome() {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setMenuOpen(false);
+    resetExpense();
+    setIsExpense(false);
+    router.push("/active-expense");
   }
 
   async function handleSearch() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push("/analytics");
+    if (pathname === "/" || pathname === "/index" || pathname.endsWith("/(tabs)")) {
+      if (searchOpen) closeSearch();
+      else setSearchOpen(true);
+    } else {
+      router.navigate("/(tabs)");
+      setSearchOpen(true);
+    }
   }
 
   async function handleMic() {
     micScale.value = withSequence(
       withSpring(0.88, { damping: 10 }),
-      withSpring(1.0, { damping: 14 })
+      withSpring(1.0,  { damping: 14 })
     );
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push("/voice-input");
   }
 
-  const currentRoute = state.routes[state.index]?.name;
-  const bottomPos = Math.max(insets.bottom, 0) + DOCK_BOTTOM_OFFSET;
-
-  // Ocultar el dock cuando el chat está activo (tiene su propio input)
-  if (currentRoute === "chat") return null;
-
   return (
-    <View style={[styles.container, { bottom: bottomPos }]}>
-      {/* ── White pill: [ + ]  [ 💬 ]  [ 🔍 ] ──────────────────── */}
-      <View style={styles.pill}>
-        <Pressable
-          onPress={handleAdd}
-          style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
-          android_ripple={{ color: "transparent" }}
-        >
-          <Plus size={22} color="#111111" strokeWidth={2.2} />
-        </Pressable>
+    <>
+      {/* ── Dock normal ──────────────────────────────────────────────── */}
+      <View
+        style={[styles.container, { bottom: bottomPos }]}
+        pointerEvents="box-none"
+      >
+        <View style={styles.pill}>
+          <Pressable
+            onPress={menuOpen ? handleClose : handleAddPress}
+            style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
+            android_ripple={{ color: "transparent" }}
+          >
+            {menuOpen
+              ? <X size={22} color="#111111" strokeWidth={2.2} />
+              : <Plus size={22} color="#111111" strokeWidth={2.2} />
+            }
+          </Pressable>
 
-        <Pressable
-          onPress={handleChat}
-          style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
-          android_ripple={{ color: "transparent" }}
-        >
-          {/* chat_bubble — outlined, coincide con Stitch "chat_bubble" icon */}
-          <MessageSquare
-            size={22}
-            color={currentRoute === "chat" ? "#2D5BFF" : "#111111"}
-            strokeWidth={2}
-          />
-        </Pressable>
+          <Pressable
+            onPress={handleSearch}
+            style={({ pressed }) => [
+              styles.btn,
+              pressed && styles.btnPressed,
+              searchOpen && styles.btnActive,
+            ]}
+            android_ripple={{ color: "transparent" }}
+          >
+            <Search
+              size={22}
+              color={searchOpen ? "#2D5BFF" : "#111111"}
+              strokeWidth={2}
+            />
+          </Pressable>
+        </View>
 
-        <Pressable
-          onPress={handleSearch}
-          style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
-          android_ripple={{ color: "transparent" }}
+        <AnimatedPressable
+          onPress={handleMic}
+          style={[styles.micFab, micStyle]}
+          android_ripple={{ color: "rgba(21,101,192,0.15)", borderless: true }}
         >
-          <Search size={22} color="#111111" strokeWidth={2} />
-        </Pressable>
+          <Mic size={26} color="#FFFFFF" strokeWidth={2} />
+        </AnimatedPressable>
       </View>
 
-      {/* ── Mic FAB ────────────────────────────────────────────────── */}
-      <AnimatedPressable
-        onPress={handleMic}
-        style={[
-          styles.micFab,
-          isListening && styles.micFabListening,
-          micStyle,
-        ]}
-        android_ripple={{ color: "rgba(21,101,192,0.15)", borderless: true }}
+      {/* ── Modal del menú + / Ingreso / Gasto ───────────────────────── */}
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={handleClose}
       >
-        <Mic
-          size={26}
-          color="#FFFFFF"
-          strokeWidth={2}
-          fill={isListening ? "#FFFFFF" : "none"}
-        />
-      </AnimatedPressable>
-    </View>
+        {/* Fondo semi-oscuro — toca para cerrar */}
+        <Pressable style={styles.overlay} onPress={handleClose} />
+
+        {/* Popup card */}
+        <View style={[styles.popup, { bottom: bottomPos + DOCK_HEIGHT + 12 }]}>
+          {/* Opción Ingreso */}
+          <TouchableOpacity
+            style={styles.optionRow}
+            onPress={handleSelectIncome}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.optionLabel}>Ingreso</Text>
+            <View style={[styles.optionIcon, styles.optionIconIncome]}>
+              <ArrowUp size={18} color="#16A34A" strokeWidth={2.5} />
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.optionDivider} />
+
+          {/* Opción Gasto */}
+          <TouchableOpacity
+            style={styles.optionRow}
+            onPress={handleSelectExpense}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.optionLabel}>Gasto</Text>
+            <View style={[styles.optionIcon, styles.optionIconExpense]}>
+              <ArrowDown size={18} color="#DC2626" strokeWidth={2.5} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Replica del dock con X ya activa */}
+        <View style={[styles.container, styles.containerModal, { bottom: bottomPos }]}>
+          <View style={styles.pill}>
+            <Pressable
+              onPress={handleClose}
+              style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
+            >
+              <X size={22} color="#111111" strokeWidth={2.2} />
+            </Pressable>
+
+            <Pressable
+              onPress={() => { handleClose(); handleSearch(); }}
+              style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
+            >
+              <Search size={22} color="#111111" strokeWidth={2} />
+            </Pressable>
+          </View>
+
+          <AnimatedPressable
+            onPress={() => { handleClose(); handleMic(); }}
+            style={[styles.micFab, micStyle]}
+          >
+            <Mic size={26} color="#FFFFFF" strokeWidth={2} />
+          </AnimatedPressable>
+        </View>
+      </Modal>
+    </>
   );
 }
 
-// Stitch JSX:
-//   Container:  left 6.15%, right 6.15%, bottom 40px, height 64, gap 12, flexRow
-//   Pill:       flex 1, paddingV 8, paddingH 12, gap 49, bg #FFF, borderRadius 9999
-//               shadow: 0px 12px 40px rgba(0,0,0,0.08)
-//   Btn:        48×48
-//   Mic FAB:    64×64, bg #2D5BFF, shadow rgba(45,91,255,0.3)
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    left: "6.15%",
-    right: "6.15%",
+    left: 0,
+    right: 0,
     height: DOCK_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 12,
+    zIndex: 100,
+  },
+  containerModal: {
+    zIndex: 10,
   },
 
-  // ── Pill ──────────────────────────────────────────────────────────
-  // Stitch JSX: flex 1, paddingV 8, paddingH 12, gap 49, space-between
-  // space-evenly distribuye los 3 iconos de forma uniforme sin pegarlos a los bordes
   pill: {
-    flex: 1,
     height: DOCK_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-evenly",
+    justifyContent: "center",
+    gap: 20,
     paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingHorizontal: 24,
     backgroundColor: "#FFFFFF",
     borderRadius: 9999,
     shadowColor: "#000",
@@ -184,8 +242,10 @@ const styles = StyleSheet.create({
   btnPressed: {
     backgroundColor: "rgba(0,0,0,0.05)",
   },
+  btnActive: {
+    backgroundColor: "rgba(45,91,255,0.08)",
+  },
 
-  // ── Mic FAB ───────────────────────────────────────────────────────
   micFab: {
     width: 64,
     height: 64,
@@ -199,7 +259,57 @@ const styles = StyleSheet.create({
     shadowRadius: 30,
     elevation: 10,
   },
-  micFabListening: {
-    backgroundColor: "#1A40CC",
+
+  // ── Modal ──────────────────────────────────────────────────────────
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+
+  popup: {
+    position: "absolute",
+    alignSelf: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 20,
+    minWidth: 220,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+
+  optionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    gap: 32,
+  },
+  optionLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#0A1224",
+    letterSpacing: -0.2,
+  },
+  optionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 9999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  optionIconIncome: {
+    backgroundColor: "#DCFCE7",
+  },
+  optionIconExpense: {
+    backgroundColor: "#FFE4E6",
+  },
+  optionDivider: {
+    height: 1,
+    backgroundColor: "#F1F5F9",
+    marginHorizontal: -20,
   },
 });

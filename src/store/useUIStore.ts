@@ -1,17 +1,17 @@
 import { create } from "zustand";
 
 interface UIState {
-  isExpenseInputOpen: boolean;
-  prefillText: string;
-  openExpenseInput: (prefill?: string) => void;
-  closeExpenseInput: () => void;
+  searchOpen: boolean;
+  searchQuery: string;
+  setSearchOpen: (open: boolean) => void;
+  setSearchQuery: (q: string) => void;
+  closeSearch: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  isExpenseInputOpen: false,
-  prefillText: "",
-  openExpenseInput: (prefill = "") =>
-    set({ isExpenseInputOpen: true, prefillText: prefill }),
-  closeExpenseInput: () =>
-    set({ isExpenseInputOpen: false, prefillText: "" }),
+  searchOpen: false,
+  searchQuery: "",
+  setSearchOpen: (open) => set({ searchOpen: open, searchQuery: open ? "" : "" }),
+  setSearchQuery: (q) => set({ searchQuery: q }),
+  closeSearch: () => set({ searchOpen: false, searchQuery: "" }),
 }));

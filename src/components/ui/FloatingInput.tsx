@@ -114,7 +114,7 @@ export function FloatingInputOverlay() {
             </View>
             <View style={styles.badgeDark}>
               <Text style={styles.badgeDarkText}>
-                $ {Math.round(parsed.amount).toLocaleString("es-ES")}
+                $ {Math.round(parsed.amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}
               </Text>
             </View>
           </Animated.View>

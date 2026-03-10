@@ -29,7 +29,7 @@ import type { AppTheme } from "@/src/theme";
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatBalance(amount: number): string {
-  return `$${Math.round(amount).toLocaleString("es-ES")}`;
+  return `$${Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
 function normalize(text: string): string {
@@ -405,7 +405,7 @@ export default function DashboardScreen() {
                           ]} />
                         </View>
                         <Text style={[styles.goalPct, done && styles.goalPctDone]}>
-                          {done ? "✓ Completada" : `${pct}%  ·  $${Math.round(goal.savedAmount).toLocaleString("es-ES")}`}
+                          {done ? "✓ Completada" : `${pct}%  ·  $${Math.round(goal.savedAmount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`}
                         </Text>
                       </View>
                     );

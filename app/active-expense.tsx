@@ -296,7 +296,7 @@ function SelIconBtn({
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtCOP(n: number) {
-  return `$ ${Math.round(n).toLocaleString("es-ES")}`;
+  return `$ ${Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
 // ─── Pantalla ─────────────────────────────────────────────────────────────────

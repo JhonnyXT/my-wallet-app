@@ -97,7 +97,7 @@ function fmtAmount(n: number): string {
 }
 
 function fmtCOP(n: number): string {
-  return `$ ${Math.round(n).toLocaleString("es-ES")}`;
+  return `$ ${Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
 function getCategoryDisplayName(emoji: string): string {

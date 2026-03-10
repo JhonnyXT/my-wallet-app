@@ -48,7 +48,7 @@ const APP_VERSION = Constants.expoConfig?.version ?? "1.0.0";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatCOP(value: number): string {
   if (value <= 0) return "Sin configurar";
-  return `$ ${Math.round(value).toLocaleString("es-ES")} COP`;
+  return `$ ${Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")} COP`;
 }
 
 

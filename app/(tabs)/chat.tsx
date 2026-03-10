@@ -150,7 +150,7 @@ function WeeklySummaryCard({ card }: { card: WeeklySummaryCard }) {
   const changePercent =
     prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : 0;
   const isUp = changePercent >= 0;
-  const fmt = (n: number) => `$\u00A0${Math.round(n).toLocaleString("es-CO")}`;
+  const fmt = (n: number) => `$\u00A0${Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 
   const chartW = CARD_W - 32;
   const chartH = 96;

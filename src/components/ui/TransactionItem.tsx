@@ -37,7 +37,7 @@ function formatDate(dateStr: string): string {
 }
 
 function formatAmount(amount: number): string {
-  return `$ ${Math.round(Math.abs(amount)).toLocaleString("es-ES")}`;
+  return `$ ${Math.round(Math.abs(amount)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
 function getCategoryName(emoji: string): string {

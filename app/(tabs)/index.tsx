@@ -482,12 +482,12 @@ export default function DashboardScreen() {
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>{isSearching ? "🔍" : "💸"}</Text>
             <Text style={styles.emptyTitle}>
-              {isSearching ? "Sin resultados" : "Sin gastos aún"}
+              {isSearching ? "Sin resultados" : "Sin movimientos aún"}
             </Text>
             <Text style={styles.emptySubtitle}>
               {isSearching
                 ? `No se encontró nada para "${searchQuery}"`
-                : `Toca + o el micrófono para registrar tu primer gasto.`}
+                : `Toca + o el micrófono para registrar tu primer gasto o ingreso.`}
             </Text>
           </View>
         ) : (

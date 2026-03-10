@@ -4,15 +4,16 @@
  * Layout: fondo oscuro #101622 + BlurView glassmorphism
  * Orb:    LinearGradient animado con pulsos concéntricos (Reanimated)
  * Voz:    expo-speech-recognition → parciales en tiempo real
- * Auto:   2 s de silencio → para y navega al FloatingInputOverlay
+ * Auto:   2 s de silencio → para y navega al formulario de gasto/ingreso
  */
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import {
   View,
   Text,
   Pressable,
   StyleSheet,
   Dimensions,
+  ScrollView,
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
@@ -55,7 +56,6 @@ try {
 
 // ─── Componente orb con gradient ─────────────────────────────────────────────
 function VoiceOrb({ isListening }: { isListening: boolean }) {
-  // Pulso: escala de 1 → 1.12 → 1 en loop
   const pulse = useSharedValue(1);
   const pulse2 = useSharedValue(1);
 
@@ -95,11 +95,8 @@ function VoiceOrb({ isListening }: { isListening: boolean }) {
 
   return (
     <View style={styles.orbContainer}>
-      {/* Anillo exterior (más difuso) */}
       <Animated.View style={[styles.orbRing2, ring2Style]} />
-      {/* Anillo interior */}
       <Animated.View style={[styles.orbRing1, ring1Style]} />
-      {/* Orb central con gradient */}
       <Animated.View entering={ZoomIn.duration(400)} style={styles.orbCore}>
         <LinearGradient
           colors={["#3B82F6", "#135BEC", "#1E3A8A"]}
@@ -114,15 +111,53 @@ function VoiceOrb({ isListening }: { isListening: boolean }) {
   );
 }
 
+// ─── Componente de animación palabra por palabra ──────────────────────────────
+// Cada nueva palabra aparece con FadeIn; las palabras existentes no se reaniman.
+function AnimatedWords({ text }: { text: string }) {
+  const words = text ? text.trim().split(/\s+/).filter(Boolean) : [];
+  const prevLenRef = useRef(0);
+  const prevLen = prevLenRef.current;
+
+  // Actualizar el ref DESPUÉS del render para que el próximo render
+  // conozca cuántas palabras ya estaban presentes.
+  useLayoutEffect(() => {
+    prevLenRef.current = words.length;
+  });
+
+  return (
+    <View style={styles.wordsContainer}>
+      {words.map((word, i) => (
+        <Animated.Text
+          key={i}
+          entering={i >= prevLen ? FadeIn.duration(220) : undefined}
+          style={styles.transcriptWord}
+        >
+          {word}{" "}
+        </Animated.Text>
+      ))}
+    </View>
+  );
+}
+
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export default function VoiceInputScreen() {
   const insets = useSafeAreaInsets();
-  const { status, transcript, errorMessage, setStatus, setTranscript, setFinalTranscript, setError, reset } =
-    useVoiceStore();
+  const {
+    status, transcript, finalTranscript,
+    errorMessage, setStatus, setTranscript,
+    setFinalTranscript, setError, reset,
+  } = useVoiceStore();
   const setFromVoice = useExpenseStore((s) => s.setFromVoice);
 
   const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Ref que siempre tiene el valor actual de status para los listeners
+  // (evita el stale-closure bug en el evento "end")
+  const statusRef = useRef(status);
+  useEffect(() => { statusRef.current = status; }, [status]);
+
   const isListening = status === "listening";
+  const isProcessing = status === "processing";
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
   const clearSilenceTimer = useCallback(() => {
@@ -141,18 +176,21 @@ export default function VoiceInputScreen() {
       setFinalTranscript(trimmed);
       setStatus("processing");
 
-      // 2 segundos mostrando el transcript → luego navega al modal de confirmación
+      // 1 segundo visible mostrando el transcript completo → navega al formulario
       setTimeout(() => {
         const parsed = processVoiceInput(trimmed);
         setFromVoice(parsed);
         reset();
         router.replace("/active-expense");
-      }, 2000);
+      }, 1000);
     },
     [clearSilenceTimer, reset, setFinalTranscript, setFromVoice, setStatus]
   );
 
   // ─── Listeners de voz ────────────────────────────────────────────────────
+  // IMPORTANTE: no incluir `status` en las deps para evitar que se limpien
+  // los listeners justo cuando status cambia a "processing".
+  // Se usa statusRef para leer el valor actual sin stale closure.
   useEffect(() => {
     if (!SpeechModule) return;
 
@@ -163,7 +201,8 @@ export default function VoiceInputScreen() {
       }),
 
       SpeechModule.addListener("end", () => {
-        if (status !== "processing") setStatus("idle");
+        // Usar ref en lugar de closure para leer el status actual
+        if (statusRef.current !== "processing") setStatus("idle");
       }),
 
       SpeechModule.addListener("error", (e: any) => {
@@ -181,7 +220,7 @@ export default function VoiceInputScreen() {
           handleDone(text);
         } else {
           setTranscript(text);
-          // Reiniciar timer de silencio en cada palabra nueva
+          // Reiniciar el timer de silencio con cada nueva palabra
           clearSilenceTimer();
           silenceTimer.current = setTimeout(() => {
             SpeechModule?.stop();
@@ -194,7 +233,8 @@ export default function VoiceInputScreen() {
       clearSilenceTimer();
       subs.forEach((s) => s?.remove?.());
     };
-  }, [clearSilenceTimer, handleDone, setError, setStatus, setTranscript, status]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clearSilenceTimer, handleDone, setError, setStatus, setTranscript]);
 
   // ─── Iniciar al montar la pantalla ────────────────────────────────────────
   useEffect(() => {
@@ -222,7 +262,7 @@ export default function VoiceInputScreen() {
         maxAlternatives: 1,
         continuous: false,
       });
-    } catch (err) {
+    } catch {
       setError("No se pudo iniciar el micrófono.");
     }
   }
@@ -244,17 +284,18 @@ export default function VoiceInputScreen() {
     router.back();
   }
 
-  // ─── Textos dinámicos ─────────────────────────────────────────────────────
-  const displayText =
-    status === "processing"
-      ? transcript || "Procesando..."
-      : transcript || (status === "error" ? "" : "");
+  // ─── Texto a mostrar ──────────────────────────────────────────────────────
+  // En processing: mostrar el texto final confirmado
+  // En listening:  mostrar el transcript parcial en tiempo real
+  const displayText = isProcessing
+    ? (finalTranscript || transcript)
+    : transcript;
 
   const statusLabel =
-    status === "processing"
-      ? "Procesando tu gasto..."
+    isProcessing
+      ? "Listo, abriendo formulario..."
       : isListening
-      ? "Transcribiendo tu gasto..."
+      ? "Transcribiendo..."
       : status === "error"
       ? errorMessage ?? "No te escuché. ¿Puedes repetirlo?"
       : transcript
@@ -280,26 +321,61 @@ export default function VoiceInputScreen() {
         <VoiceOrb isListening={isListening} />
 
         <View style={styles.transcriptSection}>
-          {/* Indicador "Listening" */}
+          {/* Badge "Escuchando" */}
           {isListening && (
-            <Animated.View entering={FadeIn.duration(300)} exiting={FadeOut.duration(200)} style={styles.listeningBadge}>
+            <Animated.View
+              entering={FadeIn.duration(300)}
+              exiting={FadeOut.duration(200)}
+              style={styles.listeningBadge}
+            >
               <Sparkles size={12} color="#135BEC" strokeWidth={2} />
               <Text style={styles.listeningText}>Escuchando</Text>
             </Animated.View>
           )}
 
-          {/* Transcript en tiempo real */}
-          {displayText ? (
-            <Animated.Text
+          {/* Badge "Procesando" */}
+          {isProcessing && (
+            <Animated.View
               entering={FadeIn.duration(200)}
-              style={styles.transcriptText}
-              numberOfLines={4}
+              style={styles.processingBadge}
             >
-              "{displayText}"
-            </Animated.Text>
+              <Text style={styles.processingText}>✓ Procesado</Text>
+            </Animated.View>
+          )}
+
+          {/* Transcript: animación palabra por palabra mientras escucha,
+              texto completo estático cuando procesa */}
+          {displayText ? (
+            <ScrollView
+              style={styles.transcriptScroll}
+              contentContainerStyle={styles.transcriptScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {isProcessing ? (
+                // En processing: mostrar texto completo sin re-animar
+                <Animated.Text
+                  entering={FadeIn.duration(150)}
+                  style={styles.transcriptTextFull}
+                >
+                  "{displayText}"
+                </Animated.Text>
+              ) : (
+                // En listening: animar cada palabra nueva
+                <View style={styles.transcriptQuote}>
+                  <Text style={styles.quoteChar}>"</Text>
+                  <AnimatedWords text={displayText} />
+                  <Text style={styles.quoteChar}>"</Text>
+                </View>
+              )}
+            </ScrollView>
           ) : (
-            <Animated.Text entering={FadeIn.duration(300)} style={styles.transcriptPlaceholder}>
-              {status === "error" ? "" : "Di algo como:\n\"McDonald's 25 mil ayer\""}
+            <Animated.Text
+              entering={FadeIn.duration(300)}
+              style={styles.transcriptPlaceholder}
+            >
+              {status === "error"
+                ? ""
+                : "Di algo como:\n\"McDonald's 25 mil ayer\""}
             </Animated.Text>
           )}
 
@@ -308,6 +384,7 @@ export default function VoiceInputScreen() {
             style={[
               styles.statusText,
               status === "error" && styles.statusTextError,
+              isProcessing && styles.statusTextProcessing,
             ]}
           >
             {statusLabel}
@@ -315,33 +392,30 @@ export default function VoiceInputScreen() {
         </View>
       </View>
 
-      {/* ── Footer: botón mic + label + hint pill ────────────────────── */}
+      {/* ── Footer: botón mic + label ─────────────────────────────────── */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 32 }]}>
-        {/* Botón central: Mic (idle) → Pause (listening) → Play (paused) */}
         <Pressable
           onPress={handleMicPress}
           style={({ pressed }) => [styles.micBtn, pressed && styles.micBtnPressed]}
         >
           {isListening ? (
             <Pause size={30} color="#FFFFFF" strokeWidth={2} fill="#FFFFFF" />
-          ) : status === "idle" || status === "error" ? (
-            <Mic size={30} color="#FFFFFF" strokeWidth={2} />
-          ) : (
+          ) : isProcessing ? (
             <Play size={30} color="#FFFFFF" strokeWidth={2} fill="#FFFFFF" />
+          ) : (
+            <Mic size={30} color="#FFFFFF" strokeWidth={2} />
           )}
         </Pressable>
 
-        {/* Etiqueta dinámica */}
         <Text style={styles.tapLabel}>
           {isListening
             ? "TOCA PARA PAUSAR"
-            : status === "processing"
+            : isProcessing
             ? "PROCESANDO..."
             : transcript
             ? "TOCA PARA CONTINUAR"
             : "TOCA PARA INICIAR"}
         </Text>
-
       </View>
     </View>
   );
@@ -420,9 +494,10 @@ const styles = StyleSheet.create({
   // ── Transcript ───────────────────────────────────────────────────────────────
   transcriptSection: {
     alignItems: "center",
-    marginTop: 40,
-    gap: 12,
+    marginTop: 36,
+    gap: 10,
     width: "100%",
+    maxHeight: 200,
   },
   listeningBadge: {
     flexDirection: "row",
@@ -435,14 +510,72 @@ const styles = StyleSheet.create({
     color: "#135BEC",
     letterSpacing: 1.4,
   },
-  transcriptText: {
-    fontSize: 28,
+  processingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(34,197,94,0.15)",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 9999,
+  },
+  processingText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#4ADE80",
+    letterSpacing: 0.5,
+  },
+
+  // ScrollView contiene el transcript para frases largas
+  transcriptScroll: {
+    width: "100%",
+    maxHeight: 140,
+  },
+  transcriptScrollContent: {
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+
+  // Frase entre comillas con palabras animadas
+  transcriptQuote: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    alignItems: "flex-start",
+  },
+  quoteChar: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "rgba(255,255,255,0.35)",
+    lineHeight: 34,
+  },
+
+  // Contenedor flex-wrap para las palabras animadas
+  wordsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    alignItems: "flex-start",
+    paddingHorizontal: 2,
+  },
+  transcriptWord: {
+    fontSize: 26,
     fontWeight: "800",
     color: "#FFFFFF",
-    textAlign: "center",
-    lineHeight: 36,
-    letterSpacing: -0.5,
+    lineHeight: 34,
+    letterSpacing: -0.3,
   },
+
+  // Texto completo en estado "processing"
+  transcriptTextFull: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    textAlign: "center",
+    lineHeight: 32,
+    letterSpacing: -0.3,
+  },
+
   transcriptPlaceholder: {
     fontSize: 18,
     fontWeight: "400",
@@ -451,13 +584,17 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   statusText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "500",
-    color: "#94A3B8",
+    color: "#64748B",
     textAlign: "center",
+    letterSpacing: 0.2,
   },
   statusTextError: {
     color: "#F87171",
+  },
+  statusTextProcessing: {
+    color: "#4ADE80",
   },
 
   // ── Footer ───────────────────────────────────────────────────────────────────
@@ -465,7 +602,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 16,
     paddingTop: 8,
-    paddingBottom: 0,
   },
   micBtn: {
     width: 80,
@@ -487,29 +623,9 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.96 }],
   },
   tapLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: "#64748B",
     letterSpacing: 1.8,
-  },
-
-  // ── Hint pill — flujo normal dentro del footer ───────────────────────────────
-  hintPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    backgroundColor: "rgba(30,41,59,0.85)",
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    marginTop: 12,
-  },
-  hintText: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#CBD5E1",
-    lineHeight: 18,
   },
 });

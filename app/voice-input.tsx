@@ -35,7 +35,7 @@ import * as Haptics from "expo-haptics";
 
 import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
-import { processVoiceInput } from "@/src/utils/voiceParser";
+import { processVoiceInput, normalizeMoneyText } from "@/src/utils/voiceParser";
 
 const { width: SW } = Dimensions.get("window");
 const ORB_SIZE = 192;
@@ -170,7 +170,7 @@ export default function VoiceInputScreen() {
   const handleDone = useCallback(
     (text: string) => {
       clearSilenceTimer();
-      const trimmed = text.trim();
+      const trimmed = normalizeMoneyText(text.trim());
       if (!trimmed) return;
 
       setFinalTranscript(trimmed);
@@ -219,7 +219,7 @@ export default function VoiceInputScreen() {
         if (event.isFinal) {
           handleDone(text);
         } else {
-          setTranscript(text);
+          setTranscript(normalizeMoneyText(text));
           // Reiniciar el timer de silencio con cada nueva palabra
           clearSilenceTimer();
           silenceTimer.current = setTimeout(() => {

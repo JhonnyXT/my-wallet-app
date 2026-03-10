@@ -91,6 +91,18 @@ function normalize(text: string): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+/**
+ * Normaliza separadores de miles en un texto: reemplaza comas por puntos
+ * en patrones numéricos tipo "$40,000" o "40,000" → "$40.000" / "40.000"
+ * para mostrar siempre en formato COP.
+ */
+export function normalizeMoneyText(text: string): string {
+  // Reemplaza números con coma como separador de miles (ej: 40,000 / 1,500,000)
+  return text.replace(/(\d{1,3})(,(\d{3}))+/g, (match) =>
+    match.replace(/,/g, ".")
+  );
+}
+
 function extractAmount(text: string): number {
   const n = normalize(text);
 
@@ -184,11 +196,13 @@ export function processVoiceInput(raw: string): Partial<ActiveExpense> & {
   const date      = extractDate(raw);
   const isExpense = extractIsExpense(raw);
   const amount    = extractAmount(raw);
+  // Normalizar el texto para mostrar puntos en lugar de comas en los montos
+  const normalizedRaw = normalizeMoneyText(raw);
 
   const result: Partial<ActiveExpense> & { _categoryDetected: boolean; _dateDetected: boolean } = {
     amount,
-    note:          raw,
-    rawTranscript: raw,
+    note:          normalizedRaw,
+    rawTranscript: normalizedRaw,
     tags:          [],
     _categoryDetected: category !== null,
     _dateDetected:     date !== null,

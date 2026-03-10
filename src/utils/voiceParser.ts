@@ -95,12 +95,14 @@ function extractAmount(text: string): number {
   const n = normalize(text);
 
   // "25 mil" | "25mil" → 25000
-  const milMatch = n.match(/(\d+[\.,]?\d*)\s*mil/);
+  const milMatch = n.match(/(\d+[\.,]?\d*)\s*\bmil\b/);
   if (milMatch) {
     return parseFloat(milMatch[1].replace(",", ".")) * 1000;
   }
 
   // "cuarenta y dos mil" → 42000
+  // \bmil\b asegura que no haga match con "familia", "similar", etc.
+  const hasMilWord = /\bmil\b/.test(n);
   let wordAmount = 0;
   let hasWordNumber = false;
   for (const [word, val] of Object.entries(WORD_NUMBERS)) {
@@ -109,14 +111,20 @@ function extractAmount(text: string): number {
       hasWordNumber = true;
     }
   }
-  if (hasWordNumber && n.includes("mil")) wordAmount *= 1000;
+  if (hasWordNumber && hasMilWord) wordAmount *= 1000;
   if (hasWordNumber && wordAmount > 0) return wordAmount;
 
-  // Número directo: "42000", "42.000", "42,000"
+  // Número directo: "42000", "42.000", "42,000", "$40,000"
   const numMatch = n.match(/\d{1,3}(?:[.,]\d{3})+|\d+[.,]\d+|\d+/);
   if (numMatch) {
-    const raw = numMatch[0].replace(/\./g, "").replace(",", ".");
-    return parseFloat(raw);
+    const raw = numMatch[0];
+    // Formato de miles (ej: "40,000" / "40.000" / "1,500,000"):
+    // los separadores son de miles → eliminarlos todos y parsear como entero
+    if (/\d{1,3}(?:[.,]\d{3})+/.test(raw)) {
+      return parseInt(raw.replace(/[.,]/g, ""), 10);
+    }
+    // Número decimal o entero simple (ej: "42.5", "42,5", "42000")
+    return parseFloat(raw.replace(",", "."));
   }
 
   return 0;

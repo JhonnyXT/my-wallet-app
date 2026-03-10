@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import {
   View, Text, StyleSheet, Animated,
   PanResponder, TouchableOpacity,
@@ -7,6 +7,8 @@ import AnimatedRN, { FadeInDown } from "react-native-reanimated";
 import { Trash2 } from "lucide-react-native";
 import type { TransactionRow } from "@/src/db/db";
 import { EMOJI_TO_CATEGORY_NAME, getCategoryColor } from "@/src/constants/theme";
+import { useTheme } from "@/src/context/ThemeContext";
+import type { AppTheme } from "@/src/theme";
 
 // ─── Constantes del swipe ─────────────────────────────────────────────────────
 const DELETE_WIDTH  = 72;   // ancho del botón de eliminar
@@ -58,11 +60,13 @@ export function TransactionItem({
   dimmed = false,
   onLongPress,
 }: TransactionItemProps) {
+  const theme        = useTheme();
+  const styles       = useMemo(() => createStyles(theme), [theme]);
   const palette      = getCategoryColor(transaction.category_emoji);
   const categoryName = getCategoryName(transaction.category_emoji);
   const dateStr      = formatDate(transaction.date);
   const isExpense    = transaction.amount >= 0;
-  const amountColor  = isExpense ? "#000000" : "#059669";
+  const amountColor  = isExpense ? theme.text : "#059669";
   const amountSign   = isExpense ? "- " : "+ ";
 
   const rawDesc = transaction.description || categoryName;
@@ -189,7 +193,7 @@ export function TransactionItem({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(t: AppTheme) { return StyleSheet.create({
   // Wrapper exterior: maneja el spacing — lo lleva la animación de Reanimated
   wrapper: {
     marginBottom: 8,
@@ -201,8 +205,10 @@ const styles = StyleSheet.create({
   container: {
     position: "relative",
     overflow: "hidden",
-    backgroundColor: "#F2F2F4",
+    backgroundColor: t.itemBg,
     borderRadius: 16,
+    borderWidth: t.isDark ? 1 : 0,
+    borderColor: t.isDark ? t.border : "transparent",
   },
 
   // Botón rojo detrás
@@ -228,7 +234,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 14,
-    backgroundColor: "#F2F2F4",
+    paddingLeft: 16,
+    paddingRight: 16,
+    backgroundColor: t.itemBg,
     borderRadius: 16,
   },
   iconCircle: {
@@ -253,14 +261,14 @@ const styles = StyleSheet.create({
   categoryLine: {
     fontSize: 12,
     fontWeight: "500",
-    color: "rgba(0,0,0,0.38)",
+    color: t.textSub,
     lineHeight: 16,
     letterSpacing: 0.1,
   },
   title: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#0F172A",
+    color: t.text,
     lineHeight: 21,
     letterSpacing: -0.2,
   },
@@ -271,7 +279,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   tagPill: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: t.inputBg,
     borderRadius: 9999,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -279,7 +287,7 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#475569",
+    color: t.textSub,
     lineHeight: 16,
   },
   amount: {
@@ -290,4 +298,4 @@ const styles = StyleSheet.create({
     minWidth: 110,
     textAlign: "right",
   },
-});
+});}

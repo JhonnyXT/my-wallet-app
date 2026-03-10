@@ -4,7 +4,7 @@
  * Chip 1 → periodo (bottom sheet)
  * Chip 2 → categoría (bottom sheet)
  */
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -23,6 +23,8 @@ import {
   ChevronsUpDown,
 } from "lucide-react-native";
 import { ALL_CATEGORY_EMOJIS, EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
+import { useTheme } from "@/src/context/ThemeContext";
+import type { AppTheme } from "@/src/theme";
 
 // ─── Opciones ─────────────────────────────────────────────────────────────────
 
@@ -70,6 +72,8 @@ function PeriodSheet({
   onSelect: (v: string) => void;
   onClose: () => void;
 }) {
+  const theme = useTheme();
+  const bs    = useMemo(() => buildBs(theme), [theme]);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
@@ -89,12 +93,12 @@ function PeriodSheet({
                 style={bs.option}
               >
                 <View style={bs.optionLeft}>
-                  <View style={[bs.iconBox, isSel && { backgroundColor: ACCENT + "18" }]}>
-                    {Icon && <Icon size={18} color={isSel ? ACCENT : SLATE_500} strokeWidth={1.8} />}
+                  <View style={[bs.iconBox, isSel && { backgroundColor: theme.accent + "18" }]}>
+                    {Icon && <Icon size={18} color={isSel ? theme.accent : theme.textSub} strokeWidth={1.8} />}
                   </View>
-                  <Text style={[bs.optionText, isSel && bs.optionTextSelected]}>{opt}</Text>
+                  <Text style={[bs.optionText, isSel && { color: theme.accent, fontWeight: "700" }]}>{opt}</Text>
                 </View>
-                {isSel && <Check size={16} color={ACCENT} strokeWidth={2.5} />}
+                {isSel && <Check size={16} color={theme.accent} strokeWidth={2.5} />}
               </TouchableOpacity>
               {i < PERIODS.length - 1 && <View style={bs.sep} />}
             </View>
@@ -116,6 +120,8 @@ function CategorySheet({
   onSelect: (v: string | null) => void;
   onClose: () => void;
 }) {
+  const theme = useTheme();
+  const bs    = useMemo(() => buildBs(theme), [theme]);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
@@ -134,17 +140,17 @@ function CategorySheet({
                 style={bs.option}
               >
                 <View style={bs.optionLeft}>
-                  <View style={[bs.iconBox, isSel && { backgroundColor: ACCENT + "18" }]}>
+                  <View style={[bs.iconBox, isSel && { backgroundColor: theme.accent + "18" }]}>
                     {opt.emoji
                       ? <Text style={bs.emojiIcon}>{opt.emoji}</Text>
-                      : <List size={18} color={isSel ? ACCENT : SLATE_500} strokeWidth={1.8} />
+                      : <List size={18} color={isSel ? theme.accent : theme.textSub} strokeWidth={1.8} />
                     }
                   </View>
-                  <Text style={[bs.optionText, isSel && bs.optionTextSelected]}>
+                  <Text style={[bs.optionText, isSel && { color: theme.accent, fontWeight: "700" }]}>
                     {opt.label.charAt(0).toUpperCase() + opt.label.slice(1)}
                   </Text>
                 </View>
-                {isSel && <Check size={16} color={ACCENT} strokeWidth={2.5} />}
+                {isSel && <Check size={16} color={theme.accent} strokeWidth={2.5} />}
               </TouchableOpacity>
               {i < CATEGORY_OPTIONS.length - 1 && <View style={bs.sep} />}
             </View>
@@ -166,11 +172,13 @@ function PillChip({
   label: string;
   onPress: () => void;
 }) {
+  const theme = useTheme();
+  const ch    = useMemo(() => buildCh(theme), [theme]);
   return (
     <TouchableOpacity activeOpacity={0.72} onPress={onPress} style={ch.pill}>
       {emoji ? <Text style={ch.pillEmoji}>{emoji}</Text> : null}
       <Text style={ch.pillText} numberOfLines={1}>{label}</Text>
-      <ChevronsUpDown size={13} color={SLATE_900} strokeWidth={2.2} />
+      <ChevronsUpDown size={13} color={theme.text} strokeWidth={2.2} />
     </TouchableOpacity>
   );
 }
@@ -190,6 +198,8 @@ export function FilterChips({
   category,
   onCategoryChange,
 }: FilterChipsProps) {
+  const theme = useTheme();
+  const ch    = useMemo(() => buildCh(theme), [theme]);
   const [periodSheetVisible,   setPeriodSheetVisible]   = useState(false);
   const [categorySheetVisible, setCategorySheetVisible] = useState(false);
 
@@ -234,9 +244,9 @@ export function FilterChips({
   );
 }
 
-// ─── Estilos: bottom sheet ────────────────────────────────────────────────────
+// ─── Estilos dinámicos ────────────────────────────────────────────────────────
 
-const bs = StyleSheet.create({
+function buildBs(t: AppTheme) { return StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(15,23,42,0.4)",
@@ -246,7 +256,7 @@ const bs = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: WHITE,
+    backgroundColor: t.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingBottom: 36,
@@ -261,14 +271,14 @@ const bs = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: t.border,
     alignSelf: "center",
     marginBottom: 16,
   },
   title: {
     fontSize: 17,
     fontWeight: "700",
-    color: SLATE_900,
+    color: t.text,
     paddingHorizontal: 20,
     marginBottom: 4,
   },
@@ -288,7 +298,7 @@ const bs = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: t.inputBg,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -298,22 +308,20 @@ const bs = StyleSheet.create({
   },
   optionText: {
     fontSize: 15,
-    color: SLATE_900,
+    color: t.text,
   },
   optionTextSelected: {
-    color: ACCENT,
+    color: t.accent,
     fontWeight: "700",
   },
   sep: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: BORDER,
+    backgroundColor: t.border,
     marginHorizontal: 20,
   },
-});
+});}
 
-// ─── Estilos: pill chip ───────────────────────────────────────────────────────
-
-const ch = StyleSheet.create({
+function buildCh(t: AppTheme) { return StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -321,7 +329,7 @@ const ch = StyleSheet.create({
   },
   separator: {
     fontSize: 13,
-    color: SLATE_500,
+    color: t.textSub,
     fontWeight: "500",
     paddingHorizontal: 2,
   },
@@ -329,10 +337,10 @@ const ch = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: WHITE,
+    backgroundColor: t.surface,
     borderRadius: 9999,
     borderWidth: 1.5,
-    borderColor: "#D4D4D4",
+    borderColor: t.border,
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
@@ -343,7 +351,7 @@ const ch = StyleSheet.create({
   pillText: {
     fontSize: 14,
     fontWeight: "600",
-    color: SLATE_900,
+    color: t.text,
     lineHeight: 20,
   },
-});
+});}

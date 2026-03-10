@@ -2,7 +2,7 @@
  * app/settings.tsx — Modal de Configuración
  * Diseño: Stitch "Professional Settings Interface"
  */
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -21,14 +21,12 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import {
   ChevronLeft,
   ChevronRight,
-  User,
   Wallet,
   CalendarDays,
   CreditCard,
   PiggyBank,
   Moon,
   Download,
-  Info,
   Plus,
   Pencil,
   Trash2,
@@ -41,16 +39,10 @@ import { useSettingsStore, type PaymentMethod, type PaymentMethodType } from "@/
 import { ALL_CATEGORY_EMOJIS, EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
+import { useTheme } from "@/src/context/ThemeContext";
+import type { AppTheme } from "@/src/theme";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
-const ACCENT     = "#135BEC";
-const SLATE_900  = "#0F172A";
-const SLATE_500  = "#64748B";
-const SLATE_200  = "#E2E8F0";
-const WHITE      = "#FFFFFF";
-const BG         = "#F8F9FA";
-const CARD_BG    = "#FFFFFF";
-
 const APP_VERSION = Constants.expoConfig?.version ?? "1.0.0";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -63,6 +55,7 @@ function formatCOP(value: number): string {
 // ─── Componentes de sección ───────────────────────────────────────────────────
 
 function SectionHeader({ title }: { title: string }) {
+  const s = useStyles();
   return <Text style={s.sectionHeader}>{title}</Text>;
 }
 
@@ -81,6 +74,7 @@ function SettingRow({
   rightElement?: React.ReactNode;
   danger?: boolean;
 }) {
+  const s = useStyles();
   return (
     <TouchableOpacity
       style={s.row}
@@ -93,8 +87,70 @@ function SettingRow({
         <Text style={[s.rowLabel, danger && { color: "#DC2626" }]}>{label}</Text>
         {subtitle ? <Text style={s.rowSub}>{subtitle}</Text> : null}
       </View>
-      {rightElement ?? (onPress ? <ChevronRight size={16} color={SLATE_500} strokeWidth={2} /> : null)}
+      {rightElement ?? (onPress ? <ChevronRight size={16} color={s.rowSub.color as string} strokeWidth={2} /> : null)}
     </TouchableOpacity>
+  );
+}
+
+// ─── Tarjeta de submenu (nombre + descripción → abre modal) ──────────────────
+
+function SubMenuCard({
+  icon,
+  label,
+  description,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+  onPress: () => void;
+}) {
+  const s = useStyles();
+  return (
+    <TouchableOpacity style={s.subCard} onPress={onPress} activeOpacity={0.65}>
+      <View style={s.subCardIcon}>{icon}</View>
+      <View style={s.subCardText}>
+        <Text style={s.subCardLabel}>{label}</Text>
+        <Text style={s.subCardDesc}>{description}</Text>
+      </View>
+      <ChevronRight size={18} color={s.subCardDesc.color as string} strokeWidth={2} />
+    </TouchableOpacity>
+  );
+}
+
+// ─── Wrapper modal pantalla completa ─────────────────────────────────────────
+
+function FullScreenModal({
+  visible,
+  title,
+  onClose,
+  children,
+}: {
+  visible: boolean;
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const insets = useSafeAreaInsets();
+  const s = useStyles();
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={[s.safe, { paddingTop: 0 }]} edges={["top"]}>
+        <View style={s.header}>
+          <TouchableOpacity onPress={onClose} style={s.backBtn} hitSlop={12} activeOpacity={0.65}>
+            <ChevronLeft size={24} color={s.headerTitle.color as string} strokeWidth={2.5} />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>{title}</Text>
+        </View>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 40 }]}
+          keyboardShouldPersistTaps="handled"
+        >
+          {children}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -117,6 +173,8 @@ function InputModal({
   onConfirm: (val: string) => void;
   onClose: () => void;
 }) {
+  const s = useStyles();
+  const theme = useTheme();
   const isMoney = keyboardType === "numeric";
 
   const toDisplay = (raw: string) =>
@@ -158,7 +216,7 @@ function InputModal({
             value={display}
             onChangeText={handleChange}
             placeholder={placeholder}
-            placeholderTextColor={SLATE_500}
+            placeholderTextColor={theme.textSub}
             keyboardType={isMoney ? "number-pad" : keyboardType}
             autoFocus
           />
@@ -200,6 +258,8 @@ function SelectorModal<T extends string>({
   onSelect: (key: T) => void;
   onClose: () => void;
 }) {
+  const s = useStyles();
+  const theme = useTheme();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={s.sheetBackdrop} onPress={onClose} />
@@ -213,10 +273,10 @@ function SelectorModal<T extends string>({
               onPress={() => { onSelect(opt.key); onClose(); }}
               activeOpacity={0.65}
             >
-              <Text style={[s.sheetOptionText, opt.key === selected && { color: ACCENT, fontWeight: "700" }]}>
+              <Text style={[s.sheetOptionText, opt.key === selected && { color: theme.accent, fontWeight: "700" }]}>
                 {opt.label}
               </Text>
-              {opt.key === selected && <Check size={16} color={ACCENT} strokeWidth={2.5} />}
+              {opt.key === selected && <Check size={16} color={theme.accent} strokeWidth={2.5} />}
             </TouchableOpacity>
             {i < options.length - 1 && <View style={s.sheetSep} />}
           </View>
@@ -235,6 +295,7 @@ const PAYMENT_TYPE_OPTIONS: { key: PaymentMethodType; label: string }[] = [
 ];
 
 function PaymentMethodsSection() {
+  const s = useStyles();
   const methods           = useSettingsStore((s) => s.paymentMethods);
   const addMethod         = useSettingsStore((s) => s.addPaymentMethod);
   const updateMethod      = useSettingsStore((s) => s.updatePaymentMethod);
@@ -299,7 +360,7 @@ function PaymentMethodsSection() {
               style={s.payAction}
               hitSlop={8}
             >
-              <Pencil size={15} color={SLATE_500} strokeWidth={2} />
+              <Pencil size={15} color={s.rowSub.color as string} strokeWidth={2} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => confirmDelete(m.id, m.name)}
@@ -315,7 +376,7 @@ function PaymentMethodsSection() {
 
       {/* Botón agregar */}
       <TouchableOpacity style={s.addMethodBtn} onPress={openAdd} activeOpacity={0.7}>
-        <Plus size={16} color={ACCENT} strokeWidth={2.5} />
+        <Plus size={16} color={s.addMethodText.color as string} strokeWidth={2.5} />
         <Text style={s.addMethodText}>Agregar método</Text>
       </TouchableOpacity>
 
@@ -345,15 +406,15 @@ function PaymentMethodsSection() {
 // ─── Screen principal ─────────────────────────────────────────────────────────
 
 export default function SettingsScreen() {
+  const s      = useStyles();
+  const theme  = useTheme();
   const insets = useSafeAreaInsets();
 
-  const userName            = useSettingsStore((s) => s.userName);
   const monthlyBudget       = useSettingsStore((s) => s.monthlyBudget);
   const budgetPeriod        = useSettingsStore((s) => s.budgetPeriod);
   const darkMode            = useSettingsStore((s) => s.darkMode);
   const budgetByCategory    = useSettingsStore((s) => s.budgetByCategory);
 
-  const setUserName             = useSettingsStore((s) => s.setUserName);
   const setMonthlyBudget        = useSettingsStore((s) => s.setMonthlyBudget);
   const setBudgetPeriod         = useSettingsStore((s) => s.setBudgetPeriod);
   const setDarkMode             = useSettingsStore((s) => s.setDarkMode);
@@ -361,11 +422,12 @@ export default function SettingsScreen() {
   const removeBudgetForCategory = useSettingsStore((s) => s.removeBudgetForCategory);
 
   // Modals state
-  const [budgetModal,    setBudgetModal]    = useState(false);
-  const [nameModal,      setNameModal]      = useState(false);
-  const [periodSheet,    setPeriodSheet]    = useState(false);
-  const [darkSheet,      setDarkSheet]      = useState(false);
-  const [catBudgetEmoji, setCatBudgetEmoji] = useState<string | null>(null);
+  const [budgetModal,        setBudgetModal]        = useState(false);
+  const [periodSheet,        setPeriodSheet]        = useState(false);
+  const [darkSheet,          setDarkSheet]          = useState(false);
+  const [catBudgetEmoji,     setCatBudgetEmoji]     = useState<string | null>(null);
+  const [showPaymentModal,   setShowPaymentModal]   = useState(false);
+  const [showCatBudgetModal, setShowCatBudgetModal] = useState(false);
 
   const transactions = useFinanceStore((s) => s.transactions);
 
@@ -428,7 +490,7 @@ export default function SettingsScreen() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={12} activeOpacity={0.65}>
-          <ChevronLeft size={24} color={SLATE_900} strokeWidth={2.5} />
+          <ChevronLeft size={24} color={s.headerTitle.color as string} strokeWidth={2.5} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Configuración</Text>
       </View>
@@ -438,19 +500,8 @@ export default function SettingsScreen() {
         contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 40 }]}
       >
 
-        {/* ── PERSONALIZACIÓN ─────────────────────────────────────────── */}
-        <SectionHeader title="PERSONALIZACIÓN" />
-        <View style={s.card}>
-          <SettingRow
-            icon={<User size={18} color={ACCENT} strokeWidth={1.8} />}
-            label="Tu nombre"
-            subtitle={userName || "Sin configurar"}
-            onPress={() => setNameModal(true)}
-          />
-        </View>
-
-        {/* ── PRESUPUESTO ──────────────────────────────────────────────── */}
-        <SectionHeader title="PRESUPUESTO" />
+        {/* ── CONTROL FINANCIERO ───────────────────────────────────────── */}
+        <SectionHeader title="CONTROL FINANCIERO" />
         <View style={s.card}>
           <SettingRow
             icon={<Wallet size={18} color="#059669" strokeWidth={1.8} />}
@@ -467,14 +518,113 @@ export default function SettingsScreen() {
           />
         </View>
 
-        {/* ── CUENTAS ──────────────────────────────────────────────────── */}
-        <SectionHeader title="MÉTODOS DE PAGO" />
+        {/* ── SUBMENUS ─────────────────────────────────────────────────── */}
+        <SectionHeader title="GESTIÓN" />
+        <SubMenuCard
+          icon={<CreditCard size={18} color={theme.accent} strokeWidth={1.8} />}
+          label="Métodos de pago"
+          description="Gestiona tus cuentas y formas de pago"
+          onPress={() => setShowPaymentModal(true)}
+        />
+        <View style={{ height: 8 }} />
+        <SubMenuCard
+          icon={<PiggyBank size={18} color="#7C3AED" strokeWidth={1.8} />}
+          label="Presupuesto por categoría"
+          description="Configura límites de gasto para cada categoría"
+          onPress={() => setShowCatBudgetModal(true)}
+        />
+
+        {/* ── APARIENCIA ───────────────────────────────────────────────── */}
+        <SectionHeader title="APARIENCIA" />
+        <View style={s.card}>
+          <SettingRow
+            icon={<Moon size={18} color="#7C3AED" strokeWidth={1.8} />}
+            label="Modo oscuro"
+            subtitle={darkLabel}
+            onPress={() => setDarkSheet(true)}
+          />
+        </View>
+
+        {/* ── SISTEMA ──────────────────────────────────────────────────── */}
+        <SectionHeader title="SISTEMA" />
+        <View style={s.card}>
+          <SettingRow
+            icon={<Download size={18} color={theme.textSub} strokeWidth={1.8} />}
+            label="Exportar datos"
+            subtitle="Descarga tus transacciones en CSV"
+            onPress={handleExport}
+          />
+          <View style={s.rowSep} />
+          <SettingRow
+            icon={<Trash2 size={18} color="#DC2626" strokeWidth={1.8} />}
+            label="Limpiar todos los datos"
+            subtitle="Elimina todas las transacciones"
+            onPress={handleClearData}
+            danger
+          />
+        </View>
+
+        {/* Versión */}
+        <View style={s.versionRow}>
+          <Text style={s.versionText}>MYWALLET v{APP_VERSION}</Text>
+        </View>
+
+      </ScrollView>
+
+      {/* ── Modales ───────────────────────────────────────────────────── */}
+
+      <InputModal
+        visible={budgetModal}
+        title="Presupuesto mensual"
+        placeholder="Ej: 2000000"
+        value={monthlyBudget > 0 ? String(monthlyBudget) : ""}
+        keyboardType="numeric"
+        onConfirm={(v) => setMonthlyBudget(parseFloat(v.replace(/\D/g, "")) || 0)}
+        onClose={() => setBudgetModal(false)}
+      />
+
+      <SelectorModal
+        visible={periodSheet}
+        title="Período de pago"
+        options={[
+          { key: "monthly",   label: "Mensual (1–30)" },
+          { key: "biweekly",  label: "Quincenal (1–15 / 16–30)" },
+        ]}
+        selected={budgetPeriod}
+        onSelect={setBudgetPeriod}
+        onClose={() => setPeriodSheet(false)}
+      />
+
+      <SelectorModal
+        visible={darkSheet}
+        title="Modo de apariencia"
+        options={[
+          { key: "system", label: "Según el sistema" },
+          { key: "light",  label: "Claro" },
+          { key: "dark",   label: "Oscuro" },
+        ]}
+        selected={darkMode}
+        onSelect={setDarkMode}
+        onClose={() => setDarkSheet(false)}
+      />
+
+      {/* ── Modal pantalla completa: Métodos de pago ─────────────────── */}
+      <FullScreenModal
+        visible={showPaymentModal}
+        title="Métodos de pago"
+        onClose={() => setShowPaymentModal(false)}
+      >
         <View style={s.card}>
           <PaymentMethodsSection />
         </View>
+      </FullScreenModal>
 
-        {/* ── PRESUPUESTO POR CATEGORÍA ────────────────────────────────── */}
-        <SectionHeader title="PRESUPUESTO POR CATEGORÍA" />
+      {/* ── Modal pantalla completa: Presupuesto por categoría ───────── */}
+      <FullScreenModal
+        visible={showCatBudgetModal}
+        title="Presupuesto por categoría"
+        onClose={() => setShowCatBudgetModal(false)}
+      >
         <View style={s.card}>
           {ALL_CATEGORY_EMOJIS.map((emoji, i) => {
             const catName = (EMOJI_TO_CATEGORY_NAME[emoji] ?? emoji);
@@ -516,91 +666,9 @@ export default function SettingsScreen() {
             );
           })}
         </View>
+      </FullScreenModal>
 
-        {/* ── APARIENCIA ───────────────────────────────────────────────── */}
-        <SectionHeader title="APARIENCIA" />
-        <View style={s.card}>
-          <SettingRow
-            icon={<Moon size={18} color="#7C3AED" strokeWidth={1.8} />}
-            label="Modo oscuro"
-            subtitle={darkLabel}
-            onPress={() => setDarkSheet(true)}
-          />
-        </View>
-
-        {/* ── SISTEMA ──────────────────────────────────────────────────── */}
-        <SectionHeader title="SISTEMA" />
-        <View style={s.card}>
-          <SettingRow
-            icon={<Download size={18} color={SLATE_500} strokeWidth={1.8} />}
-            label="Exportar datos"
-            subtitle="Descarga tus transacciones en CSV"
-            onPress={handleExport}
-          />
-          <View style={s.rowSep} />
-          <SettingRow
-            icon={<Trash2 size={18} color="#DC2626" strokeWidth={1.8} />}
-            label="Limpiar todos los datos"
-            subtitle="Elimina todas las transacciones"
-            onPress={handleClearData}
-            danger
-          />
-        </View>
-
-        {/* Versión */}
-        <View style={s.versionRow}>
-          <Text style={s.versionText}>MYWALLET v{APP_VERSION}</Text>
-        </View>
-
-      </ScrollView>
-
-      {/* ── Modales ───────────────────────────────────────────────────── */}
-
-      <InputModal
-        visible={nameModal}
-        title="¿Cómo te llamas?"
-        placeholder="Tu nombre…"
-        value={userName}
-        onConfirm={(v) => setUserName(v.trim())}
-        onClose={() => setNameModal(false)}
-      />
-
-      <InputModal
-        visible={budgetModal}
-        title="Presupuesto mensual"
-        placeholder="Ej: 2000000"
-        value={monthlyBudget > 0 ? String(monthlyBudget) : ""}
-        keyboardType="numeric"
-        onConfirm={(v) => setMonthlyBudget(parseFloat(v.replace(/\D/g, "")) || 0)}
-        onClose={() => setBudgetModal(false)}
-      />
-
-      <SelectorModal
-        visible={periodSheet}
-        title="Período de pago"
-        options={[
-          { key: "monthly",   label: "Mensual (1–30)" },
-          { key: "biweekly",  label: "Quincenal (1–15 / 16–30)" },
-        ]}
-        selected={budgetPeriod}
-        onSelect={setBudgetPeriod}
-        onClose={() => setPeriodSheet(false)}
-      />
-
-      <SelectorModal
-        visible={darkSheet}
-        title="Modo de apariencia"
-        options={[
-          { key: "system", label: "Según el sistema" },
-          { key: "light",  label: "Claro" },
-          { key: "dark",   label: "Oscuro" },
-        ]}
-        selected={darkMode}
-        onSelect={setDarkMode}
-        onClose={() => setDarkSheet(false)}
-      />
-
-      {/* Modal presupuesto por categoría */}
+      {/* Modal presupuesto por categoría (input) */}
       {catBudgetEmoji && (
         <InputModal
           visible
@@ -626,12 +694,11 @@ export default function SettingsScreen() {
   );
 }
 
-// ─── Estilos ──────────────────────────────────────────────────────────────────
+// ─── Estilos dinámicos ────────────────────────────────────────────────────────
 
-const s = StyleSheet.create({
-  safe:        { flex: 1, backgroundColor: BG },
+function buildStyles(t: AppTheme) { return StyleSheet.create({
+  safe:        { flex: 1, backgroundColor: t.bg },
 
-  // Header
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -639,7 +706,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 6,
     paddingBottom: 8,
-    backgroundColor: BG,
+    backgroundColor: t.bg,
   },
   backBtn: {
     width: 36,
@@ -650,32 +717,28 @@ const s = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: "800",
-    color: SLATE_900,
+    color: t.text,
     letterSpacing: -0.5,
   },
 
-  // Scroll
   scroll: { paddingHorizontal: 20, paddingTop: 8 },
 
-  // Sección
   sectionHeader: {
     fontSize: 11,
     fontWeight: "800",
-    color: SLATE_500,
+    color: t.textSub,
     letterSpacing: 1.8,
     marginTop: 24,
     marginBottom: 8,
     marginLeft: 4,
   },
 
-  // Card
   card: {
-    backgroundColor: CARD_BG,
+    backgroundColor: t.surface,
     borderRadius: 16,
     overflow: "hidden",
   },
 
-  // Row
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -688,17 +751,16 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: t.inputBg,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
   },
   rowText:  { flex: 1 },
-  rowLabel: { fontSize: 15, fontWeight: "600", color: SLATE_900, lineHeight: 20 },
-  rowSub:   { fontSize: 13, color: SLATE_500, marginTop: 1 },
-  rowSep:   { height: StyleSheet.hairlineWidth, backgroundColor: SLATE_200, marginLeft: 64 },
+  rowLabel: { fontSize: 15, fontWeight: "600", color: t.text, lineHeight: 20 },
+  rowSub:   { fontSize: 13, color: t.textSub, marginTop: 1 },
+  rowSep:   { height: StyleSheet.hairlineWidth, backgroundColor: t.border, marginLeft: 64 },
 
-  // Payment methods
   payRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -710,7 +772,7 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: t.inputBg,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -729,15 +791,35 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: SLATE_200,
+    borderTopColor: t.border,
   },
-  addMethodText: { fontSize: 14, fontWeight: "600", color: ACCENT },
+  addMethodText: { fontSize: 14, fontWeight: "600", color: t.accent },
 
-  // Versión
   versionRow:  { alignItems: "center", marginTop: 32 },
-  versionText: { fontSize: 12, color: SLATE_500, letterSpacing: 1.5, fontWeight: "500" },
+  versionText: { fontSize: 12, color: t.textSub, letterSpacing: 1.5, fontWeight: "500" },
 
-  // Input modal
+  subCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: t.surface,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 12,
+  },
+  subCardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: t.inputBg,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  subCardText: { flex: 1 },
+  subCardLabel: { fontSize: 15, fontWeight: "700", color: t.text, lineHeight: 20 },
+  subCardDesc:  { fontSize: 13, color: t.textSub, marginTop: 2, lineHeight: 18 },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
@@ -745,53 +827,53 @@ const s = StyleSheet.create({
     paddingHorizontal: 28,
   },
   modalCard: {
-    backgroundColor: WHITE,
+    backgroundColor: t.surface,
     borderRadius: 20,
     padding: 24,
     gap: 16,
   },
-  modalTitle: { fontSize: 17, fontWeight: "700", color: SLATE_900 },
+  modalTitle: { fontSize: 17, fontWeight: "700", color: t.text },
   modalMoneyPrefix: {
     fontSize: 13,
     fontWeight: "600",
-    color: SLATE_500,
+    color: t.textSub,
     marginBottom: -8,
   },
   modalMoneySuffix: {
     fontSize: 12,
     fontWeight: "500",
-    color: SLATE_500,
+    color: t.textSub,
     textAlign: "right",
     marginTop: -8,
   },
   modalInput: {
     borderWidth: 1.5,
-    borderColor: SLATE_200,
+    borderColor: t.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: SLATE_900,
+    color: t.text,
+    backgroundColor: t.bg,
   },
   modalInputMoney: {
     fontSize: 22,
     fontWeight: "700",
     letterSpacing: 0.5,
-    color: SLATE_900,
+    color: t.text,
     textAlign: "right",
   },
   modalBtns:          { flexDirection: "row", gap: 10 },
-  modalBtnCancel:     { flex: 1, padding: 13, borderRadius: 12, backgroundColor: "#F1F5F9", alignItems: "center" },
-  modalBtnCancelText: { fontSize: 15, fontWeight: "600", color: SLATE_500 },
-  modalBtnConfirm:    { flex: 1, padding: 13, borderRadius: 12, backgroundColor: ACCENT, alignItems: "center" },
-  modalBtnConfirmText:{ fontSize: 15, fontWeight: "700", color: WHITE },
+  modalBtnCancel:     { flex: 1, padding: 13, borderRadius: 12, backgroundColor: t.inputBg, alignItems: "center" },
+  modalBtnCancelText: { fontSize: 15, fontWeight: "600", color: t.textSub },
+  modalBtnConfirm:    { flex: 1, padding: 13, borderRadius: 12, backgroundColor: t.accent, alignItems: "center" },
+  modalBtnConfirmText:{ fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
 
-  // Sheet bottom
   sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(15,23,42,0.4)" },
   sheet: {
     position: "absolute",
     bottom: 0, left: 0, right: 0,
-    backgroundColor: WHITE,
+    backgroundColor: t.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingBottom: 40,
@@ -800,12 +882,12 @@ const s = StyleSheet.create({
   },
   sheetHandle: {
     width: 36, height: 4, borderRadius: 2,
-    backgroundColor: SLATE_200,
+    backgroundColor: t.border,
     alignSelf: "center",
     marginBottom: 16,
   },
   sheetTitle: {
-    fontSize: 17, fontWeight: "700", color: SLATE_900,
+    fontSize: 17, fontWeight: "700", color: t.text,
     paddingHorizontal: 20, marginBottom: 4,
   },
   sheetOption: {
@@ -815,10 +897,15 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
-  sheetOptionText: { fontSize: 15, color: SLATE_900 },
+  sheetOptionText: { fontSize: 15, color: t.text },
   sheetSep: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: SLATE_200,
+    backgroundColor: t.border,
     marginHorizontal: 20,
   },
-});
+});}
+
+function useStyles() {
+  const t = useTheme();
+  return useMemo(() => buildStyles(t), [t]);
+}

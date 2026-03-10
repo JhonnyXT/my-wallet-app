@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   View, Text, TouchableOpacity, TextInput, ScrollView,
   StyleSheet, Modal, TouchableWithoutFeedback,
@@ -21,17 +21,13 @@ import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { processVoiceInput } from "@/src/utils/voiceParser";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
+import { useTheme } from "@/src/context/ThemeContext";
+import type { AppTheme } from "@/src/theme";
 
-// ─── Colores ──────────────────────────────────────────────────────────────────
-const BLUE      = "#135BEC";
-const RED       = "#EF4444";
-const GREEN     = "#22C55E";
-const BG        = "#F8FAFC";
-const WHITE     = "#FFFFFF";
-const BORDER    = "#E2E8F0";
-const SLATE_900 = "#0F172A";
-const SLATE_500 = "#64748B";
-const SLATE_400 = "#94A3B8";
+// ─── Colores de acción (fijos, no cambian con el tema) ─────────────────────────
+const BLUE  = "#135BEC";
+const RED   = "#EF4444";
+const GREEN = "#22C55E";
 
 // ─── Opciones ─────────────────────────────────────────────────────────────────
 const DATE_OPTIONS: { key: DateOption; label: string }[] = [
@@ -94,14 +90,16 @@ function ListSheet({
   iconMap: Record<string, LucideIcon>;
   onSelect: (k: string) => void; onClose: () => void;
 }) {
+  const theme = useTheme();
+  const sh = useMemo(() => buildSheet(theme), [theme]);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
-        <View style={sheet.backdrop} />
+        <View style={sh.backdrop} />
       </TouchableWithoutFeedback>
-      <View style={sheet.container}>
-        <View style={sheet.handle} />
-        <Text style={sheet.title}>{title}</Text>
+      <View style={sh.container}>
+        <View style={sh.handle} />
+        <Text style={sh.title}>{title}</Text>
         {options.map((opt, i) => {
           const Icon = iconMap[opt.key];
           const isSel = opt.key === selected;
@@ -110,19 +108,19 @@ function ListSheet({
               <TouchableOpacity
                 activeOpacity={0.6}
                 onPress={() => { onSelect(opt.key); onClose(); }}
-                style={sheet.option}
+                style={sh.option}
               >
-                <View style={sheet.optionLeft}>
-                  <View style={[sheet.optionIconBox, isSel && { backgroundColor: accent + "18" }]}>
-                    {Icon && <Icon size={18} color={isSel ? accent : SLATE_500} strokeWidth={1.8} />}
+                <View style={sh.optionLeft}>
+                  <View style={[sh.optionIconBox, isSel && { backgroundColor: accent + "18" }]}>
+                    {Icon && <Icon size={18} color={isSel ? accent : theme.textSub} strokeWidth={1.8} />}
                   </View>
-                  <Text style={[sheet.optionText, isSel && { color: accent, fontWeight: "700" }]}>
+                  <Text style={[sh.optionText, isSel && { color: accent, fontWeight: "700" }]}>
                     {opt.label}
                   </Text>
                 </View>
                 {isSel && <Check size={16} color={accent} strokeWidth={2.5} />}
               </TouchableOpacity>
-              {i < options.length - 1 && <View style={sheet.sep} />}
+              {i < options.length - 1 && <View style={sh.sep} />}
             </View>
           );
         })}
@@ -140,52 +138,55 @@ function CategorySheet({
 }) {
   const [temp, setTemp] = useState(selected);
   useEffect(() => { if (visible) setTemp(selected); }, [visible, selected]);
+  const theme = useTheme();
+  const sh = useMemo(() => buildSheet(theme), [theme]);
+  const cs = useMemo(() => buildCatS(theme), [theme]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
-        <View style={sheet.backdrop} />
+        <View style={sh.backdrop} />
       </TouchableWithoutFeedback>
-      <View style={[sheet.container, catS.container]}>
-        <View style={sheet.handle} />
+      <View style={[sh.container, cs.container]}>
+        <View style={sh.handle} />
         {/* Header */}
-        <View style={catS.header}>
+        <View style={cs.header}>
           <View>
-            <Text style={catS.title}>CATEGORÍA</Text>
-            <Text style={catS.subtitle}>
+            <Text style={cs.title}>CATEGORÍA</Text>
+            <Text style={cs.subtitle}>
               {isExpense ? "Elige el tipo de gasto" : "Elige el tipo de ingreso"}
             </Text>
           </View>
           <TouchableOpacity onPress={onClose} hitSlop={12}>
-            <Text style={catS.cancel}>Cancelar</Text>
+            <Text style={cs.cancel}>Cancelar</Text>
           </TouchableOpacity>
         </View>
         {/* Grid 4 columnas */}
-        <View style={catS.grid}>
+        <View style={cs.grid}>
           {CATEGORY_OPTIONS.map((cat) => {
             const info = CATEGORY_ICONS[cat.key];
             const isSel = temp === cat.key;
             return (
               <TouchableOpacity
                 key={cat.key}
-                style={catS.item}
+                style={cs.item}
                 onPress={() => setTemp(cat.key)}
                 activeOpacity={0.7}
               >
-                <View style={catS.iconWrap}>
-                  <View style={[catS.iconBox, { backgroundColor: info?.bg ?? "#F1F5F9" }]}>
+                <View style={cs.iconWrap}>
+                  <View style={[cs.iconBox, { backgroundColor: info?.bg ?? "#F1F5F9" }]}>
                     {info
                       ? <info.Icon size={24} color={info.color} strokeWidth={1.8} />
                       : <Text style={{ fontSize: 20 }}>{cat.key}</Text>
                     }
                   </View>
                   {isSel && (
-                    <View style={catS.checkBadge}>
-                      <Check size={10} color={WHITE} strokeWidth={3} />
+                    <View style={cs.checkBadge}>
+                      <Check size={10} color="#FFFFFF" strokeWidth={3} />
                     </View>
                   )}
                 </View>
-                <Text style={[catS.itemLabel, isSel && catS.itemLabelSelected]}>
+                <Text style={[cs.itemLabel, isSel && cs.itemLabelSelected]}>
                   {cat.label}
                 </Text>
               </TouchableOpacity>
@@ -194,7 +195,7 @@ function CategorySheet({
         </View>
         {/* Botón confirmar */}
         <TouchableOpacity
-          style={catS.confirmBtn}
+          style={cs.confirmBtn}
           onPress={() => {
             const c = CATEGORY_OPTIONS.find((x) => x.key === temp);
             if (c) onSelect(c.key);
@@ -202,7 +203,7 @@ function CategorySheet({
           }}
           activeOpacity={0.85}
         >
-          <Text style={catS.confirmText}>CONFIRMAR</Text>
+          <Text style={cs.confirmText}>CONFIRMAR</Text>
         </TouchableOpacity>
       </View>
     </Modal>
@@ -223,15 +224,18 @@ function AccountSheet({
   options: { key: string; label: string; type: string }[];
   onSelect: (k: string) => void; onClose: () => void;
 }) {
+  const theme = useTheme();
+  const sh = useMemo(() => buildSheet(theme), [theme]);
+  const as = useMemo(() => buildAccS(theme), [theme]);
   const displayOptions = options.length > 0 ? options : ACCOUNT_OPTIONS.map((o) => ({ key: o.key, label: o.label, type: o.key }));
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
-        <View style={sheet.backdrop} />
+        <View style={sh.backdrop} />
       </TouchableWithoutFeedback>
-      <View style={sheet.container}>
-        <View style={sheet.handle} />
-        <Text style={[sheet.title, { marginBottom: 8 }]}>Seleccionar Cuenta</Text>
+      <View style={sh.container}>
+        <View style={sh.handle} />
+        <Text style={[sh.title, { marginBottom: 8 }]}>Seleccionar Cuenta</Text>
         {displayOptions.map((opt, i) => {
           const Icon  = PAYMENT_TYPE_ICONS[opt.type] ?? Banknote;
           const isSel = opt.key === selected;
@@ -240,30 +244,30 @@ function AccountSheet({
               <TouchableOpacity
                 activeOpacity={0.6}
                 onPress={() => { onSelect(opt.key); onClose(); }}
-                style={accS.row}
+                style={as.row}
               >
-                <View style={[accS.iconBox, isSel && { backgroundColor: accent + "18" }]}>
-                  <Icon size={22} color={isSel ? accent : SLATE_500} strokeWidth={1.8} />
+                <View style={[as.iconBox, isSel && { backgroundColor: accent + "18" }]}>
+                  <Icon size={22} color={isSel ? accent : theme.textSub} strokeWidth={1.8} />
                 </View>
-                <View style={accS.textBlock}>
-                  <Text style={[accS.name, isSel && { color: accent, fontWeight: "700" }]}>
+                <View style={as.textBlock}>
+                  <Text style={[as.name, isSel && { color: accent, fontWeight: "700" }]}>
                     {opt.label}
                   </Text>
                 </View>
                 {isSel && <Check size={18} color={accent} strokeWidth={2.5} />}
               </TouchableOpacity>
-              {i < displayOptions.length - 1 && <View style={sheet.sep} />}
+              {i < displayOptions.length - 1 && <View style={sh.sep} />}
             </View>
           );
         })}
         {/* Ir a configuración para gestionar métodos */}
         <TouchableOpacity
-          style={accS.addRow}
+          style={as.addRow}
           activeOpacity={0.6}
           onPress={() => { onClose(); router.push("/settings"); }}
         >
           <Plus size={16} color={BLUE} strokeWidth={2} />
-          <Text style={accS.addText}>Gestionar métodos de pago</Text>
+          <Text style={as.addText}>Gestionar métodos de pago</Text>
         </TouchableOpacity>
       </View>
     </Modal>
@@ -275,15 +279,17 @@ function SelIconBtn({
   icon, fieldName, value, onPress,
 }: {
   icon: React.ReactNode;
-  fieldName: string;   // p.ej. "FECHA"
-  value: string;       // p.ej. "Hoy"
+  fieldName: string;
+  value: string;
   onPress: () => void;
 }) {
+  const theme = useTheme();
+  const st = useMemo(() => buildS(theme), [theme]);
   return (
-    <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={s.selIconBtn}>
-      <View style={s.selIconCircle}>{icon}</View>
-      <Text style={s.selFieldName}>{fieldName}</Text>
-      <Text style={s.selValue} numberOfLines={1}>{value}</Text>
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={st.selIconBtn}>
+      <View style={st.selIconCircle}>{icon}</View>
+      <Text style={st.selFieldName}>{fieldName}</Text>
+      <Text style={st.selValue} numberOfLines={1}>{value}</Text>
     </TouchableOpacity>
   );
 }
@@ -298,6 +304,8 @@ export default function ActiveExpenseScreen() {
   const insets = useSafeAreaInsets();
   const store  = useExpenseStore();
   const addTx  = useFinanceStore((s) => s.addTransaction);
+  const theme  = useTheme();
+  const st     = useMemo(() => buildS(theme), [theme]);
 
   // Métodos de pago dinámicos desde settings
   const paymentMethods = useSettingsStore((s) => s.paymentMethods);
@@ -406,38 +414,38 @@ export default function ActiveExpenseScreen() {
     : "Describe tu ingreso aquí... ej: freelance 200 mil hoy";
 
   return (
-    <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+    <KeyboardAvoidingView style={st.screen} behavior={Platform.OS === "ios" ? "padding" : "height"}>
 
       {/* ── HEADER ────────────────────────────────────────────────────────── */}
-      <View style={[s.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity onPress={handleClose} hitSlop={12} style={s.headerSideBtn}>
-          <X size={20} color={SLATE_500} strokeWidth={2} />
+      <View style={[st.header, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity onPress={handleClose} hitSlop={12} style={st.headerSideBtn}>
+          <X size={20} color={theme.textSub} strokeWidth={2} />
         </TouchableOpacity>
 
-        <Text style={s.headerTitle}>{title}</Text>
+        <Text style={st.headerTitle}>{title}</Text>
 
         <TouchableOpacity
           onPress={handleConfirm}
           disabled={store.amount <= 0}
-          style={[s.confirmBtn, store.amount <= 0 && s.confirmBtnOff]}
+          style={[st.confirmBtn, store.amount <= 0 && st.confirmBtnOff]}
         >
-          <Check size={18} color={WHITE} strokeWidth={2.5} />
+          <Check size={18} color="#FFFFFF" strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
 
       {/* ── CONTENIDO ─────────────────────────────────────────────────────── */}
       <ScrollView
-        style={s.content}
-        contentContainerStyle={s.contentInner}
+        style={st.content}
+        contentContainerStyle={st.contentInner}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
 
         {/* Monto */}
-        <View style={s.amountBlock}>
+        <View style={st.amountBlock}>
           {amountEditing ? (
-            <View style={s.amountEditRow}>
-              <Text style={[s.amountSignText, { color: accent }]}>
+            <View style={st.amountEditRow}>
+              <Text style={[st.amountSignText, { color: accent }]}>
                 {isExpense ? "−" : "+"} $
               </Text>
               <TextInput
@@ -447,7 +455,7 @@ export default function ActiveExpenseScreen() {
                 onBlur={handleAmountBlur}
                 onSubmitEditing={handleAmountBlur}
                 keyboardType="number-pad"
-                style={[s.amountInput, { color: accent }]}
+                style={[st.amountInput, { color: accent }]}
                 returnKeyType="done"
                 placeholder="0"
                 placeholderTextColor={accent + "55"}
@@ -456,28 +464,28 @@ export default function ActiveExpenseScreen() {
             </View>
           ) : (
             <TouchableOpacity onPress={handleAmountTap} activeOpacity={0.7}>
-              <Text style={[s.amountText, { color: accent }]}>{displayAmt}</Text>
+              <Text style={[st.amountText, { color: accent }]}>{displayAmt}</Text>
             </TouchableOpacity>
           )}
 
         </View>
 
         {/* Selectores — fila de 3 iconos */}
-        <View style={s.selRow}>
+        <View style={st.selRow}>
           <SelIconBtn
-            icon={<Calendar size={20} color={SLATE_500} strokeWidth={1.8} />}
+            icon={<Calendar size={20} color={theme.textSub} strokeWidth={1.8} />}
             fieldName="FECHA"
             value={dateLabel}
             onPress={() => setActiveSheet("date")}
           />
           <SelIconBtn
-            icon={<UtensilsCrossed size={20} color={SLATE_500} strokeWidth={1.8} />}
+            icon={<UtensilsCrossed size={20} color={theme.textSub} strokeWidth={1.8} />}
             fieldName="CATEGORÍA"
             value={catLabel}
             onPress={() => setActiveSheet("category")}
           />
           <SelIconBtn
-            icon={<Wallet size={20} color={SLATE_500} strokeWidth={1.8} />}
+            icon={<Wallet size={20} color={theme.textSub} strokeWidth={1.8} />}
             fieldName="CUENTA"
             value={accountLabel}
             onPress={() => setActiveSheet("account")}
@@ -485,14 +493,14 @@ export default function ActiveExpenseScreen() {
         </View>
 
         {/* Transcripción */}
-        <View style={s.transcriptBox}>
+        <View style={st.transcriptBox}>
           <TextInput
             ref={noteRef}
             value={store.note || store.rawTranscript}
             onChangeText={store.setNote}
             multiline
-            style={s.transcriptInput}
-            placeholderTextColor={SLATE_400}
+            style={st.transcriptInput}
+            placeholderTextColor={theme.textTertiary}
             placeholder={noteplaceholder}
             textAlignVertical="top"
             scrollEnabled={false}
@@ -500,19 +508,19 @@ export default function ActiveExpenseScreen() {
           {/* Lápiz edición — posición absoluta esquina inferior derecha */}
           <TouchableOpacity
             onPress={() => noteRef.current?.focus()}
-            style={s.editIcon}
+            style={st.editIcon}
             hitSlop={12}
           >
-            <Edit3 size={16} color="#CBD5E1" strokeWidth={1.8} />
+            <Edit3 size={16} color={theme.textTertiary} strokeWidth={1.8} />
           </TouchableOpacity>
         </View>
 
       </ScrollView>
 
       {/* ── TAGS ──────────────────────────────────────────────────────────── */}
-      <View style={[s.tagsBar, { paddingBottom: insets.bottom + 6 }]}>
+      <View style={[st.tagsBar, { paddingBottom: insets.bottom + 6 }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.tagsRow}>
+          contentContainerStyle={st.tagsRow}>
           {displayTags.map((tag) => {
             const on = store.tags.includes(tag);
             return (
@@ -520,21 +528,21 @@ export default function ActiveExpenseScreen() {
                 key={tag}
                 activeOpacity={0.7}
                 onPress={() => on ? store.removeTag(tag) : store.addTag(tag)}
-                style={[s.tagPill,
+                style={[st.tagPill,
                   on ? { backgroundColor: accentBg, borderColor: accent }
-                     : { backgroundColor: WHITE, borderColor: BORDER }]}
+                     : { backgroundColor: theme.surface, borderColor: theme.border }]}
               >
-                <Text style={[s.tagText, { color: on ? accentText : SLATE_500 }]}>{tag}</Text>
+                <Text style={[st.tagText, { color: on ? accentText : theme.textSub }]}>{tag}</Text>
               </TouchableOpacity>
             );
           })}
-          <View style={s.tagInput}>
-            <Plus size={11} color={SLATE_400} strokeWidth={2} />
+          <View style={st.tagInput}>
+            <Plus size={11} color={theme.textTertiary} strokeWidth={2} />
             <TextInput
               value={tagInput} onChangeText={setTagInput}
               onSubmitEditing={handleAddTag}
-              placeholder="tag" placeholderTextColor={SLATE_400}
-              style={s.tagInputText} returnKeyType="done" autoCapitalize="none"
+              placeholder="tag" placeholderTextColor={theme.textTertiary}
+              style={[st.tagInputText, { color: theme.text }]} returnKeyType="done" autoCapitalize="none"
             />
           </View>
         </ScrollView>
@@ -590,233 +598,169 @@ export default function ActiveExpenseScreen() {
   );
 }
 
-// ─── Estilos ──────────────────────────────────────────────────────────────────
-const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: BG },
+// ─── Estilos dinámicos ────────────────────────────────────────────────────────
+function buildS(t: AppTheme) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: t.bg },
 
-  // Header
-  header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 24, paddingBottom: 14,
-    backgroundColor: WHITE, borderBottomWidth: 1, borderBottomColor: BORDER,
-  },
-  headerSideBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: SLATE_900, letterSpacing: -0.4 },
-  confirmBtn: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: BLUE,
-    alignItems: "center", justifyContent: "center",
-    shadowColor: BLUE, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
-  },
-  confirmBtnOff: { backgroundColor: "#CBD5E1", shadowOpacity: 0, elevation: 0 },
+    header: {
+      flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+      paddingHorizontal: 24, paddingBottom: 14,
+      backgroundColor: t.surface, borderBottomWidth: 1, borderBottomColor: t.border,
+    },
+    headerSideBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+    headerTitle: { fontSize: 17, fontWeight: "700", color: t.text, letterSpacing: -0.4 },
+    confirmBtn: {
+      width: 38, height: 38, borderRadius: 19, backgroundColor: BLUE,
+      alignItems: "center", justifyContent: "center",
+      shadowColor: BLUE, shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
+    },
+    confirmBtnOff: { backgroundColor: "#CBD5E1", shadowOpacity: 0, elevation: 0 },
 
-  // Contenido
-  content: { flex: 1, backgroundColor: BG },
-  contentInner: { paddingHorizontal: 24, paddingBottom: 16 },
+    content: { flex: 1, backgroundColor: t.bg },
+    contentInner: { paddingHorizontal: 24, paddingBottom: 16 },
 
-  // Monto
-  amountBlock: { alignItems: "center", paddingTop: 28, paddingBottom: 20 },
-  amountText: { fontSize: 64, fontWeight: "800", letterSpacing: -2, lineHeight: 72 },
-  amountEditRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 4,
-    marginBottom: 16,
-  },
-  amountSignText: {
-    fontSize: 32,
-    fontWeight: "700",
-  },
-  amountInput: {
-    fontSize: 64,
-    fontWeight: "800",
-    letterSpacing: -2,
-    lineHeight: 72,
-    minWidth: 80,
-    maxWidth: 260,
-    padding: 0,
-    includeFontPadding: false,
-  },
-  // Selectores icon-button (fila de 4)
-  selRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-    gap: 4,
-  },
-  selIconBtn: {
-    flex: 1,
-    alignItems: "center",
-    gap: 5,
-  },
-  selIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 9999,
-    backgroundColor: WHITE,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  selFieldName: {
-    fontSize: 9,
-    fontWeight: "700",
-    color: SLATE_400,
-    textAlign: "center",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
-  selValue: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: SLATE_900,
-    textAlign: "center",
-    letterSpacing: -0.2,
-  },
+    amountBlock: { alignItems: "center", paddingTop: 28, paddingBottom: 20 },
+    amountText: { fontSize: 64, fontWeight: "800", letterSpacing: -2, lineHeight: 72 },
+    amountEditRow: { flexDirection: "row", alignItems: "baseline", gap: 4, marginBottom: 16 },
+    amountSignText: { fontSize: 32, fontWeight: "700" },
+    amountInput: {
+      fontSize: 64, fontWeight: "800", letterSpacing: -2, lineHeight: 72,
+      minWidth: 80, maxWidth: 260, padding: 0, includeFontPadding: false,
+    },
 
-  // Transcripción — flex:1 llena exactamente el espacio restante
-  transcriptBox: {
-    flex: 1,                 // ocupa todo el espacio entre selectores y tags
-    borderRadius: 20,
-    borderWidth: 2,
-    borderStyle: "dashed",
-    borderColor: BORDER,
-    backgroundColor: WHITE,
-    marginBottom: 4,
-    position: "relative",
-  },
-  transcriptInput: {
-    flex: 1,
-    padding: 20,
-    paddingBottom: 36,       // espacio para el lápiz
-    fontSize: 17,
-    fontWeight: "400",
-    color: SLATE_900,
-    lineHeight: 26,
-    backgroundColor: "transparent",
-    textAlignVertical: "top",
-  },
-  editIcon: {
-    position: "absolute",
-    right: 14,
-    bottom: 12,
-  },
+    selRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20, gap: 4 },
+    selIconBtn: { flex: 1, alignItems: "center", gap: 5 },
+    selIconCircle: {
+      width: 52, height: 52, borderRadius: 9999,
+      backgroundColor: t.surface,
+      alignItems: "center", justifyContent: "center",
+      shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: t.isDark ? 0 : 0.08, shadowRadius: 6,
+      elevation: t.isDark ? 0 : 3,
+      borderWidth: t.isDark ? 1 : 0,
+      borderColor: t.isDark ? t.border : "transparent",
+    },
+    selFieldName: {
+      fontSize: 9, fontWeight: "700", color: t.textTertiary,
+      textAlign: "center", letterSpacing: 0.8, textTransform: "uppercase",
+    },
+    selValue: { fontSize: 12, fontWeight: "700", color: t.text, textAlign: "center", letterSpacing: -0.2 },
 
-  // Tags
-  tagsBar: {
-    backgroundColor: "rgba(241,245,249,0.98)",
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: BORDER,
-    paddingTop: 10,
-  },
-  tagsRow: { paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 8 },
-  tagPill: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 9999, borderWidth: 1 },
-  tagText: { fontSize: 12, fontWeight: "500" },
-  tagInput: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    paddingVertical: 7, paddingHorizontal: 12,
-    backgroundColor: WHITE, borderRadius: 9999, borderWidth: 1,
-    borderColor: BORDER, borderStyle: "dashed",
-  },
-  tagInputText: { fontSize: 12, color: SLATE_900, minWidth: 36, maxWidth: 80, padding: 0 },
-});
+    transcriptBox: {
+      flex: 1, borderRadius: 20, borderWidth: 2, borderStyle: "dashed",
+      borderColor: t.border, backgroundColor: t.surface, marginBottom: 4, position: "relative",
+    },
+    transcriptInput: {
+      flex: 1, padding: 20, paddingBottom: 36,
+      fontSize: 17, fontWeight: "400", color: t.text, lineHeight: 26,
+      backgroundColor: "transparent", textAlignVertical: "top",
+    },
+    editIcon: { position: "absolute", right: 14, bottom: 12 },
+
+    tagsBar: {
+      backgroundColor: t.isDark ? t.surface : "rgba(241,245,249,0.98)",
+      borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border,
+      paddingTop: 10,
+    },
+    tagsRow: { paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 8 },
+    tagPill: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 9999, borderWidth: 1 },
+    tagText: { fontSize: 12, fontWeight: "500" },
+    tagInput: {
+      flexDirection: "row", alignItems: "center", gap: 4,
+      paddingVertical: 7, paddingHorizontal: 12,
+      backgroundColor: t.surface, borderRadius: 9999, borderWidth: 1,
+      borderColor: t.border, borderStyle: "dashed",
+    },
+    tagInputText: { fontSize: 12, minWidth: 36, maxWidth: 80, padding: 0 },
+  });
+}
 
 // ─── Sheet base ───────────────────────────────────────────────────────────────
-const sheet = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(15,23,42,0.4)" },
-  container: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
-    backgroundColor: WHITE, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingBottom: 36, paddingTop: 12,
-    shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12, shadowRadius: 20, elevation: 24,
-  },
-  handle: {
-    width: 36, height: 4, borderRadius: 2, backgroundColor: "#E2E8F0",
-    alignSelf: "center", marginBottom: 16,
-  },
-  title: { fontSize: 17, fontWeight: "700", color: SLATE_900, paddingHorizontal: 20, marginBottom: 4 },
-  sep: { height: StyleSheet.hairlineWidth, backgroundColor: BORDER, marginHorizontal: 20 },
-  option: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingVertical: 14, paddingHorizontal: 20,
-  },
-  optionLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  optionIconBox: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center",
-  },
-  optionText: { fontSize: 15, color: SLATE_900 },
-});
+function buildSheet(t: AppTheme) {
+  return StyleSheet.create({
+    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(15,23,42,0.5)" },
+    container: {
+      position: "absolute", bottom: 0, left: 0, right: 0,
+      backgroundColor: t.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+      paddingBottom: 36, paddingTop: 12,
+      shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.12, shadowRadius: 20, elevation: 24,
+    },
+    handle: {
+      width: 36, height: 4, borderRadius: 2, backgroundColor: t.border,
+      alignSelf: "center", marginBottom: 16,
+    },
+    title: { fontSize: 17, fontWeight: "700", color: t.text, paddingHorizontal: 20, marginBottom: 4 },
+    sep: { height: StyleSheet.hairlineWidth, backgroundColor: t.border, marginHorizontal: 20 },
+    option: {
+      flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+      paddingVertical: 14, paddingHorizontal: 20,
+    },
+    optionLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+    optionIconBox: {
+      width: 36, height: 36, borderRadius: 10,
+      backgroundColor: t.inputBg, alignItems: "center", justifyContent: "center",
+    },
+    optionText: { fontSize: 15, color: t.text },
+  });
+}
 
 // ─── Estilos CategorySheet ────────────────────────────────────────────────────
-const catS = StyleSheet.create({
-  container: { paddingBottom: 28 },
-  header: {
-    flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between",
-    paddingHorizontal: 20, paddingBottom: 20,
-  },
-  title: { fontSize: 13, fontWeight: "900", color: SLATE_900, letterSpacing: 1.5 },
-  subtitle: { fontSize: 12, color: SLATE_500, marginTop: 2 },
-  cancel: { fontSize: 14, fontWeight: "600", color: SLATE_500 },
-  grid: {
-    flexDirection: "row", flexWrap: "wrap",
-    paddingHorizontal: 12, gap: 4,
-    marginBottom: 20,
-  },
-  item: {
-    width: "23%",
-    alignItems: "center", gap: 8,
-    paddingVertical: 12, paddingHorizontal: 4,
-  },
-  iconWrap: {
-    position: "relative",
-  },
-  iconBox: {
-    width: 56, height: 56, borderRadius: 9999,
-    alignItems: "center", justifyContent: "center",
-  },
-  checkBadge: {
-    position: "absolute", top: -2, right: -2,
-    width: 18, height: 18, borderRadius: 9999,
-    backgroundColor: SLATE_900,
-    alignItems: "center", justifyContent: "center",
-    borderWidth: 2, borderColor: WHITE,
-  },
-  itemLabel: {
-    fontSize: 11, fontWeight: "600", color: SLATE_500,
-    textAlign: "center", letterSpacing: 0.1,
-  },
-  itemLabelSelected: {
-    color: SLATE_900, fontWeight: "700",
-  },
-  confirmBtn: {
-    marginHorizontal: 20, paddingVertical: 16,
-    backgroundColor: SLATE_900, borderRadius: 14,
-    alignItems: "center",
-  },
-  confirmText: { fontSize: 14, fontWeight: "800", color: WHITE, letterSpacing: 1.2 },
-});
+function buildCatS(t: AppTheme) {
+  return StyleSheet.create({
+    container: { paddingBottom: 28 },
+    header: {
+      flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between",
+      paddingHorizontal: 20, paddingBottom: 20,
+    },
+    title: { fontSize: 13, fontWeight: "900", color: t.text, letterSpacing: 1.5 },
+    subtitle: { fontSize: 12, color: t.textSub, marginTop: 2 },
+    cancel: { fontSize: 14, fontWeight: "600", color: t.textSub },
+    grid: {
+      flexDirection: "row", flexWrap: "wrap",
+      paddingHorizontal: 12, gap: 4,
+      marginBottom: 20,
+    },
+    item: { width: "23%", alignItems: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 4 },
+    iconWrap: { position: "relative" },
+    iconBox: { width: 56, height: 56, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
+    checkBadge: {
+      position: "absolute", top: -2, right: -2,
+      width: 18, height: 18, borderRadius: 9999,
+      backgroundColor: t.text,
+      alignItems: "center", justifyContent: "center",
+      borderWidth: 2, borderColor: t.surface,
+    },
+    itemLabel: { fontSize: 11, fontWeight: "600", color: t.textSub, textAlign: "center", letterSpacing: 0.1 },
+    itemLabelSelected: { color: t.text, fontWeight: "700" },
+    confirmBtn: {
+      marginHorizontal: 20, paddingVertical: 16,
+      backgroundColor: t.text, borderRadius: 14, alignItems: "center",
+    },
+    confirmText: { fontSize: 14, fontWeight: "800", color: t.surface, letterSpacing: 1.2 },
+  });
+}
 
 // ─── Estilos AccountSheet ─────────────────────────────────────────────────────
-const accS = StyleSheet.create({
+function buildAccS(t: AppTheme) {
+  return StyleSheet.create({
   row: {
     flexDirection: "row", alignItems: "center",
     paddingVertical: 14, paddingHorizontal: 20, gap: 14,
   },
   iconBox: {
     width: 44, height: 44, borderRadius: 12,
-    backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center",
+    backgroundColor: t.inputBg, alignItems: "center", justifyContent: "center",
   },
   textBlock: { flex: 1 },
-  name: { fontSize: 15, fontWeight: "600", color: SLATE_900 },
-  desc: { fontSize: 12, color: SLATE_500, marginTop: 1 },
+  name: { fontSize: 15, fontWeight: "600", color: t.text },
+  desc: { fontSize: 12, color: t.textSub, marginTop: 1 },
   addRow: {
     flexDirection: "row", alignItems: "center", gap: 8,
     paddingHorizontal: 20, paddingTop: 12, marginTop: 4,
   },
   addText: { fontSize: 14, fontWeight: "600", color: BLUE },
-});
+  });
+}

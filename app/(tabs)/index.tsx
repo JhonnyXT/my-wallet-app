@@ -23,6 +23,8 @@ import { FilterChips, PERIODS } from "@/src/components/ui/FilterChips";
 import { CategoryChart } from "@/src/components/ui/CategoryChart";
 import { TransactionItem } from "@/src/components/ui/TransactionItem";
 import { COLORS, ALL_CATEGORY_EMOJIS, EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
+import { useTheme } from "@/src/context/ThemeContext";
+import type { AppTheme } from "@/src/theme";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -77,6 +79,7 @@ function filterByPeriod(transactions: TxRow[], period: string): TxRow[] {
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
+  const theme             = useTheme();
   const insets            = useSafeAreaInsets();
   const transactions      = useFinanceStore((s) => s.transactions);
   const deleteTransaction = useFinanceStore((s) => s.deleteTransaction);
@@ -90,6 +93,8 @@ export default function DashboardScreen() {
   // Expense store
   const resetExpense       = useExpenseStore((s) => s.reset);
   const setExpenseCategory = useExpenseStore((s) => s.setCategory);
+
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   // Búsqueda inline
   const searchOpen    = useUIStore((s) => s.searchOpen);
@@ -295,7 +300,7 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F2F2F4" />
+      <StatusBar barStyle={theme.statusBar} backgroundColor={theme.bg} />
 
       {/* ══════════════════════════════════════════════════════════════
           HEADER FIJO
@@ -359,7 +364,7 @@ export default function DashboardScreen() {
               </View>
 
               {/* Barra de presupuesto — solo en gastos o sin filtro */}
-              {monthlyBudget > 0 && !isSearching && typeFilter !== "income" && (
+              {monthlyBudget > 0 && !isSearching && typeFilter === null && (
                 <View style={styles.budgetBar}>
                   <View style={styles.budgetTrack}>
                     <View style={[
@@ -421,7 +426,7 @@ export default function DashboardScreen() {
             style={styles.settingsBtn}
             onPress={() => router.push("/settings")}
           >
-            <Settings size={22} color="#000000" strokeWidth={1.6} />
+            <Settings size={22} color={theme.text} strokeWidth={1.6} />
           </Pressable>
         </View>
 
@@ -444,8 +449,8 @@ export default function DashboardScreen() {
           { paddingBottom: scrollBottomPadding(insets.bottom) },
         ]}
       >
-        {/* Chart — visible solo cuando no filtramos por ingresos */}
-        {!isSearching && typeFilter !== "income" && (
+        {/* Chart — visible en todos los modos excepto búsqueda */}
+        {!isSearching && (
           <Animated.View style={[
             styles.chartWrapper,
             {
@@ -554,10 +559,10 @@ export default function DashboardScreen() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+function createStyles(t: AppTheme) { return StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#F2F2F4",
+    backgroundColor: t.bg,
   },
 
   staticHeader: {},
@@ -591,7 +596,7 @@ const styles = StyleSheet.create({
   balanceLabel: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#9CA3AF",
+    color: t.textTertiary,
     letterSpacing: 2.0,
     textTransform: "uppercase",
   },
@@ -599,7 +604,7 @@ const styles = StyleSheet.create({
   balanceAmount: {
     fontSize: 44,
     fontWeight: "800",
-    color: "#0A1224",
+    color: t.text,
     letterSpacing: -1.5,
     lineHeight: 50,
   },
@@ -612,9 +617,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  // Ambos pills neutros por defecto
   pillGasto: {
-    backgroundColor: "#EBEBED",
+    backgroundColor: t.pillNeutral,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 14,
@@ -625,7 +629,7 @@ const styles = StyleSheet.create({
   pillGastoText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#1A1A2E",
+    color: t.text,
     letterSpacing: 0.1,
   },
   pillGastoActiveText: {
@@ -634,18 +638,18 @@ const styles = StyleSheet.create({
   },
 
   pillIngreso: {
-    backgroundColor: "#EBEBED",   // mismo neutro que gastos por defecto
+    backgroundColor: t.pillNeutral,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 14,
   },
   pillIngresoActive: {
-    backgroundColor: "#DCFCE7",   // verde suave solo cuando está activo
+    backgroundColor: "#DCFCE7",
   },
   pillIngresoText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#1A1A2E",             // mismo color neutro por defecto
+    color: t.text,
     letterSpacing: 0.1,
   },
   pillIngresoActiveText: {
@@ -653,12 +657,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // El pill no activo se atenúa cuando hay uno seleccionado
   pillDimmed: {
     opacity: 0.4,
   },
 
-  // Barra de presupuesto
   budgetBar: {
     gap: 5,
     width: "100%",
@@ -667,13 +669,13 @@ const styles = StyleSheet.create({
   budgetBarPct: {
     fontSize: 11,
     fontWeight: "500",
-    color: "#94A3B8",
+    color: t.textSub,
     textAlign: "left",
     letterSpacing: 0.1,
   },
   budgetTrack: {
     height: 3,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: t.border,
     borderRadius: 9999,
     overflow: "hidden",
     width: "100%",
@@ -684,7 +686,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#2D5BFF",
   },
 
-  // ── Barra de búsqueda (overlay fijo en la parte inferior) ───────────────
   searchBarOverlay: {
     position: "absolute",
     left: 20,
@@ -692,7 +693,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: t.surface,
     borderRadius: 999,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -706,19 +707,18 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: "#0A1224",
+    color: t.text,
     paddingVertical: 0,
   },
   searchCancelBtn: {
     width: 28,
     height: 28,
     borderRadius: 999,
-    backgroundColor: "#F0F0F2",
+    backgroundColor: t.inputBg,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  // ── Scroll y lista ──────────────────────────────────────────────────────
   chartWrapper: {
     marginBottom: 8,
   },
@@ -748,7 +748,7 @@ const styles = StyleSheet.create({
   dayLabel: {
     fontSize: 12,
     fontWeight: "900",
-    color: "#000000",
+    color: t.text,
     letterSpacing: 2.4,
     lineHeight: 18,
   },
@@ -756,10 +756,9 @@ const styles = StyleSheet.create({
   dayLabelRight: {
     fontSize: 12,
     fontWeight: "900",
-    color: "#000000",
+    color: t.text,
     letterSpacing: 1,
   },
-
 
   emptyState: {
     alignItems: "center",
@@ -773,24 +772,23 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: COLORS.slate700,
+    color: t.textSub,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: COLORS.slate400,
+    color: t.textTertiary,
     textAlign: "center",
     lineHeight: 21,
   },
 
-  // ── Metas de ahorro ──────────────────────────────────────────────────────
   goalsSection: {
     gap: 8,
   },
   goalsLabel: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#9CA3AF",
+    color: t.textTertiary,
     letterSpacing: 2.0,
   },
   goalsScroll: {
@@ -798,7 +796,7 @@ const styles = StyleSheet.create({
     paddingRight: 4,
   },
   goalCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: t.surface,
     borderRadius: 16,
     padding: 14,
     width: 148,
@@ -810,7 +808,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   goalCardDone: {
-    backgroundColor: "#F0FDF4",
+    backgroundColor: t.isDark ? "#052e16" : "#F0FDF4",
   },
   goalEmoji: {
     fontSize: 22,
@@ -818,12 +816,12 @@ const styles = StyleSheet.create({
   goalName: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#0A1224",
+    color: t.text,
     letterSpacing: -0.2,
   },
   goalTrack: {
     height: 4,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: t.border,
     borderRadius: 9999,
     overflow: "hidden",
   },
@@ -838,9 +836,9 @@ const styles = StyleSheet.create({
   goalPct: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#64748B",
+    color: t.textSub,
   },
   goalPctDone: {
     color: "#16A34A",
   },
-});
+});}

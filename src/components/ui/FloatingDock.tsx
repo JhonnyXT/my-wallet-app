@@ -3,7 +3,7 @@
  * Botones: [+] [🔍] [mic]
  * Al presionar "+": modal semi-transparente con opciones Ingreso / Gasto
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   View, Pressable, StyleSheet, Modal,
   Text, TouchableOpacity,
@@ -18,10 +18,14 @@ import { router, usePathname } from "expo-router";
 import { DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useUIStore } from "@/src/store/useUIStore";
+import { useTheme } from "@/src/context/ThemeContext";
+import type { AppTheme } from "@/src/theme";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function FloatingDock() {
+  const theme          = useTheme();
+  const styles         = useMemo(() => createStyles(theme), [theme]);
   const insets         = useSafeAreaInsets();
   const pathname       = usePathname();
   const resetExpense   = useExpenseStore((s) => s.reset);
@@ -98,8 +102,8 @@ export function FloatingDock() {
             android_ripple={{ color: "transparent" }}
           >
             {menuOpen
-              ? <X size={22} color="#111111" strokeWidth={2.2} />
-              : <Plus size={22} color="#111111" strokeWidth={2.2} />
+              ? <X size={22} color={theme.text} strokeWidth={2.2} />
+              : <Plus size={22} color={theme.text} strokeWidth={2.2} />
             }
           </Pressable>
 
@@ -114,7 +118,7 @@ export function FloatingDock() {
           >
             <Search
               size={22}
-              color={searchOpen ? "#2D5BFF" : "#111111"}
+              color={searchOpen ? "#2D5BFF" : theme.text}
               strokeWidth={2}
             />
           </Pressable>
@@ -176,14 +180,14 @@ export function FloatingDock() {
               onPress={handleClose}
               style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
             >
-              <X size={22} color="#111111" strokeWidth={2.2} />
+              <X size={22} color={theme.text} strokeWidth={2.2} />
             </Pressable>
 
             <Pressable
               onPress={() => { handleClose(); handleSearch(); }}
               style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
             >
-              <Search size={22} color="#111111" strokeWidth={2} />
+              <Search size={22} color={theme.text} strokeWidth={2} />
             </Pressable>
           </View>
 
@@ -199,7 +203,7 @@ export function FloatingDock() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(t: AppTheme) { return StyleSheet.create({
   container: {
     position: "absolute",
     left: 0,
@@ -223,7 +227,7 @@ const styles = StyleSheet.create({
     gap: 20,
     paddingVertical: 8,
     paddingHorizontal: 24,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: t.surface,
     borderRadius: 9999,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 12 },
@@ -269,7 +273,7 @@ const styles = StyleSheet.create({
   popup: {
     position: "absolute",
     alignSelf: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: t.surface,
     borderRadius: 20,
     paddingVertical: 6,
     paddingHorizontal: 20,
@@ -291,7 +295,7 @@ const styles = StyleSheet.create({
   optionLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#0A1224",
+    color: t.text,
     letterSpacing: -0.2,
   },
   optionIcon: {
@@ -309,7 +313,7 @@ const styles = StyleSheet.create({
   },
   optionDivider: {
     height: 1,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: t.border,
     marginHorizontal: -20,
   },
-});
+});}

@@ -26,6 +26,7 @@ import { ArrowUp, ArrowDown } from "lucide-react-native";
 import { getCategoryColor, EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
+import { useTheme } from "@/src/context/ThemeContext";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 export interface CategoryStat {
@@ -68,9 +69,18 @@ const CHART_H  = GHOST_H + 8;
 const POPUP_W  = 170;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function barColor(pct: number, emoji: string): { bg: string; pctColor: string } {
-  if (pct > 45) return { bg: "#FEE2E2", pctColor: "#DC2626" };
-  if (pct > 25) return { bg: "#FEF3C7", pctColor: "#D97706" };
+function barColor(
+  emoji: string,
+  spent: number,
+  budget?: number,
+): { bg: string; pctColor: string } {
+  // Alerta SOLO si hay presupuesto definido y se está superando
+  if (budget && budget > 0) {
+    const ratio = spent / budget;
+    if (ratio >= 0.90) return { bg: "#FEE2E2", pctColor: "#DC2626" }; // ≥90% del presupuesto → rojo
+    if (ratio >= 0.70) return { bg: "#FEF3C7", pctColor: "#D97706" }; // ≥70% del presupuesto → ámbar
+  }
+  // Sin presupuesto o dentro del límite → color base de la categoría
   return { bg: getCategoryColor(emoji).bg, pctColor: "#1E293B" };
 }
 
@@ -103,6 +113,7 @@ function BudgetEditModal({
   state: BudgetEditState;
   onClose: () => void;
 }) {
+  const { isDark } = useTheme();
   const { emoji, currentBudget, spent } = state;
   const name         = getCategoryDisplayName(emoji);
   const setBudget    = useSettingsStore((s) => s.setBudgetForCategory);
@@ -144,22 +155,22 @@ function BudgetEditModal({
         pointerEvents="box-none"
       >
 
-        <View style={bm.card}>
+        <View style={[bm.card, isDark && { backgroundColor: "#1E293B", borderWidth: 1, borderColor: "#334155" }]}>
           {/* ── Header: emoji + nombre centrado ── */}
           <View style={bm.header}>
             <Text style={bm.headerEmoji}>{emoji}</Text>
-            <Text style={bm.headerName}>{name}</Text>
+            <Text style={[bm.headerName, isDark && { color: "#F1F5F9" }]}>{name}</Text>
           </View>
 
           {/* ── Input de monto: $ pequeño + número grande ── */}
           <View style={bm.amountRow}>
-            <Text style={bm.currencySymbol}>$</Text>
+            <Text style={[bm.currencySymbol, isDark && { color: "#94A3B8" }]}>$</Text>
             <TextInput
-              style={bm.amountInput}
+              style={[bm.amountInput, isDark && { color: "#F1F5F9" }]}
               value={display}
               onChangeText={handleChange}
               placeholder="0"
-              placeholderTextColor="#CBD5E1"
+              placeholderTextColor={isDark ? "#475569" : "#CBD5E1"}
               keyboardType="number-pad"
               autoFocus
               returnKeyType="done"
@@ -179,7 +190,7 @@ function BudgetEditModal({
                 {consumedPct}% consumido
               </Text>
             </View>
-            <View style={bm.progressTrack}>
+            <View style={[bm.progressTrack, isDark && { backgroundColor: "#334155" }]}>
               <View
                 style={[
                   bm.progressFill,
@@ -197,8 +208,8 @@ function BudgetEditModal({
 
           {/* ── Botones ── */}
           <View style={bm.actions}>
-            <TouchableOpacity style={bm.btnCancel} onPress={onClose} activeOpacity={0.7}>
-              <Text style={bm.btnCancelText}>Cancelar</Text>
+            <TouchableOpacity style={[bm.btnCancel, isDark && { backgroundColor: "#334155" }]} onPress={onClose} activeOpacity={0.7}>
+              <Text style={[bm.btnCancelText, isDark && { color: "#94A3B8" }]}>Cancelar</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={bm.btnConfirm}
@@ -304,12 +315,13 @@ function CategoryPopup({ popup }: { popup: PopupState }) {
 
 // ─── Barra con datos + PanResponder ──────────────────────────────────────────
 function AnimatedBar({
-  stat, fillH, pct, bg, pctColor, delay, budgetLineH,
+  stat, fillH, pct, hasBudget, bg, pctColor, delay, budgetLineH,
   onLongPress, onSelectionChange, onRelease,
 }: {
   stat: CategoryStat;
   fillH: number;
   pct: number;
+  hasBudget: boolean;
   bg: string;
   pctColor: string;
   delay: number;
@@ -318,6 +330,7 @@ function AnimatedBar({
   onSelectionChange: (sel: "up" | "down" | null) => void;
   onRelease: (sel: "up" | "down" | null) => void;
 }) {
+  const { isDark } = useTheme();
   const heightAnim = useSharedValue(0);
   const animStyle  = useAnimatedStyle(() => ({ height: heightAnim.value }));
 
@@ -344,28 +357,20 @@ function AnimatedBar({
   const timerRef    = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const activeRef   = useRef(false);
   const selRef      = useRef<"up" | "down" | null>(null);
+  const touchX0Ref  = useRef(0);
+  const touchY0Ref  = useRef(0);
 
+  // PanResponder solo actúa DESPUÉS de que el long-press se haya activado.
+  // El timer se inicia en onTouchStart del View (sin reclamar el responder),
+  // de modo que el ScrollView puede robar libremente deslizamientos horizontales.
   const pan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder:  () => activeRef.current,
-
-      onPanResponderGrant: () => {
-        timerRef.current = setTimeout(() => {
-          activeRef.current = true;
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          onLongPressRef.current();
-        }, 380);
-      },
+      onStartShouldSetPanResponder: () => false,      // No robar el toque inicial
+      onMoveShouldSetPanResponder:  () => activeRef.current, // Reclamar solo tras long-press
+      onPanResponderTerminationRequest: () => !activeRef.current,
 
       onPanResponderMove: (_, gs) => {
-        // Si el usuario empieza a desplazarse horizontalmente, cancela el timer
-        if (!activeRef.current) {
-          if (Math.abs(gs.dx) > 14 && Math.abs(gs.dx) > Math.abs(gs.dy)) {
-            clearTimeout(timerRef.current);
-          }
-          return;
-        }
+        if (!activeRef.current) return;
         const newSel: "up" | "down" | null =
           gs.dy < -22 ? "up" : gs.dy > 22 ? "down" : null;
         if (newSel !== selRef.current) {
@@ -395,10 +400,15 @@ function AnimatedBar({
     })
   ).current;
 
+  const ghostTheme = isDark
+    ? { borderColor: "rgba(255,255,255,0.18)", backgroundColor: "rgba(255,255,255,0.07)" }
+    : { borderColor: "rgba(0,0,0,0.10)",       backgroundColor: "rgba(0,0,0,0.018)" };
+  const amtColor = isDark ? "#8B949E" : "#64748B";
+
   return (
     // El column es puramente visual — el overlay transparente encima captura los gestos
     <View style={styles.column}>
-      <View style={styles.ghost}>
+      <View style={[styles.ghost, ghostTheme]}>
         <ReAnimated.View style={[styles.fill, animStyle, { backgroundColor: bg }]} />
 
         {budgetLineH !== undefined && budgetLineH > 0 && budgetLineH <= GHOST_H && (
@@ -412,13 +422,45 @@ function AnimatedBar({
 
         <Text style={styles.emoji}>{stat.emoji}</Text>
         <View style={styles.labelsBottom}>
-          <Text style={[styles.pctText, { color: pctColor }]}>{pct}%</Text>
-          <Text style={styles.amtText}>{fmtAmount(stat.total)}</Text>
+          {hasBudget
+            ? <Text style={[styles.pctText, { color: pctColor }]}>{pct}%</Text>
+            : null
+          }
+          <Text style={[styles.amtText, { color: !hasBudget ? pctColor : amtColor }]}>
+            {fmtAmount(stat.total)}
+          </Text>
         </View>
       </View>
-      {/* Overlay transparente con panHandlers — no altera el renderizado visual */}
+      {/* Overlay transparente: inicia el timer de long-press sin reclamar el responder */}
       <View
         style={styles.gestureOverlay}
+        onTouchStart={(e) => {
+          touchX0Ref.current = e.nativeEvent.pageX;
+          touchY0Ref.current = e.nativeEvent.pageY;
+          timerRef.current = setTimeout(() => {
+            activeRef.current = true;
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            onLongPressRef.current();
+          }, 380);
+        }}
+        onTouchMove={(e) => {
+          if (activeRef.current) return;
+          const dx = Math.abs(e.nativeEvent.pageX - touchX0Ref.current);
+          const dy = Math.abs(e.nativeEvent.pageY - touchY0Ref.current);
+          if (dx > 8 && dx > dy) clearTimeout(timerRef.current);
+        }}
+        onTouchEnd={() => {
+          clearTimeout(timerRef.current);
+          if (activeRef.current) onReleaseRef.current(selRef.current);
+          activeRef.current = false;
+          selRef.current    = null;
+        }}
+        onTouchCancel={() => {
+          clearTimeout(timerRef.current);
+          if (activeRef.current) onReleaseRef.current(null);
+          activeRef.current = false;
+          selRef.current    = null;
+        }}
         {...pan.panHandlers}
         accessible={false}
       />
@@ -437,6 +479,7 @@ function GhostBar({
   onSelectionChange: (sel: "up" | "down" | null) => void;
   onRelease: (sel: "up" | "down" | null) => void;
 }) {
+  const { isDark } = useTheme();
   const onLongPressRef       = useRef(onLongPress);
   const onSelectionChangeRef = useRef(onSelectionChange);
   const onReleaseRef         = useRef(onRelease);
@@ -447,25 +490,16 @@ function GhostBar({
   const timerRef  = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const activeRef = useRef(false);
   const selRef    = useRef<"up" | "down" | null>(null);
+  const touchX0Ref = useRef(0);
+  const touchY0Ref = useRef(0);
 
   const pan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder:  () => activeRef.current,
-      onPanResponderGrant: () => {
-        timerRef.current = setTimeout(() => {
-          activeRef.current = true;
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onLongPressRef.current();
-        }, 380);
-      },
+      onStartShouldSetPanResponder: () => false,      // No robar el toque inicial
+      onMoveShouldSetPanResponder:  () => activeRef.current, // Reclamar solo tras long-press
+      onPanResponderTerminationRequest: () => !activeRef.current,
       onPanResponderMove: (_, gs) => {
-        if (!activeRef.current) {
-          if (Math.abs(gs.dx) > 14 && Math.abs(gs.dx) > Math.abs(gs.dy)) {
-            clearTimeout(timerRef.current);
-          }
-          return;
-        }
+        if (!activeRef.current) return;
         const newSel: "up" | "down" | null =
           gs.dy < -22 ? "up" : gs.dy > 22 ? "down" : null;
         if (newSel !== selRef.current) {
@@ -489,9 +523,14 @@ function GhostBar({
     })
   ).current;
 
+  const ghostTheme = isDark
+    ? { borderColor: "rgba(255,255,255,0.18)", backgroundColor: "rgba(255,255,255,0.07)" }
+    : { borderColor: "rgba(0,0,0,0.10)",       backgroundColor: "rgba(0,0,0,0.018)" };
+  const ghostPctColor = isDark ? "#8B949E" : "#94A3B8";
+
   return (
     <View style={styles.column}>
-      <View style={styles.ghost}>
+      <View style={[styles.ghost, ghostTheme]}>
         {budgetLineH !== undefined && budgetLineH > 0 && budgetLineH <= GHOST_H && (
           <View
             style={[
@@ -502,11 +541,38 @@ function GhostBar({
         )}
         <Text style={[styles.emoji, { opacity: 0.28 }]}>{emoji}</Text>
         <View style={styles.labelsBottom}>
-          <Text style={styles.ghostPct}>0%</Text>
+          <Text style={[styles.ghostPct, { color: ghostPctColor }]}>0%</Text>
         </View>
       </View>
       <View
         style={styles.gestureOverlay}
+        onTouchStart={(e) => {
+          touchX0Ref.current = e.nativeEvent.pageX;
+          touchY0Ref.current = e.nativeEvent.pageY;
+          timerRef.current = setTimeout(() => {
+            activeRef.current = true;
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onLongPressRef.current();
+          }, 380);
+        }}
+        onTouchMove={(e) => {
+          if (activeRef.current) return;
+          const dx = Math.abs(e.nativeEvent.pageX - touchX0Ref.current);
+          const dy = Math.abs(e.nativeEvent.pageY - touchY0Ref.current);
+          if (dx > 8 && dx > dy) clearTimeout(timerRef.current);
+        }}
+        onTouchEnd={() => {
+          clearTimeout(timerRef.current);
+          if (activeRef.current) onReleaseRef.current(selRef.current);
+          activeRef.current = false;
+          selRef.current    = null;
+        }}
+        onTouchCancel={() => {
+          clearTimeout(timerRef.current);
+          if (activeRef.current) onReleaseRef.current(null);
+          activeRef.current = false;
+          selRef.current    = null;
+        }}
         {...pan.panHandlers}
         accessible={false}
       />
@@ -590,18 +656,34 @@ export function CategoryChart({
         {ordered.map((emoji, idx) => {
           const stat = stats.find(s => s.emoji === emoji);
           const budgetAmt   = budgetByCategory[emoji];
-          const budgetLineH = budgetAmt && totalExpenses > 0
-            ? Math.round((budgetAmt / totalExpenses) * GHOST_H)
-            : undefined;
+          // Línea punteada: solo cuando NO hay datos en la categoría
+          // (cuando hay datos, la barra usa escala propia del presupuesto)
+          const budgetLineH = budgetAmt && budgetAmt > 0
+            ? undefined  // se oculta cuando la barra ya es relativa al presupuesto
+            : undefined; // sin presupuesto tampoco hay línea
           const handlers = makeHandlers(emoji, idx);
 
           if (stat) {
-            const pct   = totalExpenses > 0
-              ? Math.round((stat.total / totalExpenses) * 100)
-              : 0;
-            const fillH = Math.round((pct / 100) * GHOST_H);
+            let fillH: number;
+            let displayPct: number;
+            let effectiveBudgetLineH: number | undefined;
+
+            if (budgetAmt && budgetAmt > 0) {
+              // Con presupuesto: barra = gastado / presupuesto (máx 100%)
+              const ratio = Math.min(stat.total / budgetAmt, 1);
+              fillH        = Math.round(ratio * GHOST_H);
+              displayPct   = Math.round(ratio * 100);
+              // La línea punteada no aplica: la barra ya ES relativa al presupuesto
+              effectiveBudgetLineH = undefined;
+            } else {
+              // Sin presupuesto: barra neutra al 50% — indica que hay datos, sin alarmar
+              fillH        = Math.round(GHOST_H * 0.5);
+              displayPct   = 0; // no se muestra
+              effectiveBudgetLineH = budgetLineH;
+            }
+
             const { bg, pctColor } = alertColors
-              ? barColor(pct, emoji)
+              ? barColor(emoji, stat.total, budgetAmt)
               : { bg: getCategoryColor(emoji).bg, pctColor: "#1E293B" };
             const d = delay;
             delay += 80;
@@ -610,11 +692,12 @@ export function CategoryChart({
                 key={emoji}
                 stat={stat}
                 fillH={fillH}
-                pct={pct}
+                pct={displayPct}
+                hasBudget={!!(budgetAmt && budgetAmt > 0)}
                 bg={bg}
                 pctColor={pctColor}
                 delay={d}
-                budgetLineH={budgetLineH}
+                budgetLineH={effectiveBudgetLineH}
                 {...handlers}
               />
             );

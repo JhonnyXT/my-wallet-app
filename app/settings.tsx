@@ -35,7 +35,7 @@ import {
 } from "lucide-react-native";
 import { router } from "expo-router";
 import Constants from "expo-constants";
-import { useSettingsStore, type PaymentMethod, type PaymentMethodType } from "@/src/store/useSettingsStore";
+import { useSettingsStore, type PaymentMethod, type PaymentMethodType, type SavingsGoal } from "@/src/store/useSettingsStore";
 import { ALL_CATEGORY_EMOJIS, EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
@@ -44,6 +44,11 @@ import type { AppTheme } from "@/src/theme";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const APP_VERSION = Constants.expoConfig?.version ?? "1.0.0";
+
+const GOAL_EMOJIS = [
+  "✈️", "🏖️", "🏠", "🏡", "🎁", "🚗", "🎓", "💻",
+  "🎮", "👟", "💍", "🏥", "🐶", "🌍", "🎵", "🎯",
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatCOP(value: number): string {
@@ -403,6 +408,380 @@ function PaymentMethodsSection() {
   );
 }
 
+// ─── Popup: Nueva Meta ────────────────────────────────────────────────────────
+
+function NuevaMetaModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const s               = useStyles();
+  const theme           = useTheme();
+  const addSavingsGoal  = useSettingsStore((st) => st.addSavingsGoal);
+
+  const [selectedEmoji, setSelectedEmoji] = useState("✈️");
+  const [name,          setName]          = useState("");
+  const [targetDisplay, setTargetDisplay] = useState("");
+
+  useEffect(() => {
+    if (!visible) { setSelectedEmoji("✈️"); setName(""); setTargetDisplay(""); }
+  }, [visible]);
+
+  const canCreate = name.trim().length > 0 && targetDisplay.replace(/\D/g, "").length > 0;
+
+  const handleCreate = () => {
+    const target = parseInt(targetDisplay.replace(/\D/g, ""), 10);
+    if (!name.trim() || !target) return;
+    addSavingsGoal({ name: name.trim(), emoji: selectedEmoji, targetAmount: target, savedAmount: 0 });
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={s.modalOverlay}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <View style={[s.modalCard, { gap: 20 }]}>
+          {/* Título */}
+          <View style={{ gap: 3 }}>
+            <Text style={s.modalTitle}>Nueva Meta</Text>
+            <Text style={s.rowSub}>Define tu próximo objetivo de ahorro</Text>
+          </View>
+
+          {/* Selector de emoji */}
+          <View style={{ gap: 8 }}>
+            <Text style={s.goalFieldLabel}>Icono de la meta</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {GOAL_EMOJIS.map((e) => (
+                  <TouchableOpacity
+                    key={e}
+                    onPress={() => setSelectedEmoji(e)}
+                    activeOpacity={0.7}
+                    style={{
+                      width: 46, height: 46, borderRadius: 23,
+                      backgroundColor: selectedEmoji === e
+                        ? theme.accent + "22"
+                        : theme.inputBg,
+                      alignItems: "center", justifyContent: "center",
+                      borderWidth: selectedEmoji === e ? 2 : 0,
+                      borderColor: selectedEmoji === e ? theme.accent : "transparent",
+                    }}
+                  >
+                    <Text style={{ fontSize: 22 }}>{e}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+
+          {/* Nombre */}
+          <View style={{ gap: 8 }}>
+            <Text style={s.goalFieldLabel}>Nombre de la meta</Text>
+            <TextInput
+              style={s.modalInput}
+              value={name}
+              onChangeText={setName}
+              placeholder="Ej. Viaje a Japón"
+              placeholderTextColor={theme.textSub}
+              autoCapitalize="sentences"
+            />
+          </View>
+
+          {/* Monto objetivo */}
+          <View style={{ gap: 8 }}>
+            <Text style={s.goalFieldLabel}>Monto objetivo</Text>
+            <View style={[s.goalAmountRow]}>
+              <Text style={s.goalAmountPrefix}>$ COP</Text>
+              <TextInput
+                style={s.goalAmountInput}
+                value={targetDisplay}
+                onChangeText={(t) =>
+                  setTargetDisplay(formatMoneyInput(t.replace(/\D/g, "")))
+                }
+                placeholder="0"
+                placeholderTextColor={theme.textSub}
+                keyboardType="number-pad"
+                textAlign="right"
+              />
+            </View>
+          </View>
+
+          {/* Botones */}
+          <View style={s.modalBtns}>
+            <TouchableOpacity style={s.modalBtnCancel} onPress={onClose} activeOpacity={0.7}>
+              <Text style={s.modalBtnCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.modalBtnConfirm, !canCreate && { opacity: 0.45 }]}
+              onPress={handleCreate}
+              disabled={!canCreate}
+              activeOpacity={0.7}
+            >
+              <Text style={s.modalBtnConfirmText}>Crear</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─── Popup: Abonar a Meta ─────────────────────────────────────────────────────
+
+function AbonarMetaModal({
+  goal,
+  visible,
+  onClose,
+}: {
+  goal: SavingsGoal | null;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const s                 = useStyles();
+  const theme             = useTheme();
+  const updateSavingsGoal = useSettingsStore((st) => st.updateSavingsGoal);
+
+  const [abonoDisplay, setAbonoDisplay] = useState("");
+
+  useEffect(() => { if (!visible) setAbonoDisplay(""); }, [visible]);
+
+  if (!goal) return null;
+
+  const abono        = parseInt(abonoDisplay.replace(/\D/g, ""), 10) || 0;
+  const currentPct   = goal.targetAmount > 0
+    ? Math.min(100, (goal.savedAmount / goal.targetAmount) * 100) : 0;
+  const projectedPct = goal.targetAmount > 0
+    ? Math.min(100, ((goal.savedAmount + abono) / goal.targetAmount) * 100) : 0;
+  const deltaPct     = Math.round(projectedPct - currentPct);
+
+  const fmt = (v: number) =>
+    `$${Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+
+  const handleAbonar = () => {
+    if (abono <= 0) return;
+    updateSavingsGoal(goal.id, goal.savedAmount + abono);
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={s.modalOverlay}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <View style={[s.modalCard, { gap: 16 }]}>
+          {/* Título */}
+          <View style={{ gap: 3 }}>
+            <Text style={s.modalTitle}>Abonar a meta</Text>
+            <Text style={s.rowSub}>{goal.emoji} {goal.name}</Text>
+          </View>
+
+          {/* Campo de monto */}
+          <View style={[s.goalAmountRow, { paddingVertical: 4 }]}>
+            <Text style={[s.goalAmountPrefix, { fontSize: 20, fontWeight: "700" }]}>$</Text>
+            <TextInput
+              style={[s.goalAmountInput, { fontSize: 28, fontWeight: "800", letterSpacing: -0.5 }]}
+              value={abonoDisplay}
+              onChangeText={(t) =>
+                setAbonoDisplay(formatMoneyInput(t.replace(/\D/g, "")))
+              }
+              placeholder="0"
+              placeholderTextColor={theme.textSub}
+              keyboardType="number-pad"
+              autoFocus
+              textAlign="right"
+            />
+            <Text style={[s.goalAmountPrefix, { marginLeft: 6 }]}>COP</Text>
+          </View>
+
+          {/* Progreso proyectado */}
+          <View style={{ gap: 6 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text style={s.goalFieldLabel}>PROGRESO PROYECTADO</Text>
+              <Text style={s.goalFieldLabel}>META TOTAL</Text>
+            </View>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text style={{ fontSize: 14, fontWeight: "600", color: theme.text }}>
+                {Math.round(projectedPct)}% ({fmt(goal.savedAmount + abono)})
+              </Text>
+              <Text style={{ fontSize: 14, fontWeight: "600", color: theme.text }}>
+                {fmt(goal.targetAmount)}
+              </Text>
+            </View>
+            <View style={{ height: 8, backgroundColor: theme.inputBg, borderRadius: 4, overflow: "hidden" }}>
+              <View
+                style={{
+                  height: 8,
+                  width: `${projectedPct}%`,
+                  backgroundColor: theme.accent,
+                  borderRadius: 4,
+                }}
+              />
+            </View>
+            {abono > 0 && deltaPct > 0 && (
+              <Text style={{ fontSize: 12, fontWeight: "600", color: theme.accent, textAlign: "center" }}>
+                +{deltaPct}% con este abono
+              </Text>
+            )}
+          </View>
+
+          {/* Botones */}
+          <View style={s.modalBtns}>
+            <TouchableOpacity style={s.modalBtnCancel} onPress={onClose} activeOpacity={0.7}>
+              <Text style={s.modalBtnCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.modalBtnConfirm, abono <= 0 && { opacity: 0.45 }]}
+              onPress={handleAbonar}
+              disabled={abono <= 0}
+              activeOpacity={0.7}
+            >
+              <Text style={s.modalBtnConfirmText}>Abonar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─── Sección: Metas de Ahorro ─────────────────────────────────────────────────
+
+function SavingsGoalsSection() {
+  const s                = useStyles();
+  const theme            = useTheme();
+  const savingsGoals     = useSettingsStore((st) => st.savingsGoals);
+  const removeSavingsGoal = useSettingsStore((st) => st.removeSavingsGoal);
+
+  const [showNuevaMeta, setShowNuevaMeta] = useState(false);
+  const [abonarGoal,    setAbonarGoal]    = useState<SavingsGoal | null>(null);
+
+  const fmt = (v: number) =>
+    `$${Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+
+  const confirmDelete = (goal: SavingsGoal) =>
+    Alert.alert("Eliminar meta", `¿Eliminar "${goal.name}"?`, [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Eliminar", style: "destructive", onPress: () => removeSavingsGoal(goal.id) },
+    ]);
+
+  return (
+    <>
+      {savingsGoals.length === 0 ? (
+        /* ── Estado vacío ─────────────────────────────────────────────── */
+        <View style={[s.card, { padding: 24, alignItems: "center", gap: 10 }]}>
+          <Text style={{ fontSize: 32 }}>🎯</Text>
+          <Text style={{ fontSize: 14, color: theme.textSub, textAlign: "center", lineHeight: 20 }}>
+            Aún no tienes metas de ahorro{"\n"}define una y empieza hoy
+          </Text>
+          <TouchableOpacity
+            style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}
+            onPress={() => setShowNuevaMeta(true)}
+            activeOpacity={0.7}
+          >
+            <Plus size={15} color={theme.accent} strokeWidth={2.5} />
+            <Text style={{ fontSize: 14, fontWeight: "600", color: theme.accent }}>Nueva meta</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        /* ── Lista de metas ───────────────────────────────────────────── */
+        <>
+          {savingsGoals.map((goal) => {
+            const pct  = goal.targetAmount > 0
+              ? Math.min(100, (goal.savedAmount / goal.targetAmount) * 100) : 0;
+            const done = pct >= 100;
+
+            return (
+              <View key={goal.id} style={{ marginBottom: 8 }}>
+                <TouchableOpacity
+                  style={[s.card, { padding: 16, gap: 10 }]}
+                  onLongPress={() => confirmDelete(goal)}
+                  activeOpacity={done ? 1 : 0.97}
+                >
+                  {done ? (
+                    /* Meta alcanzada */
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                      <Text style={{ fontSize: 28 }}>{goal.emoji}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: "700", color: "#059669" }}>
+                          ¡Meta alcanzada!
+                        </Text>
+                        <Text style={{ fontSize: 13, color: theme.textSub, marginTop: 2 }}>
+                          Ahorro completado con éxito
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 22 }}>🎉</Text>
+                    </View>
+                  ) : (
+                    /* Meta en progreso */
+                    <>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                        <Text style={{ fontSize: 24 }}>{goal.emoji}</Text>
+                        <Text style={{ flex: 1, fontSize: 15, fontWeight: "700", color: theme.text }}>
+                          {goal.name}
+                        </Text>
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor: theme.accent,
+                            paddingHorizontal: 14,
+                            paddingVertical: 6,
+                            borderRadius: 20,
+                          }}
+                          onPress={() => setAbonarGoal(goal)}
+                          activeOpacity={0.75}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>Abonar</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <View style={{ height: 6, backgroundColor: theme.inputBg, borderRadius: 3, overflow: "hidden" }}>
+                        <View
+                          style={{
+                            height: 6,
+                            width: `${pct}%`,
+                            backgroundColor: theme.accent,
+                            borderRadius: 3,
+                          }}
+                        />
+                      </View>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        <Text style={{ fontSize: 12, color: theme.textSub }}>
+                          {fmt(goal.savedAmount)} / {fmt(goal.targetAmount)}
+                        </Text>
+                        <Text style={{ fontSize: 12, fontWeight: "700", color: theme.accent }}>
+                          {Math.round(pct)}%
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+
+          {/* Botón nueva meta */}
+          <TouchableOpacity
+            style={[s.card, { flexDirection: "row", alignItems: "center", gap: 12, padding: 16 }]}
+            onPress={() => setShowNuevaMeta(true)}
+            activeOpacity={0.7}
+          >
+            <View style={[s.rowIcon]}>
+              <Plus size={18} color={theme.accent} strokeWidth={2.5} />
+            </View>
+            <Text style={{ fontSize: 15, fontWeight: "600", color: theme.accent }}>Nueva meta</Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+      <NuevaMetaModal visible={showNuevaMeta} onClose={() => setShowNuevaMeta(false)} />
+      <AbonarMetaModal
+        goal={abonarGoal}
+        visible={!!abonarGoal}
+        onClose={() => setAbonarGoal(null)}
+      />
+    </>
+  );
+}
+
 // ─── Screen principal ─────────────────────────────────────────────────────────
 
 export default function SettingsScreen() {
@@ -484,6 +863,18 @@ export default function SettingsScreen() {
   const periodLabel = budgetPeriod === "monthly" ? "Mensual (1–30)" : "Quincenal (1–15 / 16–30)";
   const darkLabel   = darkMode === "system" ? "Según el sistema" : darkMode === "light" ? "Claro" : "Oscuro";
 
+  // ── Indicador quincenal ──────────────────────────────────────────────────────
+  const today          = new Date();
+  const dayOfMonth     = today.getDate();
+  const isFirstHalf    = dayOfMonth <= 15;
+  const lastDay        = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const MONTH_NAMES    = ["enero","febrero","marzo","abril","mayo","junio",
+                          "julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const monthName      = MONTH_NAMES[today.getMonth()];
+  const quincenaText   = isFirstHalf
+    ? `Quincena actual: 1–15 de ${monthName}`
+    : `Quincena actual: 16–${lastDay} de ${monthName}`;
+
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
 
@@ -516,9 +907,27 @@ export default function SettingsScreen() {
             subtitle={periodLabel}
             onPress={() => setPeriodSheet(true)}
           />
+          {/* Indicador quincenal — solo visible cuando período es quincenal */}
+          {budgetPeriod === "biweekly" && (
+            <View style={s.biweeklyIndicator}>
+              <View style={s.biweeklySegments}>
+                <View style={[s.biweeklySegment, isFirstHalf && s.biweeklySegmentActive]}>
+                  <Text style={[s.biweeklySegmentText, isFirstHalf && { color: theme.accent }]}>
+                    1 – 15
+                  </Text>
+                </View>
+                <View style={[s.biweeklySegment, !isFirstHalf && s.biweeklySegmentActive]}>
+                  <Text style={[s.biweeklySegmentText, !isFirstHalf && { color: theme.accent }]}>
+                    16 – {lastDay}
+                  </Text>
+                </View>
+              </View>
+              <Text style={s.biweeklyLabel}>{quincenaText}</Text>
+            </View>
+          )}
         </View>
 
-        {/* ── SUBMENUS ─────────────────────────────────────────────────── */}
+        {/* ── GESTIÓN ──────────────────────────────────────────────────── */}
         <SectionHeader title="GESTIÓN" />
         <SubMenuCard
           icon={<CreditCard size={18} color={theme.accent} strokeWidth={1.8} />}
@@ -533,6 +942,10 @@ export default function SettingsScreen() {
           description="Configura límites de gasto para cada categoría"
           onPress={() => setShowCatBudgetModal(true)}
         />
+
+        {/* ── METAS DE AHORRO ──────────────────────────────────────────── */}
+        <SectionHeader title="METAS DE AHORRO" />
+        <SavingsGoalsSection />
 
         {/* ── APARIENCIA ───────────────────────────────────────────────── */}
         <SectionHeader title="APARIENCIA" />
@@ -868,6 +1281,70 @@ function buildStyles(t: AppTheme) { return StyleSheet.create({
   modalBtnCancelText: { fontSize: 15, fontWeight: "600", color: t.textSub },
   modalBtnConfirm:    { flex: 1, padding: 13, borderRadius: 12, backgroundColor: t.accent, alignItems: "center" },
   modalBtnConfirmText:{ fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+
+  // ── Indicador quincenal ──────────────────────────────────────────────────
+  biweeklyIndicator: {
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    gap: 8,
+  },
+  biweeklySegments: {
+    flexDirection: "row" as const,
+    gap: 6,
+  },
+  biweeklySegment: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 8,
+    alignItems: "center" as const,
+    backgroundColor: t.inputBg,
+  },
+  biweeklySegmentActive: {
+    backgroundColor: t.accent + "18",
+    borderWidth: 1,
+    borderColor: t.accent + "40",
+  },
+  biweeklySegmentText: {
+    fontSize: 12,
+    fontWeight: "700" as const,
+    color: t.textSub,
+  },
+  biweeklyLabel: {
+    fontSize: 12,
+    color: t.textSub,
+    textAlign: "center" as const,
+  },
+
+  // ── Metas de ahorro — campos de modales ──────────────────────────────────
+  goalFieldLabel: {
+    fontSize: 11,
+    fontWeight: "700" as const,
+    color: t.textSub,
+    letterSpacing: 0.8,
+    textTransform: "uppercase" as const,
+  },
+  goalAmountRow: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    borderWidth: 1.5,
+    borderColor: t.border,
+    borderRadius: 12,
+    backgroundColor: t.bg,
+    paddingHorizontal: 14,
+  },
+  goalAmountPrefix: {
+    fontSize: 14,
+    fontWeight: "600" as const,
+    color: t.textSub,
+    marginRight: 8,
+  },
+  goalAmountInput: {
+    flex: 1,
+    paddingVertical: 13,
+    fontSize: 18,
+    fontWeight: "700" as const,
+    color: t.text,
+  },
 
   sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(15,23,42,0.4)" },
   sheet: {

@@ -144,10 +144,11 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | ID | Historia | Estado |
 |----|---------|--------|
-| HU 6.1 | Como usuario, quiero editar una transacción ya guardada | ❌ Pendiente |
-| HU 6.2 | Como usuario, quiero definir metas de ahorro y ver mi progreso | ❌ Pendiente (store listo, sin UI) |
-| HU 6.3 | Como usuario, quiero que el período quincenal afecte los cálculos de presupuesto (1-15 y 16-fin) | ❌ Pendiente |
-| HU 6.4 | Como usuario, quiero ver un desglose de mis ingresos por categoría en la gráfica | ⚠️ Parcial (las categorías de ingresos se muestran si existen) |
+| HU 6.1 | Como usuario, quiero definir metas de ahorro y ver mi progreso | ❌ Pendiente (store listo, sin UI) |
+| HU 6.2 | Como usuario, quiero que el período quincenal afecte los cálculos de presupuesto (1-15 y 16-fin) | ❌ Pendiente |
+| HU 6.3 | Como usuario, quiero ver un desglose de mis ingresos por categoría en la gráfica | ⚠️ Parcial (las categorías de ingresos se muestran si existen) |
+
+> **Nota:** La edición de transacciones fue descartada por diseño. La práctica moderna en apps de finanzas personales es eliminar (swipe-to-delete) y crear una nueva con los datos correctos. Esto simplifica la UX y evita complejidad innecesaria.
 
 ---
 

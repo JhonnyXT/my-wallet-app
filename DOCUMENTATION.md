@@ -22,7 +22,7 @@ MyWallet es tu aplicación personal de control financiero. Diseñada para ser **
 6. [Gráfica de categorías](#6-gráfica-de-categorías)
 7. [Búsqueda](#7-búsqueda)
 8. [Configuración (Settings)](#8-configuración-settings)
-9. [Las 8 categorías estándar](#9-las-8-categorías-estándar)
+9. [Categorías de gasto e ingreso](#9-categorías-de-gasto-e-ingreso)
 10. [Preguntas frecuentes y recomendaciones](#10-preguntas-frecuentes-y-recomendaciones)
 
 ---
@@ -78,16 +78,28 @@ Solo visible si tienes un presupuesto mensual configurado.
 - Muestra `X% de $monto_presupuesto`
 - Se pone **roja** cuando superas el 90% del presupuesto
 
-### Filtros (chips de período y categoría)
-- **"Este mes"** → toca para cambiar el período:
+### Filtro de período
+- **Chip de período** (ej: "Este mes") → toca para ver las opciones:
   - Hoy / Ayer / Esta semana / Este mes / Este año / Todo
-- **"Todas"** → toca para filtrar por categoría específica
+  - **📅 Elegir mes específico...** → abre el selector de mes/año
+- El chip muestra la etiqueta dinámica del período activo: "Este mes", "Abr 2025", "2025", etc.
+
+### Selector de mes/año
+Al tocar **"📅 Elegir mes específico..."** se abre un panel donde puedes:
+1. Seleccionar el **año** con las pills (2025, 2024, 2023…) o "Todo el tiempo" para quitar el filtro
+2. Tocar el **mes** que quieres ver — debajo de cada mes aparece el total de gastos de ese período
+3. Los **meses futuros** aparecen deshabilitados
+4. Toca **✓ Aplicar** para confirmar — el chip del Dashboard mostrará "Abr 2025" o "2025"
+5. La **X** cierra sin aplicar cambios
+
+> Una vez aplicado, la gráfica de categorías, la lista de transacciones y el balance reflejan exactamente el mes elegido.
 
 ### Gráfica de categorías
 Ver sección detallada en [punto 6](#6-gráfica-de-categorías).
 
 ### Lista de transacciones recientes
 - Muestra todos los movimientos del período seleccionado
+- Cada item aparece como una **tarjeta con fondo blanco y sombra sutil** (modo claro) / fondo oscuro (modo oscuro)
 - **Gastos:** monto en negro con signo `−`
 - **Ingresos:** monto en verde con signo `+`
 - **Desliza izquierda** sobre cualquier registro para ver el botón de eliminar (rojo con ícono de papelera)
@@ -135,7 +147,7 @@ Ver sección detallada en [punto 6](#6-gráfica-de-categorías).
 | Ícono | Selector | Opciones |
 |-------|----------|----------|
 | 📅 Fecha | Hoy / Ayer / Anteayer / Calendario | Por defecto: Hoy |
-| 🍽️ Categoría | Las 8 categorías estándar en grid | Se actualiza automáticamente con el NLP |
+| 🍽️ Categoría | Grid contextual: 8 categorías si es Gasto, 5 categorías si es Ingreso | Se actualiza automáticamente con el NLP |
 | 👛 Cuenta | Tus métodos de pago configurados | Por defecto: el primero disponible |
 
 **Tags (etiquetas):**
@@ -170,9 +182,10 @@ La entrada por voz es la forma más rápida de registrar un movimiento.
 | Dato | Ejemplos reconocidos |
 |------|---------------------|
 | **Monto** | "veinte mil", "20 mil", "cinco millones", "5 millones 400 mil", "cuarenta y dos mil" |
-| **Tipo** | "gasté/compré/pagué" → Gasto / "recibí/ingresé/sueldo" → Ingreso |
+| **Tipo** | "gasté/compré/pagué" → Gasto / "recibí/sueldo/quincena/freelance/honorarios" → Ingreso |
 | **Fecha** | "hoy" → Hoy / "ayer" → Ayer / "anteayer" → Anteayer |
-| **Categoría** | "taxi/uber/gasolina" → Transporte / "restaurante/almuerzo" → Comida / etc. |
+| **Categoría (gastos)** | "taxi/uber/gasolina" → Transporte / "restaurante/almuerzo" → Comida / etc. |
+| **Categoría (ingresos)** | "sueldo/nomina" → 💼 Salario / "freelance/honorarios" → 💻 Freelance / "dividendos" → 📈 Inversiones / etc. |
 
 ### Conversión automática de texto a número
 Cuando el monto se dice en palabras, la app lo **convierte automáticamente a dígitos formateados** en el campo de nota. Ejemplos:
@@ -238,7 +251,7 @@ Cuando preguntas por el resumen semanal, aparece una tarjeta especial con:
 
 La gráfica de barras verticales es el centro visual del Dashboard. Muestra cómo se distribuye tu dinero.
 
-### Cómo leer las barras
+### Modo Gastos (por defecto o pill ↓ activo)
 
 **Sin presupuesto configurado para una categoría:**
 - La barra aparece al **50% fijo** con el color base de la categoría
@@ -253,19 +266,31 @@ La gráfica de barras verticales es el centro visual del Dashboard. Muestra cóm
   - **Ámbar** → entre 70% y 89% consumido ⚠️
   - **Rojo** → 90% o más consumido 🚨
 
-**Categorías sin movimientos (ghost bars):**
+### Modo Ingresos (pill ↑ activo)
+
+- La gráfica cambia automáticamente para mostrar las **5 categorías de ingreso**
+- Las barras son **verdes** y proporcionales: la categoría con más ingresos aparece al 100%, las demás escalan relativamente
+- No hay presupuesto ni alertas de color en modo ingresos
+- Cada barra muestra el porcentaje del total de ingresos del período
+
+### Categorías sin movimientos (ghost bars)
 - Aparecen como columnas grises con borde punteado
-- Muestran `0%` — recuerdan que esa categoría existe aunque no hayas gastado en ella
+- Recuerdan que esa categoría existe aunque no tengas movimientos en ella
+
+### Toca una columna — Badge de nombre
+- Un **toque corto** en cualquier columna muestra un pequeño badge flotante sobre la columna con el emoji y nombre de la categoría
+- El badge desaparece automáticamente después de 1.6 segundos
+- Útil para identificar categorías cuando el ícono no es suficientemente claro
 
 ### Scroll horizontal
-Desliza horizontalmente para ver todas las categorías. Las que tienen gastos aparecen primero.
+Desliza horizontalmente para ver todas las categorías. Las que tienen movimientos aparecen primero.
 
 ### Long-press en una columna (función avanzada)
 1. **Mantén presionada** una columna por ~0.4 segundos
-2. Aparece un popup con 3 opciones:
-   - **↑ Editar presupuesto** → desliza hacia arriba el dedo para seleccionar esta opción
-   - **Monto restante o "Sin límite"** → información del centro
-   - **↓ Nueva transacción** → desliza hacia abajo para crear un gasto en esa categoría
+2. Aparece un popup con opciones:
+   - **↑ Editar presupuesto** → desliza hacia arriba *(solo en modo gastos)*
+   - **Monto restante o total** → información del centro
+   - **↓ Nueva transacción** → desliza hacia abajo para crear una transacción en esa categoría
 3. Al soltar el dedo con una opción seleccionada, se ejecuta la acción
 
 **Editar presupuesto inline:**
@@ -321,11 +346,18 @@ Toca la tarjeta "Métodos de pago" para abrir el panel de gestión:
 
 ### Presupuesto por categoría *(abre modal de pantalla completa)*
 Toca la tarjeta "Presupuesto por categoría" para abrir el panel:
-- Lista las 8 categorías estándar
+- Lista las 8 categorías de gasto estándar
 - Toca cualquiera para ingresar un límite mensual
 - El límite se muestra en verde cuando está configurado
 - Toca **✗** para quitar el límite de una categoría
 - Activa las alertas visuales en la gráfica del Dashboard
+
+### Metas de ahorro
+Gestiona tus metas desde la sección "Metas de ahorro":
+- **Crear meta:** Toca el botón **"+ Nueva meta"** → ingresa nombre, emoji, monto objetivo
+- **Abonar:** Toca el botón **"Abonar"** sobre la meta para agregar dinero al progreso
+- **Ver progreso:** Barra de progreso visual con monto acumulado / objetivo
+- **Eliminar:** **Desliza la meta hacia la izquierda** para revelar el botón de papelera rojo, luego tócalo para confirmar
 
 ### Apariencia
 - **Modo oscuro:** Sistema (sigue el tema del dispositivo) / Claro / Oscuro
@@ -339,9 +371,13 @@ Toca la tarjeta "Presupuesto por categoría" para abrir el panel:
 
 ---
 
-## 9. Las 8 Categorías Estándar
+## 9. Categorías de Gasto e Ingreso
 
-MyWallet usa un conjunto fijo de 8 categorías. El NLP (texto y voz) las detecta automáticamente según las palabras que uses:
+MyWallet maneja dos conjuntos de categorías según el tipo de movimiento.
+
+### Categorías de Gasto (8)
+
+El NLP las detecta automáticamente al registrar un gasto:
 
 | Emoji | Nombre | Palabras clave que activan la detección |
 |-------|--------|----------------------------------------|
@@ -353,6 +389,18 @@ MyWallet usa un conjunto fijo de 8 categorías. El NLP (texto y voz) las detecta
 | 🎮 | **Entretenimiento** | cine, netflix, spotify, juego, PlayStation, Xbox, concierto, teatro, gym |
 | 🎓 | **Educación** | curso, libro, universidad, clase, colegio, taller, capacitación |
 | 👤 | **Personal** | barbería, peluquería, belleza, deporte, fútbol, cuidado personal |
+
+### Categorías de Ingreso (5)
+
+Aparecen en el selector cuando registras un ingreso y en la gráfica cuando el pill "↑ Ingresos" está activo:
+
+| Emoji | Nombre | Palabras clave que activan la detección |
+|-------|--------|----------------------------------------|
+| 💼 | **Salario** | salario, sueldo, nómina, quincena, mensualidad, empresa, pago |
+| 💻 | **Freelance** | freelance, honorarios, proyecto, cliente, trabajo independiente |
+| 📈 | **Inversiones** | inversión, dividendos, rendimientos, intereses, acciones |
+| 🎁 | **Extra** | extra, regalo, bono, reembolso, devolución, premio, venta |
+| 🏢 | **Negocio** | negocio, local, venta, factura |
 
 > 💡 Si el NLP no detecta ninguna categoría con las palabras que usaste, mantiene la categoría que tenías seleccionada. Puedes cambiarla manualmente en el selector de categoría.
 
@@ -372,11 +420,17 @@ Toca el **+** del dock flotante → selecciona **Ingreso (verde)**. La pantalla 
 ### El NLP detectó mal la categoría, ¿qué hago?
 Simplemente toca el selector de **Categoría** (ícono circular en el formulario) y selecciona manualmente la correcta. Los cambios manuales siempre tienen prioridad.
 
-### ¿Puedo cambiar la fecha de una transacción ya guardada?
-Actualmente no hay edición de transacciones. Puedes eliminar el registro (desliza izquierda en la lista) y volver a crearlo con la fecha correcta.
+### ¿Puedo editar una transacción ya guardada?
+No. MyWallet no tiene edición de transacciones por diseño — simplifica la experiencia. Si cometiste un error, desliza izquierda sobre el registro para eliminarlo y créalo de nuevo con los datos correctos.
 
 ### La barra de mi categoría siempre está al 50%, ¿es un error?
 No. Cuando no tienes un presupuesto configurado para esa categoría, la barra se muestra al 50% de forma neutra (solo indica que tienes gastos en ella). Para que la barra sea informativa y muestre el % real consumido, configura un límite en **Configuración → Presupuesto por categoría** (toca la tarjeta para abrir el modal de configuración).
+
+### ¿Cómo sé el nombre de una categoría en la gráfica?
+Toca (tap corto) sobre cualquier columna de la gráfica. Aparecerá un pequeño badge sobre la columna con el emoji y el nombre de la categoría. Desaparece automáticamente en 1-2 segundos.
+
+### ¿Cómo veo los gastos de un mes anterior (por ejemplo, enero)?
+Toca el chip de período (ej: "Este mes") → al fondo de la lista toca **"📅 Elegir mes específico..."** → selecciona el año y luego el mes → toca **✓ Aplicar**. Toda la pantalla (balance, gráfica y lista) se actualiza para mostrar solo ese período.
 
 ### ¿Cómo activo el modo oscuro?
 Ve a **Configuración → Apariencia** y selecciona la opción que prefieras:
@@ -426,13 +480,16 @@ Una vez al mes:
 | **Gasto** | Dinero que sale de tu bolsillo. Monto positivo en la base de datos |
 | **Ingreso** | Dinero que entra (salario, freelance, etc.). Monto negativo en la base de datos |
 | **Balance Neto** | Ingresos − Gastos del período seleccionado |
-| **Período** | Ventana de tiempo para filtrar: Hoy, Esta semana, Este mes, etc. |
+| **Período** | Ventana de tiempo para filtrar: Hoy, Esta semana, Este mes, un mes/año específico, etc. |
 | **NLP** | Procesamiento de Lenguaje Natural — la tecnología que entiende tu texto libre |
 | **Tag** | Etiqueta personalizada para organizar transacciones (ej: `#viaje`, `#trabajo`) |
 | **Presupuesto por categoría** | Límite de gasto mensual para una categoría específica. Activa alertas en la gráfica |
 | **Ghost bar** | Barra de categoría sin gastos. Aparece gris para recordarte que existe esa categoría |
 | **Long-press** | Mantener presionado ~0.4 segundos para activar acciones avanzadas |
-| **Swipe-to-delete** | Deslizar un registro hacia la izquierda para revelar el botón de eliminar |
+| **Swipe-to-delete** | Deslizar un item hacia la izquierda para revelar el botón de eliminar (transacciones y metas de ahorro) |
+| **Badge de categoría** | Pequeño globo flotante con emoji + nombre que aparece al tocar una columna de la gráfica |
+| **Selector de mes/año** | Modal con grid de meses que permite filtrar el Dashboard a un período específico |
+| **Estado draft** | Cambios pendientes en el selector de mes que solo se aplican al confirmar con "Aplicar" |
 
 ---
 

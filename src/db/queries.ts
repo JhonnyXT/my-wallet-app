@@ -127,3 +127,34 @@ export async function queryPrevWeekTotal(): Promise<number> {
   );
   return Math.max(result?.total ?? 0, 0);
 }
+
+export async function queryMonthlyExpensesByYear(
+  year: number
+): Promise<Record<number, number>> {
+  const db = await getDb();
+  const yearStart = new Date(year, 0, 1).toISOString();
+  const yearEnd   = new Date(year, 11, 31, 23, 59, 59).toISOString();
+  const rows = await db.getAllAsync<{ month: number; total: number }>(
+    `SELECT CAST(strftime('%m', date) AS INTEGER) as month, SUM(amount) as total
+     FROM transactions
+     WHERE amount > 0 AND date >= ? AND date <= ?
+     GROUP BY month`,
+    [yearStart, yearEnd]
+  );
+  const result: Record<number, number> = {};
+  for (const row of rows) {
+    if (row.total > 0) result[row.month] = row.total;
+  }
+  return result;
+}
+
+export async function queryFirstTransactionYear(): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ min_date: string | null }>(
+    `SELECT MIN(date) as min_date FROM transactions`
+  );
+  if (row?.min_date) {
+    return new Date(row.min_date).getFullYear();
+  }
+  return new Date().getFullYear();
+}

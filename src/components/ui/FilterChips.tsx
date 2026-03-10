@@ -1,10 +1,8 @@
 /**
- * FilterChips — chips de filtro en el home.
- * Diseño tipo MonAI: pills con icono ↕, separados por "en".
- * Chip 1 → periodo (bottom sheet)
- * Chip 2 → categoría (bottom sheet)
+ * FilterChips — chip de filtro de período en el Dashboard.
+ * Un único chip que agrupa períodos rápidos + "Elegir mes específico".
  */
-import { useState, useRef, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -21,8 +19,8 @@ import {
   List,
   Check,
   ChevronsUpDown,
+  ChevronRight,
 } from "lucide-react-native";
-import { ALL_CATEGORY_EMOJIS, EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
 
@@ -41,36 +39,20 @@ const PERIOD_ICONS: Record<string, LucideIcon> = {
   "Todo":         List,
 };
 
-// Categorías disponibles para filtrar (null = todas)
-type CategoryOption = { emoji: string | null; label: string };
-
-const CATEGORY_OPTIONS: CategoryOption[] = [
-  { emoji: null, label: "Todas" },
-  ...ALL_CATEGORY_EMOJIS.map((e) => ({
-    emoji: e,
-    label: EMOJI_TO_CATEGORY_NAME[e] ?? e,
-  })),
-];
-
-// ─── Colores ──────────────────────────────────────────────────────────────────
-const ACCENT    = "#135BEC";
-const SLATE_900 = "#0F172A";
-const SLATE_500 = "#64748B";
-const WHITE     = "#FFFFFF";
-const BORDER    = "#E2E8F0";
-
-// ─── Bottom Sheet genérico ────────────────────────────────────────────────────
+// ─── Bottom Sheet de período ──────────────────────────────────────────────────
 
 function PeriodSheet({
   visible,
   selected,
   onSelect,
   onClose,
+  onOpenMonthPicker,
 }: {
   visible: boolean;
   selected: string;
   onSelect: (v: string) => void;
   onClose: () => void;
+  onOpenMonthPicker?: () => void;
 }) {
   const theme = useTheme();
   const bs    = useMemo(() => buildBs(theme), [theme]);
@@ -82,6 +64,7 @@ function PeriodSheet({
       <View style={bs.container}>
         <View style={bs.handle} />
         <Text style={bs.title}>Periodo</Text>
+
         {PERIODS.map((opt, i) => {
           const Icon  = PERIOD_ICONS[opt];
           const isSel = opt === selected;
@@ -96,7 +79,9 @@ function PeriodSheet({
                   <View style={[bs.iconBox, isSel && { backgroundColor: theme.accent + "18" }]}>
                     {Icon && <Icon size={18} color={isSel ? theme.accent : theme.textSub} strokeWidth={1.8} />}
                   </View>
-                  <Text style={[bs.optionText, isSel && { color: theme.accent, fontWeight: "700" }]}>{opt}</Text>
+                  <Text style={[bs.optionText, isSel && { color: theme.accent, fontWeight: "700" }]}>
+                    {opt}
+                  </Text>
                 </View>
                 {isSel && <Check size={16} color={theme.accent} strokeWidth={2.5} />}
               </TouchableOpacity>
@@ -104,79 +89,34 @@ function PeriodSheet({
             </View>
           );
         })}
-      </View>
-    </Modal>
-  );
-}
 
-function CategorySheet({
-  visible,
-  selected,
-  onSelect,
-  onClose,
-}: {
-  visible: boolean;
-  selected: string | null;
-  onSelect: (v: string | null) => void;
-  onClose: () => void;
-}) {
-  const theme = useTheme();
-  const bs    = useMemo(() => buildBs(theme), [theme]);
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={bs.backdrop} />
-      </TouchableWithoutFeedback>
-      <View style={bs.container}>
-        <View style={bs.handle} />
-        <Text style={bs.title}>Categoría</Text>
-        {CATEGORY_OPTIONS.map((opt, i) => {
-          const isSel = opt.emoji === selected;
-          return (
-            <View key={opt.label}>
-              <TouchableOpacity
-                activeOpacity={0.6}
-                onPress={() => { onSelect(opt.emoji); onClose(); }}
-                style={bs.option}
-              >
-                <View style={bs.optionLeft}>
-                  <View style={[bs.iconBox, isSel && { backgroundColor: theme.accent + "18" }]}>
-                    {opt.emoji
-                      ? <Text style={bs.emojiIcon}>{opt.emoji}</Text>
-                      : <List size={18} color={isSel ? theme.accent : theme.textSub} strokeWidth={1.8} />
-                    }
-                  </View>
-                  <Text style={[bs.optionText, isSel && { color: theme.accent, fontWeight: "700" }]}>
-                    {opt.label.charAt(0).toUpperCase() + opt.label.slice(1)}
-                  </Text>
-                </View>
-                {isSel && <Check size={16} color={theme.accent} strokeWidth={2.5} />}
-              </TouchableOpacity>
-              {i < CATEGORY_OPTIONS.length - 1 && <View style={bs.sep} />}
+        {/* Separador + elegir mes específico */}
+        <View style={bs.sep} />
+        <TouchableOpacity
+          activeOpacity={0.6}
+          onPress={() => { onClose(); onOpenMonthPicker?.(); }}
+          style={bs.option}
+        >
+          <View style={bs.optionLeft}>
+            <View style={bs.iconBox}>
+              <CalendarDays size={18} color={theme.textSub} strokeWidth={1.8} />
             </View>
-          );
-        })}
+            <Text style={bs.optionText}>Elegir mes específico...</Text>
+          </View>
+          <ChevronRight size={16} color={theme.textSub} strokeWidth={2} />
+        </TouchableOpacity>
       </View>
     </Modal>
   );
 }
 
-// ─── Pill chip estilo MonAI ───────────────────────────────────────────────────
+// ─── Pill chip ────────────────────────────────────────────────────────────────
 
-function PillChip({
-  emoji,
-  label,
-  onPress,
-}: {
-  emoji?: string | null;
-  label: string;
-  onPress: () => void;
-}) {
+function PillChip({ label, onPress }: { label: string; onPress: () => void }) {
   const theme = useTheme();
   const ch    = useMemo(() => buildCh(theme), [theme]);
   return (
     <TouchableOpacity activeOpacity={0.72} onPress={onPress} style={ch.pill}>
-      {emoji ? <Text style={ch.pillEmoji}>{emoji}</Text> : null}
       <Text style={ch.pillText} numberOfLines={1}>{label}</Text>
       <ChevronsUpDown size={13} color={theme.text} strokeWidth={2.2} />
     </TouchableOpacity>
@@ -186,65 +126,43 @@ function PillChip({
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 interface FilterChipsProps {
-  period: string;
+  period: string;               // label activo para checkmark en el sheet
+  periodLabel?: string;         // label a mostrar en el chip (ej: "Abr 2025")
   onPeriodChange: (p: string) => void;
-  category: string | null;          // null = Todas
-  onCategoryChange: (c: string | null) => void;
+  onOpenMonthPicker?: () => void;
 }
 
 export function FilterChips({
   period,
+  periodLabel,
   onPeriodChange,
-  category,
-  onCategoryChange,
+  onOpenMonthPicker,
 }: FilterChipsProps) {
   const theme = useTheme();
   const ch    = useMemo(() => buildCh(theme), [theme]);
-  const [periodSheetVisible,   setPeriodSheetVisible]   = useState(false);
-  const [categorySheetVisible, setCategorySheetVisible] = useState(false);
-
-  const categoryLabel =
-    category
-      ? (EMOJI_TO_CATEGORY_NAME[category] ?? category)
-      : "Todas";
-
-  const capitalizeFirst = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  const [sheetVisible, setSheetVisible] = useState(false);
 
   return (
     <>
       <View style={ch.row}>
-        {/* Periodo */}
-        <PillChip label={period} onPress={() => setPeriodSheetVisible(true)} />
-
-        {/* Separador */}
-        <Text style={ch.separator}>en</Text>
-
-        {/* Categoría */}
         <PillChip
-          emoji={category ?? undefined}
-          label={capitalizeFirst(categoryLabel)}
-          onPress={() => setCategorySheetVisible(true)}
+          label={periodLabel ?? period}
+          onPress={() => setSheetVisible(true)}
         />
       </View>
 
       <PeriodSheet
-        visible={periodSheetVisible}
+        visible={sheetVisible}
         selected={period}
         onSelect={onPeriodChange}
-        onClose={() => setPeriodSheetVisible(false)}
-      />
-
-      <CategorySheet
-        visible={categorySheetVisible}
-        selected={category}
-        onSelect={onCategoryChange}
-        onClose={() => setCategorySheetVisible(false)}
+        onClose={() => setSheetVisible(false)}
+        onOpenMonthPicker={onOpenMonthPicker}
       />
     </>
   );
 }
 
-// ─── Estilos dinámicos ────────────────────────────────────────────────────────
+// ─── Estilos ──────────────────────────────────────────────────────────────────
 
 function buildBs(t: AppTheme) { return StyleSheet.create({
   backdrop: {
@@ -302,17 +220,9 @@ function buildBs(t: AppTheme) { return StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  emojiIcon: {
-    fontSize: 18,
-    lineHeight: 24,
-  },
   optionText: {
     fontSize: 15,
     color: t.text,
-  },
-  optionTextSelected: {
-    color: t.accent,
-    fontWeight: "700",
   },
   sep: {
     height: StyleSheet.hairlineWidth,
@@ -325,13 +235,6 @@ function buildCh(t: AppTheme) { return StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-  },
-  separator: {
-    fontSize: 13,
-    color: t.textSub,
-    fontWeight: "500",
-    paddingHorizontal: 2,
   },
   pill: {
     flexDirection: "row",
@@ -343,10 +246,6 @@ function buildCh(t: AppTheme) { return StyleSheet.create({
     borderColor: t.border,
     paddingVertical: 8,
     paddingHorizontal: 14,
-  },
-  pillEmoji: {
-    fontSize: 15,
-    lineHeight: 20,
   },
   pillText: {
     fontSize: 14,

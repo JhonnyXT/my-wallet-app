@@ -41,7 +41,8 @@ interface CategoryChartProps {
   totalExpenses: number;
   budgetByCategory?: Record<string, number>;
   onNewTransaction?: (emoji: string, categoryName: string) => void;
-  alertColors?: boolean; // false = siempre usar color de categoría (para ingresos)
+  alertColors?: boolean;
+  isIncomeMode?: boolean; // barras verdes proporcionales, sin presupuesto ni editar
 }
 
 interface BudgetEditState {
@@ -58,6 +59,7 @@ interface PopupState {
   xHint: number;
   /** qué opción está resaltada según el deslizamiento */
   selection: "up" | "down" | null;
+  isIncomeMode?: boolean;
 }
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
@@ -151,7 +153,7 @@ function BudgetEditModal({
       <Pressable style={bm.backdrop} onPress={onClose} />
       <KeyboardAvoidingView
         style={bm.overlay}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior="padding"
         pointerEvents="box-none"
       >
 
@@ -238,13 +240,13 @@ function BudgetEditModal({
 
 // ─── Popup (tooltip flotante, Stitch design) ─────────────────────────────────
 function CategoryPopup({ popup }: { popup: PopupState }) {
-  const { emoji, total, budget, selection } = popup;
+  const { emoji, total, budget, selection, isIncomeMode } = popup;
   const remaining = budget !== undefined ? budget - total : undefined;
   const overBudget = remaining !== undefined && remaining < 0;
 
   // Texto central del popup
-  let centerText = "Sin límite";
-  if (budget !== undefined && budget > 0) {
+  let centerText = isIncomeMode ? fmtCOP(total) : "Sin límite";
+  if (!isIncomeMode && budget !== undefined && budget > 0) {
     centerText = overBudget
       ? `−${fmtCOP(Math.abs(remaining!))} excedido`
       : `${fmtCOP(remaining!)} restante`;
@@ -271,25 +273,30 @@ function CategoryPopup({ popup }: { popup: PopupState }) {
         { transform: [{ scale }], opacity },
       ]}
     >
-      {/* ── Fila superior: ↑ Editar presupuesto ─────────────────── */}
-      <View style={[popupStyles.row, upActive && popupStyles.rowActive]}>
-        <ArrowUp
-          size={13}
-          color={upActive ? ACCENT : "#94A3B8"}
-          strokeWidth={2.5}
-        />
-        <Text style={[popupStyles.rowLabel, upActive && popupStyles.rowLabelActive]}>
-          {"EDITAR\nPRESUPUESTO"}
-        </Text>
-      </View>
+      {/* ── Fila superior: ↑ Editar presupuesto — solo en modo gastos ── */}
+      {!isIncomeMode && (
+        <>
+          <View style={[popupStyles.row, upActive && popupStyles.rowActive]}>
+            <ArrowUp
+              size={13}
+              color={upActive ? ACCENT : "#94A3B8"}
+              strokeWidth={2.5}
+            />
+            <Text style={[popupStyles.rowLabel, upActive && popupStyles.rowLabelActive]}>
+              {"EDITAR\nPRESUPUESTO"}
+            </Text>
+          </View>
+          <View style={popupStyles.divider} />
+        </>
+      )}
 
-      {/* ── Separador + monto restante ───────────────────────────── */}
-      <View style={popupStyles.divider} />
+      {/* ── Centro: restante (gastos) o total ingresado (ingresos) ── */}
       <View style={popupStyles.centerRow}>
         <Text
           style={[
             popupStyles.centerText,
             overBudget && { color: "#DC2626" },
+            isIncomeMode && { color: "#16A34A" },
           ]}
           numberOfLines={1}
         >
@@ -316,7 +323,7 @@ function CategoryPopup({ popup }: { popup: PopupState }) {
 // ─── Barra con datos + PanResponder ──────────────────────────────────────────
 function AnimatedBar({
   stat, fillH, pct, hasBudget, bg, pctColor, delay, budgetLineH,
-  onLongPress, onSelectionChange, onRelease,
+  onLongPress, onSelectionChange, onRelease, onTap,
 }: {
   stat: CategoryStat;
   fillH: number;
@@ -329,6 +336,7 @@ function AnimatedBar({
   onLongPress: () => void;
   onSelectionChange: (sel: "up" | "down" | null) => void;
   onRelease: (sel: "up" | "down" | null) => void;
+  onTap?: (pageX: number) => void;
 }) {
   const { isDark } = useTheme();
   const heightAnim = useSharedValue(0);
@@ -350,9 +358,11 @@ function AnimatedBar({
   const onLongPressRef       = useRef(onLongPress);
   const onSelectionChangeRef = useRef(onSelectionChange);
   const onReleaseRef         = useRef(onRelease);
+  const onTapRef             = useRef(onTap);
   useEffect(() => { onLongPressRef.current       = onLongPress;       }, [onLongPress]);
   useEffect(() => { onSelectionChangeRef.current = onSelectionChange; }, [onSelectionChange]);
   useEffect(() => { onReleaseRef.current         = onRelease;         }, [onRelease]);
+  useEffect(() => { onTapRef.current             = onTap;             }, [onTap]);
 
   const timerRef    = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const activeRef   = useRef(false);
@@ -449,9 +459,16 @@ function AnimatedBar({
           const dy = Math.abs(e.nativeEvent.pageY - touchY0Ref.current);
           if (dx > 8 && dx > dy) clearTimeout(timerRef.current);
         }}
-        onTouchEnd={() => {
+        onTouchEnd={(e) => {
           clearTimeout(timerRef.current);
-          if (activeRef.current) onReleaseRef.current(selRef.current);
+          if (activeRef.current) {
+            onReleaseRef.current(selRef.current);
+          } else {
+            // Tap corto: mostrar nombre de categoría
+            const dx = Math.abs(e.nativeEvent.pageX - touchX0Ref.current);
+            const dy = Math.abs(e.nativeEvent.pageY - touchY0Ref.current);
+            if (dx < 10 && dy < 10) onTapRef.current?.(e.nativeEvent.pageX);
+          }
           activeRef.current = false;
           selRef.current    = null;
         }}
@@ -471,21 +488,24 @@ function AnimatedBar({
 // ─── Barra vacía + PanResponder ───────────────────────────────────────────────
 function GhostBar({
   emoji, budgetLineH,
-  onLongPress, onSelectionChange, onRelease,
+  onLongPress, onSelectionChange, onRelease, onTap,
 }: {
   emoji: string;
   budgetLineH?: number;
   onLongPress: () => void;
   onSelectionChange: (sel: "up" | "down" | null) => void;
   onRelease: (sel: "up" | "down" | null) => void;
+  onTap?: (pageX: number) => void;
 }) {
   const { isDark } = useTheme();
   const onLongPressRef       = useRef(onLongPress);
   const onSelectionChangeRef = useRef(onSelectionChange);
   const onReleaseRef         = useRef(onRelease);
+  const onTapRef             = useRef(onTap);
   useEffect(() => { onLongPressRef.current       = onLongPress;       }, [onLongPress]);
   useEffect(() => { onSelectionChangeRef.current = onSelectionChange; }, [onSelectionChange]);
   useEffect(() => { onReleaseRef.current         = onRelease;         }, [onRelease]);
+  useEffect(() => { onTapRef.current             = onTap;             }, [onTap]);
 
   const timerRef  = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const activeRef = useRef(false);
@@ -561,9 +581,15 @@ function GhostBar({
           const dy = Math.abs(e.nativeEvent.pageY - touchY0Ref.current);
           if (dx > 8 && dx > dy) clearTimeout(timerRef.current);
         }}
-        onTouchEnd={() => {
+        onTouchEnd={(e) => {
           clearTimeout(timerRef.current);
-          if (activeRef.current) onReleaseRef.current(selRef.current);
+          if (activeRef.current) {
+            onReleaseRef.current(selRef.current);
+          } else {
+            const dx = Math.abs(e.nativeEvent.pageX - touchX0Ref.current);
+            const dy = Math.abs(e.nativeEvent.pageY - touchY0Ref.current);
+            if (dx < 10 && dy < 10) onTapRef.current?.(e.nativeEvent.pageX);
+          }
           activeRef.current = false;
           selRef.current    = null;
         }}
@@ -583,6 +609,13 @@ function GhostBar({
 // ─── Chart principal ─────────────────────────────────────────────────────────
 const SCREEN_W = Dimensions.get("window").width;
 
+interface NameBadge {
+  emoji: string;
+  name: string;
+  /** posición x del centro de la columna relativa al ScrollView */
+  colX: number;
+}
+
 export function CategoryChart({
   stats,
   allEmojis,
@@ -590,9 +623,26 @@ export function CategoryChart({
   budgetByCategory = {},
   onNewTransaction,
   alertColors = true,
+  isIncomeMode = false,
 }: CategoryChartProps) {
   const [popup,      setPopup]      = useState<PopupState | null>(null);
   const [budgetEdit, setBudgetEdit] = useState<BudgetEditState | null>(null);
+  const [nameBadge,  setNameBadge]  = useState<NameBadge | null>(null);
+  const nameBadgeAnim = useRef(new Animated.Value(0)).current;
+  const nameBadgeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  function showNameBadge(badge: NameBadge) {
+    clearTimeout(nameBadgeTimer.current);
+    setNameBadge(badge);
+    nameBadgeAnim.setValue(0);
+    Animated.timing(nameBadgeAnim, { toValue: 1, duration: 160, useNativeDriver: true }).start();
+    nameBadgeTimer.current = setTimeout(() => {
+      Animated.timing(nameBadgeAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(
+        () => setNameBadge(null)
+      );
+    }, 1600);
+  }
+
   // Ref para acceder al popup dentro de los callbacks del PanResponder
   const popupRef = useRef<PopupState | null>(null);
   useEffect(() => { popupRef.current = popup; }, [popup]);
@@ -600,6 +650,11 @@ export function CategoryChart({
   // Ref al contenedor raíz para medir posición en pantalla
   const containerRef  = useRef<View>(null);
   const [chartOrigin, setChartOrigin] = useState({ x: 0, y: 0 });
+
+  // Máximo ingreso por categoría — base para calcular proporciones en modo ingreso
+  const maxIncomeStat = isIncomeMode && stats.length > 0
+    ? Math.max(...stats.map(s => s.total))
+    : 1;
 
   const withDataSet = new Set(stats.map(s => s.emoji));
   const ordered = [
@@ -617,14 +672,14 @@ export function CategoryChart({
 
     const stat   = stats.find(s => s.emoji === emoji);
     const total  = stat?.total ?? 0;
-    const budget = budgetByCategory[emoji];
+    const budget = isIncomeMode ? undefined : budgetByCategory[emoji];
 
     return {
       onLongPress: () => {
         // Medir posición absoluta en pantalla para anclar el popup dentro del Modal
         containerRef.current?.measure((_x, _y, _w, _h, pageX, pageY) => {
           setChartOrigin({ x: pageX, y: pageY });
-          setPopup({ emoji, total, budget, xHint, selection: null });
+          setPopup({ emoji, total, budget, xHint, selection: null, isIncomeMode });
         });
       },
       onSelectionChange: (sel: "up" | "down" | null) => {
@@ -632,7 +687,8 @@ export function CategoryChart({
       },
       onRelease: (sel: "up" | "down" | null) => {
         setPopup(null);
-        if (sel === "up") {
+        if (sel === "up" && !isIncomeMode) {
+          // Editar presupuesto solo en modo gastos
           const currentBudget = budgetByCategory[emoji] ?? 0;
           const spent         = stats.find(s => s.emoji === emoji)?.total ?? 0;
           setBudgetEdit({ emoji, currentBudget, spent });
@@ -640,6 +696,14 @@ export function CategoryChart({
           const name = getCategoryDisplayName(emoji);
           onNewTransaction?.(emoji, name);
         }
+      },
+      onTap: (tapPageX: number) => {
+        const name = getCategoryDisplayName(emoji);
+        // Medir el origen del contenedor para convertir coordenada absoluta → relativa
+        containerRef.current?.measure((_x, _y, _w, _h, pageX) => {
+          const localX = tapPageX - pageX;
+          showNameBadge({ emoji, name, colX: localX });
+        });
       },
     };
   }
@@ -655,36 +719,44 @@ export function CategoryChart({
       >
         {ordered.map((emoji, idx) => {
           const stat = stats.find(s => s.emoji === emoji);
-          const budgetAmt   = budgetByCategory[emoji];
-          // Línea punteada: solo cuando NO hay datos en la categoría
-          // (cuando hay datos, la barra usa escala propia del presupuesto)
-          const budgetLineH = budgetAmt && budgetAmt > 0
-            ? undefined  // se oculta cuando la barra ya es relativa al presupuesto
-            : undefined; // sin presupuesto tampoco hay línea
+          const budgetAmt   = isIncomeMode ? undefined : budgetByCategory[emoji];
+          const budgetLineH = undefined;
           const handlers = makeHandlers(emoji, idx);
 
           if (stat) {
             let fillH: number;
             let displayPct: number;
-            let effectiveBudgetLineH: number | undefined;
+            let effectiveBudgetLineH: number | undefined = undefined;
 
-            if (budgetAmt && budgetAmt > 0) {
+            if (isIncomeMode) {
+              // Modo ingresos: barra proporcional al mayor ingreso de categoría
+              const ratio = maxIncomeStat > 0 ? stat.total / maxIncomeStat : 0;
+              fillH      = Math.round(ratio * GHOST_H);
+              displayPct = Math.round(ratio * 100);
+            } else if (budgetAmt && budgetAmt > 0) {
               // Con presupuesto: barra = gastado / presupuesto (máx 100%)
               const ratio = Math.min(stat.total / budgetAmt, 1);
               fillH        = Math.round(ratio * GHOST_H);
               displayPct   = Math.round(ratio * 100);
-              // La línea punteada no aplica: la barra ya ES relativa al presupuesto
-              effectiveBudgetLineH = undefined;
             } else {
               // Sin presupuesto: barra neutra al 50% — indica que hay datos, sin alarmar
               fillH        = Math.round(GHOST_H * 0.5);
-              displayPct   = 0; // no se muestra
+              displayPct   = 0;
               effectiveBudgetLineH = budgetLineH;
             }
 
-            const { bg, pctColor } = alertColors
-              ? barColor(emoji, stat.total, budgetAmt)
-              : { bg: getCategoryColor(emoji).bg, pctColor: "#1E293B" };
+            let bg: string;
+            let pctColor: string;
+            if (isIncomeMode) {
+              bg       = "#DCFCE7"; // verde claro
+              pctColor = "#16A34A"; // verde
+            } else if (alertColors) {
+              ({ bg, pctColor } = barColor(emoji, stat.total, budgetAmt));
+            } else {
+              bg       = getCategoryColor(emoji).bg;
+              pctColor = "#1E293B";
+            }
+
             const d = delay;
             delay += 80;
             return (
@@ -693,7 +765,7 @@ export function CategoryChart({
                 stat={stat}
                 fillH={fillH}
                 pct={displayPct}
-                hasBudget={!!(budgetAmt && budgetAmt > 0)}
+                hasBudget={isIncomeMode || !!(budgetAmt && budgetAmt > 0)}
                 bg={bg}
                 pctColor={pctColor}
                 delay={d}
@@ -712,6 +784,25 @@ export function CategoryChart({
           );
         })}
       </ScrollView>
+
+      {/* ── Badge de nombre de categoría — aparece al tocar la columna ── */}
+      {nameBadge && (
+        <Animated.View
+          style={[
+            nameBadgeStyle.badge,
+            {
+              // Centrar el badge sobre el punto tocado; clampear para no salirse del contenedor
+              left: Math.max(4, Math.min(nameBadge.colX - 52, SCREEN_W - 136)),
+              opacity: nameBadgeAnim,
+              transform: [{ translateY: nameBadgeAnim.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }],
+            },
+          ]}
+          pointerEvents="none"
+        >
+          <Text style={nameBadgeStyle.emoji}>{nameBadge.emoji}</Text>
+          <Text style={nameBadgeStyle.label}>{nameBadge.name}</Text>
+        </Animated.View>
+      )}
 
       {/* ── Overlay oscuro + popup — se abre como Modal sobre toda la pantalla ── */}
       <Modal
@@ -922,6 +1013,39 @@ const popupStyles = StyleSheet.create({
     color: "#0F172A",
     letterSpacing: -0.3,
     flexShrink: 1,
+  },
+});
+
+// ─── Estilos del badge de nombre de categoría ────────────────────────────────
+const nameBadgeStyle = StyleSheet.create({
+  badge: {
+    position: "absolute",
+    top: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 9999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(0,0,0,0.07)",
+    zIndex: 20,
+  },
+  emoji: {
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#0F172A",
+    letterSpacing: 0.2,
   },
 });
 

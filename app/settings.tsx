@@ -16,6 +16,8 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  Animated,
+  PanResponder,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -209,7 +211,7 @@ function InputModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
         <View style={s.modalCard}>
           <Text style={s.modalTitle}>{title}</Text>
@@ -436,7 +438,7 @@ function NuevaMetaModal({ visible, onClose }: { visible: boolean; onClose: () =>
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={s.modalOverlay}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior="padding"
       >
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
         <View style={[s.modalCard, { gap: 20 }]}>
@@ -511,12 +513,12 @@ function NuevaMetaModal({ visible, onClose }: { visible: boolean; onClose: () =>
               <Text style={s.modalBtnCancelText}>Cancelar</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[s.modalBtnConfirm, !canCreate && { opacity: 0.45 }]}
+              style={canCreate ? s.modalBtnConfirm : s.modalBtnConfirmDisabled}
               onPress={handleCreate}
               disabled={!canCreate}
               activeOpacity={0.7}
             >
-              <Text style={s.modalBtnConfirmText}>Crear</Text>
+              <Text style={canCreate ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>Crear</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -566,7 +568,7 @@ function AbonarMetaModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={s.modalOverlay}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior="padding"
       >
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
         <View style={[s.modalCard, { gap: 16 }]}>
@@ -631,12 +633,12 @@ function AbonarMetaModal({
               <Text style={s.modalBtnCancelText}>Cancelar</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[s.modalBtnConfirm, abono <= 0 && { opacity: 0.45 }]}
+              style={abono > 0 ? s.modalBtnConfirm : s.modalBtnConfirmDisabled}
               onPress={handleAbonar}
               disabled={abono <= 0}
               activeOpacity={0.7}
             >
-              <Text style={s.modalBtnConfirmText}>Abonar</Text>
+              <Text style={abono > 0 ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>Abonar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -647,6 +649,156 @@ function AbonarMetaModal({
 
 // ─── Sección: Metas de Ahorro ─────────────────────────────────────────────────
 
+// ─── Item de meta con swipe-to-delete ────────────────────────────────────────
+const DELETE_W = 72;
+const SWIPE_THRESH = 48;
+
+function SwipeableGoalItem({
+  goal,
+  onDelete,
+  onAbonar,
+}: {
+  goal: SavingsGoal;
+  onDelete: () => void;
+  onAbonar: () => void;
+}) {
+  const theme = useTheme();
+  const s     = useStyles();
+
+  const pct  = goal.targetAmount > 0
+    ? Math.min(100, (goal.savedAmount / goal.targetAmount) * 100) : 0;
+  const done = pct >= 100;
+
+  const fmt = (v: number) =>
+    `$${Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+
+  const translateX = useRef(new Animated.Value(0)).current;
+  const isOpen     = useRef(false);
+
+  const spring = (toValue: number) =>
+    Animated.spring(translateX, {
+      toValue,
+      useNativeDriver: true,
+      damping: 20,
+      stiffness: 200,
+    }).start();
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) =>
+        Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderMove: (_, g) => {
+        const base = isOpen.current ? -DELETE_W : 0;
+        translateX.setValue(Math.min(0, base + g.dx));
+      },
+      onPanResponderRelease: (_, g) => {
+        if (isOpen.current) {
+          g.dx > 20 ? (isOpen.current = false, spring(0)) : spring(-DELETE_W);
+        } else {
+          if (g.dx < -SWIPE_THRESH) { isOpen.current = true; spring(-DELETE_W); }
+          else spring(0);
+        }
+      },
+    })
+  ).current;
+
+  function handleDelete() {
+    Animated.timing(translateX, { toValue: -400, duration: 200, useNativeDriver: true })
+      .start(() => onDelete());
+  }
+
+  return (
+    <View style={[swipeGoalSt.wrapper, { backgroundColor: theme.isDark ? theme.itemBg : "#FFFFFF" }]}>
+      {/* Botón eliminar — detrás */}
+      <View style={swipeGoalSt.deleteArea}>
+        <TouchableOpacity style={swipeGoalSt.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
+          <Trash2 size={20} color="#FFFFFF" strokeWidth={2} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Contenido deslizable */}
+      <Animated.View
+        style={[
+          swipeGoalSt.row,
+          { backgroundColor: theme.isDark ? theme.itemBg : "#FFFFFF", transform: [{ translateX }] },
+        ]}
+        {...panResponder.panHandlers}
+      >
+        {done ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Text style={{ fontSize: 28 }}>{goal.emoji}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: "#059669" }}>¡Meta alcanzada!</Text>
+              <Text style={{ fontSize: 13, color: theme.textSub, marginTop: 2 }}>Ahorro completado con éxito</Text>
+            </View>
+            <Text style={{ fontSize: 22 }}>🎉</Text>
+          </View>
+        ) : (
+          <>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <Text style={{ fontSize: 24 }}>{goal.emoji}</Text>
+              <Text style={{ flex: 1, fontSize: 15, fontWeight: "700", color: theme.text }}>
+                {goal.name}
+              </Text>
+              <TouchableOpacity
+                style={{ backgroundColor: "#135BEC", paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 }}
+                onPress={onAbonar}
+                activeOpacity={0.75}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>Abonar</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ height: 6, backgroundColor: theme.inputBg, borderRadius: 3, overflow: "hidden" }}>
+              <View style={{ height: 6, width: `${pct}%` as `${number}%`, backgroundColor: "#135BEC", borderRadius: 3 }} />
+            </View>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text style={{ fontSize: 12, color: theme.textSub }}>{fmt(goal.savedAmount)} / {fmt(goal.targetAmount)}</Text>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#135BEC" }}>{Math.round(pct)}%</Text>
+            </View>
+          </>
+        )}
+      </Animated.View>
+    </View>
+  );
+}
+
+const swipeGoalSt = StyleSheet.create({
+  wrapper: {
+    borderRadius: 16,
+    overflow: "hidden",
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  deleteArea: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: DELETE_W,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+  },
+  deleteBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 9999,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  row: {
+    padding: 16,
+    gap: 10,
+    borderRadius: 16,
+  },
+});
+
+// ─── Sección principal de metas ───────────────────────────────────────────────
 function SavingsGoalsSection() {
   const s                = useStyles();
   const theme            = useTheme();
@@ -655,15 +807,6 @@ function SavingsGoalsSection() {
 
   const [showNuevaMeta, setShowNuevaMeta] = useState(false);
   const [abonarGoal,    setAbonarGoal]    = useState<SavingsGoal | null>(null);
-
-  const fmt = (v: number) =>
-    `$${Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
-
-  const confirmDelete = (goal: SavingsGoal) =>
-    Alert.alert("Eliminar meta", `¿Eliminar "${goal.name}"?`, [
-      { text: "Cancelar", style: "cancel" },
-      { text: "Eliminar", style: "destructive", onPress: () => removeSavingsGoal(goal.id) },
-    ]);
 
   return (
     <>
@@ -686,77 +829,14 @@ function SavingsGoalsSection() {
       ) : (
         /* ── Lista de metas ───────────────────────────────────────────── */
         <>
-          {savingsGoals.map((goal) => {
-            const pct  = goal.targetAmount > 0
-              ? Math.min(100, (goal.savedAmount / goal.targetAmount) * 100) : 0;
-            const done = pct >= 100;
-
-            return (
-              <View key={goal.id} style={{ marginBottom: 8 }}>
-                <TouchableOpacity
-                  style={[s.card, { padding: 16, gap: 10 }]}
-                  onLongPress={() => confirmDelete(goal)}
-                  activeOpacity={done ? 1 : 0.97}
-                >
-                  {done ? (
-                    /* Meta alcanzada */
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                      <Text style={{ fontSize: 28 }}>{goal.emoji}</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 15, fontWeight: "700", color: "#059669" }}>
-                          ¡Meta alcanzada!
-                        </Text>
-                        <Text style={{ fontSize: 13, color: theme.textSub, marginTop: 2 }}>
-                          Ahorro completado con éxito
-                        </Text>
-                      </View>
-                      <Text style={{ fontSize: 22 }}>🎉</Text>
-                    </View>
-                  ) : (
-                    /* Meta en progreso */
-                    <>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                        <Text style={{ fontSize: 24 }}>{goal.emoji}</Text>
-                        <Text style={{ flex: 1, fontSize: 15, fontWeight: "700", color: theme.text }}>
-                          {goal.name}
-                        </Text>
-                        <TouchableOpacity
-                          style={{
-                            backgroundColor: theme.accent,
-                            paddingHorizontal: 14,
-                            paddingVertical: 6,
-                            borderRadius: 20,
-                          }}
-                          onPress={() => setAbonarGoal(goal)}
-                          activeOpacity={0.75}
-                        >
-                          <Text style={{ fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>Abonar</Text>
-                        </TouchableOpacity>
-                      </View>
-                      <View style={{ height: 6, backgroundColor: theme.inputBg, borderRadius: 3, overflow: "hidden" }}>
-                        <View
-                          style={{
-                            height: 6,
-                            width: `${pct}%`,
-                            backgroundColor: theme.accent,
-                            borderRadius: 3,
-                          }}
-                        />
-                      </View>
-                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                        <Text style={{ fontSize: 12, color: theme.textSub }}>
-                          {fmt(goal.savedAmount)} / {fmt(goal.targetAmount)}
-                        </Text>
-                        <Text style={{ fontSize: 12, fontWeight: "700", color: theme.accent }}>
-                          {Math.round(pct)}%
-                        </Text>
-                      </View>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-            );
-          })}
+          {savingsGoals.map((goal) => (
+            <SwipeableGoalItem
+              key={goal.id}
+              goal={goal}
+              onDelete={() => removeSavingsGoal(goal.id)}
+              onAbonar={() => setAbonarGoal(goal)}
+            />
+          ))}
 
           {/* Botón nueva meta */}
           <TouchableOpacity
@@ -1276,11 +1356,13 @@ function buildStyles(t: AppTheme) { return StyleSheet.create({
     color: t.text,
     textAlign: "right",
   },
-  modalBtns:          { flexDirection: "row", gap: 10 },
-  modalBtnCancel:     { flex: 1, padding: 13, borderRadius: 12, backgroundColor: t.inputBg, alignItems: "center" },
-  modalBtnCancelText: { fontSize: 15, fontWeight: "600", color: t.textSub },
-  modalBtnConfirm:    { flex: 1, padding: 13, borderRadius: 12, backgroundColor: t.accent, alignItems: "center" },
-  modalBtnConfirmText:{ fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+  modalBtns:              { flexDirection: "row", gap: 10 },
+  modalBtnCancel:         { flex: 1, padding: 13, borderRadius: 12, backgroundColor: t.inputBg, alignItems: "center" },
+  modalBtnCancelText:     { fontSize: 15, fontWeight: "600", color: t.textSub },
+  modalBtnConfirm:        { flex: 1, padding: 13, borderRadius: 12, backgroundColor: "#135BEC", alignItems: "center" },
+  modalBtnConfirmDisabled:{ flex: 1, padding: 13, borderRadius: 12, backgroundColor: t.border, alignItems: "center" },
+  modalBtnConfirmText:    { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+  modalBtnConfirmTextOff: { fontSize: 15, fontWeight: "700", color: t.textSub },
 
   // ── Indicador quincenal ──────────────────────────────────────────────────
   biweeklyIndicator: {

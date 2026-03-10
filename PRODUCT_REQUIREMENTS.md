@@ -26,11 +26,12 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Balance Neto | Tipografía grande: `Ingresos - Gastos` del período | ✅ Implementado |
 | Pills Gastos/Ingresos | Filtran toda la vista por tipo (rojo suave / verde suave) | ✅ Implementado |
 | Barra de Presupuesto | Progreso del gasto vs presupuesto mensual configurado | ✅ Implementado |
-| Filtros (Chips) | Período (Hoy, Semana, Mes, Año, Todo) + Categoría | ✅ Implementado |
+| Filtro de período | Un solo chip: período rápido (Hoy/Semana/Mes/Año/Todo) + "Elegir mes específico" | ✅ Implementado |
+| Selector de mes/año | Modal con grid de meses, montos por mes, pills de año | ✅ Implementado |
 | Gráfica de Categorías | Barras verticales con scroll horizontal, ghost tracks, alertas por color | ✅ Implementado |
-| Lista de Transacciones | Items con swipe-to-delete, emoji, descripción truncada, monto | ✅ Implementado |
+| Lista de Transacciones | `FlatList` con items tipo tarjeta (fondo blanco + sombra en modo claro) y swipe-to-delete | ✅ Implementado |
 | Dock Flotante | FAB micrófono, botón +, lupa, chat — reemplaza tab bar | ✅ Implementado |
-| Botón "Ver más" | Abre modal de historial completo | ✅ Implementado |
+| Colapso de gráfica | La gráfica se colapsa progresivamente al hacer scroll (animación opacity + height) | ✅ Implementado |
 
 ### 2.2 Nuevo Gasto / Nuevo Ingreso (Modal)
 
@@ -39,7 +40,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Título dinámico | "Nuevo Gasto" o "Nuevo Ingreso" según origen | ✅ Implementado |
 | Monto grande | Tamaño adaptable según dígitos (36-64px) con `adjustsFontSizeToFit` | ✅ Implementado |
 | Campo de texto NLP | Detecta monto, categoría, fecha en tiempo real | ✅ Implementado |
-| Selectores rápidos | Fecha, Categoría (grid 8), Cuenta (métodos de pago) | ✅ Implementado |
+| Selectores rápidos | Fecha, Categoría (grid contextual: 8 de gasto ó 5 de ingreso), Cuenta | ✅ Implementado |
 | Tags | Sugeridos (#viaje, #trabajo, etc.) + custom | ✅ Implementado |
 | Guardar | Botón ✓ + vibración háptica + regresa al Dashboard | ✅ Implementado |
 | Auto-formato | Puntos de miles automáticos mientras se escribe | ✅ Implementado |
@@ -60,9 +61,10 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
 | Presupuesto mensual | Monto límite mensual para gastos | ✅ Implementado |
-| Período de pago | Mensual o Quincenal | ✅ Guardado (cálculo pendiente) |
+| Período de pago | Mensual o Quincenal (afecta cálculo de barra de presupuesto en Dashboard) | ✅ Implementado |
 | Métodos de pago | Agregar/editar/eliminar (modal full-screen) | ✅ Implementado |
-| Presupuesto por categoría | Límite por cada una de las 8 categorías (modal full-screen) | ✅ Implementado |
+| Presupuesto por categoría | Límite por cada una de las 8 categorías de gasto (modal full-screen) | ✅ Implementado |
+| Metas de ahorro | Crear/abonar/eliminar metas; eliminar deslizando a la izquierda (swipe-to-delete) | ✅ Implementado |
 | Apariencia | Sistema / Claro / Oscuro (dark mode completo) | ✅ Implementado |
 | Exportar datos | CSV compartible por email, Drive, etc. | ✅ Implementado |
 | Limpiar datos | Elimina todas las transacciones (con confirmación) | ✅ Implementado |
@@ -76,16 +78,33 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Historial de sesiones | Panel lateral, renombrar, eliminar | ✅ Implementado |
 | 100% offline | Sin APIs externas, todo local | ✅ Implementado |
 
+### 2.7 Selector de Mes/Año (`MonthPickerModal`)
+
+| Sección | Descripción | Estado |
+|---------|-------------|--------|
+| Acceso | Chip de período → "Elegir mes específico..." al fondo del sheet | ✅ Implementado |
+| Pills de año | Dinámicos desde el año de la primera transacción hasta el actual | ✅ Implementado |
+| "Todo el tiempo" | Limpia el filtro personalizado y regresa a la vista sin restricción de fecha | ✅ Implementado |
+| Grid de meses | 3 columnas × 4 filas (Ene–Dic) con monto compacto del período debajo | ✅ Implementado |
+| Mes seleccionado | Fondo azul claro `#DBEAFE`, texto `#1D4ED8` | ✅ Implementado |
+| Meses futuros | Deshabilitados (opacidad 0.3) | ✅ Implementado |
+| Estado draft | Cambios solo se aplican al tocar "Aplicar"; X descarta sin cambiar | ✅ Implementado |
+| Efecto en Dashboard | Gráfica + lista + balance reflejan el período elegido | ✅ Implementado |
+| Chip activo | Muestra "Abr 2025", "2025" o el período normal según selección | ✅ Implementado |
+
 ### 2.6 Gráfica de Categorías (Interacciones Avanzadas)
 
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
-| Barras verticales | Porcentaje según presupuesto o 50% fijo si no hay límite | ✅ Implementado |
-| Alertas por color | Base (< 70%), ámbar (70-89%), rojo (≥ 90%) | ✅ Implementado |
+| Barras verticales (gastos) | Porcentaje según presupuesto o 50% fijo si no hay límite | ✅ Implementado |
+| Barras verticales (ingresos) | Barras verdes proporcionales al mayor ingreso de categoría (pill ↑ Ingresos activo) | ✅ Implementado |
+| Alertas por color | Base (< 70%), ámbar (70-89%), rojo (≥ 90%) — solo en modo gastos | ✅ Implementado |
 | Ghost tracks | Categorías sin movimientos visibles en gris | ✅ Implementado |
-| Long-press popup | Editar presupuesto ↑ / Restante (centro) / Nueva transacción ↓ | ✅ Implementado |
+| Tap en columna | Badge animado con emoji + nombre de la categoría sobre la columna tocada | ✅ Implementado |
+| Long-press popup (gastos) | Editar presupuesto ↑ / Restante (centro) / Nueva transacción ↓ | ✅ Implementado |
+| Long-press popup (ingresos) | Solo "Nueva transacción ↓" (sin editar presupuesto) | ✅ Implementado |
 | Mini-popup presupuesto | Editar límite inline con preview de barra | ✅ Implementado |
-| Scroll horizontal | Deslizar para ver las 8 categorías | ✅ Implementado |
+| Scroll horizontal | Deslizar para ver todas las categorías | ✅ Implementado |
 
 ---
 
@@ -108,11 +127,12 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 |----|---------|--------|
 | HU 2.1 | Como usuario, quiero ver mi balance neto (ingresos - gastos) con tipografía grande y clara | ✅ |
 | HU 2.2 | Como usuario, quiero una barra de progreso que compare mis gastos con mi presupuesto mensual | ✅ |
-| HU 2.3 | Como usuario, quiero filtrar por período (hoy, semana, mes, año) y por categoría | ✅ |
+| HU 2.3 | Como usuario, quiero filtrar por período (hoy, semana, mes, año, todo, o mes/año específico) | ✅ |
 | HU 2.4 | Como usuario, quiero una gráfica de barras que muestre cuánto gasté en cada categoría con alertas visuales | ✅ |
 | HU 2.5 | Como usuario, quiero filtrar la vista completa (gráfica + lista) tocando los pills de Gastos o Ingresos | ✅ |
 | HU 2.6 | Como usuario, quiero configurar presupuestos por categoría y ver alertas cuando me acerque al límite | ✅ |
 | HU 2.7 | Como usuario, quiero dejar presionada una columna de la gráfica para editar su presupuesto o crear una transacción en esa categoría | ✅ |
+| HU 2.8 | Como usuario, quiero seleccionar un mes y año específico para ver los movimientos y la gráfica de ese período | ✅ |
 
 ### Épica 3: Gestión de Transacciones
 
@@ -122,6 +142,8 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 3.2 | Como usuario, quiero buscar transacciones por descripción, categoría o tag | ✅ |
 | HU 3.3 | Como usuario, quiero ver el historial completo en un modal con filtros por categoría | ✅ |
 | HU 3.4 | Como usuario, quiero que la descripción de cada transacción se trunque con "..." si es muy larga | ✅ |
+
+> **Nota:** La edición de transacciones fue descartada por diseño. La práctica en apps de finanzas personales es eliminar y crear nueva. Simplifica la UX.
 
 ### Épica 4: Asistente y Datos
 
@@ -138,23 +160,25 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 |----|---------|--------|
 | HU 5.1 | Como usuario, quiero elegir entre modo claro, oscuro o automático del sistema | ✅ |
 | HU 5.2 | Como usuario, quiero configurar mis métodos de pago (Efectivo, Ahorros, Tarjeta, custom) | ✅ |
-| HU 5.3 | Como usuario, quiero definir mi presupuesto mensual o quincenal | ✅ (quincenal guardado, cálculo pendiente) |
+| HU 5.3 | Como usuario, quiero definir mi presupuesto mensual o quincenal | ✅ |
 
-### Épica 6: Funcionalidades Futuras (No implementadas)
+### Épica 6: Funcionalidades Avanzadas
 
 | ID | Historia | Estado |
 |----|---------|--------|
-| HU 6.1 | Como usuario, quiero definir metas de ahorro y ver mi progreso | ❌ Pendiente (store listo, sin UI) |
-| HU 6.2 | Como usuario, quiero que el período quincenal afecte los cálculos de presupuesto (1-15 y 16-fin) | ❌ Pendiente |
-| HU 6.3 | Como usuario, quiero ver un desglose de mis ingresos por categoría en la gráfica | ⚠️ Parcial (las categorías de ingresos se muestran si existen) |
-
-> **Nota:** La edición de transacciones fue descartada por diseño. La práctica moderna en apps de finanzas personales es eliminar (swipe-to-delete) y crear una nueva con los datos correctos. Esto simplifica la UX y evita complejidad innecesaria.
+| HU 6.1 | Como usuario, quiero definir metas de ahorro, abonarles y eliminarlas con swipe-to-delete en Ajustes | ✅ |
+| HU 6.2 | Como usuario, quiero que el período quincenal afecte los cálculos de presupuesto (1-15 y 16-fin) | ✅ |
+| HU 6.3 | Como usuario, quiero ver un desglose de mis ingresos por categoría en la gráfica | ✅ |
+| HU 6.4 | Como usuario, quiero que al tocar una columna de la gráfica se muestre el nombre de la categoría | ✅ |
+| HU 6.5 | Como usuario, quiero que al registrar un ingreso el selector de categoría muestre solo categorías de ingreso | ✅ |
 
 ---
 
-## 4. Las 8 Categorías Estándar
+## 4. Categorías
 
-Conjunto fijo e inmutable. Toda la app (NLP, gráfica, formulario, búsqueda) depende de esta lista:
+### 4.1 Categorías de Gasto (8)
+
+Conjunto fijo. Toda la app (NLP, gráfica de gastos, formulario de gasto, búsqueda) depende de esta lista:
 
 | Emoji | Nombre | Color | Palabras Clave NLP |
 |-------|--------|-------|-------------------|
@@ -166,6 +190,18 @@ Conjunto fijo e inmutable. Toda la app (NLP, gráfica, formulario, búsqueda) de
 | 🎮 | Entretenimiento | Púrpura `#6D28D9` | netflix, spotify, cine, juego, concierto, teatro, suscripción |
 | 🎓 | Educación | Verde `#059669` | curso, libro, universidad, clase, colegio, capacitación |
 | 👤 | Personal | Gris `#475569` | personal, peluquería, barbería, belleza, spa |
+
+### 4.2 Categorías de Ingreso (5)
+
+Se muestran en el selector de categoría al registrar un ingreso y en la gráfica cuando el pill "↑ Ingresos" está activo:
+
+| Emoji | Nombre | Palabras Clave NLP |
+|-------|--------|-------------------|
+| 💼 | Salario | salario, sueldo, nomina, quincena, mensualidad, empresa, pago |
+| 💻 | Freelance | freelance, honorarios, proyecto, cliente, trabajo independiente |
+| 📈 | Inversiones | inversión, dividendos, rendimientos, intereses, acciones |
+| 🎁 | Extra | extra, regalo, bono, reembolso, devolución, premio, venta |
+| 🏢 | Negocio | negocio, local, venta, factura, ingreso negocio |
 
 ---
 
@@ -232,6 +268,7 @@ Conjunto fijo e inmutable. Toda la app (NLP, gráfica, formulario, búsqueda) de
 | Barra de presupuesto | Animación con `withTiming` al cargar |
 | Swipe-to-delete | `PanResponder` + `Animated` revela botón papelera |
 | Long-press gráfica | Popup con 3 opciones tras ~400ms |
+| Colapso de gráfica | Al hacer scroll, la gráfica colapsa suavemente (opacity + maxHeight) |
 
 ---
 

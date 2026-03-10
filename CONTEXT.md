@@ -103,9 +103,10 @@ my-wallet-app/
 │   │   ├── BudgetBar.tsx         # Barra de progreso presupuesto
 │   │   ├── CategoryChart.tsx     # Gráfica de categorías (barras)
 │   │   ├── CustomTabBar.tsx      # Tab bar custom (NO se usa)
-│   │   ├── FilterChips.tsx       # Chips período/categoría
+│   │   ├── FilterChips.tsx       # Chip de período + "Elegir mes específico"
 │   │   ├── FloatingDock.tsx      # Dock flotante + FAB micrófono
 │   │   ├── FloatingInput.tsx     # Overlay input/búsqueda flotante
+│   │   ├── MonthPickerModal.tsx  # Selector de mes/año con montos
 │   │   └── TransactionItem.tsx   # Item transacción + swipe-delete
 │   │
 │   ├── constants/
@@ -284,6 +285,16 @@ interface ActiveExpense {
 }
 ```
 
+### PeriodFilter (tipo local del Dashboard)
+```typescript
+type PeriodFilter =
+  | { type: "quick"; label: string }   // "Hoy", "Esta semana", "Este mes", etc.
+  | { type: "month"; year: number; month: number }  // Mes específico
+  | { type: "year";  year: number }     // Año completo
+  | { type: "all" };                    // Sin filtro de fecha
+```
+Reemplaza los estados separados `period` + `pickerYear` + `pickerMonth`. Vive en `app/(tabs)/index.tsx`.
+
 ### useVoiceStore (no persistido)
 ```typescript
 {
@@ -366,6 +377,8 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 | `queryMaxTransaction()` | Transacción de mayor monto |
 | `queryWeeklyTotals()` | Totales por día de la semana actual |
 | `queryPrevWeekTotal()` | Total semana anterior |
+| `queryMonthlyExpensesByYear(year)` | Mapa `{mes: totalGastos}` para los 12 meses de un año (query única con GROUP BY) |
+| `queryFirstTransactionYear()` | Año de la primera transacción registrada (para pills de año dinámicos) |
 
 ### Reglas de base de datos
 - Siempre usar `localISOString()` para fechas (evita desfase UTC)
@@ -443,13 +456,13 @@ type AppTheme = {
 
 **Extracción de tipo:**
 - Gasto: gasté, compré, pagué, costó
-- Ingreso: recibí, ingresé, cobré, sueldo, salario, freelance
+- Ingreso: recibí, ingresé, cobré, sueldo, salario, freelance, quincena, mensualidad, honorarios, dividendos, rendimientos, reembolso, bono
 
 **Extracción de fecha:**
 - hoy, ayer, anteayer/antier
 
 **Extracción de categoría:**
-- Basado en CATEGORY_MAP con ~50 palabras clave → 8 categorías
+- Basado en CATEGORY_MAP con ~70 palabras clave → 8 categorías de gasto + 5 de ingreso
 
 **Post-procesamiento:**
 - `normalizeMoneyText(text)`: convierte `$40,000` → `$40.000` en el texto
@@ -469,9 +482,11 @@ Parseo simple para el campo de texto del formulario:
 
 ---
 
-## 10. Las 8 Categorías Estándar
+## 10. Categorías
 
-Las categorías son un conjunto **fijo e inmutable**. Toda la app depende de esta lista:
+### 10.1 Categorías de Gasto (8)
+
+Conjunto fijo. Visible en el formulario de gastos, gráfica en modo gastos y búsqueda:
 
 | Emoji | Nombre | Color Accent | Palabras Clave NLP |
 |-------|--------|-------------|-------------------|
@@ -484,12 +499,25 @@ Las categorías son un conjunto **fijo e inmutable**. Toda la app depende de est
 | 🎓 | Educación | `#059669` | curso, libro, universidad, clase, colegio, capacitación |
 | 👤 | Personal | `#475569` | personal, peluquería, barbería, belleza, spa, cuidado |
 
+### 10.2 Categorías de Ingreso (5)
+
+Visible en el formulario de ingresos y en la gráfica cuando el pill "↑ Ingresos" está activo:
+
+| Emoji | Nombre | Color Accent | Palabras Clave NLP |
+|-------|--------|-------------|-------------------|
+| 💼 | Salario | Verde `#16A34A` | salario, sueldo, nomina, quincena, mensualidad, empresa |
+| 💻 | Freelance | Azul `#0284C7` | freelance, honorarios, proyecto, cliente |
+| 📈 | Inversiones | Esmeralda `#059669` | inversión, dividendos, rendimientos, intereses, acciones |
+| 🎁 | Extra | Naranja `#D97706` | extra, regalo, bono, reembolso, devolución, premio |
+| 🏢 | Negocio | Índigo `#4F46E5` | negocio, local, venta, factura |
+
 ### Fuentes de verdad
-- **`src/constants/theme.ts`**: `CATEGORY_MAP`, `EMOJI_TO_CATEGORY_NAME`, `CATEGORY_COLORS`, `ALL_CATEGORY_EMOJIS`
+- **`src/constants/theme.ts`**: `CATEGORY_MAP`, `EMOJI_TO_CATEGORY_NAME`, `CATEGORY_COLORS`, `ALL_CATEGORY_EMOJIS`, `ALL_INCOME_EMOJIS`
 - **`src/utils/voiceParser.ts`**: Mapa duplicado para NLP de voz (mantener sincronizado)
+- **`app/active-expense.tsx`**: `CATEGORY_OPTIONS` (gastos) y `INCOME_CATEGORY_OPTIONS` (ingresos)
 
 ### Regla
-Si se agrega/modifica una categoría, actualizar en AMBOS archivos + la documentación del usuario.
+Si se agrega/modifica una categoría, actualizar en **todos** los archivos anteriores + la documentación del usuario.
 
 ---
 
@@ -497,10 +525,12 @@ Si se agrega/modifica una categoría, actualizar en AMBOS archivos + la document
 
 ### CategoryChart
 - Gráfica de barras verticales con scroll horizontal
-- Ghost tracks para categorías vacías
-- Long-press: popup con "Editar presupuesto" / "Nueva transacción"
-- Colores de alerta: base (< 70%), ámbar (70-89%), rojo (≥ 90%)
-- Sin presupuesto: barra fija al 50% con color base
+- **Modo gastos:** porcentaje según presupuesto (o 50% fijo), colores de alerta (base/ámbar/rojo)
+- **Modo ingresos** (prop `isIncomeMode`): barras verdes proporcionales al mayor ingreso de categoría; sin presupuesto ni "Editar presupuesto" en popup
+- Ghost tracks para categorías vacías (gris con borde punteado)
+- **Tap corto en columna:** badge animado (fade + slide up) con emoji + nombre de la categoría, se auto-descarta en 1.6s
+- Long-press: popup con "Editar presupuesto ↑ / Nueva transacción ↓" (en ingresos solo "↓")
+- `containerRef` + `measure()` para calcular posición absoluta del badge en pantalla
 
 ### FloatingDock
 - Dock inferior que reemplaza la tab bar nativa
@@ -510,14 +540,26 @@ Si se agrega/modifica una categoría, actualizar en AMBOS archivos + la document
 
 ### TransactionItem
 - Muestra emoji, descripción (truncada), fecha, monto formateado
+- **Modo claro:** fondo blanco (`#FFFFFF`) con sombra sutil (card-like)
+- **Modo oscuro:** fondo `t.itemBg`
 - Swipe-to-delete (PanResponder + Animated): deslizar izquierda revela botón papelera
 - Animación de entrada: `FadeInDown`
 - Gastos en negro con `−`, ingresos en verde con `+`
 
 ### FilterChips
-- Chip de período: "Hoy", "Ayer", "Esta semana", "Este mes", "Este año", "Todo"
-- Chip de categoría: las 8 categorías + "Todas"
-- Ambos abren un Modal bottom-sheet al tocar
+- **Un solo chip** de período: opciones rápidas ("Hoy"…"Todo") + "📅 Elegir mes específico..." al fondo del sheet
+- Props: `period`, `periodLabel?` (label dinámico, ej: "Abr 2025"), `onPeriodChange`, `onOpenMonthPicker?`
+- El chip de categoría fue eliminado — simplifica la UI del Dashboard; el filtrado por categoría se hace desde la gráfica o la búsqueda
+- Abre un único Modal bottom-sheet al tocar
+
+### MonthPickerModal
+- Sheet inferior que permite elegir un mes y año concreto como filtro del Dashboard
+- Pills de año dinámicos: desde `queryFirstTransactionYear()` hasta el año actual; "Todo el tiempo" limpia el filtro
+- Grid 3×4 de meses (Ene–Dic) con monto compacto bajo cada celda (`45k`, `1.7M`)
+- Mes seleccionado: fondo `#DBEAFE`, texto `#1D4ED8`; meses futuros deshabilitados (opacity 0.3)
+- Estado draft interno: cambios pendientes hasta tocar "Aplicar"; X descarta sin aplicar
+- Animación: `animationType="slide"` nativo del Modal (sin Reanimated en el sheet para evitar conflictos de touch)
+- Dark mode: pill año activo usa `t.accent` en oscuro, `#0F172A` en claro
 
 ### BudgetBar
 - Barra de progreso animada (Reanimated)
@@ -537,19 +579,26 @@ Si se agrega/modifica una categoría, actualizar en AMBOS archivos + la document
 ## 12. Pantallas y Rutas
 
 ### Dashboard (`app/(tabs)/index.tsx`)
-- Balance neto (grande)
-- ActionPills (Gastos/Ingresos)
-- BudgetBar (condicional)
-- FilterChips (período + categoría)
-- CategoryChart (gráfica de barras)
-- Lista de TransactionItems
-- Botón "Ver más" → abre HistoryDrawer (modal full-screen)
+- Balance neto (tipografía 38px, weight 800)
+- Pills inline (Gastos/Ingresos) con toggle por tipo
+- Barra de presupuesto inline (condicional: `monthlyBudget > 0`, sin filtro de tipo, solo período actual)
+- FilterChips — un solo chip de período con `periodLabel` y `onOpenMonthPicker`
+- CategoryChart (gráfica de barras) — recibe `isIncomeMode` y `allEmojis` contextual
+- **`FlatList`** reemplaza `ScrollView + map` — chart y cabecera van en `ListHeaderComponent`, estado vacío en `ListEmptyComponent`; `renderItem` en `useCallback`
+- **`PeriodFilter` tipo unificado:** discriminante con 4 variantes (`quick`, `month`, `year`, `all`) — reemplaza los estados separados `period` + `pickerYear` + `pickerMonth`
+- **`applyPeriodFilter()`:** función pura fuera del componente que maneja los 4 casos de filtrado por fecha
+- `MonthPickerModal` — integrado con `PeriodFilter` directamente (`onApply` construye el tipo correcto)
+- `filteredTransactions` respeta `PeriodFilter` (período rápido, mes específico, año, o todo)
+- `categoryStats` e `incomeStats` usan `filteredTransactions` (dinámicos al período seleccionado)
+- Presupuesto solo visible si `isCurrentPeriod === true`
+- Barra de búsqueda: `keyboardExtraAnim` sube la barra sobre el teclado al abrirse
+- **Eliminado:** chip de categoría, estilos de metas de ahorro, ScrollView+map
 
 ### Active Expense (`app/active-expense.tsx`)
 - Título dinámico: "Nuevo Gasto" / "Nuevo Ingreso"
 - Monto grande con tamaño adaptable (36-64px según dígitos)
 - Campo de descripción con NLP en tiempo real
-- Selectores: Fecha, Categoría (grid), Cuenta
+- Selectores: Fecha, Categoría (grid contextual: `CATEGORY_OPTIONS` para gastos, `INCOME_CATEGORY_OPTIONS` para ingresos), Cuenta
 - Tags sugeridos + custom
 - Botón ✓ para guardar (vibración + navegar atrás)
 - `adjustsFontSizeToFit` como fallback para montos enormes
@@ -562,9 +611,10 @@ Si se agrega/modifica una categoría, actualizar en AMBOS archivos + la document
 - Delay de 1000ms antes de navegar
 
 ### Settings (`app/settings.tsx`)
-- Control financiero: presupuesto mensual, período
+- Control financiero: presupuesto mensual, período (mensual/quincenal)
 - Métodos de pago → modal full-screen
 - Presupuesto por categoría → modal full-screen
+- **Metas de ahorro:** `NuevaMetaModal` (crear), `AbonarMetaModal` (abonar), `SavingsGoalsSection` con `SwipeableGoalItem` (swipe-to-delete izquierda revela botón papelera rojo)
 - Apariencia → selector dark mode
 - Sistema: exportar CSV, limpiar datos
 
@@ -612,7 +662,10 @@ formatMoneyInput(text: string): string
 | Barra de presupuesto | BudgetBar | `useSharedValue` + `withTiming` |
 | Orb de voz | voice-input VoiceOrb | `withRepeat` + `withTiming` (pulsación) |
 | Feedback háptico | active-expense (guardar) | `expo-haptics` `notificationAsync(success)` |
-| Swipe-to-delete | TransactionItem | `PanResponder` + `Animated` de RN |
+| Swipe-to-delete transacciones | TransactionItem | `PanResponder` + `Animated` de RN |
+| Swipe-to-delete metas | SwipeableGoalItem (settings) | `PanResponder` + `Animated` de RN |
+| Badge nombre categoría | CategoryChart | `Animated.Value` fade + translateY, auto-descarta 1.6s |
+| Colapso de gráfica al scroll | Dashboard (index.tsx) | `Animated.event` → `scrollY` interpola `maxHeight` + `opacity` del chart wrapper |
 
 ### Reglas para animaciones
 - Usar `Reanimated` para animaciones de layout y gestos complejos
@@ -677,10 +730,11 @@ formatMoneyInput(text: string): string
 
 ### Performance
 
-1. **FlatList** para listas largas (no ScrollView con map)
-2. **`useMemo`** para cálculos derivados costosos
-3. **`useCallback`** para handlers pasados como props
+1. **FlatList** para listas largas — implementado en Dashboard (`index.tsx`), reemplazó `ScrollView + map`
+2. **`useMemo`** para cálculos derivados costosos (totales, stats, filtros)
+3. **`useCallback`** para `renderItem` y `keyExtractor` del FlatList
 4. **Animaciones en UI thread** — Reanimated worklets para 60fps
+5. **Funciones puras fuera del componente** — `applyPeriodFilter`, `formatBalance`, `normalize` no se recrean en cada render
 
 ---
 
@@ -718,20 +772,25 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 | Archivo | Problema |
 |---------|---------|
 | `CustomTabBar.tsx` | Definido pero nunca utilizado (tabs usan `tabBar={() => null}`) |
+| `ActionPills.tsx` | Componente separado no importado; pills están inline en `index.tsx` |
+| `BudgetBar.tsx` | Componente separado no importado; barra de presupuesto está inline en `index.tsx` |
 | `wallet.tsx` | Pantalla placeholder sin funcionalidad |
 | `useVoiceExpense.ts` | Depende de `openExpenseInput` que no existe en `useUIStore` |
 | `FloatingInput.tsx` | `isExpenseInputOpen` no existe en el store → componente nunca activo |
 
-### Limitaciones funcionales
-- **Edición de transacciones:** No existe. Solo se puede eliminar y recrear
-- **budgetPeriod quincenal:** El valor se guarda pero NO afecta los cálculos de la barra de presupuesto
-- **Búsqueda por voz:** El flujo directo voz → FloatingInput está desconectado
-- **Metas de ahorro:** El store las soporta pero no hay UI para gestionarlas
+### Limitaciones funcionales (por diseño)
+- **Edición de transacciones:** No existe. Solo se puede eliminar y recrear. Decisión de diseño intencional — simplifica la UX.
+- **Búsqueda por voz:** El flujo directo voz → FloatingInput está desconectado.
 
 ### Riesgos técnicos
 - `BlurView` no funciona consistentemente en emuladores Android
 - `Appearance.setColorScheme(null)` causa crash en Android — fue removido
 - `PanResponder` puede interferir con scroll horizontal si no se configura correctamente
+
+### Configuración de teclado (Android)
+- `app.json` usa `softwareKeyboardLayoutMode: "resize"` para evitar que el teclado cubra contenido
+- Pantallas principales (`active-expense`, `chat`): `KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}` — Android lo maneja nativamente con `resize`
+- Modales (`settings`, `CategoryChart`): `KeyboardAvoidingView behavior="padding"` explícito — necesario porque `resize` no aplica dentro de modales
 
 ---
 
@@ -773,9 +832,12 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 - **Moneda:** Siempre COP con puntos de miles, sin decimales
 - **Idioma UI:** Todo en español
 - **Datos:** 100% locales, sin nube
-- **Categorías:** Las 8 estándar son fijas
+- **Categorías de gasto:** Las 8 estándar son fijas
+- **Categorías de ingreso:** Las 5 estándar son fijas
+- **Edición de transacciones:** No se implementa (decisión de diseño)
 - **Git:** Solo push manual; nunca push automático en CI
 - **Formato moneda:** Regex custom, nunca `toLocaleString()`
+- **Colores primarios hardcodeados:** Botones de acción primaria usan `#135BEC` fijo (no `t.accent`) para consistencia entre temas
 
 ---
 

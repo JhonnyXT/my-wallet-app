@@ -1,12 +1,13 @@
 /**
  * voiceParser — convierte texto de voz/texto libre en datos estructurados.
- * 100% offline. Usa las 8 categorías estándar de MyWallet.
+ * 100% offline. Usa las 8 categorías de gastos + 5 de ingresos de MyWallet.
  * Devuelve `null` en campos no detectados para no sobreescribir selecciones previas.
  */
 import type { ActiveExpense, DateOption } from "@/src/store/useExpenseStore";
 
-// ─── Mapa de las 8 categorías estándar ───────────────────────────────────────
+// ─── Mapa de categorías (gastos + ingresos) ───────────────────────────────────
 const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
+  // ── Gastos ──────────────────────────────────────────────────────────────────
   {
     keywords: [
       "restaurante", "almuerzo", "cena", "desayuno", "mcdonalds",
@@ -68,6 +69,40 @@ const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
       "cosmetico", "belleza", "deporte", "futbol", "natacion",
     ],
     emoji: "👤", name: "Personal",
+  },
+  // ── Ingresos ─────────────────────────────────────────────────────────────────
+  {
+    keywords: [
+      "salario", "nomina", "sueldo", "quincena", "mensualidad",
+      "pago empresa", "pago del trabajo",
+    ],
+    emoji: "💼", name: "Salario",
+  },
+  {
+    keywords: [
+      "freelance", "proyecto", "honorarios", "consultoria", "contrato",
+      "servicio prestado",
+    ],
+    emoji: "💻", name: "Freelance",
+  },
+  {
+    keywords: [
+      "inversion", "dividendos", "intereses", "rendimientos", "acciones", "cripto",
+    ],
+    emoji: "📈", name: "Inversiones",
+  },
+  {
+    keywords: [
+      "regalo", "bono", "reembolso", "devolucion", "venta", "comision",
+      "cashback",
+    ],
+    emoji: "🎁", name: "Extra",
+  },
+  {
+    keywords: [
+      "negocio", "facturacion", "cobro del negocio", "venta del negocio",
+    ],
+    emoji: "🏢", name: "Negocio",
   },
 ];
 
@@ -256,9 +291,12 @@ function extractIsExpense(text: string): boolean | undefined {
     "recibi", "recibe", "recibido", "ingrese", "ingreso",
     "me pagaron", "me deposita", "me depositaron",
     "cobre", "cobrado", "cobrar",
-    "salario", "sueldo", "nomina",
+    "salario", "sueldo", "nomina", "quincena", "mensualidad",
     "ganancia", "vendi", "venta",
     "me dieron", "me mandaron", "me gane",
+    "freelance", "honorarios", "consultoria", "proyecto pagado",
+    "dividendos", "rendimientos", "intereses",
+    "reembolso", "devolucion", "bono",
   ];
   if (incomeKeywords.some((kw) => n.includes(kw))) return false;
 

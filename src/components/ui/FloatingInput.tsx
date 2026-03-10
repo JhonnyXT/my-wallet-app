@@ -72,7 +72,7 @@ export function FloatingInputOverlay() {
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         {/* Área superior: toca para cerrar */}
         <TouchableWithoutFeedback onPress={handleClose}>

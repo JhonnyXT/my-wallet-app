@@ -49,9 +49,25 @@ export const CATEGORY_MAP: Record<string, string> = {
   // 👤 Personal
   personal: "👤", peluqueria: "👤", barberia: "👤",
   cuidado: "👤", spa: "👤", belleza: "👤",
+  // ── Categorías de ingresos ──────────────────────────────────────────────────
+  // 💼 Salario
+  salario: "💼", nómina: "💼", nomina: "💼", sueldo: "💼",
+  quincena: "💼", "pago empresa": "💼", mensualidad: "💼",
+  // 💻 Freelance
+  freelance: "💻", proyecto: "💻", honorarios: "💻",
+  consultoría: "💻", consultoria: "💻", contrato: "💻",
+  // 📈 Inversiones
+  inversión: "📈", inversion: "📈", dividendos: "📈",
+  intereses: "📈", rendimientos: "📈", acciones: "📈", cripto: "📈",
+  // 🎁 Extra
+  regalo: "🎁", bono: "🎁", reembolso: "🎁",
+  devolución: "🎁", devolucion: "🎁", venta: "🎁", comisión: "🎁", comision: "🎁",
+  // 🏢 Negocio
+  negocio: "🏢", ventas: "🏢", factura: "🏢", cobro: "🏢",
 };
 
 export const EMOJI_TO_CATEGORY_NAME: Record<string, string> = {
+  // Gastos
   "🍔": "COMIDA",
   "🚗": "TRANSPORTE",
   "🏠": "HOGAR",
@@ -60,9 +76,16 @@ export const EMOJI_TO_CATEGORY_NAME: Record<string, string> = {
   "🎮": "ENTRETENIMIENTO",
   "🎓": "EDUCACIÓN",
   "👤": "PERSONAL",
+  // Ingresos
+  "💼": "SALARIO",
+  "💻": "FREELANCE",
+  "📈": "INVERSIONES",
+  "🎁": "EXTRA",
+  "🏢": "NEGOCIO",
 };
 
 export const CATEGORY_COLORS: Record<string, { bg: string; accent: string }> = {
+  // Gastos
   "🍔": { bg: "#FFE8D6", accent: "#D2601A" },  // Comida — naranja
   "🚗": { bg: "#D6EFFF", accent: "#1565C0" },  // Transporte — azul
   "🏠": { bg: "#FEF3C7", accent: "#D97706" },  // Hogar — amarillo
@@ -71,15 +94,26 @@ export const CATEGORY_COLORS: Record<string, { bg: string; accent: string }> = {
   "🎮": { bg: "#EDE9FE", accent: "#6D28D9" },  // Entretenimiento — púrpura
   "🎓": { bg: "#D1FAE5", accent: "#059669" },  // Educación — verde
   "👤": { bg: "#F1F5F9", accent: "#475569" },  // Personal — gris
+  // Ingresos
+  "💼": { bg: "#DBEAFE", accent: "#1D4ED8" },  // Salario — azul
+  "💻": { bg: "#E0E7FF", accent: "#4338CA" },  // Freelance — índigo
+  "📈": { bg: "#D1FAE5", accent: "#059669" },  // Inversiones — verde
+  "🎁": { bg: "#FEF3C7", accent: "#B45309" },  // Extra — ámbar
+  "🏢": { bg: "#F3F4F6", accent: "#374151" },  // Negocio — gris oscuro
 };
 
 export function getCategoryColor(emoji: string): { bg: string; accent: string } {
   return CATEGORY_COLORS[emoji] ?? { bg: "#F1F5F9", accent: "#64748B" };
 }
 
-/** Lista canónica de las 8 categorías estándar del sistema */
+/** Lista canónica de las 8 categorías de gastos */
 export const ALL_CATEGORY_EMOJIS: string[] = [
   "🍔", "🚗", "🏠", "🛍️", "🏥", "🎮", "🎓", "👤",
+];
+
+/** Lista canónica de las 5 categorías de ingresos */
+export const ALL_INCOME_EMOJIS: string[] = [
+  "💼", "💻", "📈", "🎁", "🏢",
 ];
 
 export function guessCategoryEmoji(description: string): string {

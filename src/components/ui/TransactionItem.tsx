@@ -205,10 +205,16 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
   container: {
     position: "relative",
     overflow: "hidden",
-    backgroundColor: t.itemBg,
+    backgroundColor: t.isDark ? t.itemBg : "#FFFFFF",
     borderRadius: 16,
     borderWidth: t.isDark ? 1 : 0,
     borderColor: t.isDark ? t.border : "transparent",
+    // Sombra sutil en modo claro para dar sensación de tarjeta
+    shadowColor: t.isDark ? "transparent" : "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: t.isDark ? 0 : 0.06,
+    shadowRadius: 4,
+    elevation: t.isDark ? 0 : 2,
   },
 
   // Botón rojo detrás
@@ -236,7 +242,7 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
     paddingVertical: 14,
     paddingLeft: 16,
     paddingRight: 16,
-    backgroundColor: t.itemBg,
+    backgroundColor: t.isDark ? t.itemBg : "#FFFFFF",
     borderRadius: 16,
   },
   iconCircle: {

@@ -12,6 +12,7 @@ import {
   Car, Home, ShoppingBag, HeartPulse, Gamepad2, GraduationCap, User,
   Banknote, Landmark, CreditCard,
   CalendarCheck, CalendarMinus, CalendarPlus,
+  Briefcase, Laptop2, TrendingUp, Gift, Building2,
 } from "lucide-react-native";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
@@ -46,6 +47,13 @@ const CATEGORY_OPTIONS: { key: string; label: string }[] = [
   { key: "🎓", label: "Educación" },
   { key: "👤", label: "Personal" },
 ];
+const INCOME_CATEGORY_OPTIONS: { key: string; label: string }[] = [
+  { key: "💼", label: "Salario" },
+  { key: "💻", label: "Freelance" },
+  { key: "📈", label: "Inversiones" },
+  { key: "🎁", label: "Extra" },
+  { key: "🏢", label: "Negocio" },
+];
 const ACCOUNT_OPTIONS: { key: AccountType; label: string }[] = [
   { key: "cash",    label: "Efectivo" },
   { key: "savings", label: "Ahorros" },
@@ -56,6 +64,7 @@ const SUGGESTED_TAGS = ["#viaje", "#trabajo", "#comida", "#salud", "#ocio"];
 // ─── Iconos de categoría (lucide) con paleta Stitch ───────────────────────────
 type LucideIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 const CATEGORY_ICONS: Record<string, { Icon: LucideIcon; color: string; bg: string }> = {
+  // Gastos
   "🍔": { Icon: UtensilsCrossed, color: "#D2601A", bg: "#FFE8D6" },
   "🚗": { Icon: Car,             color: "#1565C0", bg: "#D6EFFF" },
   "🏠": { Icon: Home,            color: "#D97706", bg: "#FEF3C7" },
@@ -64,6 +73,12 @@ const CATEGORY_ICONS: Record<string, { Icon: LucideIcon; color: string; bg: stri
   "🎮": { Icon: Gamepad2,        color: "#6D28D9", bg: "#EDE9FE" },
   "🎓": { Icon: GraduationCap,   color: "#059669", bg: "#D1FAE5" },
   "👤": { Icon: User,            color: "#475569", bg: "#F1F5F9" },
+  // Ingresos
+  "💼": { Icon: Briefcase,   color: "#1D4ED8", bg: "#DBEAFE" },
+  "💻": { Icon: Laptop2,     color: "#4338CA", bg: "#E0E7FF" },
+  "📈": { Icon: TrendingUp,  color: "#059669", bg: "#D1FAE5" },
+  "🎁": { Icon: Gift,        color: "#B45309", bg: "#FEF3C7" },
+  "🏢": { Icon: Building2,   color: "#374151", bg: "#F3F4F6" },
 };
 
 // ─── Info extra de cuentas ────────────────────────────────────────────────────
@@ -161,9 +176,9 @@ function CategorySheet({
             <Text style={cs.cancel}>Cancelar</Text>
           </TouchableOpacity>
         </View>
-        {/* Grid 4 columnas */}
-        <View style={cs.grid}>
-          {CATEGORY_OPTIONS.map((cat) => {
+        {/* Grid 4 columnas (gastos) o 3 columnas (ingresos) */}
+        <View style={[cs.grid, !isExpense && cs.gridIncome]}>
+          {(isExpense ? CATEGORY_OPTIONS : INCOME_CATEGORY_OPTIONS).map((cat) => {
             const info = CATEGORY_ICONS[cat.key];
             const isSel = temp === cat.key;
             return (
@@ -423,7 +438,7 @@ export default function ActiveExpenseScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={st.screen} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+    <KeyboardAvoidingView style={st.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
 
       {/* ── HEADER ────────────────────────────────────────────────────────── */}
       <View style={[st.header, { paddingTop: insets.top + 10 }]}>
@@ -738,6 +753,9 @@ function buildCatS(t: AppTheme) {
       flexDirection: "row", flexWrap: "wrap",
       paddingHorizontal: 12, gap: 4,
       marginBottom: 20,
+    },
+    gridIncome: {
+      justifyContent: "center",
     },
     item: { width: "23%", alignItems: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 4 },
     iconWrap: { position: "relative" },

@@ -1,10 +1,7 @@
 name: EAS Update
 
 on:
-  push:
-    branches:
-      - master
-      - main
+  workflow_dispatch: # solo se lanza manualmente desde GitHub Actions
 
 jobs:
   update:

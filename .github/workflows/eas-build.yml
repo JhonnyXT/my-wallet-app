@@ -1,11 +1,7 @@
 name: EAS Build (Android APK)
 
 on:
-  push:
-    branches:
-      - master
-      - main
-  workflow_dispatch: # también permite lanzarlo manualmente desde GitHub
+  workflow_dispatch: # solo se lanza manualmente desde GitHub Actions
 
 jobs:
   build:

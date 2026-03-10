@@ -516,7 +516,7 @@ export default function DashboardScreen() {
               />
             ))}
 
-          </View>
+    </View>
         )}
       </Animated.ScrollView>
       {/* ══════════════════════════════════════════════════════════════

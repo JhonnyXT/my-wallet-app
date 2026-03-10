@@ -97,45 +97,131 @@ function normalize(text: string): string {
  * para mostrar siempre en formato COP.
  */
 export function normalizeMoneyText(text: string): string {
-  // Reemplaza números con coma como separador de miles (ej: 40,000 / 1,500,000)
   return text.replace(/(\d{1,3})(,(\d{3}))+/g, (match) =>
     match.replace(/,/g, ".")
   );
 }
 
+/**
+ * Reemplaza la expresión de dinero en el texto (palabras o dígitos) por
+ * la cifra formateada en COP. Ejemplo:
+ *   "cinco millones 400.000 por la empresa" → "$5.400.000 por la empresa"
+ *   "gasté 40 mil en comida" → "gasté $40.000 en comida"
+ */
+export function replaceAmountInNote(raw: string, amount: number): string {
+  if (amount <= 0) return raw;
+  const formatted = `$${Math.round(amount)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+
+  const patterns = [
+    // "5 millones 400.000" / "5 millones 400 mil" / "5 millones 400" / "5 millones"
+    /\$?\s*\d+(?:[.,]\d+)?\s*millones?\s*(?:\d+(?:[.,]\d+)?\s*(?:mil(?:es)?)?)?/i,
+    // "cinco millones 400" / "dos millones" etc. (palabra + millones + opcional miles)
+    /\b(?:un|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+millones?\s*(?:\d+(?:[.,]\d+)?\s*(?:mil(?:es)?)?)?/i,
+    // "cuatrocientos mil" / "25 mil" / "veinticinco mil"
+    /\$?\s*(?:\d+(?:[.,]\d+)?|(?:cien|doscientos|trescientos|cuatrocientos|quinientos|seiscientos|setecientos|ochocientos|novecientos))\s*\bmil\b/i,
+    // "$40.000" / "$40,000" / números grandes formateados
+    /\$?\s*\d{1,3}(?:[.,]\d{3})+/,
+    // Número largo sin formato: "40000"
+    /\$?\s*\d{5,}/,
+  ];
+
+  for (const pattern of patterns) {
+    if (pattern.test(raw)) {
+      return raw.replace(pattern, formatted);
+    }
+  }
+  return raw;
+}
+
 function extractAmount(text: string): number {
   const n = normalize(text);
 
-  // "25 mil" | "25mil" → 25000
-  const milMatch = n.match(/(\d+[\.,]?\d*)\s*\bmil\b/);
-  if (milMatch) {
-    return parseFloat(milMatch[1].replace(",", ".")) * 1000;
+  // Helper: busca una palabra con límites de palabra para evitar
+  // falsos positivos como "mil" dentro de "millones" o "familia"
+  const hasWordBound = (word: string) =>
+    new RegExp(`\\b${word}\\b`).test(n);
+
+  // Helper: extrae miles adicionales después de "millones"
+  // "5 millones 400" → 400.000   "5 millones 400 mil" → 400.000
+  function extraAfterMillones(rest: string): number {
+    const explicitMil = rest.match(/(\d+)\s*\bmil\b/);
+    if (explicitMil) return parseInt(explicitMil[1]) * 1000;
+    // Patrón colombiano: número 1-999 después de "millones" implica miles
+    const implicitNum = rest.match(/\b(\d{1,3})\b/);
+    if (implicitNum) {
+      const v = parseInt(implicitNum[1]);
+      if (v > 0) return v * 1000;
+    }
+    return 0;
   }
 
-  // "cuarenta y dos mil" → 42000
-  // \bmil\b asegura que no haga match con "familia", "similar", etc.
-  const hasMilWord = /\bmil\b/.test(n);
+  // ── 1. MILLONES (dígitos) ─────────────────────────────────────────────────
+  // "5 millones"  /  "5 millones 400"  /  "5 millones 400 mil"
+  const millonNumMatch = n.match(/(\d+(?:[.,]\d+)?)\s*\bmillones?\b/);
+  if (millonNumMatch) {
+    const base = parseFloat(millonNumMatch[1].replace(",", ".")) * 1_000_000;
+    const after = n.slice(
+      n.indexOf(millonNumMatch[0]) + millonNumMatch[0].length
+    );
+    return base + extraAfterMillones(after);
+  }
+
+  // ── 2. MILLONES (palabras) ────────────────────────────────────────────────
+  // "cinco millones 400"  /  "dos millones"  /  "un millón"
+  const hasMillonesWord = /\bmillones?\b/.test(n);
+  if (hasMillonesWord) {
+    let wordMillions = 0;
+    if (/\bun\b/.test(n)) wordMillions = 1;
+    for (const [word, val] of Object.entries(WORD_NUMBERS)) {
+      if (val >= 1 && val <= 900 && hasWordBound(word)) {
+        // Solo aplica si aparece antes de "millones"
+        const wIdx = n.search(new RegExp(`\\b${word}\\b`));
+        const mIdx = n.search(/\bmillones?\b/);
+        if (wIdx < mIdx) { wordMillions = val; break; }
+      }
+    }
+    if (wordMillions > 0) {
+      const mIdx = n.search(/\bmillones?\b/);
+      const mWord = n.match(/\bmillones?\b/)![0];
+      const after = n.slice(mIdx + mWord.length);
+      return wordMillions * 1_000_000 + extraAfterMillones(after);
+    }
+  }
+
+  // ── 3. MIL (dígitos) ──────────────────────────────────────────────────────
+  // "25 mil" → 25.000
+  const milNumMatch = n.match(/(\d+[\.,]?\d*)\s*\bmil\b/);
+  if (milNumMatch) {
+    return parseFloat(milNumMatch[1].replace(",", ".")) * 1000;
+  }
+
+  // ── 4. MIL (palabras) ─────────────────────────────────────────────────────
+  // "cuarenta y dos mil" → 42.000
+  // Se usa \b para evitar que "mil" dentro de "millones" o "familia" sume.
+  const hasMilWord = hasWordBound("mil");
   let wordAmount = 0;
   let hasWordNumber = false;
   for (const [word, val] of Object.entries(WORD_NUMBERS)) {
-    if (n.includes(word)) {
+    if (word === "mil") continue;          // "mil" se maneja por separado
+    if (hasWordBound(word)) {
       wordAmount += val;
       hasWordNumber = true;
     }
   }
   if (hasWordNumber && hasMilWord) wordAmount *= 1000;
-  if (hasWordNumber && wordAmount > 0) return wordAmount;
+  else if (!hasWordNumber && hasMilWord) wordAmount = 1000;
+  if ((hasWordNumber || hasMilWord) && wordAmount > 0) return wordAmount;
 
-  // Número directo: "42000", "42.000", "42,000", "$40,000"
+  // ── 5. NÚMERO DIRECTO ─────────────────────────────────────────────────────
+  // "42000"  /  "42.000"  /  "42,000"  /  "$40,000"
   const numMatch = n.match(/\d{1,3}(?:[.,]\d{3})+|\d+[.,]\d+|\d+/);
   if (numMatch) {
     const raw = numMatch[0];
-    // Formato de miles (ej: "40,000" / "40.000" / "1,500,000"):
-    // los separadores son de miles → eliminarlos todos y parsear como entero
     if (/\d{1,3}(?:[.,]\d{3})+/.test(raw)) {
       return parseInt(raw.replace(/[.,]/g, ""), 10);
     }
-    // Número decimal o entero simple (ej: "42.5", "42,5", "42000")
     return parseFloat(raw.replace(",", "."));
   }
 
@@ -196,13 +282,14 @@ export function processVoiceInput(raw: string): Partial<ActiveExpense> & {
   const date      = extractDate(raw);
   const isExpense = extractIsExpense(raw);
   const amount    = extractAmount(raw);
-  // Normalizar el texto para mostrar puntos en lugar de comas en los montos
+  // Normalizar texto y convertir expresión de dinero textual a dígitos formateados
   const normalizedRaw = normalizeMoneyText(raw);
+  const cleanNote     = replaceAmountInNote(normalizedRaw, amount);
 
   const result: Partial<ActiveExpense> & { _categoryDetected: boolean; _dateDetected: boolean } = {
     amount,
-    note:          normalizedRaw,
-    rawTranscript: normalizedRaw,
+    note:          cleanNote,
+    rawTranscript: cleanNote,
     tags:          [],
     _categoryDetected: category !== null,
     _dateDetected:     date !== null,

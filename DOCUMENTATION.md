@@ -115,6 +115,7 @@ Ver sección detallada en [punto 6](#6-gráfica-de-categorías).
 **Campo de monto:**
 - Toca el número grande para editarlo directamente
 - Se formatea automáticamente con puntos de miles: `20000` → `20.000`
+- El tamaño del número **se reduce automáticamente** cuando el monto es muy grande (millones), para que siempre sea visible en pantalla
 - Usa el teclado numérico
 
 **Campo de descripción (texto libre con NLP):**
@@ -168,13 +169,28 @@ La entrada por voz es la forma más rápida de registrar un movimiento.
 ### Lo que detecta la voz
 | Dato | Ejemplos reconocidos |
 |------|---------------------|
-| **Monto** | "veinte mil", "20000", "20.000", "20 mil", "cuarenta y dos mil" |
+| **Monto** | "veinte mil", "20 mil", "cinco millones", "5 millones 400 mil", "cuarenta y dos mil" |
 | **Tipo** | "gasté/compré/pagué" → Gasto / "recibí/ingresé/sueldo" → Ingreso |
 | **Fecha** | "hoy" → Hoy / "ayer" → Ayer / "anteayer" → Anteayer |
 | **Categoría** | "taxi/uber/gasolina" → Transporte / "restaurante/almuerzo" → Comida / etc. |
 
+### Conversión automática de texto a número
+Cuando el monto se dice en palabras, la app lo **convierte automáticamente a dígitos formateados** en el campo de nota. Ejemplos:
+
+| Dices | La nota muestra |
+|-------|----------------|
+| "ayer recibí cinco millones 400 mil de la empresa" | "ayer recibí $5.400.000 de la empresa" |
+| "gasté 40 mil en almuerzo" | "gasté $40.000 en almuerzo" |
+| "taxi veinte mil quinientos" | "taxi $20.500" |
+
+Así el texto queda limpio y legible, sin palabras numéricas.
+
+### Tamaño del monto adaptable
+El número grande del formulario **reduce su tamaño automáticamente** cuando el monto tiene muchos dígitos (millones, miles de millones), para que siempre sea visible y no se salga de la pantalla.
+
 ### Consejos para mejor reconocimiento
 - Habla con claridad y a velocidad normal
+- Para millones, di la cifra completa: "cinco millones cuatrocientos mil" o "5 millones 400 mil"
 - Di el monto antes o después de la descripción: "Uber quince mil" o "Quince mil de Uber"
 - Si el reconocimiento no fue preciso, puedes editar el texto en el formulario que se abre
 
@@ -369,6 +385,9 @@ Ve a **Configuración → Apariencia** y selecciona la opción que prefieras:
 - **Oscuro:** siempre en modo oscuro
 
 El modo oscuro se aplica en todas las pantallas, incluyendo el formulario de Nuevo Gasto/Ingreso, los modales y el historial.
+
+### ¿La voz convierte las palabras a números automáticamente?
+Sí. Cuando dices el monto en palabras (ej: "cinco millones cuatrocientos mil"), la nota del formulario mostrará directamente `$5.400.000`. No necesitas decir el número dígito por dígito.
 
 ### ¿Cuántas transacciones puedo registrar?
 No hay límite técnico. La base de datos SQLite puede manejar millones de registros sin problema.

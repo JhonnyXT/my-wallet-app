@@ -413,6 +413,15 @@ export default function ActiveExpenseScreen() {
     ? "Describe tu gasto aquí... ej: taxi 8500 ayer"
     : "Describe tu ingreso aquí... ej: freelance 200 mil hoy";
 
+  // Reduce el tamaño de fuente según cuántos dígitos tiene el monto
+  const dynamicAmountStyle = (amt: number) => {
+    const digits = amt > 0 ? Math.floor(Math.log10(amt)) + 1 : 1;
+    if (digits >= 9) return { fontSize: 36, lineHeight: 42, letterSpacing: -1 };
+    if (digits >= 7) return { fontSize: 48, lineHeight: 56, letterSpacing: -1.5 };
+    if (digits >= 6) return { fontSize: 56, lineHeight: 64, letterSpacing: -2 };
+    return {};
+  };
+
   return (
     <KeyboardAvoidingView style={st.screen} behavior={Platform.OS === "ios" ? "padding" : "height"}>
 
@@ -455,7 +464,7 @@ export default function ActiveExpenseScreen() {
                 onBlur={handleAmountBlur}
                 onSubmitEditing={handleAmountBlur}
                 keyboardType="number-pad"
-                style={[st.amountInput, { color: accent }]}
+                style={[st.amountInput, { color: accent }, dynamicAmountStyle(store.amount)]}
                 returnKeyType="done"
                 placeholder="0"
                 placeholderTextColor={accent + "55"}
@@ -463,8 +472,15 @@ export default function ActiveExpenseScreen() {
               />
             </View>
           ) : (
-            <TouchableOpacity onPress={handleAmountTap} activeOpacity={0.7}>
-              <Text style={[st.amountText, { color: accent }]}>{displayAmt}</Text>
+            <TouchableOpacity onPress={handleAmountTap} activeOpacity={0.7} style={{ width: "100%" }}>
+              <Text
+                style={[st.amountText, { color: accent }, dynamicAmountStyle(store.amount)]}
+                adjustsFontSizeToFit
+                numberOfLines={1}
+                minimumFontScale={0.5}
+              >
+                {displayAmt}
+              </Text>
             </TouchableOpacity>
           )}
 
@@ -621,13 +637,13 @@ function buildS(t: AppTheme) {
     content: { flex: 1, backgroundColor: t.bg },
     contentInner: { paddingHorizontal: 24, paddingBottom: 16 },
 
-    amountBlock: { alignItems: "center", paddingTop: 28, paddingBottom: 20 },
-    amountText: { fontSize: 64, fontWeight: "800", letterSpacing: -2, lineHeight: 72 },
-    amountEditRow: { flexDirection: "row", alignItems: "baseline", gap: 4, marginBottom: 16 },
+    amountBlock: { alignItems: "center", paddingTop: 28, paddingBottom: 20, width: "100%", paddingHorizontal: 8 },
+    amountText: { fontSize: 64, fontWeight: "800", letterSpacing: -2, lineHeight: 72, textAlign: "center" },
+    amountEditRow: { flexDirection: "row", alignItems: "baseline", gap: 4, marginBottom: 16, flexWrap: "nowrap" },
     amountSignText: { fontSize: 32, fontWeight: "700" },
     amountInput: {
       fontSize: 64, fontWeight: "800", letterSpacing: -2, lineHeight: 72,
-      minWidth: 80, maxWidth: 260, padding: 0, includeFontPadding: false,
+      minWidth: 80, maxWidth: 240, padding: 0, includeFontPadding: false,
     },
 
     selRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20, gap: 4 },

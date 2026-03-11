@@ -32,9 +32,9 @@ export interface SettingsState {
   userName: string;
 
   // Presupuesto
-  monthlyBudget: number;        // 0 = no configurado
+  monthlyBudget: number;        // 0 = no configurado (siempre el valor MENSUAL)
   budgetPeriod: BudgetPeriod;   // "monthly" | "biweekly"
-  budgetByCategory: Record<string, number>; // emoji → monto límite
+  budgetByCategory: Record<string, number>; // emoji → monto límite (mensual)
 
   // Métodos de pago
   paymentMethods: PaymentMethod[];
@@ -44,6 +44,10 @@ export interface SettingsState {
 
   // Apariencia
   darkMode: DarkModeOption;
+
+  // Onboarding
+  hasCompletedOnboarding: boolean;
+  onboardingStep: number;
 
   // Acciones
   setUserName: (name: string) => void;
@@ -59,6 +63,26 @@ export interface SettingsState {
   addSavingsGoal: (goal: Omit<SavingsGoal, "id" | "createdAt">) => void;
   updateSavingsGoal: (id: string, saved: number) => void;
   removeSavingsGoal: (id: string) => void;
+  setOnboardingStep: (step: number) => void;
+  completeOnboarding: () => void;
+}
+
+// ─── Helpers derivados ───────────────────────────────────────────────────────
+
+export function getEffectiveBudget(monthlyBudget: number, budgetPeriod: BudgetPeriod): number {
+  return budgetPeriod === "biweekly" ? Math.round(monthlyBudget / 2) : monthlyBudget;
+}
+
+export function getEffectiveCategoryBudgets(
+  budgetByCategory: Record<string, number>,
+  budgetPeriod: BudgetPeriod
+): Record<string, number> {
+  if (budgetPeriod === "monthly") return budgetByCategory;
+  const result: Record<string, number> = {};
+  for (const [emoji, amount] of Object.entries(budgetByCategory)) {
+    result[emoji] = Math.round(amount / 2);
+  }
+  return result;
 }
 
 // ─── Valores por defecto ──────────────────────────────────────────────────────
@@ -81,6 +105,8 @@ export const useSettingsStore = create<SettingsState>()(
       paymentMethods:    DEFAULT_PAYMENT_METHODS,
       savingsGoals:      [],
       darkMode:          "system",
+      hasCompletedOnboarding: false,
+      onboardingStep:         0,
 
       setUserName:     (name)   => set({ userName: name }),
       setMonthlyBudget:(amount) => set({ monthlyBudget: Math.max(0, amount) }),
@@ -136,6 +162,9 @@ export const useSettingsStore = create<SettingsState>()(
         set((s) => ({
           savingsGoals: s.savingsGoals.filter((g) => g.id !== id),
         })),
+
+      setOnboardingStep: (step) => set({ onboardingStep: step }),
+      completeOnboarding: () => set({ hasCompletedOnboarding: true, onboardingStep: 5 }),
     }),
     {
       name:    "mywallet-settings",

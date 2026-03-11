@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useColorScheme } from "react-native";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -7,6 +7,7 @@ import { initDatabase } from "@/src/db/db";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { ThemeProvider } from "@/src/context/ThemeContext";
+import { AnimatedSplash } from "@/src/components/ui/AnimatedSplash";
 import { light, dark } from "@/src/theme";
 
 import "../global.css";
@@ -22,7 +23,7 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const loadTransactions = useFinanceStore((s) => s.loadTransactions);
   const darkMode         = useSettingsStore((s) => s.darkMode);
-  const systemScheme     = useColorScheme(); // escucha cambios del sistema
+  const systemScheme     = useColorScheme();
 
   const theme = useMemo(() => {
     const effective =
@@ -32,11 +33,15 @@ export default function RootLayout() {
     return effective === "dark" ? dark : light;
   }, [darkMode, systemScheme]);
 
+  const [appReady, setAppReady]       = useState(false);
+  const [splashDone, setSplashDone]   = useState(false);
+
   useEffect(() => {
     async function bootstrap() {
       await initDatabase();
       await loadTransactions();
       await SplashScreen.hideAsync();
+      setAppReady(true);
     }
     bootstrap();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,6 +78,10 @@ export default function RootLayout() {
         />
         <Stack.Screen name="+not-found" />
       </Stack>
+
+      {appReady && !splashDone && (
+        <AnimatedSplash onFinish={() => setSplashDone(true)} />
+      )}
     </ThemeProvider>
   );
 }

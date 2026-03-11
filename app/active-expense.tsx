@@ -546,38 +546,38 @@ export default function ActiveExpenseScreen() {
           </TouchableOpacity>
         </View>
 
-      </ScrollView>
-
-      {/* ── TAGS ──────────────────────────────────────────────────────────── */}
-      <View style={[st.tagsBar, { paddingBottom: insets.bottom + 6 }]}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}
-          contentContainerStyle={st.tagsRow}>
-          {displayTags.map((tag) => {
-            const on = store.tags.includes(tag);
-            return (
-              <TouchableOpacity
-                key={tag}
-                activeOpacity={0.7}
-                onPress={() => on ? store.removeTag(tag) : store.addTag(tag)}
+        {/* ── TAGS ────────────────────────────────────────────────────────── */}
+        <View style={[st.tagsBar, { marginBottom: insets.bottom + 6 }]}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+            contentContainerStyle={st.tagsRow}>
+            {displayTags.map((tag) => {
+              const on = store.tags.includes(tag);
+              return (
+                <TouchableOpacity
+                  key={tag}
+                  activeOpacity={0.7}
+                  onPress={() => on ? store.removeTag(tag) : store.addTag(tag)}
                 style={[st.tagPill,
-                  on ? { backgroundColor: accentBg, borderColor: accent }
+                  on ? { backgroundColor: accentBg, borderColor: accentBg }
                      : { backgroundColor: theme.surface, borderColor: theme.border }]}
-              >
-                <Text style={[st.tagText, { color: on ? accentText : theme.textSub }]}>{tag}</Text>
-              </TouchableOpacity>
-            );
-          })}
-          <View style={st.tagInput}>
-            <Plus size={11} color={theme.textTertiary} strokeWidth={2} />
-            <TextInput
-              value={tagInput} onChangeText={setTagInput}
-              onSubmitEditing={handleAddTag}
-              placeholder="tag" placeholderTextColor={theme.textTertiary}
-              style={[st.tagInputText, { color: theme.text }]} returnKeyType="done" autoCapitalize="none"
-            />
-          </View>
-        </ScrollView>
-      </View>
+                >
+                  <Text style={[st.tagText, { color: on ? accentText : theme.textSub }]}>{tag}</Text>
+                </TouchableOpacity>
+              );
+            })}
+            <View style={st.tagInput}>
+              <Plus size={11} color={theme.textTertiary} strokeWidth={2} />
+              <TextInput
+                value={tagInput} onChangeText={setTagInput}
+                onSubmitEditing={handleAddTag}
+                placeholder="tag" placeholderTextColor={theme.textTertiary}
+                style={[st.tagInputText, { color: theme.text }]} returnKeyType="done" autoCapitalize="none"
+              />
+            </View>
+          </ScrollView>
+        </View>
+
+      </ScrollView>
 
       {/* ── BOTTOM SHEETS ─────────────────────────────────────────────────── */}
       <ListSheet visible={activeSheet === "date"} title="Fecha"
@@ -652,13 +652,13 @@ function buildS(t: AppTheme) {
     content: { flex: 1, backgroundColor: t.bg },
     contentInner: { paddingHorizontal: 24, paddingBottom: 16 },
 
-    amountBlock: { alignItems: "center", paddingTop: 28, paddingBottom: 20, width: "100%", paddingHorizontal: 8 },
-    amountText: { fontSize: 64, fontWeight: "800", letterSpacing: -2, lineHeight: 72, textAlign: "center" },
-    amountEditRow: { flexDirection: "row", alignItems: "baseline", gap: 4, marginBottom: 16, flexWrap: "nowrap" },
+    amountBlock: { alignItems: "center", justifyContent: "center", paddingTop: 28, paddingBottom: 20, width: "100%" },
+    amountText: { fontSize: 64, fontWeight: "800", letterSpacing: -2, lineHeight: 72, textAlign: "center", width: "100%" },
+    amountEditRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "center", gap: 4, marginBottom: 16, width: "100%" },
     amountSignText: { fontSize: 32, fontWeight: "700" },
     amountInput: {
       fontSize: 64, fontWeight: "800", letterSpacing: -2, lineHeight: 72,
-      minWidth: 80, maxWidth: 240, padding: 0, includeFontPadding: false,
+      minWidth: 80, padding: 0, includeFontPadding: false, textAlign: "center",
     },
 
     selRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20, gap: 4 },
@@ -691,11 +691,11 @@ function buildS(t: AppTheme) {
     editIcon: { position: "absolute", right: 14, bottom: 12 },
 
     tagsBar: {
-      backgroundColor: t.isDark ? t.surface : "rgba(241,245,249,0.98)",
-      borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border,
-      paddingTop: 10,
+      marginTop: 16,
+      paddingTop: 6,
+      paddingBottom: 6,
     },
-    tagsRow: { paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 8 },
+    tagsRow: { paddingHorizontal: 24, flexDirection: "row", alignItems: "center", gap: 8 },
     tagPill: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 9999, borderWidth: 1 },
     tagText: { fontSize: 12, fontWeight: "500" },
     tagInput: {

@@ -94,7 +94,6 @@ my-wallet-app/
 │   └── (tabs)/
 │       ├── _layout.tsx           # Tabs (barra oculta) + FloatingDock
 │       ├── index.tsx             # Dashboard principal
-│       ├── chat.tsx              # Asistente chat NLP
 │       └── wallet.tsx            # Placeholder (href: null)
 │
 ├── src/                          # Lógica y componentes
@@ -102,7 +101,9 @@ my-wallet-app/
 │   │   ├── ActionPills.tsx       # Pills Gastos/Ingresos
 │   │   ├── BudgetBar.tsx         # Barra de progreso presupuesto
 │   │   ├── CategoryChart.tsx     # Gráfica de categorías (barras)
+│   │   ├── ConfirmDialog.tsx     # Diálogo de confirmación reutilizable (danger/warning/info)
 │   │   ├── CustomTabBar.tsx      # Tab bar custom (NO se usa)
+│   │   ├── GuidedTour.tsx        # Overlay de onboarding paso a paso con spotlight
 │   │   ├── FilterChips.tsx       # Chip de período + "Elegir mes específico"
 │   │   ├── FloatingDock.tsx      # Dock flotante + FAB micrófono
 │   │   ├── FloatingInput.tsx     # Overlay input/búsqueda flotante
@@ -118,11 +119,9 @@ my-wallet-app/
 │   │
 │   ├── db/
 │   │   ├── db.ts                 # SQLite: transactions, CRUD
-│   │   ├── queries.ts            # Consultas agregadas (totales, stats)
-│   │   └── chatDb.ts             # SQLite: chat_sessions, chat_messages
+│   │   └── queries.ts            # Consultas agregadas (totales, stats)
 │   │
 │   ├── features/
-│   │   ├── chat/useLocalNLP.ts   # NLP local para consultas en español
 │   │   └── voice/useVoiceExpense.ts # Hook expo-speech-recognition
 │   │
 │   ├── store/
@@ -138,6 +137,7 @@ my-wallet-app/
 │   └── utils/
 │       ├── formatMoney.ts        # formatMoneyInput, formatMoneyDisplay, formatCOP
 │       ├── nlp.ts                # parseExpenseInput (texto rápido)
+│       ├── tourRefs.ts           # Registro global de refs para el GuidedTour (getTourRef, TOUR_KEYS)
 │       └── voiceParser.ts        # Parseo de transcripción de voz
 │
 ├── assets/images/                # Iconos, splash, favicon
@@ -196,7 +196,7 @@ Usuario → Pantalla (app/) → Store (Zustand) → DB (SQLite)
 2. **Store por dominio:** Cada store maneja un solo aspecto (finanzas, formulario, settings, UI, voz)
 3. **DB como fuente de verdad:** Las transacciones viven en SQLite; el store de finanzas las carga en memoria para rendimiento
 4. **Tema por contexto:** `ThemeContext` distribuye tokens de color; los estilos se generan con `useMemo` + funciones `buildStyles(theme)`
-5. **Sin APIs externas:** Todo funciona offline (NLP, voz, chat, cálculos)
+5. **Sin APIs externas:** Todo funciona offline (NLP, voz, cálculos)
 
 ---
 
@@ -208,7 +208,6 @@ Usuario → Pantalla (app/) → Store (Zustand) → DB (SQLite)
 Stack
 ├── (tabs)              → Tab layout (barra oculta)
 │   ├── index           → Dashboard
-│   ├── chat            → Asistente financiero
 │   └── wallet          → Placeholder (href: null, invisible)
 │
 ├── voice-input         → Modal slide_from_bottom
@@ -221,9 +220,8 @@ Stack
 
 El dock reemplaza la barra de tabs nativa. Contiene:
 - Botón **+** → Menú popup (Gasto/Ingreso) → navega a `active-expense`
-- **Micrófono FAB** → navega a `voice-input`
 - **Lupa** → activa modo búsqueda en `FloatingInputOverlay`
-- **Chat** → navega a tab `chat`
+- **Micrófono FAB** → navega a `voice-input`
 
 ### Modales
 
@@ -273,9 +271,28 @@ interface ActiveExpense {
   paymentMethods: PaymentMethod[]
   savingsGoals: SavingsGoal[]
   darkMode: "system" | "light" | "dark"
+  hasCompletedOnboarding: boolean   // true tras completar o saltar el Guided Tour
+  onboardingStep: number            // paso actual del tour (0-4)
 }
+
+// Acciones adicionales
+setOnboardingStep(step: number): void
+completeOnboarding(): void
 ```
-**Persistencia:** `zustand/middleware/persist` con `createJSONStorage(() => AsyncStorage)`, key `"mywallet-settings"`.
+
+#### Helpers exportados (funciones puras)
+```typescript
+getEffectiveBudget(monthlyBudget: number, budgetPeriod: "monthly" | "biweekly"): number
+// Retorna monthlyBudget / 2 si biweekly, o monthlyBudget si monthly
+
+getEffectiveCategoryBudgets(
+  budgetByCategory: Record<string, number>,
+  budgetPeriod: "monthly" | "biweekly"
+): Record<string, number>
+// Retorna cada presupuesto de categoría dividido entre 2 si biweekly
+```
+
+**Persistencia:** `zustand/middleware/persist` con `createJSONStorage(() => AsyncStorage)`, key `"mywallet-settings"`. Los campos `hasCompletedOnboarding` y `onboardingStep` también se persisten.
 
 ### useUIStore (no persistido)
 ```typescript
@@ -332,28 +349,6 @@ CREATE TABLE IF NOT EXISTS transactions (
 - `amount > 0` → **Gasto**
 - `amount < 0` → **Ingreso**
 - Balance neto = `SUM(amount)` donde negativo es positivo para el usuario
-
-#### Tabla `chat_sessions`
-```sql
-CREATE TABLE IF NOT EXISTS chat_sessions (
-  id         TEXT PRIMARY KEY,
-  title      TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-```
-
-#### Tabla `chat_messages`
-```sql
-CREATE TABLE IF NOT EXISTS chat_messages (
-  id         TEXT PRIMARY KEY,
-  session_id TEXT NOT NULL,
-  role       TEXT NOT NULL,       -- "user" | "assistant"
-  text       TEXT NOT NULL,
-  card_json  TEXT,                -- JSON para tarjetas especiales (WeeklySummary)
-  created_at TEXT NOT NULL
-);
-```
 
 ### Operaciones disponibles (db.ts)
 | Función | Descripción |
@@ -534,7 +529,7 @@ Si se agrega/modifica una categoría, actualizar en **todos** los archivos anter
 
 ### FloatingDock
 - Dock inferior que reemplaza la tab bar nativa
-- Contiene: botón +, FAB micrófono (azul, prominente), lupa, chat
+- Contiene: botón +, lupa, FAB micrófono (azul, prominente)
 - El botón + abre un menú popup con opciones Gasto/Ingreso
 - Fondo semi-transparente oscuro al abrir menú
 
@@ -561,11 +556,33 @@ Si se agrega/modifica una categoría, actualizar en **todos** los archivos anter
 - Animación: `animationType="slide"` nativo del Modal (sin Reanimated en el sheet para evitar conflictos de touch)
 - Dark mode: pill año activo usa `t.accent` en oscuro, `#0F172A` en claro
 
+### ConfirmDialog
+- Componente reutilizable que reemplaza `Alert.alert` nativo con un diálogo minimalista y animado
+- **3 variantes:** `danger` (icono papelera rojo), `warning` (triángulo ámbar), `info` (icono azul informativo)
+- Animación: spring scale + fade-in al abrir
+- Diseño: card centrado con `borderRadius: 24`, icono circular en la parte superior, título, mensaje, dos botones (cancelar/confirmar)
+- Tap en backdrop cierra el diálogo
+- Soporte completo dark/light mode vía `useTheme()`
+- Props: `visible`, `variant`, `title`, `message`, `confirmLabel`, `cancelLabel`, `onConfirm`, `onCancel`
+- Usado en: `settings.tsx` (limpiar datos, eliminar método de pago, error de exportación, mínimo un método)
+
+### GuidedTour
+- Overlay reutilizable de onboarding paso a paso con efecto spotlight
+- Props: `steps: TourStep[]`, `currentStep: number`, `globalStep: number`, `totalSteps: number`, `visible: boolean`, `onSkip: () => void`
+- Cada `TourStep`: `targetRef` (React ref), `title`, `message` (texto), `buttonLabel`, `onAction` (callback)
+- Usa `Modal` con `statusBarTranslucent` para estar siempre encima de FloatingDock y todo el contenido
+- `measureInWindow` para posicionar el spotlight; en Android se compensa con `StatusBar.currentHeight` porque `measureInWindow` reporta coordenadas relativas a la ventana (debajo del status bar) pero el Modal empieza desde el tope absoluto de la pantalla. Este offset se adapta automáticamente a cada dispositivo Android
+- Overlay oscuro con 4 rectángulos alrededor del cutout + ring circular del spotlight
+- Tooltip estilo Stitch: título, descripción, botones "Omitir" + CTA, dots de progreso
+- Animación: fade-in del overlay + spring scale del tooltip
+- Utilidad complementaria: `src/utils/tourRefs.ts` — registro global de refs (`getTourRef(key)`, constantes `TOUR_KEYS`)
+
 ### BudgetBar
 - Barra de progreso animada (Reanimated)
 - Muestra `X% de $presupuesto`
 - Se vuelve roja al superar 90%
 - Solo visible si `monthlyBudget > 0`
+- Usa `effectiveBudget` (presupuesto mensual / 2 si quincenal) vía `getEffectiveBudget()`
 
 ### ActionPills
 - Pills "↓ Gastos" / "↑ Ingresos" para filtrar la vista
@@ -581,9 +598,9 @@ Si se agrega/modifica una categoría, actualizar en **todos** los archivos anter
 ### Dashboard (`app/(tabs)/index.tsx`)
 - Balance neto (tipografía 38px, weight 800)
 - Pills inline (Gastos/Ingresos) con toggle por tipo
-- Barra de presupuesto inline (condicional: `monthlyBudget > 0`, sin filtro de tipo, solo período actual)
+- Barra de presupuesto inline (condicional: `monthlyBudget > 0`, sin filtro de tipo, solo período actual). Usa `effectiveBudget` vía `getEffectiveBudget()` (auto-dividido si quincenal)
 - FilterChips — un solo chip de período con `periodLabel` y `onOpenMonthPicker`
-- CategoryChart (gráfica de barras) — recibe `isIncomeMode` y `allEmojis` contextual
+- CategoryChart (gráfica de barras) — recibe `isIncomeMode` y `allEmojis` contextual. Los presupuestos de categoría se pasan mediante `getEffectiveCategoryBudgets()` (también divididos si quincenal)
 - **`FlatList`** reemplaza `ScrollView + map` — chart y cabecera van en `ListHeaderComponent`, estado vacío en `ListEmptyComponent`; `renderItem` en `useCallback`
 - **`PeriodFilter` tipo unificado:** discriminante con 4 variantes (`quick`, `month`, `year`, `all`) — reemplaza los estados separados `period` + `pickerYear` + `pickerMonth`
 - **`applyPeriodFilter()`:** función pura fuera del componente que maneja los 4 casos de filtrado por fecha
@@ -591,7 +608,9 @@ Si se agrega/modifica una categoría, actualizar en **todos** los archivos anter
 - `filteredTransactions` respeta `PeriodFilter` (período rápido, mes específico, año, o todo)
 - `categoryStats` e `incomeStats` usan `filteredTransactions` (dinámicos al período seleccionado)
 - Presupuesto solo visible si `isCurrentPeriod === true`
+- **Estado "período vacío":** cuando `filteredTransactions.length === 0` y es el período actual, muestra barras fantasma (opacity 0.18) con mensaje centrado: "Nuevo mes, ¡comienza ahora!" o "Nueva quincena, ¡comienza ahora!". Si es un período pasado sin datos: "Sin registros en este período"
 - Barra de búsqueda: `keyboardExtraAnim` sube la barra sobre el teclado al abrirse
+- **Guided Tour:** integración con `GuidedTour` (5 pasos, solo primera vez). Refs de targets registrados en `tourRefs.ts`. El flujo alterna entre Dashboard y Settings. Persistido con `hasCompletedOnboarding` + `onboardingStep`
 - **Eliminado:** chip de categoría, estilos de metas de ahorro, ScrollView+map
 
 ### Active Expense (`app/active-expense.tsx`)
@@ -611,18 +630,16 @@ Si se agrega/modifica una categoría, actualizar en **todos** los archivos anter
 - Delay de 1000ms antes de navegar
 
 ### Settings (`app/settings.tsx`)
-- Control financiero: presupuesto mensual, período (mensual/quincenal)
+- **Control financiero (orden de opciones):**
+  1. **Período de pago** — Mensual / Quincenal (se muestra primero)
+  2. **Ingreso mensual** — etiqueta dinámica: "Ingreso quincenal" cuando biweekly está seleccionado. Subtítulo muestra el monto efectivo del período + referencia "Mensual: $X" cuando es quincenal. El modal siempre pide el monto mensual con nota "Se divide automáticamente para cada quincena"
 - Métodos de pago → modal full-screen
 - Presupuesto por categoría → modal full-screen
 - **Metas de ahorro:** `NuevaMetaModal` (crear), `AbonarMetaModal` (abonar), `SavingsGoalsSection` con `SwipeableGoalItem` (swipe-to-delete izquierda revela botón papelera rojo)
 - Apariencia → selector dark mode
 - Sistema: exportar CSV, limpiar datos
-
-### Chat (`app/(tabs)/chat.tsx`)
-- Asistente financiero local con NLP
-- Preguntas en español sobre gastos (hoy, mes, semana, etc.)
-- Tarjeta visual semanal con gráfico SVG
-- Historial de sesiones en panel lateral
+- **Confirmaciones:** Todas las alertas usan `ConfirmDialog` (componente custom con animación y variantes) en lugar de `Alert.alert` nativo — limpiar datos (`danger`), eliminar método de pago (`danger`), mínimo un método (`info`), error al exportar (`warning`)
+- **Guided Tour:** paso 2 hace spotlight en la fila "Ingreso mensual"; paso 3 hace spotlight en el botón ← (volver) tras guardar el ingreso
 
 ---
 
@@ -666,6 +683,8 @@ formatMoneyInput(text: string): string
 | Swipe-to-delete metas | SwipeableGoalItem (settings) | `PanResponder` + `Animated` de RN |
 | Badge nombre categoría | CategoryChart | `Animated.Value` fade + translateY, auto-descarta 1.6s |
 | Colapso de gráfica al scroll | Dashboard (index.tsx) | `Animated.event` → `scrollY` interpola `maxHeight` + `opacity` del chart wrapper |
+| Diálogo de confirmación | ConfirmDialog | Spring scale (0.85→1) + fade-in opacity, 3 variantes (danger/warning/info) |
+| Spotlight de onboarding | GuidedTour | Fade-in overlay oscuro con cutout circular + spring scale del tooltip. Transición animada entre pasos |
 
 ### Reglas para animaciones
 - Usar `Reanimated` para animaciones de layout y gestos complejos
@@ -681,7 +700,7 @@ formatMoneyInput(text: string): string
 | Tipo | Convención | Ejemplo |
 |------|-----------|---------|
 | Componentes | PascalCase | `CategoryChart.tsx` |
-| Hooks | camelCase con `use` | `useLocalNLP.ts` |
+| Hooks | camelCase con `use` | `useVoiceExpense.ts` |
 | Stores | camelCase con `use` | `useFinanceStore.ts` |
 | Utils | camelCase | `formatMoney.ts` |
 | Constantes | UPPER_SNAKE_CASE | `CATEGORY_MAP`, `DOCK_HEIGHT` |
@@ -735,6 +754,7 @@ formatMoneyInput(text: string): string
 3. **`useCallback`** para `renderItem` y `keyExtractor` del FlatList
 4. **Animaciones en UI thread** — Reanimated worklets para 60fps
 5. **Funciones puras fuera del componente** — `applyPeriodFilter`, `formatBalance`, `normalize` no se recrean en cada render
+6. **Derivación de presupuesto efectivo** — Los helpers `getEffectiveBudget()` y `getEffectiveCategoryBudgets()` se exportan desde `useSettingsStore` como funciones puras. El Dashboard los invoca con los valores del store para obtener montos ajustados al período (mensual o quincenal). No se almacena un campo derivado; se calcula en cada render
 
 ---
 
@@ -777,6 +797,9 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 | `wallet.tsx` | Pantalla placeholder sin funcionalidad |
 | `useVoiceExpense.ts` | Depende de `openExpenseInput` que no existe en `useUIStore` |
 | `FloatingInput.tsx` | `isExpenseInputOpen` no existe en el store → componente nunca activo |
+| `chat.tsx` | Pantalla de asistente financiero; ya no se navega a ella desde el FloatingDock |
+| `chatDb.ts` | Base de datos de sesiones/mensajes del chat; sin uso activo |
+| `useLocalNLP.ts` | NLP local para consultas del chat; sin uso activo |
 
 ### Limitaciones funcionales (por diseño)
 - **Edición de transacciones:** No existe. Solo se puede eliminar y recrear. Decisión de diseño intencional — simplifica la UX.
@@ -789,7 +812,7 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 
 ### Configuración de teclado (Android)
 - `app.json` usa `softwareKeyboardLayoutMode: "resize"` para evitar que el teclado cubra contenido
-- Pantallas principales (`active-expense`, `chat`): `KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}` — Android lo maneja nativamente con `resize`
+- Pantallas principales (`active-expense`): `KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}` — Android lo maneja nativamente con `resize`
 - Modales (`settings`, `CategoryChart`): `KeyboardAvoidingView behavior="padding"` explícito — necesario porque `resize` no aplica dentro de modales
 
 ---

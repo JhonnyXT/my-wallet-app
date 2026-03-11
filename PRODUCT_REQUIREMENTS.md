@@ -25,12 +25,13 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 |---------|-------------|--------|
 | Balance Neto | Tipografía grande: `Ingresos - Gastos` del período | ✅ Implementado |
 | Pills Gastos/Ingresos | Filtran toda la vista por tipo (rojo suave / verde suave) | ✅ Implementado |
-| Barra de Presupuesto | Progreso del gasto vs presupuesto mensual configurado | ✅ Implementado |
+| Barra de Presupuesto | Progreso del gasto vs presupuesto efectivo del período (mensual o quincenal auto-dividido vía `getEffectiveBudget`) | ✅ Implementado |
+| Estado "período vacío" | Si no hay transacciones en el período actual: barras fantasma (opacity 0.18) + "Nuevo mes/quincena, ¡comienza ahora!". Período pasado sin datos: "Sin registros en este período" | ✅ Implementado |
 | Filtro de período | Un solo chip: período rápido (Hoy/Semana/Mes/Año/Todo) + "Elegir mes específico" | ✅ Implementado |
 | Selector de mes/año | Modal con grid de meses, montos por mes, pills de año | ✅ Implementado |
 | Gráfica de Categorías | Barras verticales con scroll horizontal, ghost tracks, alertas por color | ✅ Implementado |
 | Lista de Transacciones | `FlatList` con items tipo tarjeta (fondo blanco + sombra en modo claro) y swipe-to-delete | ✅ Implementado |
-| Dock Flotante | FAB micrófono, botón +, lupa, chat — reemplaza tab bar | ✅ Implementado |
+| Dock Flotante | FAB micrófono, botón +, lupa — reemplaza tab bar | ✅ Implementado |
 | Colapso de gráfica | La gráfica se colapsa progresivamente al hacer scroll (animación opacity + height) | ✅ Implementado |
 
 ### 2.2 Nuevo Gasto / Nuevo Ingreso (Modal)
@@ -60,25 +61,29 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
-| Presupuesto mensual | Monto límite mensual para gastos | ✅ Implementado |
-| Período de pago | Mensual o Quincenal (afecta cálculo de barra de presupuesto en Dashboard) | ✅ Implementado |
+| Período de pago | Mensual o Quincenal — **primera opción** en "Control Financiero" (afecta cálculos de presupuesto en Dashboard) | ✅ Implementado |
+| Ingreso mensual | Etiqueta dinámica: "Ingreso quincenal" si biweekly. Subtítulo muestra monto efectivo + referencia "Mensual: $X". Modal siempre pide monto mensual con nota "Se divide automáticamente para cada quincena" | ✅ Implementado |
 | Métodos de pago | Agregar/editar/eliminar (modal full-screen) | ✅ Implementado |
 | Presupuesto por categoría | Límite por cada una de las 8 categorías de gasto (modal full-screen) | ✅ Implementado |
 | Metas de ahorro | Crear/abonar/eliminar metas; eliminar deslizando a la izquierda (swipe-to-delete) | ✅ Implementado |
 | Apariencia | Sistema / Claro / Oscuro (dark mode completo) | ✅ Implementado |
 | Exportar datos | CSV compartible por email, Drive, etc. | ✅ Implementado |
-| Limpiar datos | Elimina todas las transacciones (con confirmación) | ✅ Implementado |
+| Limpiar datos | Elimina todas las transacciones (con confirmación vía diálogo custom animado) | ✅ Implementado |
 
-### 2.5 Asistente Financiero (Chat)
+### 2.8 Guided Tour / Onboarding (primera vez)
 
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
-| NLP local | Preguntas en español: "¿cuánto gasté hoy/este mes?" | ✅ Implementado |
-| Tarjeta semanal | Gráfico SVG de 7 días + comparación semana anterior | ✅ Implementado |
-| Historial de sesiones | Panel lateral, renombrar, eliminar | ✅ Implementado |
-| 100% offline | Sin APIs externas, todo local | ✅ Implementado |
+| Componente | `GuidedTour.tsx` — overlay reutilizable con spotlight paso a paso, cutout circular y tooltip animado | ✅ Implementado |
+| Registro de refs | `tourRefs.ts` — registro global de refs (`getTourRef`, `TOUR_KEYS`) para localizar targets entre pantallas | ✅ Implementado |
+| Paso 1 (Dashboard) | Spotlight en ⚙️ botón de ajustes → "¡Bienvenido! Configura tu ingreso mensual" | ✅ Implementado |
+| Paso 2 (Settings) | Spotlight en fila "Ingreso mensual" → "Ingresa cuánto ganas al mes" | ✅ Implementado |
+| Paso 3 (Settings) | Tras guardar, spotlight en ← botón volver → "¡Listo! Vuelve al inicio" | ✅ Implementado |
+| Paso 4 (Dashboard) | Spotlight en FAB micrófono → "Registra gastos con tu voz" | ✅ Implementado |
+| Paso 5 (Dashboard) | Spotlight en botón + → "También puedes registrar manualmente" | ✅ Implementado |
+| Persistencia | `hasCompletedOnboarding` + `onboardingStep` en AsyncStorage. Se puede saltar en cualquier paso con "Omitir" | ✅ Implementado |
 
-### 2.7 Selector de Mes/Año (`MonthPickerModal`)
+### 2.5 Selector de Mes/Año (`MonthPickerModal`)
 
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
@@ -145,14 +150,12 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 > **Nota:** La edición de transacciones fue descartada por diseño. La práctica en apps de finanzas personales es eliminar y crear nueva. Simplifica la UX.
 
-### Épica 4: Asistente y Datos
+### Épica 4: Datos y Configuración
 
 | ID | Historia | Estado |
 |----|---------|--------|
-| HU 4.1 | Como usuario, quiero preguntarle al chat "¿cuánto gasté este mes?" y obtener la respuesta | ✅ |
-| HU 4.2 | Como usuario, quiero ver un resumen visual de mi semana con gráfico y comparación | ✅ |
-| HU 4.3 | Como usuario, quiero exportar mis datos como CSV para tener un respaldo | ✅ |
-| HU 4.4 | Como usuario, quiero que toda la app funcione sin internet | ✅ |
+| HU 4.1 | Como usuario, quiero exportar mis datos como CSV para tener un respaldo | ✅ |
+| HU 4.2 | Como usuario, quiero que toda la app funcione sin internet | ✅ |
 
 ### Épica 5: Personalización
 
@@ -171,6 +174,9 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 6.3 | Como usuario, quiero ver un desglose de mis ingresos por categoría en la gráfica | ✅ |
 | HU 6.4 | Como usuario, quiero que al tocar una columna de la gráfica se muestre el nombre de la categoría | ✅ |
 | HU 6.5 | Como usuario, quiero que al registrar un ingreso el selector de categoría muestre solo categorías de ingreso | ✅ |
+| HU 6.6 | Como usuario nuevo, quiero un tour guiado que me muestre los pasos esenciales (configurar ingreso, registrar gasto por voz y manualmente) la primera vez que abro la app | ✅ |
+| HU 6.7 | Como usuario, quiero ver un mensaje motivacional ("Nuevo mes/quincena, ¡comienza ahora!") cuando no hay transacciones en el período actual | ✅ |
+| HU 6.8 | Como usuario, quiero que la etiqueta de presupuesto diga "Ingreso quincenal" y muestre el monto dividido cuando mi período es quincenal | ✅ |
 
 ---
 
@@ -258,6 +264,7 @@ Se muestran en el selector de categoría al registrar un ingreso y en la gráfic
 | Categorías | Emojis nativos del sistema en círculos suaves |
 | Espacio negativo | Padding lateral 24px, gaps generosos entre secciones |
 | Modales | Slide desde abajo, fondo semi-transparente oscuro |
+| Diálogos de confirmación | `ConfirmDialog` custom con icono + variante + animación spring (reemplaza `Alert.alert` nativo) |
 
 ### Micro-interacciones
 | Interacción | Efecto |
@@ -269,6 +276,8 @@ Se muestran en el selector de categoría al registrar un ingreso y en la gráfic
 | Swipe-to-delete | `PanResponder` + `Animated` revela botón papelera |
 | Long-press gráfica | Popup con 3 opciones tras ~400ms |
 | Colapso de gráfica | Al hacer scroll, la gráfica colapsa suavemente (opacity + maxHeight) |
+| Diálogo de confirmación | Spring scale + fade-in con variante visual (danger/warning/info) |
+| Spotlight onboarding | GuidedTour: fade-in overlay oscuro con cutout circular + spring scale tooltip entre pasos |
 
 ---
 

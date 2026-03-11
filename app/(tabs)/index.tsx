@@ -5,6 +5,7 @@ import {
   Animated,
   TextInput,
   FlatList,
+  ScrollView,
   StyleSheet,
   Pressable,
   StatusBar,
@@ -13,11 +14,11 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Settings, Search, X } from "lucide-react-native";
+import { Settings, Search, X, Hash } from "lucide-react-native";
 import { router } from "expo-router";
 import { scrollBottomPadding, DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
-import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { useSettingsStore, getEffectiveBudget, getEffectiveCategoryBudgets } from "@/src/store/useSettingsStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useUIStore } from "@/src/store/useUIStore";
 import { FilterChips, PERIODS } from "@/src/components/ui/FilterChips";
@@ -27,6 +28,8 @@ import { ALL_CATEGORY_EMOJIS, ALL_INCOME_EMOJIS, EMOJI_TO_CATEGORY_NAME } from "
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
 import { MonthPickerModal } from "@/src/components/ui/MonthPickerModal";
+import { GuidedTour, type TourStep } from "@/src/components/ui/GuidedTour";
+import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
 
 // ─── Tipos y constantes ───────────────────────────────────────────────────────
 
@@ -125,8 +128,12 @@ export default function DashboardScreen() {
   const searchOpen     = useUIStore((s) => s.searchOpen);
   const searchQuery    = useUIStore((s) => s.searchQuery);
   const setSearchQuery = useUIStore((s) => s.setSearchQuery);
+  const activeTags     = useUIStore((s) => s.activeTags);
+  const addTag         = useUIStore((s) => s.addTag);
+  const removeTag      = useUIStore((s) => s.removeTag);
   const closeSearch    = useUIStore((s) => s.closeSearch);
   const searchInputRef = useRef<TextInput>(null);
+  const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
 
   const searchBarAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -154,6 +161,49 @@ export default function DashboardScreen() {
     });
     return () => { onShow.remove(); onHide.remove(); };
   }, [baseSearchBottom]);
+
+  // ── Tags únicos disponibles ─────────────────────────────────────────────
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    for (const tx of transactions) {
+      for (const t of extractTagsFromTx(tx)) {
+        tagSet.add(t.replace(/^#/, ""));
+      }
+    }
+    return [...tagSet].sort();
+  }, [transactions]);
+
+  const isTypingTag = searchQuery.startsWith("#");
+  const tagFragment = isTypingTag ? searchQuery.slice(1).toLowerCase() : "";
+
+  const tagSuggestions = useMemo(() => {
+    if (!isTypingTag) return [];
+    return allTags
+      .filter((t) => t.includes(tagFragment) && !activeTags.includes(t))
+      .slice(0, 5);
+  }, [isTypingTag, tagFragment, allTags, activeTags]);
+
+  useEffect(() => {
+    setTagDropdownOpen(tagSuggestions.length > 0);
+  }, [tagSuggestions.length]);
+
+  function handleSelectTag(tag: string) {
+    addTag(tag);
+    setTagDropdownOpen(false);
+    searchInputRef.current?.focus();
+  }
+
+  function handleSearchTextChange(text: string) {
+    setSearchQuery(text);
+  }
+
+  function handleSearchSubmit() {
+    if (isTypingTag && tagFragment) {
+      const exact = allTags.find((t) => t === tagFragment);
+      if (exact) addTag(exact);
+      else if (tagSuggestions.length === 1) addTag(tagSuggestions[0]);
+    }
+  }
 
   // ── Estado de período unificado ───────────────────────────────────────────
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>(DEFAULT_PERIOD);
@@ -184,22 +234,34 @@ export default function DashboardScreen() {
   }, [filteredTransactions, typeFilter]);
 
   const activeQuery = searchQuery.trim();
-  const searchedTransactions = useMemo(() => {
-    if (!activeQuery) return typeFilteredTransactions;
-    const q = normalize(activeQuery);
-    if (q.startsWith("#")) {
-      const tag = q.slice(1);
-      return typeFilteredTransactions.filter(tx => extractTagsFromTx(tx).some(t => t.includes(tag)));
-    }
-    return typeFilteredTransactions.filter(tx => {
-      const desc    = normalize(tx.description ?? "");
-      const catName = normalize(EMOJI_TO_CATEGORY_NAME[tx.category_emoji] ?? "");
-      return desc.includes(q) || catName.includes(q);
-    });
-  }, [typeFilteredTransactions, activeQuery]);
+  const hasActiveSearch = !!activeQuery || activeTags.length > 0;
 
-  const displayedTransactions = (searchOpen && activeQuery) ? searchedTransactions : typeFilteredTransactions;
-  const isSearching = searchOpen && !!activeQuery;
+  const searchedTransactions = useMemo(() => {
+    let results = typeFilteredTransactions;
+
+    // Filtrar por tags activos (AND lógico)
+    if (activeTags.length > 0) {
+      results = results.filter((tx) => {
+        const txTags = extractTagsFromTx(tx).map((t) => t.replace(/^#/, ""));
+        return activeTags.every((at) => txTags.some((tt) => tt.includes(at)));
+      });
+    }
+
+    // Filtrar por texto libre (ignorar si empieza con # — eso es para buscar tag)
+    if (activeQuery && !isTypingTag) {
+      const q = normalize(activeQuery);
+      results = results.filter((tx) => {
+        const desc    = normalize(tx.description ?? "");
+        const catName = normalize(EMOJI_TO_CATEGORY_NAME[tx.category_emoji] ?? "");
+        return desc.includes(q) || catName.includes(q);
+      });
+    }
+
+    return results;
+  }, [typeFilteredTransactions, activeQuery, activeTags, isTypingTag]);
+
+  const displayedTransactions = (searchOpen && hasActiveSearch) ? searchedTransactions : typeFilteredTransactions;
+  const isSearching = searchOpen && hasActiveSearch;
 
   // ── Totales ───────────────────────────────────────────────────────────────
   const { expenseTotal, incomeTotal } = useMemo(() => {
@@ -220,15 +282,17 @@ export default function DashboardScreen() {
     return periodFilter.year === now.getFullYear() && periodFilter.month === now.getMonth() + 1;
   }, [periodFilter]);
 
+  const effectiveBudget = useMemo(() => getEffectiveBudget(monthlyBudget, budgetPeriod), [monthlyBudget, budgetPeriod]);
+
   const budgetPct = useMemo(() => {
-    if (monthlyBudget <= 0 || !isCurrentPeriod) return 0;
+    if (effectiveBudget <= 0 || !isCurrentPeriod) return 0;
     const now = new Date();
     const start = budgetPeriod === "biweekly"
       ? (now.getDate() <= 15 ? new Date(now.getFullYear(), now.getMonth(), 1) : new Date(now.getFullYear(), now.getMonth(), 16))
       : new Date(now.getFullYear(), now.getMonth(), 1);
     const exp = transactions.filter(t => new Date(t.date) >= start && t.amount > 0).reduce((s, t) => s + t.amount, 0);
-    return Math.min(Math.round((exp / monthlyBudget) * 100), 100);
-  }, [transactions, monthlyBudget, budgetPeriod, isCurrentPeriod]);
+    return Math.min(Math.round((exp / effectiveBudget) * 100), 100);
+  }, [transactions, effectiveBudget, budgetPeriod, isCurrentPeriod]);
 
   // ── Stats para la gráfica ─────────────────────────────────────────────────
   const categoryStats = useMemo(() => {
@@ -256,7 +320,8 @@ export default function DashboardScreen() {
 
   const activeStats         = typeFilter === "income" ? incomeStats   : categoryStats;
   const activeTotalForChart = typeFilter === "income" ? totalIncome   : totalExpenses;
-  const activeBudget        = typeFilter === "income" ? {}            : budgetByCategory;
+  const effectiveCatBudgets = useMemo(() => getEffectiveCategoryBudgets(budgetByCategory, budgetPeriod), [budgetByCategory, budgetPeriod]);
+  const activeBudget        = typeFilter === "income" ? {}            : effectiveCatBudgets;
 
   const allEmojis = useMemo(() => {
     if (typeFilter === "income") return ALL_INCOME_EMOJIS;
@@ -302,6 +367,45 @@ export default function DashboardScreen() {
     </View>
   ), [deleteTransaction, styles.txItem]);
 
+  // ── Onboarding tour ──────────────────────────────────────────────────────
+  const hasCompletedOnboarding = useSettingsStore((s) => s.hasCompletedOnboarding);
+  const onboardingStep         = useSettingsStore((s) => s.onboardingStep);
+  const setOnboardingStep      = useSettingsStore((s) => s.setOnboardingStep);
+  const completeOnboarding     = useSettingsStore((s) => s.completeOnboarding);
+
+  const dashboardTourSteps: TourStep[] = useMemo(() => [
+    {
+      targetRef: getTourRef(TOUR_KEYS.SETTINGS_BTN),
+      title: "¡Bienvenido a MyWallet!",
+      message: "Primero, configura tu ingreso mensual para tener control de tus finanzas.",
+      buttonLabel: "Ir a Ajustes",
+      onAction: () => {
+        setOnboardingStep(1);
+        router.push("/settings");
+      },
+    },
+    {
+      targetRef: getTourRef(TOUR_KEYS.MIC_FAB),
+      title: "Registro por voz",
+      message: "Registra gastos e ingresos con tu voz. Solo di algo como: \"Almuerzo treinta mil\".",
+      buttonLabel: "Entendido",
+      onAction: () => setOnboardingStep(4),
+    },
+    {
+      targetRef: getTourRef(TOUR_KEYS.PLUS_BTN),
+      title: "Registro manual",
+      message: "También puedes registrar tus movimientos manualmente con este botón.",
+      buttonLabel: "¡Empezar!",
+      onAction: () => completeOnboarding(),
+    },
+  ], []);
+
+  const dashboardTourVisible = !hasCompletedOnboarding && (onboardingStep === 0 || onboardingStep === 3 || onboardingStep === 4);
+  const dashboardTourIndex = onboardingStep === 0 ? 0 : onboardingStep === 3 ? 1 : 2;
+
+  const isNewPeriod = filteredTransactions.length === 0 && isCurrentPeriod && !isSearching;
+  const newPeriodMessage = budgetPeriod === "biweekly" ? "Nueva quincena, ¡comienza ahora!" : "Nuevo mes, ¡comienza ahora!";
+
   const listHeader = (
     <>
       {/* Gráfica — oculta durante búsqueda */}
@@ -314,15 +418,23 @@ export default function DashboardScreen() {
             const h = e.nativeEvent.layout.height;
             if (h > 0 && h !== chartHeight) setChartHeight(h);
           }}>
-            <CategoryChart
-              stats={activeStats}
-              allEmojis={allEmojis}
-              totalExpenses={activeTotalForChart}
-              budgetByCategory={activeBudget}
-              onNewTransaction={handleNewTransactionFromChart}
-              alertColors={typeFilter !== "income"}
-              isIncomeMode={typeFilter === "income"}
-            />
+            {isNewPeriod && (
+              <View style={styles.newPeriodOverlay}>
+                <Text style={styles.newPeriodText}>{newPeriodMessage}</Text>
+                <Text style={styles.newPeriodSub}>Registra tu primer movimiento con + o el micrófono</Text>
+              </View>
+            )}
+            <View style={isNewPeriod ? { opacity: 0.18 } : undefined}>
+              <CategoryChart
+                stats={activeStats}
+                allEmojis={allEmojis}
+                totalExpenses={activeTotalForChart}
+                budgetByCategory={activeBudget}
+                onNewTransaction={handleNewTransactionFromChart}
+                alertColors={typeFilter !== "income"}
+                isIncomeMode={typeFilter === "income"}
+              />
+            </View>
           </View>
         </Animated.View>
       )}
@@ -346,14 +458,26 @@ export default function DashboardScreen() {
 
   const listEmpty = (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyEmoji}>{isSearching ? "🔍" : "💸"}</Text>
+      <Text style={styles.emptyEmoji}>{isSearching ? "🔍" : isNewPeriod ? "" : "💸"}</Text>
       <Text style={styles.emptyTitle}>
-        {isSearching ? "Sin resultados" : "Sin movimientos aún"}
+        {isSearching
+          ? "Sin resultados"
+          : isNewPeriod
+            ? ""
+            : !isCurrentPeriod
+              ? "Sin registros en este período"
+              : "Sin movimientos aún"}
       </Text>
       <Text style={styles.emptySubtitle}>
         {isSearching
-          ? `No se encontró nada para "${searchQuery}"`
-          : "Toca + o el micrófono para registrar tu primer gasto o ingreso."}
+          ? activeTags.length > 0
+            ? `No hay transacciones con ${activeTags.map(t => "#" + t).join(", ")}${activeQuery ? ` y "${activeQuery}"` : ""}`
+            : `No se encontró nada para "${searchQuery}"`
+          : isNewPeriod
+            ? ""
+            : !isCurrentPeriod
+              ? "Usa el filtro de período para navegar a otro mes"
+              : "Toca + o el micrófono para registrar tu primer gasto o ingreso."}
       </Text>
     </View>
   );
@@ -412,12 +536,12 @@ export default function DashboardScreen() {
             </View>
 
             {/* Barra de presupuesto — solo período actual, sin filtro de tipo */}
-            {monthlyBudget > 0 && !isSearching && typeFilter === null && isCurrentPeriod && (
+            {effectiveBudget > 0 && !isSearching && typeFilter === null && isCurrentPeriod && (
               <View style={styles.budgetBar}>
                 <View style={styles.budgetTrack}>
                   <View style={[styles.budgetFill, { width: `${budgetPct}%` as `${number}%` }]} />
                 </View>
-                <Text style={styles.budgetBarPct}>{budgetPct}% de {formatBalance(monthlyBudget)}</Text>
+                <Text style={styles.budgetBarPct}>{budgetPct}% de {formatBalance(effectiveBudget)}</Text>
               </View>
             )}
           </View>
@@ -431,9 +555,11 @@ export default function DashboardScreen() {
           />
         </View>
 
-        <Pressable style={styles.settingsBtn} onPress={() => router.push("/settings")}>
-          <Settings size={22} color={theme.text} strokeWidth={1.6} />
-        </Pressable>
+        <View ref={getTourRef(TOUR_KEYS.SETTINGS_BTN)} collapsable={false}>
+          <Pressable style={styles.settingsBtn} onPress={() => router.push("/settings")}>
+            <Settings size={22} color={theme.text} strokeWidth={1.6} />
+          </Pressable>
+        </View>
       </View>
 
       {/* ══════════════════════════════════════════════════════════════
@@ -464,7 +590,7 @@ export default function DashboardScreen() {
           ══════════════════════════════════════════════════════════════ */}
       <Animated.View
         style={[
-          styles.searchBarOverlay,
+          styles.searchWrapper,
           {
             bottom: Animated.add(baseSearchBottom, keyboardExtraAnim),
             opacity: searchBarOpacity,
@@ -473,21 +599,58 @@ export default function DashboardScreen() {
         ]}
         pointerEvents={searchOpen ? "auto" : "none"}
       >
-        <Search size={16} color="#9CA3AF" strokeWidth={2} style={{ marginLeft: 4 }} />
-        <TextInput
-          ref={searchInputRef}
-          style={styles.searchInput}
-          placeholder="Nombre, categoría o #tag..."
-          placeholderTextColor="#C4C4C6"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          returnKeyType="search"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <TouchableOpacity style={styles.searchCancelBtn} onPress={closeSearch}>
-          <X size={14} color="#555" strokeWidth={2.5} />
-        </TouchableOpacity>
+        {/* Dropdown de sugerencias — encima de la barra */}
+        {tagDropdownOpen && (
+          <Animated.View style={styles.tagDropdown}>
+            {tagSuggestions.map((tag) => (
+              <TouchableOpacity
+                key={tag}
+                activeOpacity={0.6}
+                onPress={() => handleSelectTag(tag)}
+                style={styles.tagSuggestionRow}
+              >
+                <Hash size={13} color={theme.textSub} strokeWidth={2.2} />
+                <Text style={styles.tagSuggestionText}>{tag}</Text>
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
+        )}
+
+        {/* Barra principal */}
+        <View style={styles.searchBarOverlay}>
+          <Search size={16} color="#9CA3AF" strokeWidth={2} style={{ marginLeft: 2 }} />
+
+          {/* Chips de tags activos */}
+          {activeTags.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={styles.chipsContent}>
+              {activeTags.map((tag) => (
+                <View key={tag} style={styles.tagChip}>
+                  <Text style={styles.tagChipText}>#{tag}</Text>
+                  <TouchableOpacity onPress={() => removeTag(tag)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}>
+                    <X size={12} color={theme.textSub} strokeWidth={2.5} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+
+          <TextInput
+            ref={searchInputRef}
+            style={[styles.searchInput, activeTags.length > 0 && { flex: 1, minWidth: 60 }]}
+            placeholder={activeTags.length > 0 ? "Buscar..." : "Nombre, categoría o #tag..."}
+            placeholderTextColor="#C4C4C6"
+            value={searchQuery}
+            onChangeText={handleSearchTextChange}
+            onSubmitEditing={handleSearchSubmit}
+            returnKeyType="search"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+
+          <TouchableOpacity style={styles.searchCancelBtn} onPress={closeSearch}>
+            <X size={14} color="#555" strokeWidth={2.5} />
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
       {/* Selector de mes/año */}
@@ -502,6 +665,17 @@ export default function DashboardScreen() {
           setMonthPickerOpen(false);
         }}
         onClose={() => setMonthPickerOpen(false)}
+      />
+
+
+      {/* Guided Tour — usa Modal interno, siempre encima de todo */}
+      <GuidedTour
+        steps={dashboardTourSteps}
+        currentStep={dashboardTourIndex}
+        globalStep={onboardingStep}
+        totalSteps={5}
+        visible={dashboardTourVisible}
+        onSkip={completeOnboarding}
       />
 
     </SafeAreaView>
@@ -628,6 +802,26 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
   chartWrapper: {
     marginBottom: 8,
   },
+  newPeriodOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+  },
+  newPeriodText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: t.textSub,
+    textAlign: "center" as const,
+  },
+  newPeriodSub: {
+    fontSize: 13,
+    fontWeight: "400" as const,
+    color: t.textTertiary ?? t.textSub,
+    textAlign: "center" as const,
+    marginTop: 6,
+  },
   txItem: {
     paddingHorizontal: 28,
   },
@@ -666,23 +860,50 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
   emptySubtitle: { fontSize: 14, color: t.textTertiary, textAlign: "center", lineHeight: 21 },
 
   // ── Barra de búsqueda ───────────────────────────────────────────────────
-  searchBarOverlay: {
+  searchWrapper: {
     position: "absolute",
     left: 20,
     right: 20,
+    zIndex: 90,
+  },
+  searchBarOverlay: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     backgroundColor: t.surface,
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.10,
     shadowRadius: 16,
     elevation: 10,
-    zIndex: 90,
+  },
+  chipsScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+    maxWidth: "55%" as any,
+  },
+  chipsContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  tagChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: t.isDark ? "#1E3A5F" : "#EFF6FF",
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingLeft: 10,
+    paddingRight: 6,
+  },
+  tagChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: t.isDark ? "#93C5FD" : "#1D4ED8",
   },
   searchInput: {
     flex: 1,
@@ -697,5 +918,30 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
     backgroundColor: t.inputBg,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  // ── Dropdown de sugerencias de tags ─────────────────────────────────────
+  tagDropdown: {
+    backgroundColor: t.surface,
+    borderRadius: 16,
+    marginBottom: 8,
+    paddingVertical: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  tagSuggestionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  tagSuggestionText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: t.text,
   },
 });}

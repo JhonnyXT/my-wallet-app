@@ -18,25 +18,26 @@ MyWallet es tu aplicación personal de control financiero. Diseñada para ser **
 2. [Pantalla principal — Dashboard](#2-pantalla-principal--dashboard)
 3. [Registrar un gasto o ingreso](#3-registrar-un-gasto-o-ingreso)
 4. [Entrada por voz](#4-entrada-por-voz)
-5. [Asistente financiero (Chat)](#5-asistente-financiero-chat)
-6. [Gráfica de categorías](#6-gráfica-de-categorías)
-7. [Búsqueda](#7-búsqueda)
-8. [Configuración (Settings)](#8-configuración-settings)
-9. [Categorías de gasto e ingreso](#9-categorías-de-gasto-e-ingreso)
-10. [Preguntas frecuentes y recomendaciones](#10-preguntas-frecuentes-y-recomendaciones)
+5. [Gráfica de categorías](#5-gráfica-de-categorías)
+6. [Búsqueda](#6-búsqueda)
+7. [Configuración (Settings)](#7-configuración-settings)
+8. [Categorías de gasto e ingreso](#8-categorías-de-gasto-e-ingreso)
+9. [Preguntas frecuentes y recomendaciones](#9-preguntas-frecuentes-y-recomendaciones)
 
 ---
 
 ## 1. Primeros Pasos
 
-Antes de usar la app para registrar transacciones reales, sigue estos pasos de configuración para sacar el máximo provecho:
+Al abrir MyWallet por primera vez, un **tour guiado** te acompañará en los pasos esenciales: configurar tu ingreso mensual, conocer el registro por voz y el registro manual. Puedes seguirlo o saltarlo tocando **"Omitir"** en cualquier momento.
 
-### Paso 1 — Define tu presupuesto mensual o quincenal
+Si prefieres configurar todo manualmente, sigue estos pasos:
+
+### Paso 1 — Define tu ingreso mensual y período de pago
 Este es el paso más importante. Sin un presupuesto, las gráficas no muestran alertas ni contexto útil.
 
-1. En **Configuración → Control financiero → Presupuesto mensual**, ingresa cuánto dinero dispones para gastar al mes (o quincena)
-2. En **Período de pago**, selecciona **Mensual** o **Quincenal** según cómo recibas tus ingresos
-   - Si eliges quincenal, la app calcula el avance del presupuesto en períodos del 1 al 15, y del 16 al final del mes
+1. En **Configuración → Control financiero → Período de pago**, selecciona **Mensual** o **Quincenal** según cómo recibas tus ingresos
+2. En **Ingreso mensual** (o "Ingreso quincenal" si elegiste quincenal), ingresa cuánto dinero dispones para gastar **al mes**
+   - Si eliges quincenal, la app divide automáticamente el monto entre 2 y calcula el avance en períodos del 1 al 15, y del 16 al final del mes. El subtítulo te muestra el monto por quincena y una referencia al total mensual
 
 > 💡 **Recomendación:** Si no sabes cuánto gastas, empieza por registrar todo durante 2 semanas sin presupuesto. Luego usa los datos reales para definir un presupuesto realista.
 
@@ -75,7 +76,7 @@ Es la pantalla que verás al abrir la app. Está organizada en secciones de arri
 
 ### Barra de progreso del presupuesto
 Solo visible si tienes un presupuesto mensual configurado.
-- Muestra `X% de $monto_presupuesto`
+- Muestra `X% de $monto_presupuesto` — si tu período es quincenal, el monto se divide automáticamente entre 2
 - Se pone **roja** cuando superas el 90% del presupuesto
 
 ### Filtro de período
@@ -96,6 +97,11 @@ Al tocar **"📅 Elegir mes específico..."** se abre un panel donde puedes:
 
 ### Gráfica de categorías
 Ver sección detallada en [punto 6](#6-gráfica-de-categorías).
+
+### Período sin transacciones
+Cuando no hay movimientos en el período seleccionado:
+- **Período actual (mes o quincena en curso):** aparecen barras fantasma suaves con un mensaje motivacional centrado: *"Nuevo mes, ¡comienza ahora!"* o *"Nueva quincena, ¡comienza ahora!"*
+- **Período pasado:** se muestra *"Sin registros en este período"*
 
 ### Lista de transacciones recientes
 - Muestra todos los movimientos del período seleccionado
@@ -211,43 +217,7 @@ El número grande del formulario **reduce su tamaño automáticamente** cuando e
 
 ---
 
-## 5. Asistente Financiero (Chat)
-
-El chat te permite consultar tus finanzas en lenguaje natural, 100% offline.
-
-### Cómo acceder
-Toca el ícono de mensajes en la barra de tabs (segundo ícono).
-
-### Preguntas que puedes hacer
-
-| Pregunta | Lo que devuelve |
-|----------|-----------------|
-| `¿Cuánto gasté hoy?` | Total de gastos del día |
-| `¿Cuánto gasté ayer?` | Total de gastos de ayer |
-| `¿Cuánto gasté este mes?` | Total del mes actual |
-| `¿Cuánto gasté en enero?` | Total del mes específico |
-| `¿Cuánto gasté este año?` | Total acumulado del año |
-| `Resumen de esta semana` | Tarjeta visual con gráfico de línea por día + comparación con semana anterior |
-| `¿Cuáles son mis últimas 5 transacciones?` | Lista de los 5 registros más recientes |
-| `¿Cuál fue mi mayor gasto?` | La transacción de mayor monto |
-| `Resumen semanal` | Gráfico SVG de 7 días con totales |
-
-### Tarjeta semanal (WeeklySummaryCard)
-Cuando preguntas por el resumen semanal, aparece una tarjeta especial con:
-- Gráfico de línea suavizado con los 7 días (Lunes a Domingo)
-- Total gastado en la semana
-- Badge de comparación con la semana anterior (ej: "▲ 12% vs semana anterior")
-
-### Historial de conversaciones
-- Toca el ícono de historial (esquina superior derecha del chat)
-- Se abre un panel lateral con todas tus sesiones anteriores
-- **Mantén presionado** un título para renombrarlo
-- Toca el ícono de papelera para eliminar una sesión
-- Toca **"+ Nueva conversación"** para empezar fresco
-
----
-
-## 6. Gráfica de Categorías
+## 5. Gráfica de Categorías
 
 La gráfica de barras verticales es el centro visual del Dashboard. Muestra cómo se distribuye tu dinero.
 
@@ -301,7 +271,7 @@ Desliza horizontalmente para ver todas las categorías. Las que tienen movimient
 
 ---
 
-## 7. Búsqueda
+## 6. Búsqueda
 
 ### Cómo activar la búsqueda
 Toca el ícono de **lupa (🔍)** en el dock flotante. Una barra de búsqueda aparece en la parte inferior de la pantalla.
@@ -324,23 +294,23 @@ Toca el ícono de **lupa (🔍)** en el dock flotante. Una barra de búsqueda ap
 
 ---
 
-## 8. Configuración (Settings)
+## 7. Configuración (Settings)
 
 Accede tocando ⚙️ en la esquina superior derecha del Dashboard.
 
 ### Control Financiero
-Opciones visibles directamente en la pantalla de ajustes:
+Opciones visibles directamente en la pantalla de ajustes (en este orden):
 
 | Opción | Descripción |
 |--------|-------------|
-| Presupuesto mensual | Cuánto dinero tienes disponible para gastar. `0` = sin presupuesto configurado |
-| Período de pago | **Mensual** (1 al fin de mes) o **Quincenal** (1–15 y 16–fin de mes) |
+| Período de pago | **Mensual** (1 al fin de mes) o **Quincenal** (1–15 y 16–fin de mes). Se muestra primero para que el ingreso se adapte automáticamente |
+| Ingreso mensual / quincenal | Cuánto dinero tienes disponible para gastar. `0` = sin presupuesto configurado. La etiqueta cambia dinámicamente: muestra **"Ingreso quincenal"** si elegiste período quincenal. El subtítulo muestra el monto del período + referencia "Mensual: $X". Al editar, siempre se pide el **monto mensual** (la app lo divide automáticamente por quincena) |
 
 ### Métodos de pago *(abre modal de pantalla completa)*
 Toca la tarjeta "Métodos de pago" para abrir el panel de gestión:
 - **Agregar:** Toca el botón "Agregar método"
 - **Editar:** Toca el nombre o tipo del método
-- **Eliminar:** Toca el ícono de papelera (debe quedar mínimo 1)
+- **Eliminar:** Toca el ícono de papelera (debe quedar mínimo 1; se muestra diálogo de confirmación)
 - **Tipos disponibles:** Efectivo, Débito, Ahorros
 - Estos aparecerán en el selector "Cuenta" al registrar transacciones
 
@@ -367,11 +337,11 @@ Gestiona tus metas desde la sección "Metas de ahorro":
 | Opción | Qué hace |
 |--------|---------|
 | Exportar datos | Genera un archivo CSV con todas tus transacciones y lo comparte (email, Drive, etc.) |
-| Limpiar todos los datos | ⚠️ **Acción irreversible.** Elimina TODAS las transacciones. Pide confirmación |
+| Limpiar todos los datos | ⚠️ **Acción irreversible.** Elimina TODAS las transacciones. Muestra un diálogo de confirmación elegante con icono de advertencia antes de proceder |
 
 ---
 
-## 9. Categorías de Gasto e Ingreso
+## 8. Categorías de Gasto e Ingreso
 
 MyWallet maneja dos conjuntos de categorías según el tipo de movimiento.
 
@@ -406,7 +376,7 @@ Aparecen en el selector cuando registras un ingreso y en la gráfica cuando el p
 
 ---
 
-## 10. Preguntas Frecuentes y Recomendaciones
+## 9. Preguntas Frecuentes y Recomendaciones
 
 ### ¿Mis datos están seguros?
 Sí. **Todo se almacena localmente en tu dispositivo** en una base de datos SQLite. La app no envía ningún dato a servidores externos ni requiere internet para funcionar.
@@ -446,8 +416,11 @@ Sí. Cuando dices el monto en palabras (ej: "cinco millones cuatrocientos mil"),
 ### ¿Cuántas transacciones puedo registrar?
 No hay límite técnico. La base de datos SQLite puede manejar millones de registros sin problema.
 
+### ¿Qué es el tour inicial?
+La primera vez que abres MyWallet aparece un **tour guiado** de 5 pasos con un spotlight que resalta elementos clave de la pantalla. Te lleva a configurar tu ingreso mensual, te muestra el registro por voz (micrófono) y el registro manual (botón +). Si no quieres seguirlo, toca **"Omitir"** en cualquier paso. El tour no vuelve a aparecer una vez completado o saltado.
+
 ### ¿Funciona sin internet?
-Sí, la app es **100% offline**. El asistente de chat, el reconocimiento de voz y todos los cálculos son locales.
+Sí, la app es **100% offline**. El reconocimiento de voz, el NLP y todos los cálculos son locales. No necesitas internet para nada.
 
 ---
 
@@ -461,8 +434,8 @@ Al hacer un gasto/ingreso:
   4. Confirma con ✓
 
 Una vez por semana:
-  1. Abre el chat y pregunta "Resumen de esta semana"
-  2. Revisa la gráfica — ¿alguna categoría en ámbar o rojo?
+  1. Revisa la gráfica del Dashboard — ¿alguna categoría en ámbar o rojo?
+  2. Filtra por "Esta semana" para ver solo los movimientos recientes
   3. Ajusta tus hábitos si es necesario
 
 Una vez al mes:
@@ -489,7 +462,10 @@ Una vez al mes:
 | **Swipe-to-delete** | Deslizar un item hacia la izquierda para revelar el botón de eliminar (transacciones y metas de ahorro) |
 | **Badge de categoría** | Pequeño globo flotante con emoji + nombre que aparece al tocar una columna de la gráfica |
 | **Selector de mes/año** | Modal con grid de meses que permite filtrar el Dashboard a un período específico |
+| **Diálogo de confirmación** | Ventana emergente minimalista con icono, título y botones (reemplaza las alertas nativas del sistema) |
 | **Estado draft** | Cambios pendientes en el selector de mes que solo se aplican al confirmar con "Aplicar" |
+| **Ingreso del período** | Monto de presupuesto ajustado al período activo. Si el período es quincenal, equivale a la mitad del ingreso mensual configurado |
+| **Guided Tour / Onboarding** | Tour guiado de 5 pasos que aparece la primera vez que abres la app. Te muestra cómo configurar tu ingreso y registrar transacciones |
 
 ---
 

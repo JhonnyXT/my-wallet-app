@@ -1,0 +1,15 @@
+feat: GuidedTour, splash animado, logo, ConfirmDialog, búsqueda por tags y mejoras UX
+
+- Nuevo GuidedTour de onboarding (5 pasos) con spotlight y tooltip estilo Stitch
+  - Usa Modal + StatusBar.currentHeight para posicionamiento correcto en cualquier Android
+  - Registro global de refs (tourRefs.ts) para targets entre pantallas
+- Splash screen animado (AnimatedSplash.tsx) con logo y nombre de la app
+- Logo de la app actualizado (icon.png, adaptive-icon.png)
+- ConfirmDialog reutilizable (danger/warning/info) reemplaza Alert.alert nativo
+- Búsqueda avanzada en Dashboard con filtrado por tags (#) y sugerencias
+- Control financiero en Settings: período de pago (mensual/quincenal) + ingreso dinámico
+- Estado "período vacío" en Dashboard con mensaje motivacional
+- Presupuesto efectivo derivado (getEffectiveBudget, getEffectiveCategoryBudgets)
+- Tags mejorados en active-expense (scroll, centrado de monto, keyboard avoidance)
+- FloatingDock: refs para GuidedTour en botones + y mic
+- Documentación actualizada: eliminadas referencias al chat (ya no activo en la app)

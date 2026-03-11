@@ -20,6 +20,7 @@ import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useUIStore } from "@/src/store/useUIStore";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
+import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -96,16 +97,18 @@ export function FloatingDock() {
         pointerEvents="box-none"
       >
         <View style={styles.pill}>
-          <Pressable
-            onPress={menuOpen ? handleClose : handleAddPress}
-            style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
-            android_ripple={{ color: "transparent" }}
-          >
-            {menuOpen
-              ? <X size={22} color={theme.text} strokeWidth={2.2} />
-              : <Plus size={22} color={theme.text} strokeWidth={2.2} />
-            }
-          </Pressable>
+          <View ref={getTourRef(TOUR_KEYS.PLUS_BTN)} collapsable={false}>
+            <Pressable
+              onPress={menuOpen ? handleClose : handleAddPress}
+              style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
+              android_ripple={{ color: "transparent" }}
+            >
+              {menuOpen
+                ? <X size={22} color={theme.text} strokeWidth={2.2} />
+                : <Plus size={22} color={theme.text} strokeWidth={2.2} />
+              }
+            </Pressable>
+          </View>
 
           <Pressable
             onPress={handleSearch}
@@ -124,13 +127,15 @@ export function FloatingDock() {
           </Pressable>
         </View>
 
-        <AnimatedPressable
-          onPress={handleMic}
-          style={[styles.micFab, micStyle]}
-          android_ripple={{ color: "rgba(21,101,192,0.15)", borderless: true }}
-        >
-          <Mic size={26} color="#FFFFFF" strokeWidth={2} />
-        </AnimatedPressable>
+        <View ref={getTourRef(TOUR_KEYS.MIC_FAB)} collapsable={false}>
+          <AnimatedPressable
+            onPress={handleMic}
+            style={[styles.micFab, micStyle]}
+            android_ripple={{ color: "rgba(21,101,192,0.15)", borderless: true }}
+          >
+            <Mic size={26} color="#FFFFFF" strokeWidth={2} />
+          </AnimatedPressable>
+        </View>
       </View>
 
       {/* ── Modal del menú + / Ingreso / Gasto ───────────────────────── */}

@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   TextInput,
   Switch,
-  Alert,
   Modal,
   Pressable,
   KeyboardAvoidingView,
@@ -37,12 +36,15 @@ import {
 } from "lucide-react-native";
 import { router } from "expo-router";
 import Constants from "expo-constants";
-import { useSettingsStore, type PaymentMethod, type PaymentMethodType, type SavingsGoal } from "@/src/store/useSettingsStore";
+import { useSettingsStore, getEffectiveBudget, type PaymentMethod, type PaymentMethodType, type SavingsGoal } from "@/src/store/useSettingsStore";
+import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
 import { ALL_CATEGORY_EMOJIS, EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
+import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
+import { GuidedTour, type TourStep } from "@/src/components/ui/GuidedTour";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const APP_VERSION = Constants.expoConfig?.version ?? "1.0.0";
@@ -166,6 +168,7 @@ function FullScreenModal({
 function InputModal({
   visible,
   title,
+  subtitle,
   placeholder,
   value,
   keyboardType = "default",
@@ -174,6 +177,7 @@ function InputModal({
 }: {
   visible: boolean;
   title: string;
+  subtitle?: string;
   placeholder: string;
   value: string;
   keyboardType?: "default" | "numeric";
@@ -215,6 +219,9 @@ function InputModal({
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
         <View style={s.modalCard}>
           <Text style={s.modalTitle}>{title}</Text>
+          {!!subtitle && (
+            <Text style={s.modalSubtitle}>{subtitle}</Text>
+          )}
           {isMoney && (
             <Text style={s.modalMoneyPrefix}>$</Text>
           )}
@@ -315,6 +322,9 @@ function PaymentMethodsSection() {
   const [nameModal,  setNameModal]  = useState(false);
   const [addMode,    setAddMode]    = useState(false);
 
+  const [deleteDialog, setDeleteDialog] = useState<{ id: string; name: string } | null>(null);
+  const [minMethodAlert, setMinMethodAlert] = useState(false);
+
   function openEdit(m: PaymentMethod) {
     setEditTarget(m); setEditName(m.name); setEditType(m.type);
   }
@@ -336,13 +346,10 @@ function PaymentMethodsSection() {
 
   function confirmDelete(id: string, name: string) {
     if (methods.length <= 1) {
-      Alert.alert("No puedes eliminar", "Debes tener al menos un método de pago.");
+      setMinMethodAlert(true);
       return;
     }
-    Alert.alert("Eliminar", `¿Eliminar "${name}"?`, [
-      { text: "Cancelar", style: "cancel" },
-      { text: "Eliminar", style: "destructive", onPress: () => removeMethod(id) },
-    ]);
+    setDeleteDialog({ id, name });
   }
 
   const typeLabel = (t: PaymentMethodType) =>
@@ -405,6 +412,26 @@ function PaymentMethodsSection() {
         selected={editType}
         onSelect={setEditType}
         onClose={() => setTypeSheet(false)}
+      />
+
+      <ConfirmDialog
+        visible={!!deleteDialog}
+        variant="danger"
+        title="Eliminar método"
+        message={`¿Seguro que quieres eliminar "${deleteDialog?.name ?? ""}"?`}
+        confirmLabel="Eliminar"
+        onConfirm={() => { if (deleteDialog) removeMethod(deleteDialog.id); setDeleteDialog(null); }}
+        onCancel={() => setDeleteDialog(null)}
+      />
+
+      <ConfirmDialog
+        visible={minMethodAlert}
+        variant="info"
+        title="No es posible"
+        message="Debes tener al menos un método de pago activo."
+        confirmLabel="Entendido"
+        onConfirm={() => setMinMethodAlert(false)}
+        onCancel={() => setMinMethodAlert(false)}
       />
     </>
   );
@@ -888,6 +915,47 @@ export default function SettingsScreen() {
   const [showPaymentModal,   setShowPaymentModal]   = useState(false);
   const [showCatBudgetModal, setShowCatBudgetModal] = useState(false);
 
+  const [clearDataDialog,  setClearDataDialog]  = useState(false);
+  const [exportErrorDialog, setExportErrorDialog] = useState(false);
+
+  // Onboarding tour
+  const hasCompletedOnboarding = useSettingsStore((s) => s.hasCompletedOnboarding);
+  const onboardingStep         = useSettingsStore((s) => s.onboardingStep);
+  const setOnboardingStep      = useSettingsStore((s) => s.setOnboardingStep);
+  const completeOnboarding     = useSettingsStore((s) => s.completeOnboarding);
+
+  const settingsTourSteps: TourStep[] = useMemo(() => [
+    {
+      targetRef: getTourRef(TOUR_KEYS.INCOME_ROW),
+      title: "Configura tu ingreso",
+      message: "Aquí puedes definir cuánto ganas al mes para calcular tu presupuesto.",
+      buttonLabel: "Configurar",
+      onAction: () => {
+        setOnboardingStep(2);
+        setBudgetModal(true);
+      },
+    },
+    {
+      targetRef: getTourRef(TOUR_KEYS.BACK_BTN),
+      title: "¡Todo listo!",
+      message: "Tu ingreso está configurado. Vuelve al inicio para registrar tu primer movimiento.",
+      buttonLabel: "Volver al inicio",
+      onAction: () => {
+        setOnboardingStep(3);
+        router.back();
+      },
+    },
+  ], []);
+
+  const settingsTourVisible = !hasCompletedOnboarding && (onboardingStep === 1 || (onboardingStep === 2 && !budgetModal && monthlyBudget > 0));
+  const settingsTourIndex = onboardingStep === 1 ? 0 : 1;
+
+  useEffect(() => {
+    if (onboardingStep === 2 && !budgetModal && monthlyBudget > 0) {
+      // Budget was just saved — auto-advance to step 3 (back button spotlight)
+    }
+  }, [budgetModal, monthlyBudget, onboardingStep]);
+
   const transactions = useFinanceStore((s) => s.transactions);
 
   // ── Exportar CSV ────────────────────────────────────────────────────────────
@@ -916,31 +984,30 @@ export default function SettingsScreen() {
       await FileSystem.default.writeAsStringAsync(uri, csv, { encoding: "utf8" });
       await shareAsync(uri, { mimeType: "text/csv", dialogTitle: "Exportar transacciones" });
     } catch {
-      Alert.alert("Error", "No se pudo exportar. Intenta de nuevo.");
+      setExportErrorDialog(true);
     }
   }
 
   // ── Limpiar datos ────────────────────────────────────────────────────────────
   function handleClearData() {
-    Alert.alert(
-      "Limpiar todos los datos",
-      "Esto eliminará TODAS tus transacciones. Esta acción no se puede deshacer.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar todo",
-          style: "destructive",
-          onPress: async () => {
-            const { clearTransactions } = await import("@/src/db/db");
-            await clearTransactions();
-            useFinanceStore.getState().loadTransactions();
-          },
-        },
-      ]
-    );
+    setClearDataDialog(true);
+  }
+
+  async function executeClearData() {
+    setClearDataDialog(false);
+    const { clearTransactions } = await import("@/src/db/db");
+    await clearTransactions();
+    useFinanceStore.getState().loadTransactions();
   }
 
   const periodLabel = budgetPeriod === "monthly" ? "Mensual (1–30)" : "Quincenal (1–15 / 16–30)";
+  const effectiveBudget = getEffectiveBudget(monthlyBudget, budgetPeriod);
+  const incomeLabel = budgetPeriod === "monthly" ? "Ingreso mensual" : "Ingreso quincenal";
+  const incomeSubtitle = monthlyBudget <= 0
+    ? "Sin configurar"
+    : budgetPeriod === "biweekly"
+      ? `${formatCOP(effectiveBudget)}  ·  Mensual: ${formatCOP(monthlyBudget)}`
+      : formatCOP(monthlyBudget);
   const darkLabel   = darkMode === "system" ? "Según el sistema" : darkMode === "light" ? "Claro" : "Oscuro";
 
   // ── Indicador quincenal ──────────────────────────────────────────────────────
@@ -960,7 +1027,7 @@ export default function SettingsScreen() {
 
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={12} activeOpacity={0.65}>
+        <TouchableOpacity ref={getTourRef(TOUR_KEYS.BACK_BTN)} onPress={() => router.back()} style={s.backBtn} hitSlop={12} activeOpacity={0.65}>
           <ChevronLeft size={24} color={s.headerTitle.color as string} strokeWidth={2.5} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Configuración</Text>
@@ -975,19 +1042,11 @@ export default function SettingsScreen() {
         <SectionHeader title="CONTROL FINANCIERO" />
         <View style={s.card}>
           <SettingRow
-            icon={<Wallet size={18} color="#059669" strokeWidth={1.8} />}
-            label="Presupuesto mensual"
-            subtitle={formatCOP(monthlyBudget)}
-            onPress={() => setBudgetModal(true)}
-          />
-          <View style={s.rowSep} />
-          <SettingRow
             icon={<CalendarDays size={18} color="#D97706" strokeWidth={1.8} />}
             label="Período de pago"
             subtitle={periodLabel}
             onPress={() => setPeriodSheet(true)}
           />
-          {/* Indicador quincenal — solo visible cuando período es quincenal */}
           {budgetPeriod === "biweekly" && (
             <View style={s.biweeklyIndicator}>
               <View style={s.biweeklySegments}>
@@ -1005,6 +1064,15 @@ export default function SettingsScreen() {
               <Text style={s.biweeklyLabel}>{quincenaText}</Text>
             </View>
           )}
+          <View style={s.rowSep} />
+          <View ref={getTourRef(TOUR_KEYS.INCOME_ROW)} collapsable={false}>
+            <SettingRow
+              icon={<Wallet size={18} color="#059669" strokeWidth={1.8} />}
+              label={incomeLabel}
+              subtitle={incomeSubtitle}
+              onPress={() => setBudgetModal(true)}
+            />
+          </View>
         </View>
 
         {/* ── GESTIÓN ──────────────────────────────────────────────────── */}
@@ -1068,10 +1136,11 @@ export default function SettingsScreen() {
 
       <InputModal
         visible={budgetModal}
-        title="Presupuesto mensual"
+        title="Ingreso mensual"
         placeholder="Ej: 2000000"
         value={monthlyBudget > 0 ? String(monthlyBudget) : ""}
         keyboardType="numeric"
+        subtitle={budgetPeriod === "biweekly" ? "Se divide automáticamente para cada quincena" : undefined}
         onConfirm={(v) => setMonthlyBudget(parseFloat(v.replace(/\D/g, "")) || 0)}
         onClose={() => setBudgetModal(false)}
       />
@@ -1182,6 +1251,37 @@ export default function SettingsScreen() {
           onClose={() => setCatBudgetEmoji(null)}
         />
       )}
+
+      <ConfirmDialog
+        visible={clearDataDialog}
+        variant="danger"
+        title="Eliminar todas las transacciones"
+        message="Esta acción no se puede deshacer. Se borrarán todos tus registros de ingresos y gastos."
+        confirmLabel="Eliminar todo"
+        onConfirm={executeClearData}
+        onCancel={() => setClearDataDialog(false)}
+      />
+
+      <ConfirmDialog
+        visible={exportErrorDialog}
+        variant="warning"
+        title="Error al exportar"
+        message="No se pudo generar el archivo CSV. Intenta de nuevo."
+        confirmLabel="Entendido"
+        onConfirm={() => setExportErrorDialog(false)}
+        onCancel={() => setExportErrorDialog(false)}
+      />
+
+
+      {/* Guided Tour — usa Modal interno, siempre encima de todo */}
+      <GuidedTour
+        steps={settingsTourSteps}
+        currentStep={settingsTourIndex}
+        globalStep={onboardingStep}
+        totalSteps={5}
+        visible={settingsTourVisible}
+        onSkip={completeOnboarding}
+      />
 
     </SafeAreaView>
   );
@@ -1326,6 +1426,7 @@ function buildStyles(t: AppTheme) { return StyleSheet.create({
     gap: 16,
   },
   modalTitle: { fontSize: 17, fontWeight: "700", color: t.text },
+  modalSubtitle: { fontSize: 12, fontWeight: "400", color: t.textSub, marginTop: 4, textAlign: "center" as const },
   modalMoneyPrefix: {
     fontSize: 13,
     fontWeight: "600",

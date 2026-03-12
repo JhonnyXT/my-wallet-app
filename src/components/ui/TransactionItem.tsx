@@ -1,13 +1,15 @@
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useCallback } from "react";
 import {
   View, Text, StyleSheet, Animated,
-  PanResponder, TouchableOpacity,
+  PanResponder, TouchableOpacity, Pressable,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 import AnimatedRN, { FadeInDown } from "react-native-reanimated";
 import { Trash2 } from "lucide-react-native";
 import type { TransactionRow } from "@/src/db/db";
 import { EMOJI_TO_CATEGORY_NAME, getCategoryColor } from "@/src/constants/theme";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useSettingsStore } from "@/src/store/useSettingsStore";
 import type { AppTheme } from "@/src/theme";
 
 // ─── Constantes del swipe ─────────────────────────────────────────────────────
@@ -18,32 +20,36 @@ interface TransactionItemProps {
   transaction: TransactionRow;
   index: number;
   dimmed?: boolean;
-  onLongPress?: (id: number) => void; // se mantiene por compatibilidad pero ya no se usa
+  onLongPress?: (id: number) => void;
+  onDetail?: (tx: TransactionRow) => void;
 }
 
+const SHORT_MONTHS = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 function formatDate(dateStr: string): string {
-  const d          = new Date(dateStr);
-  const now        = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const dStart     = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diffDays   = Math.round(
-    (todayStart.getTime() - dStart.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  if (diffDays === 0) return "Hoy";
-  if (diffDays === 1) return "Ayer";
-  if (d.getFullYear() === now.getFullYear())
-    return d.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
-  return d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+  const d = new Date(dateStr);
+  return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 function formatAmount(amount: number): string {
   return `$ ${Math.round(Math.abs(amount)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
-function getCategoryName(emoji: string): string {
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
+function resolveCategoryName(
+  emoji: string,
+  userCats: { emoji: string; name: string }[],
+  goals: { emoji: string; name: string }[],
+): string {
+  const userMatch = userCats.find((c) => c.emoji === emoji);
+  if (userMatch) return capitalize(userMatch.name);
+  const goalMatch = goals.find((g) => g.emoji === emoji);
+  if (goalMatch) return capitalize(goalMatch.name);
   const name = EMOJI_TO_CATEGORY_NAME[emoji];
   if (!name) return "General";
-  return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  return capitalize(name);
 }
 
 function extractTags(text: string): string[] {
@@ -59,12 +65,15 @@ export function TransactionItem({
   index,
   dimmed = false,
   onLongPress,
+  onDetail,
 }: TransactionItemProps) {
-  const theme        = useTheme();
-  const styles       = useMemo(() => createStyles(theme), [theme]);
-  const palette      = getCategoryColor(transaction.category_emoji);
-  const categoryName = getCategoryName(transaction.category_emoji);
-  const dateStr      = formatDate(transaction.date);
+  const theme          = useTheme();
+  const styles         = useMemo(() => createStyles(theme), [theme]);
+  const userCategories = useSettingsStore((s) => s.userCategories);
+  const savingsGoals   = useSettingsStore((s) => s.savingsGoals);
+  const palette        = getCategoryColor(transaction.category_emoji);
+  const categoryName   = resolveCategoryName(transaction.category_emoji, userCategories, savingsGoals);
+  const dateStr        = formatDate(transaction.date);
   const isExpense    = transaction.amount >= 0;
   const amountColor  = isExpense ? theme.text : "#059669";
   const amountSign   = isExpense ? "- " : "+ ";
@@ -80,9 +89,11 @@ export function TransactionItem({
 
   const title = cleanDescription(rawDesc) || categoryName;
 
-  // ── Swipe to delete ────────────────────────────────────────────────────────
+  // ── Swipe to delete + long-press to detail ─────────────────────────────────
   const translateX  = useRef(new Animated.Value(0)).current;
   const isOpen      = useRef(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didLongPress   = useRef(false);
 
   const spring = (toValue: number, cb?: () => void) =>
     Animated.spring(translateX, {
@@ -94,17 +105,32 @@ export function TransactionItem({
 
   const panResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, g) =>
         Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderGrant: () => {
+        didLongPress.current = false;
+        longPressTimer.current = setTimeout(() => {
+          didLongPress.current = true;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onDetail?.(transaction);
+        }, 500);
+      },
       onPanResponderMove: (_, g) => {
-        // Solo deslizar hacia la izquierda
-        const base = isOpen.current ? -DELETE_WIDTH : 0;
-        const next = Math.min(0, base + g.dx);
-        translateX.setValue(next);
+        if (Math.abs(g.dx) > 5 || Math.abs(g.dy) > 5) {
+          if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+        }
+        if (Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy)) {
+          const base = isOpen.current ? -DELETE_WIDTH : 0;
+          const next = Math.min(0, base + g.dx);
+          translateX.setValue(next);
+        }
       },
       onPanResponderRelease: (_, g) => {
+        if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+        if (didLongPress.current) return;
+
         if (isOpen.current) {
-          // Si desliza a la derecha suficiente, cierra
           if (g.dx > 20) {
             isOpen.current = false;
             spring(0);
@@ -119,6 +145,9 @@ export function TransactionItem({
             spring(0);
           }
         }
+      },
+      onPanResponderTerminate: () => {
+        if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
       },
     })
   ).current;
@@ -166,9 +195,15 @@ export function TransactionItem({
 
         {/* Bloque de texto */}
         <View style={styles.textBlock}>
-          <Text style={styles.categoryLine}>
-            {categoryName}{"  ·  "}{dateStr}
-          </Text>
+          <View style={styles.categoryRow}>
+            <Text style={styles.categoryName}>
+              {categoryName}
+            </Text>
+            <Text style={styles.categorySep}>{"  ·  "}</Text>
+            <Text style={styles.categoryDate} numberOfLines={1}>
+              {dateStr}
+            </Text>
+          </View>
           <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
             {title}
           </Text>
@@ -264,12 +299,31 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
     marginRight: 12,
     minWidth: 0,
   },
-  categoryLine: {
+  categoryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+  categoryName: {
     fontSize: 12,
     fontWeight: "500",
     color: t.textSub,
     lineHeight: 16,
     letterSpacing: 0.1,
+  },
+  categorySep: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: t.textSub,
+    lineHeight: 16,
+  },
+  categoryDate: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: t.textSub,
+    lineHeight: 16,
+    letterSpacing: 0.1,
+    flexShrink: 0,
   },
   title: {
     fontSize: 15,
@@ -301,7 +355,7 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
     fontWeight: "700",
     lineHeight: 21,
     flexShrink: 0,
-    minWidth: 110,
+    minWidth: 80,
     textAlign: "right",
   },
 });}

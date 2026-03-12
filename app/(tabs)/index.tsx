@@ -11,6 +11,7 @@ import {
   StatusBar,
   TouchableOpacity,
   Keyboard,
+  Modal,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,17 +19,20 @@ import { Settings, Search, X, Hash } from "lucide-react-native";
 import { router } from "expo-router";
 import { scrollBottomPadding, DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
-import { useSettingsStore, getEffectiveBudget, getEffectiveCategoryBudgets } from "@/src/store/useSettingsStore";
+import type { TransactionRow } from "@/src/db/db";
+import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useUIStore } from "@/src/store/useUIStore";
 import { FilterChips, PERIODS } from "@/src/components/ui/FilterChips";
 import { CategoryChart } from "@/src/components/ui/CategoryChart";
 import { TransactionItem } from "@/src/components/ui/TransactionItem";
-import { ALL_CATEGORY_EMOJIS, ALL_INCOME_EMOJIS, EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
+import { EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
+import { getUserExpenseCategories, getUserIncomeCategories } from "@/src/store/useSettingsStore";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
 import { MonthPickerModal } from "@/src/components/ui/MonthPickerModal";
 import { GuidedTour, type TourStep } from "@/src/components/ui/GuidedTour";
+import { AnimatedNumber } from "@/src/components/ui/AnimatedNumber";
 import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
 
 // ─── Tipos y constantes ───────────────────────────────────────────────────────
@@ -42,8 +46,41 @@ export type PeriodFilter =
   | { type: "all" };
 
 const MONTH_ABBR = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+function resolveCategory(
+  emoji: string,
+  userCats: { emoji: string; name: string }[],
+  goals: { emoji: string; name: string }[],
+): string {
+  const u = userCats.find((c) => c.emoji === emoji);
+  if (u) return u.name.charAt(0).toUpperCase() + u.name.slice(1).toLowerCase();
+  const g = goals.find((g) => g.emoji === emoji);
+  if (g) return g.name.charAt(0).toUpperCase() + g.name.slice(1).toLowerCase();
+  const n = EMOJI_TO_CATEGORY_NAME[emoji];
+  if (n) return n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
+  return "General";
+}
 
-const DEFAULT_PERIOD: PeriodFilter = { type: "quick", label: PERIODS[3] }; // "Este mes"
+function formatDetailDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return `${d.getDate()} ${MONTH_ABBR[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function formatDetailTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  let h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, "0");
+  const suffix = h >= 12 ? "p.m." : "a.m.";
+  h = h % 12 || 12;
+  return `${h}:${m} ${suffix}`;
+}
+
+function formatDetailAmount(amount: number): string {
+  return `$ ${Math.round(Math.abs(amount)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+}
+
+function getDefaultPeriod(): PeriodFilter {
+  return { type: "quick", label: "Este mes" };
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -75,11 +112,19 @@ function periodFilterLabel(f: PeriodFilter): string {
   }
 }
 
+function getBiweeklyRange(now: Date): { start: Date; end: Date } {
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  if (now.getDate() <= 15) {
+    return { start: new Date(y, m, 1), end: new Date(y, m, 15, 23, 59, 59) };
+  }
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  return { start: new Date(y, m, 16), end: new Date(y, m, lastDay, 23, 59, 59) };
+}
+
 function applyPeriodFilter(transactions: TxRow[], f: PeriodFilter): TxRow[] {
-  const now            = new Date();
-  const todayStart     = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterdayStart = new Date(todayStart);
-  yesterdayStart.setDate(todayStart.getDate() - 1);
+  const now        = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const weekStart  = new Date(todayStart);
   weekStart.setDate(todayStart.getDate() - 7);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -99,12 +144,15 @@ function applyPeriodFilter(transactions: TxRow[], f: PeriodFilter): TxRow[] {
     }
     case "quick":
       switch (f.label) {
-        case "Hoy":         return transactions.filter(t => new Date(t.date) >= todayStart);
-        case "Ayer":        return transactions.filter(t => { const d = new Date(t.date); return d >= yesterdayStart && d < todayStart; });
-        case "Esta semana": return transactions.filter(t => new Date(t.date) >= weekStart);
-        case "Este mes":    return transactions.filter(t => new Date(t.date) >= monthStart);
-        case "Este año":    return transactions.filter(t => new Date(t.date) >= yearStart);
-        default:            return [...transactions];
+        case "Hoy":            return transactions.filter(t => new Date(t.date) >= todayStart);
+        case "Esta semana":    return transactions.filter(t => new Date(t.date) >= weekStart);
+        case "Esta quincena": {
+          const { start, end } = getBiweeklyRange(now);
+          return transactions.filter(t => { const d = new Date(t.date); return d >= start && d <= end; });
+        }
+        case "Este mes":       return transactions.filter(t => new Date(t.date) >= monthStart);
+        case "Este año":       return transactions.filter(t => new Date(t.date) >= yearStart);
+        default:               return [...transactions];
       }
   }
 }
@@ -117,12 +165,17 @@ export default function DashboardScreen() {
   const transactions      = useFinanceStore((s) => s.transactions);
   const deleteTransaction = useFinanceStore((s) => s.deleteTransaction);
   const monthlyBudget     = useSettingsStore((s) => s.monthlyBudget);
-  const budgetPeriod      = useSettingsStore((s) => s.budgetPeriod);
   const budgetByCategory  = useSettingsStore((s) => s.budgetByCategory);
+  const userCategories    = useSettingsStore((s) => s.userCategories);
   const resetExpense      = useExpenseStore((s) => s.reset);
   const setExpenseCategory = useExpenseStore((s) => s.setCategory);
+  const paymentMethods    = useSettingsStore((s) => s.paymentMethods);
+  const savingsGoals      = useSettingsStore((s) => s.savingsGoals);
 
   const styles = useMemo(() => createStyles(theme), [theme]);
+
+  // ── Detalle de transacción (long-press) ─────────────────────────────────
+  const [detailTx, setDetailTx] = useState<TransactionRow | null>(null);
 
   // ── Búsqueda ──────────────────────────────────────────────────────────────
   const searchOpen     = useUIStore((s) => s.searchOpen);
@@ -206,7 +259,7 @@ export default function DashboardScreen() {
   }
 
   // ── Estado de período unificado ───────────────────────────────────────────
-  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>(DEFAULT_PERIOD);
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>(getDefaultPeriod);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
 
   const chipLabel = periodFilterLabel(periodFilter);
@@ -282,17 +335,13 @@ export default function DashboardScreen() {
     return periodFilter.year === now.getFullYear() && periodFilter.month === now.getMonth() + 1;
   }, [periodFilter]);
 
-  const effectiveBudget = useMemo(() => getEffectiveBudget(monthlyBudget, budgetPeriod), [monthlyBudget, budgetPeriod]);
-
   const budgetPct = useMemo(() => {
-    if (effectiveBudget <= 0 || !isCurrentPeriod) return 0;
+    if (monthlyBudget <= 0 || !isCurrentPeriod) return 0;
     const now = new Date();
-    const start = budgetPeriod === "biweekly"
-      ? (now.getDate() <= 15 ? new Date(now.getFullYear(), now.getMonth(), 1) : new Date(now.getFullYear(), now.getMonth(), 16))
-      : new Date(now.getFullYear(), now.getMonth(), 1);
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
     const exp = transactions.filter(t => new Date(t.date) >= start && t.amount > 0).reduce((s, t) => s + t.amount, 0);
-    return Math.min(Math.round((exp / effectiveBudget) * 100), 100);
-  }, [transactions, effectiveBudget, budgetPeriod, isCurrentPeriod]);
+    return Math.min(Math.round((exp / monthlyBudget) * 100), 100);
+  }, [transactions, monthlyBudget, isCurrentPeriod]);
 
   // ── Stats para la gráfica ─────────────────────────────────────────────────
   const categoryStats = useMemo(() => {
@@ -320,15 +369,19 @@ export default function DashboardScreen() {
 
   const activeStats         = typeFilter === "income" ? incomeStats   : categoryStats;
   const activeTotalForChart = typeFilter === "income" ? totalIncome   : totalExpenses;
-  const effectiveCatBudgets = useMemo(() => getEffectiveCategoryBudgets(budgetByCategory, budgetPeriod), [budgetByCategory, budgetPeriod]);
-  const activeBudget        = typeFilter === "income" ? {}            : effectiveCatBudgets;
+  const activeBudget = typeFilter === "income" ? {} : budgetByCategory;
 
   const allEmojis = useMemo(() => {
-    if (typeFilter === "income") return ALL_INCOME_EMOJIS;
-    const known = new Set(ALL_CATEGORY_EMOJIS);
-    const extra = [...new Set(transactions.map(t => t.category_emoji).filter(e => !known.has(e)))];
-    return [...ALL_CATEGORY_EMOJIS, ...extra];
-  }, [transactions, typeFilter]);
+    const cats = typeFilter === "income"
+      ? getUserIncomeCategories(userCategories)
+      : getUserExpenseCategories(userCategories);
+    const emojis = cats.map(c => c.emoji);
+    const known = new Set(emojis);
+    const extra = [...new Set(
+      transactions.map(t => t.category_emoji).filter(e => !known.has(e) && e !== "💸")
+    )];
+    return [...emojis, ...extra];
+  }, [transactions, typeFilter, userCategories]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   function handleNewTransactionFromChart(emoji: string, categoryName: string) {
@@ -356,6 +409,8 @@ export default function DashboardScreen() {
   // ── FlatList helpers ──────────────────────────────────────────────────────
   const keyExtractor = useCallback((item: TxRow) => item.id.toString(), []);
 
+  const handleDetail = useCallback((tx: TransactionRow) => setDetailTx(tx), []);
+
   const renderItem = useCallback(({ item, index }: { item: TxRow; index: number }) => (
     <View style={styles.txItem}>
       <TransactionItem
@@ -363,12 +418,14 @@ export default function DashboardScreen() {
         index={index}
         dimmed={false}
         onLongPress={deleteTransaction}
+        onDetail={handleDetail}
       />
     </View>
-  ), [deleteTransaction, styles.txItem]);
+  ), [deleteTransaction, handleDetail, styles.txItem]);
 
   // ── Onboarding tour ──────────────────────────────────────────────────────
   const hasCompletedOnboarding = useSettingsStore((s) => s.hasCompletedOnboarding);
+  const hasSelectedCategories  = useSettingsStore((s) => s.hasSelectedCategories);
   const onboardingStep         = useSettingsStore((s) => s.onboardingStep);
   const setOnboardingStep      = useSettingsStore((s) => s.setOnboardingStep);
   const completeOnboarding     = useSettingsStore((s) => s.completeOnboarding);
@@ -400,11 +457,11 @@ export default function DashboardScreen() {
     },
   ], []);
 
-  const dashboardTourVisible = !hasCompletedOnboarding && (onboardingStep === 0 || onboardingStep === 3 || onboardingStep === 4);
+  const dashboardTourVisible = hasSelectedCategories && !hasCompletedOnboarding && (onboardingStep === 0 || onboardingStep === 3 || onboardingStep === 4);
   const dashboardTourIndex = onboardingStep === 0 ? 0 : onboardingStep === 3 ? 1 : 2;
 
   const isNewPeriod = filteredTransactions.length === 0 && isCurrentPeriod && !isSearching;
-  const newPeriodMessage = budgetPeriod === "biweekly" ? "Nueva quincena, ¡comienza ahora!" : "Nuevo mes, ¡comienza ahora!";
+  const newPeriodMessage = "Nuevo mes, ¡comienza ahora!";
 
   const listHeader = (
     <>
@@ -500,9 +557,11 @@ export default function DashboardScreen() {
                 ? `BÚSQUEDA  ·  ${searchedTransactions.length} resultado${searchedTransactions.length !== 1 ? "s" : ""}`
                 : "BALANCE NETO"}
             </Text>
-            <Text style={[styles.balanceAmount, netBalance < 0 && styles.balanceNegative]}>
-              {formatBalance(Math.abs(netBalance))}
-            </Text>
+            <AnimatedNumber
+              value={Math.abs(netBalance)}
+              prefix="$"
+              style={[styles.balanceAmount, netBalance < 0 && styles.balanceNegative]}
+            />
 
             {/* Pills Gastos / Ingresos */}
             <View style={styles.pillsRow}>
@@ -516,7 +575,7 @@ export default function DashboardScreen() {
                 ]}
               >
                 <Text style={[styles.pillGastoText, typeFilter === "expense" && styles.pillGastoActiveText]}>
-                  ↓  {formatBalance(expenseTotal)}
+                  ↓  <AnimatedNumber value={expenseTotal} prefix="$" style={[styles.pillGastoText, typeFilter === "expense" && styles.pillGastoActiveText]} />
                 </Text>
               </TouchableOpacity>
 
@@ -530,18 +589,18 @@ export default function DashboardScreen() {
                 ]}
               >
                 <Text style={[styles.pillIngresoText, typeFilter === "income" && styles.pillIngresoActiveText]}>
-                  ↑  {formatBalance(incomeTotal)}
+                  ↑  <AnimatedNumber value={incomeTotal} prefix="$" style={[styles.pillIngresoText, typeFilter === "income" && styles.pillIngresoActiveText]} />
                 </Text>
               </TouchableOpacity>
             </View>
 
             {/* Barra de presupuesto — solo período actual, sin filtro de tipo */}
-            {effectiveBudget > 0 && !isSearching && typeFilter === null && isCurrentPeriod && (
+            {monthlyBudget > 0 && !isSearching && typeFilter === null && isCurrentPeriod && (
               <View style={styles.budgetBar}>
                 <View style={styles.budgetTrack}>
                   <View style={[styles.budgetFill, { width: `${budgetPct}%` as `${number}%` }]} />
                 </View>
-                <Text style={styles.budgetBarPct}>{budgetPct}% de {formatBalance(effectiveBudget)}</Text>
+                <Text style={styles.budgetBarPct}>{budgetPct}% de {formatBalance(monthlyBudget)}</Text>
               </View>
             )}
           </View>
@@ -667,6 +726,78 @@ export default function DashboardScreen() {
         onClose={() => setMonthPickerOpen(false)}
       />
 
+
+      {/* ── Modal de detalle de transacción ────────────────────────── */}
+      <Modal
+        visible={detailTx !== null}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setDetailTx(null)}
+      >
+        <Pressable style={styles.detailOverlay} onPress={() => setDetailTx(null)}>
+          <Pressable style={styles.detailCard} onPress={() => {}}>
+            {detailTx && (() => {
+              const isExp = detailTx.amount >= 0;
+              const catName = resolveCategory(detailTx.category_emoji, userCategories, savingsGoals);
+              const pmName = paymentMethods.find((m) => m.id === detailTx.payment_method)?.name
+                ?? (detailTx.payment_method === "cash" ? "Efectivo"
+                  : detailTx.payment_method === "savings" ? "Ahorros"
+                  : detailTx.payment_method === "credit" ? "Tarjeta" : "Efectivo");
+              const desc = (detailTx.description || "").replace(/#\w+/g, "").trim();
+              let tags: string[] = [];
+              if (detailTx.tags && detailTx.tags.trim()) {
+                try { tags = JSON.parse(detailTx.tags); } catch { tags = []; }
+              }
+              return (
+                <>
+                  <Text style={styles.detailEmoji}>{detailTx.category_emoji}</Text>
+                  <Text style={[styles.detailAmount, { color: isExp ? theme.text : "#059669" }]}>
+                    {isExp ? "- " : "+ "}{formatDetailAmount(detailTx.amount)}
+                  </Text>
+                  <Text style={styles.detailCategory}>{catName.toUpperCase()}</Text>
+
+                  <View style={styles.detailDivider} />
+
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Tipo</Text>
+                    <Text style={styles.detailValue}>{isExp ? "Gasto" : "Ingreso"}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Cuenta</Text>
+                    <Text style={styles.detailValue}>{pmName}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Fecha</Text>
+                    <Text style={styles.detailValue}>{formatDetailDate(detailTx.date)}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Hora</Text>
+                    <Text style={styles.detailValue}>{formatDetailTime(detailTx.date)}</Text>
+                  </View>
+
+                  {desc.length > 0 && (
+                    <>
+                      <View style={styles.detailDivider} />
+                      <Text style={styles.detailDesc}>"{desc}"</Text>
+                    </>
+                  )}
+
+                  {tags.length > 0 && (
+                    <View style={styles.detailTags}>
+                      {tags.map((tag) => (
+                        <View key={tag} style={styles.detailTagPill}>
+                          <Text style={styles.detailTagText}>{tag}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </>
+              );
+            })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Guided Tour — usa Modal interno, siempre encima de todo */}
       <GuidedTour
@@ -943,5 +1074,92 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     color: t.text,
+  },
+
+  // ── Modal de detalle de transacción ────────────────────────────────────
+  detailOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+  },
+  detailCard: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: t.isDark ? t.surface : "#FFFFFF",
+    borderRadius: 24,
+    paddingVertical: 28,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  detailEmoji: {
+    fontSize: 40,
+    lineHeight: 48,
+    marginBottom: 12,
+  },
+  detailAmount: {
+    fontSize: 32,
+    fontWeight: "800",
+    letterSpacing: -1,
+    marginBottom: 4,
+  },
+  detailCategory: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 2,
+    color: t.textSub,
+    marginBottom: 4,
+  },
+  detailDivider: {
+    width: "100%",
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: t.border,
+    marginVertical: 16,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingVertical: 6,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: t.textSub,
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: t.text,
+  },
+  detailDesc: {
+    fontSize: 14,
+    fontStyle: "italic",
+    color: t.textSub,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  detailTags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 12,
+    justifyContent: "center",
+  },
+  detailTagPill: {
+    backgroundColor: t.inputBg,
+    borderRadius: 9999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  detailTagText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: t.textSub,
   },
 });}

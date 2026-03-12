@@ -9,13 +9,19 @@ async function getDb(): Promise<SQLite.SQLiteDatabase> {
   return _db;
 }
 
+function localISO(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T` +
+    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.000`;
+}
+
 export async function queryMonthTotal(
   year: number,
   month: number
 ): Promise<number> {
   const db = await getDb();
-  const firstDay = new Date(year, month - 1, 1).toISOString();
-  const lastDay = new Date(year, month, 0, 23, 59, 59).toISOString();
+  const firstDay = localISO(new Date(year, month - 1, 1));
+  const lastDay = localISO(new Date(year, month, 0, 23, 59, 59));
   const result = await db.getFirstAsync<{ total: number | null }>(
     `SELECT SUM(amount) as total FROM transactions WHERE date >= ? AND date <= ?`,
     [firstDay, lastDay]
@@ -25,8 +31,8 @@ export async function queryMonthTotal(
 
 export async function queryYearTotal(year: number): Promise<number> {
   const db = await getDb();
-  const firstDay = new Date(year, 0, 1).toISOString();
-  const lastDay = new Date(year, 11, 31, 23, 59, 59).toISOString();
+  const firstDay = localISO(new Date(year, 0, 1));
+  const lastDay = localISO(new Date(year, 11, 31, 23, 59, 59));
   const result = await db.getFirstAsync<{ total: number | null }>(
     `SELECT SUM(amount) as total FROM transactions WHERE date >= ? AND date <= ?`,
     [firstDay, lastDay]
@@ -40,7 +46,7 @@ export async function queryTodayTotal(): Promise<number> {
   today.setHours(0, 0, 0, 0);
   const result = await db.getFirstAsync<{ total: number | null }>(
     `SELECT SUM(amount) as total FROM transactions WHERE date >= ?`,
-    [today.toISOString()]
+    [localISO(today)]
   );
   return result?.total ?? 0;
 }
@@ -53,7 +59,7 @@ export async function queryYesterdayTotal(): Promise<number> {
   yesterday.setDate(yesterday.getDate() - 1);
   const result = await db.getFirstAsync<{ total: number | null }>(
     `SELECT SUM(amount) as total FROM transactions WHERE date >= ? AND date < ?`,
-    [yesterday.toISOString(), today.toISOString()]
+    [localISO(yesterday), localISO(today)]
   );
   return result?.total ?? 0;
 }
@@ -99,7 +105,7 @@ export async function queryWeeklyTotals(): Promise<DayTotal[]> {
 
     const row = await db.getFirstAsync<{ total: number | null }>(
       `SELECT SUM(amount) as total FROM transactions WHERE date >= ? AND date < ?`,
-      [d.toISOString(), nextD.toISOString()]
+      [localISO(d), localISO(nextD)]
     );
 
     result.push({
@@ -123,7 +129,7 @@ export async function queryPrevWeekTotal(): Promise<number> {
 
   const result = await db.getFirstAsync<{ total: number | null }>(
     `SELECT SUM(amount) as total FROM transactions WHERE date >= ? AND date < ?`,
-    [twoWeeksAgo.toISOString(), weekAgo.toISOString()]
+    [localISO(twoWeeksAgo), localISO(weekAgo)]
   );
   return Math.max(result?.total ?? 0, 0);
 }
@@ -132,8 +138,8 @@ export async function queryMonthlyExpensesByYear(
   year: number
 ): Promise<Record<number, number>> {
   const db = await getDb();
-  const yearStart = new Date(year, 0, 1).toISOString();
-  const yearEnd   = new Date(year, 11, 31, 23, 59, 59).toISOString();
+  const yearStart = localISO(new Date(year, 0, 1));
+  const yearEnd   = localISO(new Date(year, 11, 31, 23, 59, 59));
   const rows = await db.getAllAsync<{ month: number; total: number }>(
     `SELECT CAST(strftime('%m', date) AS INTEGER) as month, SUM(amount) as total
      FROM transactions

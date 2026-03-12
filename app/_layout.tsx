@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useColorScheme } from "react-native";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { initDatabase } from "@/src/db/db";
@@ -21,9 +21,11 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const loadTransactions = useFinanceStore((s) => s.loadTransactions);
-  const darkMode         = useSettingsStore((s) => s.darkMode);
-  const systemScheme     = useColorScheme();
+  const loadTransactions      = useFinanceStore((s) => s.loadTransactions);
+  const darkMode              = useSettingsStore((s) => s.darkMode);
+  const hasSelectedCategories = useSettingsStore((s) => s.hasSelectedCategories);
+  const systemScheme          = useColorScheme();
+  const router                = useRouter();
 
   const theme = useMemo(() => {
     const effective =
@@ -47,11 +49,25 @@ export default function RootLayout() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Después del splash, si no ha seleccionado categorías → onboarding
+  useEffect(() => {
+    if (splashDone && !hasSelectedCategories) {
+      router.replace("/category-onboarding");
+    }
+  }, [splashDone, hasSelectedCategories]);
+
   return (
     <ThemeProvider value={theme}>
       <StatusBar style={theme.isDark ? "light" : "dark"} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="category-onboarding"
+          options={{
+            animation: "fade",
+            headerShown: false,
+          }}
+        />
         <Stack.Screen
           name="voice-input"
           options={{

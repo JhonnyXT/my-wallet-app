@@ -11,8 +11,12 @@ import {
   View, Text, ScrollView, StyleSheet,
   PanResponder, Animated, Modal, TextInput,
   TouchableOpacity, KeyboardAvoidingView, Platform, Pressable,
-  StatusBar, Dimensions,
+  StatusBar, Dimensions, LayoutAnimation, UIManager,
 } from "react-native";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import ReAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -23,7 +27,7 @@ import ReAnimated, {
 import { useEffect, useRef, useState } from "react";
 import * as Haptics from "expo-haptics";
 import { ArrowUp, ArrowDown } from "lucide-react-native";
-import { getCategoryColor, EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
+import { getCategoryColor, getCategoryName } from "@/src/constants/theme";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -75,15 +79,14 @@ function barColor(
   emoji: string,
   spent: number,
   budget?: number,
+  userCats?: import("@/src/constants/categoryPresets").UserCategory[],
 ): { bg: string; pctColor: string } {
-  // Alerta SOLO si hay presupuesto definido y se está superando
   if (budget && budget > 0) {
     const ratio = spent / budget;
-    if (ratio >= 0.90) return { bg: "#FEE2E2", pctColor: "#DC2626" }; // ≥90% del presupuesto → rojo
-    if (ratio >= 0.70) return { bg: "#FEF3C7", pctColor: "#D97706" }; // ≥70% del presupuesto → ámbar
+    if (ratio >= 0.90) return { bg: "#FEE2E2", pctColor: "#DC2626" };
+    if (ratio >= 0.70) return { bg: "#FEF3C7", pctColor: "#D97706" };
   }
-  // Sin presupuesto o dentro del límite → color base de la categoría
-  return { bg: getCategoryColor(emoji).bg, pctColor: "#1E293B" };
+  return { bg: getCategoryColor(emoji, userCats).bg, pctColor: "#1E293B" };
 }
 
 function fmtAmount(n: number): string {
@@ -102,8 +105,16 @@ function fmtCOP(n: number): string {
   return `$ ${Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
-function getCategoryDisplayName(emoji: string): string {
-  const raw = EMOJI_TO_CATEGORY_NAME[emoji] ?? emoji;
+function getCategoryDisplayName(
+  emoji: string,
+  userCats?: import("@/src/constants/categoryPresets").UserCategory[],
+  goals?: { emoji: string; name: string }[],
+): string {
+  const raw = getCategoryName(emoji, userCats);
+  if (raw === emoji && goals) {
+    const goalMatch = goals.find((g) => g.emoji === emoji);
+    if (goalMatch) return goalMatch.name.charAt(0).toUpperCase() + goalMatch.name.slice(1).toLowerCase();
+  }
   return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
 }
 
@@ -116,8 +127,10 @@ function BudgetEditModal({
   onClose: () => void;
 }) {
   const { isDark } = useTheme();
+  const userCats = useSettingsStore((s) => s.userCategories);
+  const goals    = useSettingsStore((s) => s.savingsGoals);
   const { emoji, currentBudget, spent } = state;
-  const name         = getCategoryDisplayName(emoji);
+  const name         = getCategoryDisplayName(emoji, userCats, goals);
   const setBudget    = useSettingsStore((s) => s.setBudgetForCategory);
   const removeBudget = useSettingsStore((s) => s.removeBudgetForCategory);
 
@@ -625,11 +638,22 @@ export function CategoryChart({
   alertColors = true,
   isIncomeMode = false,
 }: CategoryChartProps) {
+  const userCategories = useSettingsStore((s) => s.userCategories);
+  const savingsGoals   = useSettingsStore((s) => s.savingsGoals);
   const [popup,      setPopup]      = useState<PopupState | null>(null);
   const [budgetEdit, setBudgetEdit] = useState<BudgetEditState | null>(null);
   const [nameBadge,  setNameBadge]  = useState<NameBadge | null>(null);
   const nameBadgeAnim = useRef(new Animated.Value(0)).current;
   const nameBadgeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const prevStatsKey = useRef("");
+
+  useEffect(() => {
+    const key = stats.map(s => `${s.emoji}:${s.total}`).join(",");
+    if (prevStatsKey.current && prevStatsKey.current !== key) {
+      LayoutAnimation.configureNext(LayoutAnimation.create(300, "easeInEaseOut", "opacity"));
+    }
+    prevStatsKey.current = key;
+  }, [stats]);
 
   function showNameBadge(badge: NameBadge) {
     clearTimeout(nameBadgeTimer.current);
@@ -693,12 +717,12 @@ export function CategoryChart({
           const spent         = stats.find(s => s.emoji === emoji)?.total ?? 0;
           setBudgetEdit({ emoji, currentBudget, spent });
         } else if (sel === "down") {
-          const name = getCategoryDisplayName(emoji);
+          const name = getCategoryDisplayName(emoji, userCategories, savingsGoals);
           onNewTransaction?.(emoji, name);
         }
       },
       onTap: (tapPageX: number) => {
-        const name = getCategoryDisplayName(emoji);
+        const name = getCategoryDisplayName(emoji, userCategories, savingsGoals);
         // Medir el origen del contenedor para convertir coordenada absoluta → relativa
         containerRef.current?.measure((_x, _y, _w, _h, pageX) => {
           const localX = tapPageX - pageX;
@@ -751,9 +775,9 @@ export function CategoryChart({
               bg       = "#DCFCE7"; // verde claro
               pctColor = "#16A34A"; // verde
             } else if (alertColors) {
-              ({ bg, pctColor } = barColor(emoji, stat.total, budgetAmt));
+              ({ bg, pctColor } = barColor(emoji, stat.total, budgetAmt, userCategories));
             } else {
-              bg       = getCategoryColor(emoji).bg;
+              bg       = getCategoryColor(emoji, userCategories).bg;
               pctColor = "#1E293B";
             }
 

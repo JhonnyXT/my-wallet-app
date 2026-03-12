@@ -5,10 +5,10 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { UserCategory } from "@/src/constants/categoryPresets";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-export type BudgetPeriod = "monthly" | "biweekly";
 export type DarkModeOption = "system" | "light" | "dark";
 export type PaymentMethodType = "cash" | "debit" | "savings";
 
@@ -31,10 +31,13 @@ export interface SettingsState {
   // Personalización
   userName: string;
 
-  // Presupuesto
-  monthlyBudget: number;        // 0 = no configurado (siempre el valor MENSUAL)
-  budgetPeriod: BudgetPeriod;   // "monthly" | "biweekly"
-  budgetByCategory: Record<string, number>; // emoji → monto límite (mensual)
+  // Categorías dinámicas del usuario
+  userCategories: UserCategory[];
+  hasSelectedCategories: boolean;
+
+  // Presupuesto (siempre mensual)
+  monthlyBudget: number;        // 0 = no configurado
+  budgetByCategory: Record<string, number>; // emoji → monto límite mensual
 
   // Métodos de pago
   paymentMethods: PaymentMethod[];
@@ -51,8 +54,12 @@ export interface SettingsState {
 
   // Acciones
   setUserName: (name: string) => void;
+  setUserCategories: (cats: UserCategory[]) => void;
+  addUserCategory: (cat: UserCategory) => void;
+  removeUserCategory: (id: string) => void;
+  updateUserCategory: (id: string, partial: Partial<UserCategory>) => void;
+  completeCategories: () => void;
   setMonthlyBudget: (amount: number) => void;
-  setBudgetPeriod: (period: BudgetPeriod) => void;
   setBudgetForCategory: (emoji: string, amount: number) => void;
   removeBudgetForCategory: (emoji: string) => void;
   setPaymentMethods: (methods: PaymentMethod[]) => void;
@@ -67,23 +74,22 @@ export interface SettingsState {
   completeOnboarding: () => void;
 }
 
+// ─── Helpers de categorías ────────────────────────────────────────────────────
+
+export function getUserExpenseCategories(cats: UserCategory[]): UserCategory[] {
+  return cats.filter((c) => c.type === "expense");
+}
+
+export function getUserIncomeCategories(cats: UserCategory[]): UserCategory[] {
+  return cats.filter((c) => c.type === "income");
+}
+
+export function getCategoryByEmoji(cats: UserCategory[], emoji: string): UserCategory | undefined {
+  return cats.find((c) => c.emoji === emoji);
+}
+
 // ─── Helpers derivados ───────────────────────────────────────────────────────
-
-export function getEffectiveBudget(monthlyBudget: number, budgetPeriod: BudgetPeriod): number {
-  return budgetPeriod === "biweekly" ? Math.round(monthlyBudget / 2) : monthlyBudget;
-}
-
-export function getEffectiveCategoryBudgets(
-  budgetByCategory: Record<string, number>,
-  budgetPeriod: BudgetPeriod
-): Record<string, number> {
-  if (budgetPeriod === "monthly") return budgetByCategory;
-  const result: Record<string, number> = {};
-  for (const [emoji, amount] of Object.entries(budgetByCategory)) {
-    result[emoji] = Math.round(amount / 2);
-  }
-  return result;
-}
+// (presupuesto siempre mensual — sin divisiones)
 
 // ─── Valores por defecto ──────────────────────────────────────────────────────
 
@@ -99,8 +105,9 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set, get) => ({
       userName:          "",
+      userCategories:    [],
+      hasSelectedCategories: false,
       monthlyBudget:     0,
-      budgetPeriod:      "monthly",
       budgetByCategory:  {},
       paymentMethods:    DEFAULT_PAYMENT_METHODS,
       savingsGoals:      [],
@@ -109,8 +116,21 @@ export const useSettingsStore = create<SettingsState>()(
       onboardingStep:         0,
 
       setUserName:     (name)   => set({ userName: name }),
+
+      setUserCategories: (cats) => set({ userCategories: cats }),
+      addUserCategory: (cat) =>
+        set((s) => ({ userCategories: [...s.userCategories, cat] })),
+      removeUserCategory: (id) =>
+        set((s) => ({ userCategories: s.userCategories.filter((c) => c.id !== id) })),
+      updateUserCategory: (id, partial) =>
+        set((s) => ({
+          userCategories: s.userCategories.map((c) =>
+            c.id === id ? { ...c, ...partial } : c
+          ),
+        })),
+      completeCategories: () => set({ hasSelectedCategories: true }),
+
       setMonthlyBudget:(amount) => set({ monthlyBudget: Math.max(0, amount) }),
-      setBudgetPeriod: (period) => set({ budgetPeriod: period }),
 
       setBudgetForCategory: (emoji, amount) =>
         set((s) => ({

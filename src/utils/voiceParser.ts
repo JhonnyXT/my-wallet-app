@@ -164,7 +164,9 @@ export function replaceAmountInNote(raw: string, amount: number): string {
 
   for (const pattern of patterns) {
     if (pattern.test(raw)) {
-      return raw.replace(pattern, formatted);
+      let result = raw.replace(pattern, formatted);
+      result = result.replace(/([a-záéíóúñA-ZÁÉÍÓÚÑ])\$/g, "$1 $");
+      return result;
     }
   }
   return raw;
@@ -265,21 +267,26 @@ function extractAmount(text: string): number {
 
 function extractDate(text: string): DateOption | null {
   const n = normalize(text);
-  if (/anteayer|antes de ayer/.test(n)) return "daybeforeyesterday";
-  if (/\bayer\b/.test(n)) return "yesterday";
   if (/\bhoy\b/.test(n)) return "today";
-  return null; // sin mención explícita → no cambiar la fecha seleccionada
+  return null;
 }
 
-/** Devuelve la categoría detectada, o null si no hay coincidencia */
-function extractCategory(text: string): { emoji: string; name: string } | null {
+/** Devuelve la categoría detectada. Consulta primero userCategories si se proveen. */
+function extractCategory(text: string, userCats?: import("@/src/constants/categoryPresets").UserCategory[]): { emoji: string; name: string } | null {
   const n = normalize(text);
+  if (userCats) {
+    for (const cat of userCats) {
+      if (cat.keywords.some((kw) => n.includes(kw))) {
+        return { emoji: cat.emoji, name: cat.name };
+      }
+    }
+  }
   for (const cat of CATEGORY_MAP) {
     if (cat.keywords.some((kw) => n.includes(kw))) {
       return { emoji: cat.emoji, name: cat.name };
     }
   }
-  return null; // sin match → no sobreescribir selección actual
+  return null;
 }
 
 // ─── Detecta si es gasto o ingreso ───────────────────────────────────────────
@@ -312,11 +319,11 @@ function extractIsExpense(text: string): boolean | undefined {
 }
 
 // ─── Función principal exportada ─────────────────────────────────────────────
-export function processVoiceInput(raw: string): Partial<ActiveExpense> & {
+export function processVoiceInput(raw: string, userCats?: import("@/src/constants/categoryPresets").UserCategory[]): Partial<ActiveExpense> & {
   _categoryDetected: boolean;
   _dateDetected: boolean;
 } {
-  const category  = extractCategory(raw);
+  const category  = extractCategory(raw, userCats);
   const date      = extractDate(raw);
   const isExpense = extractIsExpense(raw);
   const amount    = extractAmount(raw);

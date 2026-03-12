@@ -26,17 +26,17 @@ import type { AppTheme } from "@/src/theme";
 
 // ─── Opciones ─────────────────────────────────────────────────────────────────
 
-export const PERIODS = ["Hoy", "Ayer", "Esta semana", "Este mes", "Este año", "Todo"];
+export const PERIODS = ["Hoy", "Esta semana", "Esta quincena", "Este mes", "Este año", "Todo"];
 
 type LucideIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 
 const PERIOD_ICONS: Record<string, LucideIcon> = {
-  "Hoy":          CalendarCheck,
-  "Ayer":         Calendar,
-  "Esta semana":  CalendarDays,
-  "Este mes":     CalendarDays,
-  "Este año":     CalendarPlus,
-  "Todo":         List,
+  "Hoy":              CalendarCheck,
+  "Esta semana":      CalendarDays,
+  "Esta quincena":    Calendar,
+  "Este mes":         CalendarDays,
+  "Este año":         CalendarPlus,
+  "Todo":             List,
 };
 
 // ─── Bottom Sheet de período ──────────────────────────────────────────────────
@@ -44,12 +44,14 @@ const PERIOD_ICONS: Record<string, LucideIcon> = {
 function PeriodSheet({
   visible,
   selected,
+  periods,
   onSelect,
   onClose,
   onOpenMonthPicker,
 }: {
   visible: boolean;
   selected: string;
+  periods: string[];
   onSelect: (v: string) => void;
   onClose: () => void;
   onOpenMonthPicker?: () => void;
@@ -65,7 +67,7 @@ function PeriodSheet({
         <View style={bs.handle} />
         <Text style={bs.title}>Periodo</Text>
 
-        {PERIODS.map((opt, i) => {
+        {periods.map((opt, i) => {
           const Icon  = PERIOD_ICONS[opt];
           const isSel = opt === selected;
           return (
@@ -85,7 +87,7 @@ function PeriodSheet({
                 </View>
                 {isSel && <Check size={16} color={theme.accent} strokeWidth={2.5} />}
               </TouchableOpacity>
-              {i < PERIODS.length - 1 && <View style={bs.sep} />}
+              {i < periods.length - 1 && <View style={bs.sep} />}
             </View>
           );
         })}
@@ -126,8 +128,8 @@ function PillChip({ label, onPress }: { label: string; onPress: () => void }) {
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 interface FilterChipsProps {
-  period: string;               // label activo para checkmark en el sheet
-  periodLabel?: string;         // label a mostrar en el chip (ej: "Abr 2025")
+  period: string;
+  periodLabel?: string;
   onPeriodChange: (p: string) => void;
   onOpenMonthPicker?: () => void;
 }
@@ -154,6 +156,7 @@ export function FilterChips({
       <PeriodSheet
         visible={sheetVisible}
         selected={period}
+        periods={PERIODS}
         onSelect={onPeriodChange}
         onClose={() => setSheetVisible(false)}
         onOpenMonthPicker={onOpenMonthPicker}

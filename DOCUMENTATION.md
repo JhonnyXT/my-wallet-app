@@ -1,6 +1,6 @@
 # MyWallet — Guía Completa de Usuario
 
-> **Versión:** 1.0.0 | **Plataforma:** Android (iOS en desarrollo) | **Idioma:** Español
+> **Versión:** 1.1.0 | **Plataforma:** Android (iOS en desarrollo) | **Idioma:** Español
 
 ---
 
@@ -32,12 +32,10 @@ Al abrir MyWallet por primera vez, un **tour guiado** te acompañará en los pas
 
 Si prefieres configurar todo manualmente, sigue estos pasos:
 
-### Paso 1 — Define tu ingreso mensual y período de pago
+### Paso 1 — Define tu ingreso mensual
 Este es el paso más importante. Sin un presupuesto, las gráficas no muestran alertas ni contexto útil.
 
-1. En **Configuración → Control financiero → Período de pago**, selecciona **Mensual** o **Quincenal** según cómo recibas tus ingresos
-2. En **Ingreso mensual** (o "Ingreso quincenal" si elegiste quincenal), ingresa cuánto dinero dispones para gastar **al mes**
-   - Si eliges quincenal, la app divide automáticamente el monto entre 2 y calcula el avance en períodos del 1 al 15, y del 16 al final del mes. El subtítulo te muestra el monto por quincena y una referencia al total mensual
+En **Configuración → Control financiero → Ingreso mensual**, ingresa cuánto dinero dispones para gastar al mes.
 
 > 💡 **Recomendación:** Si no sabes cuánto gastas, empieza por registrar todo durante 2 semanas sin presupuesto. Luego usa los datos reales para definir un presupuesto realista.
 
@@ -76,12 +74,12 @@ Es la pantalla que verás al abrir la app. Está organizada en secciones de arri
 
 ### Barra de progreso del presupuesto
 Solo visible si tienes un presupuesto mensual configurado.
-- Muestra `X% de $monto_presupuesto` — si tu período es quincenal, el monto se divide automáticamente entre 2
+- Muestra `X% de $monto_presupuesto` (porcentaje del presupuesto mensual consumido)
 - Se pone **roja** cuando superas el 90% del presupuesto
 
 ### Filtro de período
 - **Chip de período** (ej: "Este mes") → toca para ver las opciones:
-  - Hoy / Ayer / Esta semana / Este mes / Este año / Todo
+  - Hoy / Esta semana / Esta quincena / Este mes / Este año / Todo
   - **📅 Elegir mes específico...** → abre el selector de mes/año
 - El chip muestra la etiqueta dinámica del período activo: "Este mes", "Abr 2025", "2025", etc.
 
@@ -100,14 +98,16 @@ Ver sección detallada en [punto 6](#6-gráfica-de-categorías).
 
 ### Período sin transacciones
 Cuando no hay movimientos en el período seleccionado:
-- **Período actual (mes o quincena en curso):** aparecen barras fantasma suaves con un mensaje motivacional centrado: *"Nuevo mes, ¡comienza ahora!"* o *"Nueva quincena, ¡comienza ahora!"*
+- **Período actual (mes en curso):** aparecen barras fantasma suaves con un mensaje motivacional centrado: *"Nuevo mes, ¡comienza ahora!"*
 - **Período pasado:** se muestra *"Sin registros en este período"*
 
 ### Lista de transacciones recientes
 - Muestra todos los movimientos del período seleccionado
 - Cada item aparece como una **tarjeta con fondo blanco y sombra sutil** (modo claro) / fondo oscuro (modo oscuro)
+- Cada registro muestra la fecha exacta en que fue creado (ej: "3 mar 2026")
 - **Gastos:** monto en negro con signo `−`
 - **Ingresos:** monto en verde con signo `+`
+- **Mantén presionado** un registro durante medio segundo para ver el **detalle completo**: emoji, monto, categoría, tipo, cuenta (método de pago), fecha, hora y descripción
 - **Desliza izquierda** sobre cualquier registro para ver el botón de eliminar (rojo con ícono de papelera)
 
 ---
@@ -152,9 +152,11 @@ Cuando no hay movimientos en el período seleccionado:
 
 | Ícono | Selector | Opciones |
 |-------|----------|----------|
-| 📅 Fecha | Hoy / Ayer / Anteayer / Calendario | Por defecto: Hoy |
-| 🍽️ Categoría | Grid contextual: 8 categorías si es Gasto, 5 categorías si es Ingreso | Se actualiza automáticamente con el NLP |
+| 📅 Fecha | Hoy / Calendario | Por defecto: Hoy |
+| 🍽️ Categoría | Grid dinámico con tus categorías elegidas | Se actualiza automáticamente con el NLP |
 | 👛 Cuenta | Tus métodos de pago configurados | Por defecto: el primero disponible |
+
+> ℹ️ El método de pago seleccionado en "Cuenta" queda registrado junto con la transacción.
 
 **Tags (etiquetas):**
 - Selecciona tags sugeridos tocándolos: `#viaje`, `#trabajo`, `#comida`, `#salud`, `#ocio`
@@ -189,7 +191,7 @@ La entrada por voz es la forma más rápida de registrar un movimiento.
 |------|---------------------|
 | **Monto** | "veinte mil", "20 mil", "cinco millones", "5 millones 400 mil", "cuarenta y dos mil" |
 | **Tipo** | "gasté/compré/pagué" → Gasto / "recibí/sueldo/quincena/freelance/honorarios" → Ingreso |
-| **Fecha** | "hoy" → Hoy / "ayer" → Ayer / "anteayer" → Anteayer |
+| **Fecha** | "hoy" → Hoy |
 | **Categoría (gastos)** | "taxi/uber/gasolina" → Transporte / "restaurante/almuerzo" → Comida / etc. |
 | **Categoría (ingresos)** | "sueldo/nomina" → 💼 Salario / "freelance/honorarios" → 💻 Freelance / "dividendos" → 📈 Inversiones / etc. |
 
@@ -238,7 +240,7 @@ La gráfica de barras verticales es el centro visual del Dashboard. Muestra cóm
 
 ### Modo Ingresos (pill ↑ activo)
 
-- La gráfica cambia automáticamente para mostrar las **5 categorías de ingreso**
+- La gráfica cambia automáticamente para mostrar tus **categorías de ingreso**
 - Las barras son **verdes** y proporcionales: la categoría con más ingresos aparece al 100%, las demás escalan relativamente
 - No hay presupuesto ni alertas de color en modo ingresos
 - Cada barra muestra el porcentaje del total de ingresos del período
@@ -303,8 +305,7 @@ Opciones visibles directamente en la pantalla de ajustes (en este orden):
 
 | Opción | Descripción |
 |--------|-------------|
-| Período de pago | **Mensual** (1 al fin de mes) o **Quincenal** (1–15 y 16–fin de mes). Se muestra primero para que el ingreso se adapte automáticamente |
-| Ingreso mensual / quincenal | Cuánto dinero tienes disponible para gastar. `0` = sin presupuesto configurado. La etiqueta cambia dinámicamente: muestra **"Ingreso quincenal"** si elegiste período quincenal. El subtítulo muestra el monto del período + referencia "Mensual: $X". Al editar, siempre se pide el **monto mensual** (la app lo divide automáticamente por quincena) |
+| Ingreso mensual | Cuánto dinero tienes disponible para gastar al mes. `0` = sin presupuesto configurado. |
 
 ### Métodos de pago *(abre modal de pantalla completa)*
 Toca la tarjeta "Métodos de pago" para abrir el panel de gestión:
@@ -316,7 +317,7 @@ Toca la tarjeta "Métodos de pago" para abrir el panel de gestión:
 
 ### Presupuesto por categoría *(abre modal de pantalla completa)*
 Toca la tarjeta "Presupuesto por categoría" para abrir el panel:
-- Lista las 8 categorías de gasto estándar
+- Lista tus categorías de gasto elegidas
 - Toca cualquiera para ingresar un límite mensual
 - El límite se muestra en verde cuando está configurado
 - Toca **✗** para quitar el límite de una categoría
@@ -328,6 +329,8 @@ Gestiona tus metas desde la sección "Metas de ahorro":
 - **Abonar:** Toca el botón **"Abonar"** sobre la meta para agregar dinero al progreso
 - **Ver progreso:** Barra de progreso visual con monto acumulado / objetivo
 - **Eliminar:** **Desliza la meta hacia la izquierda** para revelar el botón de papelera rojo, luego tócalo para confirmar
+
+> ℹ️ Al abonar a una meta, se registra automáticamente como **gasto** en el Dashboard (con el emoji de la meta, descripción "Abono a [nombre]" y tag `#ahorro`). Esto descuenta el dinero de tu balance disponible.
 
 ### Apariencia
 - **Modo oscuro:** Sistema (sigue el tema del dispositivo) / Claro / Oscuro
@@ -341,38 +344,29 @@ Gestiona tus metas desde la sección "Metas de ahorro":
 
 ---
 
-## 8. Categorías de Gasto e Ingreso
+## 8. Categorías Personalizables
 
-MyWallet maneja dos conjuntos de categorías según el tipo de movimiento.
+MyWallet te permite **elegir y crear tus propias categorías** de gasto e ingreso.
 
-### Categorías de Gasto (8)
+### Primera vez: Selección de categorías
 
-El NLP las detecta automáticamente al registrar un gasto:
+La primera vez que abres la app, después de la pantalla de bienvenida, aparece la pantalla de **selección de categorías**:
 
-| Emoji | Nombre | Palabras clave que activan la detección |
-|-------|--------|----------------------------------------|
-| 🍔 | **Comida** | restaurante, almuerzo, cena, desayuno, pizza, café, mercado, supermercado, domicilio |
-| 🚗 | **Transporte** | uber, taxi, bus, metro, gasolina, transporte, moto, peaje, vuelo, parqueadero |
-| 🏠 | **Hogar** | arriendo, alquiler, luz, agua, gas, internet, servicios, celular, reparación |
-| 🛍️ | **Compras** | zara, ropa, gadget, zapatos, laptop, electrónico, accesorios |
-| 🏥 | **Salud** | medicina, médico, doctor, farmacia, droguería, clínica, hospital, cita, EPS |
-| 🎮 | **Entretenimiento** | cine, netflix, spotify, juego, PlayStation, Xbox, concierto, teatro, gym |
-| 🎓 | **Educación** | curso, libro, universidad, clase, colegio, taller, capacitación |
-| 👤 | **Personal** | barbería, peluquería, belleza, deporte, fútbol, cuidado personal |
+1. Verás una cuadrícula de tarjetas con las categorías predefinidas (18 de gasto, 6 de ingreso)
+2. Toca las que quieras usar — se marcan con un check
+3. Al final hay una tarjeta con "+" para **crear una categoría personalizada**
+4. En el popup de creación puedes elegir un emoji, un color y un nombre
+5. Toca **Guardar** para confirmar tu selección
 
-### Categorías de Ingreso (5)
+### Editar categorías después
 
-Aparecen en el selector cuando registras un ingreso y en la gráfica cuando el pill "↑ Ingresos" está activo:
+Desde **Configuración > Mis categorías** puedes ver tus categorías actuales y tocar **"Gestionar categorías"** para volver a la pantalla de selección y agregar/quitar categorías.
 
-| Emoji | Nombre | Palabras clave que activan la detección |
-|-------|--------|----------------------------------------|
-| 💼 | **Salario** | salario, sueldo, nómina, quincena, mensualidad, empresa, pago |
-| 💻 | **Freelance** | freelance, honorarios, proyecto, cliente, trabajo independiente |
-| 📈 | **Inversiones** | inversión, dividendos, rendimientos, intereses, acciones |
-| 🎁 | **Extra** | extra, regalo, bono, reembolso, devolución, premio, venta |
-| 🏢 | **Negocio** | negocio, local, venta, factura |
+### Categorías y NLP
 
-> 💡 Si el NLP no detecta ninguna categoría con las palabras que usaste, mantiene la categoría que tenías seleccionada. Puedes cambiarla manualmente en el selector de categoría.
+Cada categoría tiene palabras clave que el NLP detecta automáticamente. Las categorías predefinidas ya vienen con keywords, y las que crees tú usarán tu nombre como keyword.
+
+> Si el NLP no detecta ninguna categoría, mantiene la que tenías seleccionada. Puedes cambiarla manualmente en el selector de categoría.
 
 ---
 
@@ -419,6 +413,12 @@ No hay límite técnico. La base de datos SQLite puede manejar millones de regis
 ### ¿Qué es el tour inicial?
 La primera vez que abres MyWallet aparece un **tour guiado** de 5 pasos con un spotlight que resalta elementos clave de la pantalla. Te lleva a configurar tu ingreso mensual, te muestra el registro por voz (micrófono) y el registro manual (botón +). Si no quieres seguirlo, toca **"Omitir"** en cualquier paso. El tour no vuelve a aparecer una vez completado o saltado.
 
+### ¿Cómo veo el detalle de una transacción?
+Mantén presionado (long-press) cualquier registro en la lista de transacciones durante medio segundo. Se abrirá una tarjeta con toda la información: emoji de categoría, monto, tipo (Gasto/Ingreso), cuenta (método de pago), fecha, hora y descripción. Toca fuera de la tarjeta para cerrarla.
+
+### ¿Al abonar a una meta de ahorro se descuenta de mi balance?
+Sí. Cada abono crea automáticamente una transacción de gasto, así tu balance refleja que ese dinero ya no está disponible. La transacción aparece en la lista y gráfica del Dashboard con el tag `#ahorro`.
+
 ### ¿Funciona sin internet?
 Sí, la app es **100% offline**. El reconocimiento de voz, el NLP y todos los cálculos son locales. No necesitas internet para nada.
 
@@ -458,15 +458,15 @@ Una vez al mes:
 | **Tag** | Etiqueta personalizada para organizar transacciones (ej: `#viaje`, `#trabajo`) |
 | **Presupuesto por categoría** | Límite de gasto mensual para una categoría específica. Activa alertas en la gráfica |
 | **Ghost bar** | Barra de categoría sin gastos. Aparece gris para recordarte que existe esa categoría |
-| **Long-press** | Mantener presionado ~0.4 segundos para activar acciones avanzadas |
+| **Long-press** | Mantener presionado ~0.4 segundos para activar acciones avanzadas. En la lista de transacciones, abre el detalle completo del registro |
 | **Swipe-to-delete** | Deslizar un item hacia la izquierda para revelar el botón de eliminar (transacciones y metas de ahorro) |
 | **Badge de categoría** | Pequeño globo flotante con emoji + nombre que aparece al tocar una columna de la gráfica |
 | **Selector de mes/año** | Modal con grid de meses que permite filtrar el Dashboard a un período específico |
 | **Diálogo de confirmación** | Ventana emergente minimalista con icono, título y botones (reemplaza las alertas nativas del sistema) |
 | **Estado draft** | Cambios pendientes en el selector de mes que solo se aplican al confirmar con "Aplicar" |
-| **Ingreso del período** | Monto de presupuesto ajustado al período activo. Si el período es quincenal, equivale a la mitad del ingreso mensual configurado |
+| **Detalle de transacción** | Tarjeta modal que aparece al hacer long-press en un registro, mostrando información completa (categoría, monto, tipo, cuenta, fecha, hora, descripción, tags) |
 | **Guided Tour / Onboarding** | Tour guiado de 5 pasos que aparece la primera vez que abres la app. Te muestra cómo configurar tu ingreso y registrar transacciones |
 
 ---
 
-*Documentación generada para MyWallet v1.0.0*
+*Documentación generada para MyWallet v1.1.0*

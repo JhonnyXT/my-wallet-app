@@ -2,7 +2,7 @@
 
 > **Propósito:** Este documento es la referencia técnica completa del proyecto. Cualquier desarrollador, IA o colaborador que lea este archivo tendrá TODO el contexto necesario para desarrollar, modificar o extender la aplicación sin perder consistencia.
 >
-> **Última actualización:** Marzo 2026 | **Versión:** 1.0.0
+> **Última actualización:** Marzo 2026 | **Versión:** 1.1.0
 
 ---
 
@@ -17,7 +17,7 @@
 7. [Base de Datos (SQLite)](#7-base-de-datos-sqlite)
 8. [Sistema de Temas (Light / Dark)](#8-sistema-de-temas-light--dark)
 9. [Sistema NLP (Procesamiento de Lenguaje Natural)](#9-sistema-nlp-procesamiento-de-lenguaje-natural)
-10. [Las 8 Categorías Estándar](#10-las-8-categorías-estándar)
+10. [Categorías (Sistema Dinámico)](#10-categorías-sistema-dinámico)
 11. [Componentes UI Reutilizables](#11-componentes-ui-reutilizables)
 12. [Pantallas y Rutas](#12-pantallas-y-rutas)
 13. [Formato de Moneda (COP)](#13-formato-de-moneda-cop)
@@ -108,11 +108,13 @@ my-wallet-app/
 │   │   ├── FloatingDock.tsx      # Dock flotante + FAB micrófono
 │   │   ├── FloatingInput.tsx     # Overlay input/búsqueda flotante
 │   │   ├── MonthPickerModal.tsx  # Selector de mes/año con montos
+│   │   ├── AnimatedNumber.tsx     # Interpolación visual de montos ($COP)
 │   │   └── TransactionItem.tsx   # Item transacción + swipe-delete
 │   │
 │   ├── constants/
+│   │   ├── categoryPresets.ts    # UserCategory, presets, paleta colores, emojis curados
 │   │   ├── layout.ts             # DOCK_HEIGHT, scrollBottomPadding
-│   │   └── theme.ts              # COLORS, CATEGORY_MAP, CATEGORY_COLORS
+│   │   └── theme.ts              # COLORS, CATEGORY_MAP (legacy), getCategoryColor/Name
 │   │
 │   ├── context/
 │   │   └── ThemeContext.tsx       # Proveedor de tema claro/oscuro
@@ -251,7 +253,7 @@ interface ActiveExpense {
   isExpense: boolean
   categoryEmoji: string             // Emoji de la categoría (ej: "🍔")
   categoryName: string
-  date: "today" | "yesterday" | "daybeforeyesterday" | "custom"
+  date: "today" | "custom"
   customDate: Date | null
   note: string
   rawTranscript: string
@@ -266,7 +268,6 @@ interface ActiveExpense {
 {
   userName: string
   monthlyBudget: number             // 0 = no configurado
-  budgetPeriod: "monthly" | "biweekly"
   budgetByCategory: Record<string, number>  // emoji → monto límite
   paymentMethods: PaymentMethod[]
   savingsGoals: SavingsGoal[]
@@ -280,17 +281,7 @@ setOnboardingStep(step: number): void
 completeOnboarding(): void
 ```
 
-#### Helpers exportados (funciones puras)
-```typescript
-getEffectiveBudget(monthlyBudget: number, budgetPeriod: "monthly" | "biweekly"): number
-// Retorna monthlyBudget / 2 si biweekly, o monthlyBudget si monthly
-
-getEffectiveCategoryBudgets(
-  budgetByCategory: Record<string, number>,
-  budgetPeriod: "monthly" | "biweekly"
-): Record<string, number>
-// Retorna cada presupuesto de categoría dividido entre 2 si biweekly
-```
+El presupuesto es siempre mensual. No existen helpers de período — los montos se usan directamente.
 
 **Persistencia:** `zustand/middleware/persist` con `createJSONStorage(() => AsyncStorage)`, key `"mywallet-settings"`. Los campos `hasCompletedOnboarding` y `onboardingStep` también se persisten.
 
@@ -341,7 +332,8 @@ CREATE TABLE IF NOT EXISTS transactions (
   description     TEXT NOT NULL,        -- Texto libre del usuario
   category_emoji  TEXT NOT NULL DEFAULT '💰',
   date            TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-  tags            TEXT NOT NULL DEFAULT ''  -- JSON: '["#trabajo","#comida"]'
+  tags            TEXT NOT NULL DEFAULT '',  -- JSON: '["#trabajo","#comida"]'
+  payment_method  TEXT NOT NULL DEFAULT 'cash'
 );
 ```
 
@@ -354,7 +346,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 | Función | Descripción |
 |---------|-------------|
 | `initDatabase()` | Crea tabla + migración de `tags` |
-| `insertTransaction(amount, desc, emoji, tags)` | INSERT con fecha local ISO |
+| `insertTransaction(amount, desc, emoji, tags, date?, paymentMethod?)` | INSERT con fecha local ISO |
 | `deleteTransaction(id)` | DELETE por ID |
 | `getAllTransactions()` | SELECT * ORDER BY date DESC |
 | `hasAnyTransactions()` | COUNT > 0 |
@@ -454,20 +446,20 @@ type AppTheme = {
 - Ingreso: recibí, ingresé, cobré, sueldo, salario, freelance, quincena, mensualidad, honorarios, dividendos, rendimientos, reembolso, bono
 
 **Extracción de fecha:**
-- hoy, ayer, anteayer/antier
+- hoy
 
 **Extracción de categoría:**
-- Basado en CATEGORY_MAP con ~70 palabras clave → 8 categorías de gasto + 5 de ingreso
+- Consulta primero `userCategories` (categorías dinámicas del usuario), luego `CATEGORY_MAP` legacy como fallback
 
 **Post-procesamiento:**
 - `normalizeMoneyText(text)`: convierte `$40,000` → `$40.000` en el texto
-- `replaceAmountInNote(text, amount)`: convierte `"cinco millones 400 mil"` → `"$5.400.000"` en la nota
+- `replaceAmountInNote(text, amount)`: convierte `"cinco millones 400 mil"` → `"$5.400.000"` en la nota. Además asegura un espacio antes de `$` cuando está precedido por una letra (corrige "gasté$500.000" → "gasté $500.000")
 
 ### nlp.ts — parseExpenseInput
 
 Parseo simple para el campo de texto del formulario:
 - Busca el primer número en el texto → monto
-- Usa `guessCategoryEmoji(description)` para categoría
+- Usa `guessCategoryEmoji(description, userCats?)` para categoría (consulta userCategories primero)
 - Más ligero, se ejecuta en cada keystroke
 
 ### Reglas para extender NLP
@@ -477,42 +469,47 @@ Parseo simple para el campo de texto del formulario:
 
 ---
 
-## 10. Categorías
+## 10. Categorías (Sistema Dinámico)
 
-### 10.1 Categorías de Gasto (8)
+### 10.1 Modelo de Datos
 
-Conjunto fijo. Visible en el formulario de gastos, gráfica en modo gastos y búsqueda:
+Las categorías son **dinámicas y personalizables por el usuario**. Se almacenan en `useSettingsStore.userCategories` como array de `UserCategory`:
 
-| Emoji | Nombre | Color Accent | Palabras Clave NLP |
-|-------|--------|-------------|-------------------|
-| 🍔 | Comida | `#D2601A` | restaurante, almuerzo, cena, pizza, café, mercado, supermercado, domicilio |
-| 🚗 | Transporte | `#1565C0` | uber, taxi, bus, metro, gasolina, transporte, moto |
-| 🏠 | Hogar | `#D97706` | arriendo, luz, agua, gas, internet, servicios, reparación |
-| 🛍️ | Compras | `#C2185B` | ropa, zara, shopping, gadget, tecnología, amazon |
-| 🏥 | Salud | `#C62828` | farmacia, médico, doctor, hospital, clínica, medicamento |
-| 🎮 | Entretenimiento | `#6D28D9` | netflix, spotify, cine, juego, concierto, teatro, suscripción |
-| 🎓 | Educación | `#059669` | curso, libro, universidad, clase, colegio, capacitación |
-| 👤 | Personal | `#475569` | personal, peluquería, barbería, belleza, spa, cuidado |
+```typescript
+interface UserCategory {
+  id: string;          // "preset_food" o "custom_1234567890"
+  emoji: string;       // Emoji nativo del sistema
+  name: string;        // Nombre visible
+  colorBg: string;     // Color de fondo (pastel)
+  colorAccent: string; // Color de acento
+  type: "expense" | "income";
+  keywords: string[];  // Palabras clave para NLP
+  isPreset: boolean;   // true = del catálogo, false = creada por el usuario
+}
+```
 
-### 10.2 Categorías de Ingreso (5)
+### 10.2 Catálogo de Presets
 
-Visible en el formulario de ingresos y en la gráfica cuando el pill "↑ Ingresos" está activo:
+Definidos en `src/constants/categoryPresets.ts`:
 
-| Emoji | Nombre | Color Accent | Palabras Clave NLP |
-|-------|--------|-------------|-------------------|
-| 💼 | Salario | Verde `#16A34A` | salario, sueldo, nomina, quincena, mensualidad, empresa |
-| 💻 | Freelance | Azul `#0284C7` | freelance, honorarios, proyecto, cliente |
-| 📈 | Inversiones | Esmeralda `#059669` | inversión, dividendos, rendimientos, intereses, acciones |
-| 🎁 | Extra | Naranja `#D97706` | extra, regalo, bono, reembolso, devolución, premio |
-| 🏢 | Negocio | Índigo `#4F46E5` | negocio, local, venta, factura |
+- **18 presets de gasto**: Comida, Transporte, Hogar, Compras, Salud, Entretenimiento, Educación, Personal, Ropa, Mascotas, Vehículo, Lujo, Viajes, Suscripciones, Deportes, Café, Regalos, Comer afuera
+- **6 presets de ingreso**: Salario, Freelance, Inversiones, Extra, Negocio, Otros ingresos
+- **Paleta de 12 colores premium** para categorías custom
+- **~96 emojis curados** organizados por temática para el selector
 
-### Fuentes de verdad
-- **`src/constants/theme.ts`**: `CATEGORY_MAP`, `EMOJI_TO_CATEGORY_NAME`, `CATEGORY_COLORS`, `ALL_CATEGORY_EMOJIS`, `ALL_INCOME_EMOJIS`
-- **`src/utils/voiceParser.ts`**: Mapa duplicado para NLP de voz (mantener sincronizado)
-- **`app/active-expense.tsx`**: `CATEGORY_OPTIONS` (gastos) y `INCOME_CATEGORY_OPTIONS` (ingresos)
+### 10.3 Flujo del Usuario
 
-### Regla
-Si se agrega/modifica una categoría, actualizar en **todos** los archivos anteriores + la documentación del usuario.
+1. **Primera vez (onboarding):** Después del splash, aparece `category-onboarding.tsx` con grid de tarjetas seleccionables + botón "Añadir categoría" (modal con selector de emoji, color y nombre).
+2. **Desde Settings:** Sección "Mis categorías" muestra las elegidas y botón "Gestionar categorías" que reabre la misma pantalla en modo edición.
+3. **No se puede saltar la selección:** El usuario debe elegir al menos 1 categoría.
+
+### 10.4 Fuentes de verdad
+- **`src/constants/categoryPresets.ts`**: Catálogo de presets, paleta de colores, emojis curados, tipo `UserCategory`
+- **`src/store/useSettingsStore.ts`**: `userCategories` (array persistido), helpers `getUserExpenseCategories()`, `getUserIncomeCategories()`, `getCategoryByEmoji()`
+- **`src/constants/theme.ts`**: `getCategoryColor()`, `guessCategoryEmoji()`, `getCategoryName()` — consultan primero `userCategories`, luego legacy como fallback
+
+### 10.5 Regla
+Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las categorías custom se crean desde la UI y se guardan automáticamente en el store.
 
 ---
 
@@ -525,6 +522,8 @@ Si se agrega/modifica una categoría, actualizar en **todos** los archivos anter
 - Ghost tracks para categorías vacías (gris con borde punteado)
 - **Tap corto en columna:** badge animado (fade + slide up) con emoji + nombre de la categoría, se auto-descarta en 1.6s
 - Long-press: popup con "Editar presupuesto ↑ / Nueva transacción ↓" (en ingresos solo "↓")
+- **Reordenamiento animado:** `LayoutAnimation.configureNext()` se activa cuando cambian las stats, proporcionando una transición suave al reordenar columnas
+- Lee `userCategories` del store para colores y nombres dinámicos
 - `containerRef` + `measure()` para calcular posición absoluta del badge en pantalla
 
 ### FloatingDock
@@ -534,15 +533,18 @@ Si se agrega/modifica una categoría, actualizar en **todos** los archivos anter
 - Fondo semi-transparente oscuro al abrir menú
 
 ### TransactionItem
-- Muestra emoji, descripción (truncada), fecha, monto formateado
+- Muestra emoji, descripción (truncada), fecha absoluta ("3 mar 2026", no relativa "Hoy"/"Ayer"), monto formateado
+- Layout: nombre de categoría + fecha en flex row (categoría shrinks con `flexShrink: 1`, fecha se mantiene)
+- Resolución de nombre de categoría: `userCategories` → `savingsGoals` → `EMOJI_TO_CATEGORY_NAME` → "General"
 - **Modo claro:** fondo blanco (`#FFFFFF`) con sombra sutil (card-like)
 - **Modo oscuro:** fondo `t.itemBg`
 - Swipe-to-delete (PanResponder + Animated): deslizar izquierda revela botón papelera
+- **Long-press (500ms):** abre modal de detalle de transacción con haptic feedback
 - Animación de entrada: `FadeInDown`
 - Gastos en negro con `−`, ingresos en verde con `+`
 
 ### FilterChips
-- **Un solo chip** de período: opciones rápidas ("Hoy"…"Todo") + "📅 Elegir mes específico..." al fondo del sheet
+- **Un solo chip** de período: 6 períodos fijos: Hoy, Esta semana, Esta quincena, Este mes, Este año, Todo + "📅 Elegir mes específico..." al fondo del sheet
 - Props: `period`, `periodLabel?` (label dinámico, ej: "Abr 2025"), `onPeriodChange`, `onOpenMonthPicker?`
 - El chip de categoría fue eliminado — simplifica la UI del Dashboard; el filtrado por categoría se hace desde la gráfica o la búsqueda
 - Abre un único Modal bottom-sheet al tocar
@@ -566,6 +568,12 @@ Si se agrega/modifica una categoría, actualizar en **todos** los archivos anter
 - Props: `visible`, `variant`, `title`, `message`, `confirmLabel`, `cancelLabel`, `onConfirm`, `onCancel`
 - Usado en: `settings.tsx` (limpiar datos, eliminar método de pago, error de exportación, mínimo un método)
 
+### AnimatedNumber
+- Componente que interpola visualmente entre valores numéricos con `Animated.timing`
+- Props: `value`, `prefix` (default `"$ "`), `style`, `duration` (default 450ms), `formatFn`
+- Usa `setNativeProps` para actualizaciones de alto rendimiento sin re-renders
+- Usado en Dashboard: Balance neto, Gastos y Ingresos
+
 ### GuidedTour
 - Overlay reutilizable de onboarding paso a paso con efecto spotlight
 - Props: `steps: TourStep[]`, `currentStep: number`, `globalStep: number`, `totalSteps: number`, `visible: boolean`, `onSkip: () => void`
@@ -582,7 +590,7 @@ Si se agrega/modifica una categoría, actualizar en **todos** los archivos anter
 - Muestra `X% de $presupuesto`
 - Se vuelve roja al superar 90%
 - Solo visible si `monthlyBudget > 0`
-- Usa `effectiveBudget` (presupuesto mensual / 2 si quincenal) vía `getEffectiveBudget()`
+- Usa `monthlyBudget` directamente (presupuesto siempre mensual)
 
 ### ActionPills
 - Pills "↓ Gastos" / "↑ Ingresos" para filtrar la vista
@@ -598,9 +606,9 @@ Si se agrega/modifica una categoría, actualizar en **todos** los archivos anter
 ### Dashboard (`app/(tabs)/index.tsx`)
 - Balance neto (tipografía 38px, weight 800)
 - Pills inline (Gastos/Ingresos) con toggle por tipo
-- Barra de presupuesto inline (condicional: `monthlyBudget > 0`, sin filtro de tipo, solo período actual). Usa `effectiveBudget` vía `getEffectiveBudget()` (auto-dividido si quincenal)
-- FilterChips — un solo chip de período con `periodLabel` y `onOpenMonthPicker`
-- CategoryChart (gráfica de barras) — recibe `isIncomeMode` y `allEmojis` contextual. Los presupuestos de categoría se pasan mediante `getEffectiveCategoryBudgets()` (también divididos si quincenal)
+- Barra de presupuesto inline (condicional: `monthlyBudget > 0`, sin filtro de tipo, solo período actual). Usa `monthlyBudget` directamente (presupuesto siempre mensual)
+- FilterChips — un solo chip de período con `periodLabel` y `onOpenMonthPicker`. Por defecto muestra "Este mes"
+- CategoryChart (gráfica de barras) — recibe `isIncomeMode` y `allEmojis` contextual
 - **`FlatList`** reemplaza `ScrollView + map` — chart y cabecera van en `ListHeaderComponent`, estado vacío en `ListEmptyComponent`; `renderItem` en `useCallback`
 - **`PeriodFilter` tipo unificado:** discriminante con 4 variantes (`quick`, `month`, `year`, `all`) — reemplaza los estados separados `period` + `pickerYear` + `pickerMonth`
 - **`applyPeriodFilter()`:** función pura fuera del componente que maneja los 4 casos de filtrado por fecha
@@ -608,7 +616,8 @@ Si se agrega/modifica una categoría, actualizar en **todos** los archivos anter
 - `filteredTransactions` respeta `PeriodFilter` (período rápido, mes específico, año, o todo)
 - `categoryStats` e `incomeStats` usan `filteredTransactions` (dinámicos al período seleccionado)
 - Presupuesto solo visible si `isCurrentPeriod === true`
-- **Estado "período vacío":** cuando `filteredTransactions.length === 0` y es el período actual, muestra barras fantasma (opacity 0.18) con mensaje centrado: "Nuevo mes, ¡comienza ahora!" o "Nueva quincena, ¡comienza ahora!". Si es un período pasado sin datos: "Sin registros en este período"
+- **Estado "período vacío":** cuando `filteredTransactions.length === 0` y es el período actual, muestra barras fantasma (opacity 0.18) con mensaje centrado: "Nuevo mes, ¡comienza ahora!". Si es un período pasado sin datos: "Sin registros en este período"
+- **Modal de detalle de transacción:** al hacer long-press en un item de la lista, se abre un modal centrado estilo Stitch con: emoji, monto, categoría, tipo (Gasto/Ingreso), cuenta (método de pago), fecha, hora (formato 12h), descripción y tags
 - Barra de búsqueda: `keyboardExtraAnim` sube la barra sobre el teclado al abrirse
 - **Guided Tour:** integración con `GuidedTour` (5 pasos, solo primera vez). Refs de targets registrados en `tourRefs.ts`. El flujo alterna entre Dashboard y Settings. Persistido con `hasCompletedOnboarding` + `onboardingStep`
 - **Eliminado:** chip de categoría, estilos de metas de ahorro, ScrollView+map
@@ -617,7 +626,8 @@ Si se agrega/modifica una categoría, actualizar en **todos** los archivos anter
 - Título dinámico: "Nuevo Gasto" / "Nuevo Ingreso"
 - Monto grande con tamaño adaptable (36-64px según dígitos)
 - Campo de descripción con NLP en tiempo real
-- Selectores: Fecha, Categoría (grid contextual: `CATEGORY_OPTIONS` para gastos, `INCOME_CATEGORY_OPTIONS` para ingresos), Cuenta
+- Selectores: Fecha (Hoy / Calendario), Categoría (grid contextual: `CATEGORY_OPTIONS` para gastos, `INCOME_CATEGORY_OPTIONS` para ingresos), Cuenta
+- El método de pago (Cuenta) seleccionado se guarda en la transacción (campo `payment_method` en DB)
 - Tags sugeridos + custom
 - Botón ✓ para guardar (vibración + navegar atrás)
 - `adjustsFontSizeToFit` como fallback para montos enormes
@@ -631,11 +641,10 @@ Si se agrega/modifica una categoría, actualizar en **todos** los archivos anter
 
 ### Settings (`app/settings.tsx`)
 - **Control financiero (orden de opciones):**
-  1. **Período de pago** — Mensual / Quincenal (se muestra primero)
-  2. **Ingreso mensual** — etiqueta dinámica: "Ingreso quincenal" cuando biweekly está seleccionado. Subtítulo muestra el monto efectivo del período + referencia "Mensual: $X" cuando es quincenal. El modal siempre pide el monto mensual con nota "Se divide automáticamente para cada quincena"
+  1. **Ingreso mensual** — cuánto dinero dispones al mes
 - Métodos de pago → modal full-screen
 - Presupuesto por categoría → modal full-screen
-- **Metas de ahorro:** `NuevaMetaModal` (crear), `AbonarMetaModal` (abonar), `SavingsGoalsSection` con `SwipeableGoalItem` (swipe-to-delete izquierda revela botón papelera rojo)
+- **Metas de ahorro:** `NuevaMetaModal` (crear), `AbonarMetaModal` (abonar), `SavingsGoalsSection` con `SwipeableGoalItem` (swipe-to-delete izquierda revela botón papelera rojo). Al abonar a una meta, se crea automáticamente una transacción de gasto con el emoji de la meta, descripción "Abono a [nombre]" y tag #ahorro
 - Apariencia → selector dark mode
 - Sistema: exportar CSV, limpiar datos
 - **Confirmaciones:** Todas las alertas usan `ConfirmDialog` (componente custom con animación y variantes) en lugar de `Alert.alert` nativo — limpiar datos (`danger`), eliminar método de pago (`danger`), mínimo un método (`info`), error al exportar (`warning`)
@@ -685,6 +694,7 @@ formatMoneyInput(text: string): string
 | Colapso de gráfica al scroll | Dashboard (index.tsx) | `Animated.event` → `scrollY` interpola `maxHeight` + `opacity` del chart wrapper |
 | Diálogo de confirmación | ConfirmDialog | Spring scale (0.85→1) + fade-in opacity, 3 variantes (danger/warning/info) |
 | Spotlight de onboarding | GuidedTour | Fade-in overlay oscuro con cutout circular + spring scale del tooltip. Transición animada entre pasos |
+| Long-press detalle | TransactionItem | Timer 500ms en PanResponder, haptic feedback, modal fade |
 
 ### Reglas para animaciones
 - Usar `Reanimated` para animaciones de layout y gestos complejos
@@ -754,7 +764,7 @@ formatMoneyInput(text: string): string
 3. **`useCallback`** para `renderItem` y `keyExtractor` del FlatList
 4. **Animaciones en UI thread** — Reanimated worklets para 60fps
 5. **Funciones puras fuera del componente** — `applyPeriodFilter`, `formatBalance`, `normalize` no se recrean en cada render
-6. **Derivación de presupuesto efectivo** — Los helpers `getEffectiveBudget()` y `getEffectiveCategoryBudgets()` se exportan desde `useSettingsStore` como funciones puras. El Dashboard los invoca con los valores del store para obtener montos ajustados al período (mensual o quincenal). No se almacena un campo derivado; se calcula en cada render
+6. **Presupuesto directo** — `monthlyBudget` y `budgetByCategory` se usan directamente sin transformación (el presupuesto es siempre mensual)
 
 ---
 
@@ -804,6 +814,7 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 ### Limitaciones funcionales (por diseño)
 - **Edición de transacciones:** No existe. Solo se puede eliminar y recrear. Decisión de diseño intencional — simplifica la UX.
 - **Búsqueda por voz:** El flujo directo voz → FloatingInput está desconectado.
+- **Sincronización metas-transacciones:** Si el usuario elimina una transacción de abono desde el Dashboard, el `savedAmount` de la meta NO se actualiza automáticamente (son independientes). Aceptable para la v1.
 
 ### Riesgos técnicos
 - `BlurView` no funciona consistentemente en emuladores Android
@@ -839,11 +850,12 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 3. Mantener compatibilidad con datos existentes
 4. Actualizar los tipos TypeScript correspondientes
 
-### Al extender el NLP
-1. Agregar palabras clave en `CATEGORY_MAP` (theme.ts) Y `voiceParser.ts`
-2. Probar con variaciones en español (acentos, sinónimos)
-3. Usar `\b` para word boundaries en regex
-4. Funciones de extracción retornan `null` si no hay match
+### Al extender el NLP / Categorías
+1. Para nuevas categorías **preset**: agregar en `categoryPresets.ts` (EXPENSE_PRESETS o INCOME_PRESETS)
+2. Para categorías **custom del usuario**: se crean desde la UI y se guardan en `useSettingsStore.userCategories`
+3. Las funciones `guessCategoryEmoji()`, `getCategoryColor()`, `getCategoryName()` consultan primero `userCategories`
+4. Probar con variaciones en español (acentos, sinónimos)
+5. Funciones de extracción retornan `null` si no hay match
 
 ### Al agregar nuevas dependencias
 1. Verificar compatibilidad con Expo SDK 55 y New Architecture
@@ -855,8 +867,7 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 - **Moneda:** Siempre COP con puntos de miles, sin decimales
 - **Idioma UI:** Todo en español
 - **Datos:** 100% locales, sin nube
-- **Categorías de gasto:** Las 8 estándar son fijas
-- **Categorías de ingreso:** Las 5 estándar son fijas
+- **Categorías:** Dinámicas y personalizables por el usuario (presets + custom). No hay categorías fijas hardcodeadas
 - **Edición de transacciones:** No se implementa (decisión de diseño)
 - **Git:** Solo push manual; nunca push automático en CI
 - **Formato moneda:** Regex custom, nunca `toLocaleString()`
@@ -915,5 +926,5 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 
 ---
 
-*Documento generado para MyWallet v1.0.0 — Marzo 2026*
+*Documento generado para MyWallet v1.1.0 — Marzo 2026*
 *Mantener actualizado ante cualquier cambio significativo en arquitectura, stores, DB o componentes.*

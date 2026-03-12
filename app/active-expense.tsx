@@ -11,7 +11,7 @@ import {
   Calendar, UtensilsCrossed, Wallet,
   Car, Home, ShoppingBag, HeartPulse, Gamepad2, GraduationCap, User,
   Banknote, Landmark, CreditCard,
-  CalendarCheck, CalendarMinus, CalendarPlus,
+  CalendarCheck, CalendarPlus,
   Briefcase, Laptop2, TrendingUp, Gift, Building2,
 } from "lucide-react-native";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
@@ -32,28 +32,10 @@ const GREEN = "#22C55E";
 
 // ─── Opciones ─────────────────────────────────────────────────────────────────
 const DATE_OPTIONS: { key: DateOption; label: string }[] = [
-  { key: "today",              label: "Hoy" },
-  { key: "yesterday",          label: "Ayer" },
-  { key: "daybeforeyesterday", label: "Anteayer" },
-  { key: "custom",             label: "Calendario" },
+  { key: "today",  label: "Hoy" },
+  { key: "custom", label: "Calendario" },
 ];
-const CATEGORY_OPTIONS: { key: string; label: string }[] = [
-  { key: "🍔", label: "Comida" },
-  { key: "🚗", label: "Transporte" },
-  { key: "🏠", label: "Hogar" },
-  { key: "🛍️", label: "Compras" },
-  { key: "🏥", label: "Salud" },
-  { key: "🎮", label: "Entretenimiento" },
-  { key: "🎓", label: "Educación" },
-  { key: "👤", label: "Personal" },
-];
-const INCOME_CATEGORY_OPTIONS: { key: string; label: string }[] = [
-  { key: "💼", label: "Salario" },
-  { key: "💻", label: "Freelance" },
-  { key: "📈", label: "Inversiones" },
-  { key: "🎁", label: "Extra" },
-  { key: "🏢", label: "Negocio" },
-];
+// Categorías se derivan dinámicamente del store (ya no hardcoded)
 const ACCOUNT_OPTIONS: { key: AccountType; label: string }[] = [
   { key: "cash",    label: "Efectivo" },
   { key: "savings", label: "Ahorros" },
@@ -90,10 +72,8 @@ const ACCOUNT_DETAILS: Record<AccountType, { Icon: LucideIcon; desc: string }> =
 
 // ─── Iconos de fecha y recurrencia ────────────────────────────────────────────
 const DATE_ICONS: Record<string, LucideIcon> = {
-  today:              CalendarCheck,
-  yesterday:          Calendar,
-  daybeforeyesterday: CalendarMinus,
-  custom:             CalendarPlus,
+  today:  CalendarCheck,
+  custom: CalendarPlus,
 };
 // ─── Sheet: lista genérica con icono izquierdo (fecha) ───────────────────────
 function ListSheet({
@@ -144,11 +124,12 @@ function ListSheet({
   );
 }
 
-// ─── Sheet: CATEGORÍA — grid 4×N + botón CONFIRMAR ────────────────────────────
+// ─── Sheet: CATEGORÍA — grid dinámico + botón CONFIRMAR ──────────────────────
 function CategorySheet({
-  visible, selected, accent, isExpense, onSelect, onClose,
+  visible, selected, accent, isExpense, categories, onSelect, onClose,
 }: {
   visible: boolean; selected: string; accent: string; isExpense: boolean;
+  categories: { key: string; label: string; colorBg: string; colorAccent: string }[];
   onSelect: (k: string) => void; onClose: () => void;
 }) {
   const [temp, setTemp] = useState(selected);
@@ -164,7 +145,6 @@ function CategorySheet({
       </TouchableWithoutFeedback>
       <View style={[sh.container, cs.container]}>
         <View style={sh.handle} />
-        {/* Header */}
         <View style={cs.header}>
           <View>
             <Text style={cs.title}>CATEGORÍA</Text>
@@ -176,44 +156,43 @@ function CategorySheet({
             <Text style={cs.cancel}>Cancelar</Text>
           </TouchableOpacity>
         </View>
-        {/* Grid 4 columnas (gastos) o 3 columnas (ingresos) */}
-        <View style={[cs.grid, !isExpense && cs.gridIncome]}>
-          {(isExpense ? CATEGORY_OPTIONS : INCOME_CATEGORY_OPTIONS).map((cat) => {
-            const info = CATEGORY_ICONS[cat.key];
-            const isSel = temp === cat.key;
-            return (
-              <TouchableOpacity
-                key={cat.key}
-                style={cs.item}
-                onPress={() => setTemp(cat.key)}
-                activeOpacity={0.7}
-              >
-                <View style={cs.iconWrap}>
-                  <View style={[cs.iconBox, { backgroundColor: info?.bg ?? "#F1F5F9" }]}>
-                    {info
-                      ? <info.Icon size={24} color={info.color} strokeWidth={1.8} />
-                      : <Text style={{ fontSize: 20 }}>{cat.key}</Text>
-                    }
-                  </View>
-                  {isSel && (
-                    <View style={cs.checkBadge}>
-                      <Check size={10} color="#FFFFFF" strokeWidth={3} />
+        <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+          <View style={[cs.grid, categories.length <= 5 && cs.gridIncome]}>
+            {categories.map((cat) => {
+              const info = CATEGORY_ICONS[cat.key];
+              const isSel = temp === cat.key;
+              return (
+                <TouchableOpacity
+                  key={cat.key}
+                  style={cs.item}
+                  onPress={() => setTemp(cat.key)}
+                  activeOpacity={0.7}
+                >
+                  <View style={cs.iconWrap}>
+                    <View style={[cs.iconBox, { backgroundColor: cat.colorBg }]}>
+                      {info
+                        ? <info.Icon size={24} color={cat.colorAccent} strokeWidth={1.8} />
+                        : <Text style={{ fontSize: 22 }}>{cat.key}</Text>
+                      }
                     </View>
-                  )}
-                </View>
-                <Text style={[cs.itemLabel, isSel && cs.itemLabelSelected]}>
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-        {/* Botón confirmar */}
+                    {isSel && (
+                      <View style={cs.checkBadge}>
+                        <Check size={10} color="#FFFFFF" strokeWidth={3} />
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[cs.itemLabel, isSel && cs.itemLabelSelected]}>
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </ScrollView>
         <TouchableOpacity
           style={cs.confirmBtn}
           onPress={() => {
-            const c = CATEGORY_OPTIONS.find((x) => x.key === temp);
-            if (c) onSelect(c.key);
+            onSelect(temp);
             onClose();
           }}
           activeOpacity={0.85}
@@ -322,8 +301,17 @@ export default function ActiveExpenseScreen() {
   const theme  = useTheme();
   const st     = useMemo(() => buildS(theme), [theme]);
 
-  // Métodos de pago dinámicos desde settings
-  const paymentMethods = useSettingsStore((s) => s.paymentMethods);
+  const paymentMethods  = useSettingsStore((s) => s.paymentMethods);
+  const userCategories  = useSettingsStore((s) => s.userCategories);
+
+  const expenseCatOptions = useMemo(() =>
+    userCategories.filter(c => c.type === "expense").map(c => ({ key: c.emoji, label: c.name, colorBg: c.colorBg, colorAccent: c.colorAccent })),
+    [userCategories]
+  );
+  const incomeCatOptions = useMemo(() =>
+    userCategories.filter(c => c.type === "income").map(c => ({ key: c.emoji, label: c.name, colorBg: c.colorBg, colorAccent: c.colorAccent })),
+    [userCategories]
+  );
 
   const [tagInput,      setTagInput]      = useState("");
   const [activeSheet,   setActiveSheet]   = useState<
@@ -395,11 +383,18 @@ export default function ActiveExpenseScreen() {
   async function handleConfirm() {
     if (store.amount <= 0) return;
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    const txDate = store.date === "custom" && store.customDate
+      ? store.customDate
+      : new Date();
+
     await addTx(
       isExpense ? store.amount : -store.amount,
       store.note || store.rawTranscript || (isExpense ? "Gasto" : "Ingreso"),
       store.categoryEmoji,
       store.tags,
+      txDate,
+      store.account,
     );
     store.reset();
     router.dismissAll();
@@ -415,7 +410,8 @@ export default function ActiveExpenseScreen() {
   const dateLabel = store.date === "custom" && store.customDate
     ? store.customDate.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" })
     : DATE_OPTIONS.find((o) => o.key === store.date)?.label ?? "Hoy";
-  const catLabel     = CATEGORY_OPTIONS.find((o) => o.key === store.categoryEmoji)?.label ?? store.categoryName;
+  const allCatOptions = [...expenseCatOptions, ...incomeCatOptions];
+  const catLabel     = allCatOptions.find((o) => o.key === store.categoryEmoji)?.label ?? store.categoryName;
   const accountLabel = paymentMethods.find((m) => m.id === store.account)?.name
     ?? ACCOUNT_OPTIONS.find((o) => o.key === store.account)?.label
     ?? "Efectivo";
@@ -596,9 +592,11 @@ export default function ActiveExpenseScreen() {
         selected={store.categoryEmoji}
         accent={accent}
         isExpense={isExpense}
+        categories={isExpense ? expenseCatOptions : incomeCatOptions}
         onSelect={(k) => {
-          const c = CATEGORY_OPTIONS.find((x) => x.key === k);
+          const c = allCatOptions.find((x) => x.key === k);
           if (c) store.setCategory(c.key, c.label);
+          else store.setCategory(k, k);
         }}
         onClose={() => setActiveSheet(null)} />
       <AccountSheet

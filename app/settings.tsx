@@ -23,7 +23,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Wallet,
-  CalendarDays,
   CreditCard,
   PiggyBank,
   Moon,
@@ -33,12 +32,13 @@ import {
   Trash2,
   Check,
   X,
+  LayoutGrid,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import Constants from "expo-constants";
-import { useSettingsStore, getEffectiveBudget, type PaymentMethod, type PaymentMethodType, type SavingsGoal } from "@/src/store/useSettingsStore";
+import { useSettingsStore, type PaymentMethod, type PaymentMethodType, type SavingsGoal } from "@/src/store/useSettingsStore";
+import { CURATED_EMOJIS, CATEGORY_COLOR_PALETTE, type UserCategory } from "@/src/constants/categoryPresets";
 import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
-import { ALL_CATEGORY_EMOJIS, EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -568,6 +568,7 @@ function AbonarMetaModal({
   const s                 = useStyles();
   const theme             = useTheme();
   const updateSavingsGoal = useSettingsStore((st) => st.updateSavingsGoal);
+  const addTransaction    = useFinanceStore((st) => st.addTransaction);
 
   const [abonoDisplay, setAbonoDisplay] = useState("");
 
@@ -585,8 +586,9 @@ function AbonarMetaModal({
   const fmt = (v: number) =>
     `$${Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 
-  const handleAbonar = () => {
+  const handleAbonar = async () => {
     if (abono <= 0) return;
+    await addTransaction(abono, `Abono a ${goal.name}`, goal.emoji, ["#ahorro"]);
     updateSavingsGoal(goal.id, goal.savedAmount + abono);
     onClose();
   };
@@ -825,6 +827,111 @@ const swipeGoalSt = StyleSheet.create({
   },
 });
 
+// ─── Modal para editar categoría ──────────────────────────────────────────────
+function EditCategoryModal({
+  cat,
+  theme,
+  onSave,
+  onClose,
+}: {
+  cat: UserCategory;
+  theme: import("@/src/theme").AppTheme;
+  onSave: (updated: UserCategory) => void;
+  onClose: () => void;
+}) {
+  const [emoji, setEmoji] = useState(cat.emoji);
+  const [name, setName] = useState(cat.name);
+  const [colorIdx, setColorIdx] = useState(() => {
+    const idx = CATEGORY_COLOR_PALETTE.findIndex(c => c.accent === cat.colorAccent);
+    return idx >= 0 ? idx : 0;
+  });
+
+  const handleSave = () => {
+    if (!name.trim()) return;
+    const color = CATEGORY_COLOR_PALETTE[colorIdx];
+    onSave({
+      ...cat,
+      emoji,
+      name: name.trim(),
+      colorBg: color.bg,
+      colorAccent: color.accent,
+      keywords: cat.isPreset ? cat.keywords : name.trim().toLowerCase().split(/\s+/),
+    });
+  };
+
+  return (
+    <Modal visible transparent animationType="none" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", paddingHorizontal: 28 }} onPress={onClose}>
+        <View style={{ width: "100%", backgroundColor: theme.surface, borderRadius: 22, padding: 24, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, elevation: 20 }}>
+          <Pressable>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <Text style={{ fontSize: 20, fontWeight: "700", color: theme.text }}>Editar categoría</Text>
+              <TouchableOpacity onPress={onClose} activeOpacity={0.6}><Text style={{ fontSize: 20, color: theme.textSub, padding: 4 }}>✕</Text></TouchableOpacity>
+            </View>
+
+            <Text style={{ fontSize: 11, fontWeight: "700", color: theme.textSub, letterSpacing: 1, marginBottom: 10 }}>ÍCONO</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+              {CURATED_EMOJIS.map(e => (
+                <TouchableOpacity
+                  key={e}
+                  onPress={() => setEmoji(e)}
+                  style={[
+                    { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", marginRight: 8, backgroundColor: theme.inputBg },
+                    e === emoji && { backgroundColor: "#DBEAFE", borderWidth: 2, borderColor: "#135BEC" },
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 22 }}>{e}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={{ fontSize: 11, fontWeight: "700", color: theme.textSub, letterSpacing: 1, marginBottom: 10, marginTop: 16 }}>COLOR DE TEMA</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+              {CATEGORY_COLOR_PALETTE.map((c, i) => (
+                <TouchableOpacity
+                  key={i}
+                  onPress={() => setColorIdx(i)}
+                  style={[
+                    { width: 36, height: 36, borderRadius: 18, marginRight: 10, backgroundColor: c.accent },
+                    i === colorIdx && { borderWidth: 3, borderColor: theme.text },
+                  ]}
+                  activeOpacity={0.7}
+                />
+              ))}
+            </ScrollView>
+
+            <Text style={{ fontSize: 11, fontWeight: "700", color: theme.textSub, letterSpacing: 1, marginBottom: 10, marginTop: 16 }}>NOMBRE</Text>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Ej. Gimnasio"
+              placeholderTextColor={theme.textTertiary}
+              style={{ backgroundColor: theme.inputBg, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: theme.text }}
+              maxLength={24}
+              autoCapitalize="words"
+            />
+
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
+              <TouchableOpacity onPress={onClose} activeOpacity={0.6} style={{ paddingVertical: 12, paddingHorizontal: 16 }}>
+                <Text style={{ fontSize: 15, fontWeight: "600", color: theme.textSub }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSave}
+                activeOpacity={0.85}
+                disabled={!name.trim()}
+                style={[{ backgroundColor: "#135BEC", paddingVertical: 12, paddingHorizontal: 24, borderRadius: 14 }, !name.trim() && { opacity: 0.4 }]}
+              >
+                <Text style={{ color: "#FFF", fontSize: 15, fontWeight: "700" }}>Guardar</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ─── Sección principal de metas ───────────────────────────────────────────────
 function SavingsGoalsSection() {
   const s                = useStyles();
@@ -897,29 +1004,30 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
 
   const monthlyBudget       = useSettingsStore((s) => s.monthlyBudget);
-  const budgetPeriod        = useSettingsStore((s) => s.budgetPeriod);
   const darkMode            = useSettingsStore((s) => s.darkMode);
   const budgetByCategory    = useSettingsStore((s) => s.budgetByCategory);
+  const userCategories      = useSettingsStore((s) => s.userCategories);
 
   const setMonthlyBudget        = useSettingsStore((s) => s.setMonthlyBudget);
-  const setBudgetPeriod         = useSettingsStore((s) => s.setBudgetPeriod);
   const setDarkMode             = useSettingsStore((s) => s.setDarkMode);
   const setBudgetForCategory    = useSettingsStore((s) => s.setBudgetForCategory);
   const removeBudgetForCategory = useSettingsStore((s) => s.removeBudgetForCategory);
 
   // Modals state
   const [budgetModal,        setBudgetModal]        = useState(false);
-  const [periodSheet,        setPeriodSheet]        = useState(false);
   const [darkSheet,          setDarkSheet]          = useState(false);
   const [catBudgetEmoji,     setCatBudgetEmoji]     = useState<string | null>(null);
   const [showPaymentModal,   setShowPaymentModal]   = useState(false);
   const [showCatBudgetModal, setShowCatBudgetModal] = useState(false);
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+  const [editingCat, setEditingCat] = useState<UserCategory | null>(null);
 
   const [clearDataDialog,  setClearDataDialog]  = useState(false);
   const [exportErrorDialog, setExportErrorDialog] = useState(false);
 
   // Onboarding tour
   const hasCompletedOnboarding = useSettingsStore((s) => s.hasCompletedOnboarding);
+  const hasSelectedCategories  = useSettingsStore((s) => s.hasSelectedCategories);
   const onboardingStep         = useSettingsStore((s) => s.onboardingStep);
   const setOnboardingStep      = useSettingsStore((s) => s.setOnboardingStep);
   const completeOnboarding     = useSettingsStore((s) => s.completeOnboarding);
@@ -947,7 +1055,7 @@ export default function SettingsScreen() {
     },
   ], []);
 
-  const settingsTourVisible = !hasCompletedOnboarding && (onboardingStep === 1 || (onboardingStep === 2 && !budgetModal && monthlyBudget > 0));
+  const settingsTourVisible = hasSelectedCategories && !hasCompletedOnboarding && (onboardingStep === 1 || (onboardingStep === 2 && !budgetModal && monthlyBudget > 0));
   const settingsTourIndex = onboardingStep === 1 ? 0 : 1;
 
   useEffect(() => {
@@ -1000,27 +1108,8 @@ export default function SettingsScreen() {
     useFinanceStore.getState().loadTransactions();
   }
 
-  const periodLabel = budgetPeriod === "monthly" ? "Mensual (1–30)" : "Quincenal (1–15 / 16–30)";
-  const effectiveBudget = getEffectiveBudget(monthlyBudget, budgetPeriod);
-  const incomeLabel = budgetPeriod === "monthly" ? "Ingreso mensual" : "Ingreso quincenal";
-  const incomeSubtitle = monthlyBudget <= 0
-    ? "Sin configurar"
-    : budgetPeriod === "biweekly"
-      ? `${formatCOP(effectiveBudget)}  ·  Mensual: ${formatCOP(monthlyBudget)}`
-      : formatCOP(monthlyBudget);
-  const darkLabel   = darkMode === "system" ? "Según el sistema" : darkMode === "light" ? "Claro" : "Oscuro";
-
-  // ── Indicador quincenal ──────────────────────────────────────────────────────
-  const today          = new Date();
-  const dayOfMonth     = today.getDate();
-  const isFirstHalf    = dayOfMonth <= 15;
-  const lastDay        = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  const MONTH_NAMES    = ["enero","febrero","marzo","abril","mayo","junio",
-                          "julio","agosto","septiembre","octubre","noviembre","diciembre"];
-  const monthName      = MONTH_NAMES[today.getMonth()];
-  const quincenaText   = isFirstHalf
-    ? `Quincena actual: 1–15 de ${monthName}`
-    : `Quincena actual: 16–${lastDay} de ${monthName}`;
+  const incomeSubtitle = monthlyBudget <= 0 ? "Sin configurar" : formatCOP(monthlyBudget);
+  const darkLabel = darkMode === "system" ? "Según el sistema" : darkMode === "light" ? "Claro" : "Oscuro";
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
@@ -1041,34 +1130,10 @@ export default function SettingsScreen() {
         {/* ── CONTROL FINANCIERO ───────────────────────────────────────── */}
         <SectionHeader title="CONTROL FINANCIERO" />
         <View style={s.card}>
-          <SettingRow
-            icon={<CalendarDays size={18} color="#D97706" strokeWidth={1.8} />}
-            label="Período de pago"
-            subtitle={periodLabel}
-            onPress={() => setPeriodSheet(true)}
-          />
-          {budgetPeriod === "biweekly" && (
-            <View style={s.biweeklyIndicator}>
-              <View style={s.biweeklySegments}>
-                <View style={[s.biweeklySegment, isFirstHalf && s.biweeklySegmentActive]}>
-                  <Text style={[s.biweeklySegmentText, isFirstHalf && { color: theme.accent }]}>
-                    1 – 15
-                  </Text>
-                </View>
-                <View style={[s.biweeklySegment, !isFirstHalf && s.biweeklySegmentActive]}>
-                  <Text style={[s.biweeklySegmentText, !isFirstHalf && { color: theme.accent }]}>
-                    16 – {lastDay}
-                  </Text>
-                </View>
-              </View>
-              <Text style={s.biweeklyLabel}>{quincenaText}</Text>
-            </View>
-          )}
-          <View style={s.rowSep} />
           <View ref={getTourRef(TOUR_KEYS.INCOME_ROW)} collapsable={false}>
             <SettingRow
               icon={<Wallet size={18} color="#059669" strokeWidth={1.8} />}
-              label={incomeLabel}
+              label="Ingreso mensual"
               subtitle={incomeSubtitle}
               onPress={() => setBudgetModal(true)}
             />
@@ -1077,6 +1142,13 @@ export default function SettingsScreen() {
 
         {/* ── GESTIÓN ──────────────────────────────────────────────────── */}
         <SectionHeader title="GESTIÓN" />
+        <SubMenuCard
+          icon={<LayoutGrid size={18} color="#059669" strokeWidth={1.8} />}
+          label="Categorías"
+          description={`${userCategories.length} categorías configuradas`}
+          onPress={() => setShowCategoriesModal(true)}
+        />
+        <View style={{ height: 8 }} />
         <SubMenuCard
           icon={<CreditCard size={18} color={theme.accent} strokeWidth={1.8} />}
           label="Métodos de pago"
@@ -1140,21 +1212,8 @@ export default function SettingsScreen() {
         placeholder="Ej: 2000000"
         value={monthlyBudget > 0 ? String(monthlyBudget) : ""}
         keyboardType="numeric"
-        subtitle={budgetPeriod === "biweekly" ? "Se divide automáticamente para cada quincena" : undefined}
         onConfirm={(v) => setMonthlyBudget(parseFloat(v.replace(/\D/g, "")) || 0)}
         onClose={() => setBudgetModal(false)}
-      />
-
-      <SelectorModal
-        visible={periodSheet}
-        title="Período de pago"
-        options={[
-          { key: "monthly",   label: "Mensual (1–30)" },
-          { key: "biweekly",  label: "Quincenal (1–15 / 16–30)" },
-        ]}
-        selected={budgetPeriod}
-        onSelect={setBudgetPeriod}
-        onClose={() => setPeriodSheet(false)}
       />
 
       <SelectorModal
@@ -1181,53 +1240,158 @@ export default function SettingsScreen() {
         </View>
       </FullScreenModal>
 
+      {/* ── Modal pantalla completa: Categorías ─────────────────────── */}
+      <FullScreenModal
+        visible={showCategoriesModal}
+        title="Categorías"
+        onClose={() => setShowCategoriesModal(false)}
+      >
+        {/* Gastos */}
+        {userCategories.filter(c => c.type === "expense").length > 0 && (
+          <>
+            <Text style={{ color: theme.textSub, fontSize: 11, fontWeight: "700", letterSpacing: 1, marginBottom: 8, marginLeft: 4 }}>
+              GASTOS ({userCategories.filter(c => c.type === "expense").length})
+            </Text>
+            <View style={s.card}>
+              {userCategories.filter(c => c.type === "expense").map((cat, i, arr) => (
+                <View key={cat.id}>
+                  <TouchableOpacity
+                    style={s.row}
+                    onPress={() => { setShowCategoriesModal(false); setEditingCat(cat); }}
+                    activeOpacity={0.65}
+                  >
+                    <View style={[s.rowIcon, { backgroundColor: cat.colorBg }]}>
+                      <Text style={{ fontSize: 18 }}>{cat.emoji}</Text>
+                    </View>
+                    <View style={s.rowText}>
+                      <Text style={s.rowLabel}>{cat.name}</Text>
+                      <Text style={s.rowSub}>{cat.isPreset ? "Predefinida" : "Personalizada"}</Text>
+                    </View>
+                    <Pencil size={14} color={theme.textSub} strokeWidth={2} />
+                  </TouchableOpacity>
+                  {i < arr.length - 1 && <View style={s.rowSep} />}
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Ingresos */}
+        {userCategories.filter(c => c.type === "income").length > 0 && (
+          <>
+            <Text style={{ color: theme.textSub, fontSize: 11, fontWeight: "700", letterSpacing: 1, marginTop: 20, marginBottom: 8, marginLeft: 4 }}>
+              INGRESOS ({userCategories.filter(c => c.type === "income").length})
+            </Text>
+            <View style={s.card}>
+              {userCategories.filter(c => c.type === "income").map((cat, i, arr) => (
+                <View key={cat.id}>
+                  <TouchableOpacity
+                    style={s.row}
+                    onPress={() => { setShowCategoriesModal(false); setEditingCat(cat); }}
+                    activeOpacity={0.65}
+                  >
+                    <View style={[s.rowIcon, { backgroundColor: cat.colorBg }]}>
+                      <Text style={{ fontSize: 18 }}>{cat.emoji}</Text>
+                    </View>
+                    <View style={s.rowText}>
+                      <Text style={s.rowLabel}>{cat.name}</Text>
+                      <Text style={s.rowSub}>{cat.isPreset ? "Predefinida" : "Personalizada"}</Text>
+                    </View>
+                    <Pencil size={14} color={theme.textSub} strokeWidth={2} />
+                  </TouchableOpacity>
+                  {i < arr.length - 1 && <View style={s.rowSep} />}
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Botón gestionar categorías */}
+        <TouchableOpacity
+          onPress={() => {
+            setShowCategoriesModal(false);
+            router.push("/category-onboarding");
+          }}
+          activeOpacity={0.7}
+          style={{
+            marginTop: 20,
+            paddingVertical: 14,
+            borderRadius: 14,
+            borderWidth: 1.5,
+            borderStyle: "dashed",
+            borderColor: theme.border,
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ color: theme.accent, fontSize: 14, fontWeight: "600" }}>+ Gestionar categorías</Text>
+        </TouchableOpacity>
+      </FullScreenModal>
+
+      {/* ── Modal editar categoría ─────────────────────────────────────── */}
+      {editingCat && (
+        <EditCategoryModal
+          cat={editingCat}
+          theme={theme}
+          onSave={(updated) => {
+            useSettingsStore.getState().updateUserCategory(updated.id, updated);
+            setEditingCat(null);
+            setShowCategoriesModal(true);
+          }}
+          onClose={() => { setEditingCat(null); setShowCategoriesModal(true); }}
+        />
+      )}
+
       {/* ── Modal pantalla completa: Presupuesto por categoría ───────── */}
       <FullScreenModal
         visible={showCatBudgetModal}
         title="Presupuesto por categoría"
         onClose={() => setShowCatBudgetModal(false)}
       >
-        <View style={s.card}>
-          {ALL_CATEGORY_EMOJIS.map((emoji, i) => {
-            const catName = (EMOJI_TO_CATEGORY_NAME[emoji] ?? emoji);
-            const label   = catName.charAt(0).toUpperCase() + catName.slice(1).toLowerCase();
-            const current = budgetByCategory[emoji];
-            return (
-              <View key={emoji}>
-                <TouchableOpacity
-                  style={s.row}
-                  onPress={() => setCatBudgetEmoji(emoji)}
-                  activeOpacity={0.65}
-                >
-                  <View style={s.rowIcon}>
-                    <Text style={{ fontSize: 18 }}>{emoji}</Text>
-                  </View>
-                  <View style={s.rowText}>
-                    <Text style={s.rowLabel}>{label}</Text>
+        {userCategories.filter(c => c.type === "expense").length > 0 ? (
+          <View style={s.card}>
+            {userCategories.filter(c => c.type === "expense").map((cat, i, arr) => {
+              const current = budgetByCategory[cat.emoji];
+              return (
+                <View key={cat.id}>
+                  <TouchableOpacity
+                    style={s.row}
+                    onPress={() => setCatBudgetEmoji(cat.emoji)}
+                    activeOpacity={0.65}
+                  >
+                    <View style={[s.rowIcon, { backgroundColor: cat.colorBg }]}>
+                      <Text style={{ fontSize: 18 }}>{cat.emoji}</Text>
+                    </View>
+                    <View style={s.rowText}>
+                      <Text style={s.rowLabel}>{cat.name}</Text>
+                      {current ? (
+                        <Text style={[s.rowSub, { color: "#059669" }]}>
+                          Límite: {formatCOP(current)}
+                        </Text>
+                      ) : (
+                        <Text style={s.rowSub}>Sin límite</Text>
+                      )}
+                    </View>
                     {current ? (
-                      <Text style={[s.rowSub, { color: "#059669" }]}>
-                        Límite: {formatCOP(current)}
-                      </Text>
-                    ) : (
-                      <Text style={s.rowSub}>Sin límite</Text>
-                    )}
-                  </View>
-                  {current ? (
-                    <TouchableOpacity
-                      onPress={() => removeBudgetForCategory(emoji)}
-                      hitSlop={10}
-                      style={{ padding: 4 }}
-                    >
-                      <X size={14} color="#DC2626" strokeWidth={2.5} />
-                    </TouchableOpacity>
-                  ) : null}
-                  <ChevronRight size={16} color="#64748B" strokeWidth={2} />
-                </TouchableOpacity>
-                {i < ALL_CATEGORY_EMOJIS.length - 1 && <View style={s.rowSep} />}
-              </View>
-            );
-          })}
-        </View>
+                      <TouchableOpacity
+                        onPress={() => removeBudgetForCategory(cat.emoji)}
+                        hitSlop={10}
+                        style={{ padding: 4 }}
+                      >
+                        <X size={14} color="#DC2626" strokeWidth={2.5} />
+                      </TouchableOpacity>
+                    ) : null}
+                    <ChevronRight size={16} color="#64748B" strokeWidth={2} />
+                  </TouchableOpacity>
+                  {i < arr.length - 1 && <View style={s.rowSep} />}
+                </View>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={{ alignItems: "center", paddingVertical: 32 }}>
+            <Text style={{ color: theme.textSub, fontSize: 14 }}>No tienes categorías de gasto configuradas</Text>
+          </View>
+        )}
       </FullScreenModal>
 
       {/* Modal presupuesto por categoría (input) */}
@@ -1236,8 +1400,8 @@ export default function SettingsScreen() {
           visible
           title={`Límite para ${catBudgetEmoji} ${
             (() => {
-              const n = EMOJI_TO_CATEGORY_NAME[catBudgetEmoji] ?? "";
-              return n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
+              const cat = userCategories.find(c => c.emoji === catBudgetEmoji);
+              return cat?.name ?? catBudgetEmoji;
             })()
           }`}
           placeholder="Ej: 500000"
@@ -1464,39 +1628,6 @@ function buildStyles(t: AppTheme) { return StyleSheet.create({
   modalBtnConfirmDisabled:{ flex: 1, padding: 13, borderRadius: 12, backgroundColor: t.border, alignItems: "center" },
   modalBtnConfirmText:    { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
   modalBtnConfirmTextOff: { fontSize: 15, fontWeight: "700", color: t.textSub },
-
-  // ── Indicador quincenal ──────────────────────────────────────────────────
-  biweeklyIndicator: {
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    gap: 8,
-  },
-  biweeklySegments: {
-    flexDirection: "row" as const,
-    gap: 6,
-  },
-  biweeklySegment: {
-    flex: 1,
-    paddingVertical: 7,
-    borderRadius: 8,
-    alignItems: "center" as const,
-    backgroundColor: t.inputBg,
-  },
-  biweeklySegmentActive: {
-    backgroundColor: t.accent + "18",
-    borderWidth: 1,
-    borderColor: t.accent + "40",
-  },
-  biweeklySegmentText: {
-    fontSize: 12,
-    fontWeight: "700" as const,
-    color: t.textSub,
-  },
-  biweeklyLabel: {
-    fontSize: 12,
-    color: t.textSub,
-    textAlign: "center" as const,
-  },
 
   // ── Metas de ahorro — campos de modales ──────────────────────────────────
   goalFieldLabel: {

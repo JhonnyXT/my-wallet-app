@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type DateOption = "today" | "yesterday" | "daybeforeyesterday" | "custom";
+export type DateOption = "today" | "custom";
 export type AccountType = "cash" | "savings" | "credit";
 
 export interface ActiveExpense {

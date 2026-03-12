@@ -1,4 +1,5 @@
 import { guessCategoryEmoji } from "@/src/constants/theme";
+import type { UserCategory } from "@/src/constants/categoryPresets";
 
 export interface ParsedExpense {
   amount: number;
@@ -9,12 +10,12 @@ export interface ParsedExpense {
 /**
  * Parses natural language input like "Uber 15", "Café 4.50", "Gasolina 60 mil"
  * and extracts amount + description + category emoji.
+ * Accepts optional userCategories to prioritize user-defined keywords.
  */
-export function parseExpenseInput(raw: string): ParsedExpense | null {
+export function parseExpenseInput(raw: string, userCats?: UserCategory[]): ParsedExpense | null {
   const text = raw.trim();
   if (!text) return null;
 
-  // "60 mil" / "60mil" → 60000
   const milNormalized = text.replace(
     /(\d+)\s*mil\b/gi,
     (_, num) => `${Number(num) * 1000}`
@@ -37,7 +38,7 @@ export function parseExpenseInput(raw: string): ParsedExpense | null {
     .replace(/[€$]/g, "")
     .trim() || "Gasto";
 
-  const categoryEmoji = guessCategoryEmoji(description);
+  const categoryEmoji = guessCategoryEmoji(description, userCats);
 
   return { amount, description, categoryEmoji };
 }

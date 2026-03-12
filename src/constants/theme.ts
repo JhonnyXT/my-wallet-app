@@ -102,28 +102,51 @@ export const CATEGORY_COLORS: Record<string, { bg: string; accent: string }> = {
   "🏢": { bg: "#F3F4F6", accent: "#374151" },  // Negocio — gris oscuro
 };
 
-export function getCategoryColor(emoji: string): { bg: string; accent: string } {
+export function getCategoryColor(emoji: string, userCats?: import("@/src/constants/categoryPresets").UserCategory[]): { bg: string; accent: string } {
+  if (userCats) {
+    const match = userCats.find((c) => c.emoji === emoji);
+    if (match) return { bg: match.colorBg, accent: match.colorAccent };
+  }
   return CATEGORY_COLORS[emoji] ?? { bg: "#F1F5F9", accent: "#64748B" };
 }
 
-/** Lista canónica de las 8 categorías de gastos */
+/** @deprecated Usar userCategories del store. Fallback legacy. */
 export const ALL_CATEGORY_EMOJIS: string[] = [
   "🍔", "🚗", "🏠", "🛍️", "🏥", "🎮", "🎓", "👤",
 ];
 
-/** Lista canónica de las 5 categorías de ingresos */
+/** @deprecated Usar userCategories del store. Fallback legacy. */
 export const ALL_INCOME_EMOJIS: string[] = [
   "💼", "💻", "📈", "🎁", "🏢",
 ];
 
-export function guessCategoryEmoji(description: string): string {
+/**
+ * Detecta categoría por keywords. Consulta primero las categorías del usuario,
+ * luego el mapa legacy como fallback.
+ */
+export function guessCategoryEmoji(description: string, userCats?: import("@/src/constants/categoryPresets").UserCategory[]): string {
   const lower = description.toLowerCase().trim();
 
-  for (const [keyword, emoji] of Object.entries(CATEGORY_MAP)) {
-    if (lower.includes(keyword)) {
-      return emoji;
+  if (userCats) {
+    for (const cat of userCats) {
+      if (cat.keywords.some((kw) => lower.includes(kw))) return cat.emoji;
     }
   }
 
+  for (const [keyword, emoji] of Object.entries(CATEGORY_MAP)) {
+    if (lower.includes(keyword)) return emoji;
+  }
+
   return "💸";
+}
+
+/**
+ * Devuelve el nombre de la categoría. Consulta primero userCategories, luego el mapa legacy.
+ */
+export function getCategoryName(emoji: string, userCats?: import("@/src/constants/categoryPresets").UserCategory[]): string {
+  if (userCats) {
+    const match = userCats.find((c) => c.emoji === emoji);
+    if (match) return match.name.toUpperCase();
+  }
+  return EMOJI_TO_CATEGORY_NAME[emoji] ?? emoji;
 }

@@ -6,7 +6,8 @@ export interface TransactionRow {
   description: string;
   category_emoji: string;
   date: string;
-  tags: string; // JSON stringificado: '["#trabajo","#comida"]' o ''
+  tags: string;
+  payment_method: string;
 }
 
 let _db: SQLite.SQLiteDatabase | null = null;
@@ -30,12 +31,9 @@ export async function initDatabase(): Promise<void> {
       tags TEXT NOT NULL DEFAULT ''
     );
   `);
-  // Migración segura: añade la columna tags si aún no existe
-  try {
-    await db.execAsync(`ALTER TABLE transactions ADD COLUMN tags TEXT NOT NULL DEFAULT ''`);
-  } catch {
-    // La columna ya existe — ignorar
-  }
+  // Migraciones seguras
+  try { await db.execAsync(`ALTER TABLE transactions ADD COLUMN tags TEXT NOT NULL DEFAULT ''`); } catch {}
+  try { await db.execAsync(`ALTER TABLE transactions ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash'`); } catch {}
 }
 
 /** Formato ISO local (sin conversión UTC) para evitar desfase de zona horaria */
@@ -49,22 +47,25 @@ export async function insertTransaction(
   amount: number,
   description: string,
   categoryEmoji: string,
-  tags: string[] = []
+  tags: string[] = [],
+  date?: Date,
+  paymentMethod: string = "cash",
 ): Promise<TransactionRow> {
-  const now     = localISOString();
+  const dateStr = localISOString(date ?? new Date());
   const tagsStr = tags.length > 0 ? JSON.stringify(tags) : "";
   const db      = await getNativeDatabase();
   const result  = await db.runAsync(
-    `INSERT INTO transactions (amount, description, category_emoji, date, tags) VALUES (?, ?, ?, ?, ?)`,
-    [amount, description, categoryEmoji, now, tagsStr]
+    `INSERT INTO transactions (amount, description, category_emoji, date, tags, payment_method) VALUES (?, ?, ?, ?, ?, ?)`,
+    [amount, description, categoryEmoji, dateStr, tagsStr, paymentMethod]
   );
   return {
     id: result.lastInsertRowId,
     amount,
     description,
     category_emoji: categoryEmoji,
-    date: now,
+    date: dateStr,
     tags: tagsStr,
+    payment_method: paymentMethod,
   };
 }
 
@@ -96,7 +97,7 @@ export async function clearTransactions(): Promise<void> {
 export async function getMonthlyTotal(): Promise<number> {
   const db = await getNativeDatabase();
   const now = new Date();
-  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const firstDay = localISOString(new Date(now.getFullYear(), now.getMonth(), 1));
   const result = await db.getFirstAsync<{ total: number | null }>(
     `SELECT SUM(amount) as total FROM transactions WHERE date >= ?`,
     [firstDay]

@@ -15,7 +15,9 @@ interface FinanceState {
     amount: number,
     description: string,
     categoryEmoji: string,
-    tags?: string[]
+    tags?: string[],
+    date?: Date,
+    paymentMethod?: string,
   ) => Promise<void>;
   deleteTransaction: (id: number) => Promise<void>;
 
@@ -32,8 +34,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     set({ transactions, isLoading: false });
   },
 
-  addTransaction: async (amount, description, categoryEmoji, tags = []) => {
-    const newTx = await insertTransaction(amount, description, categoryEmoji, tags);
+  addTransaction: async (amount, description, categoryEmoji, tags = [], date?, paymentMethod = "cash") => {
+    const newTx = await insertTransaction(amount, description, categoryEmoji, tags, date, paymentMethod);
     set((state) => ({
       transactions: [newTx, ...state.transactions],
     }));

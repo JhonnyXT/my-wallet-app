@@ -1,6 +1,6 @@
 # MyWallet — Requerimientos de Producto
 
-> **Versión:** 1.0.0 | **Plataforma:** Android (iOS futuro) | **Moneda:** COP | **Idioma UI:** Español
+> **Versión:** 1.1.0 | **Plataforma:** Android (iOS futuro) | **Moneda:** COP | **Idioma UI:** Español
 
 ---
 
@@ -25,13 +25,14 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 |---------|-------------|--------|
 | Balance Neto | Tipografía grande: `Ingresos - Gastos` del período | ✅ Implementado |
 | Pills Gastos/Ingresos | Filtran toda la vista por tipo (rojo suave / verde suave) | ✅ Implementado |
-| Barra de Presupuesto | Progreso del gasto vs presupuesto efectivo del período (mensual o quincenal auto-dividido vía `getEffectiveBudget`) | ✅ Implementado |
-| Estado "período vacío" | Si no hay transacciones en el período actual: barras fantasma (opacity 0.18) + "Nuevo mes/quincena, ¡comienza ahora!". Período pasado sin datos: "Sin registros en este período" | ✅ Implementado |
-| Filtro de período | Un solo chip: período rápido (Hoy/Semana/Mes/Año/Todo) + "Elegir mes específico" | ✅ Implementado |
+| Barra de Presupuesto | Progreso del gasto vs presupuesto mensual | ✅ Implementado |
+| Estado "período vacío" | Si no hay transacciones en el período actual: barras fantasma (opacity 0.18) + "Nuevo mes, ¡comienza ahora!". Período pasado sin datos: "Sin registros en este período" | ✅ Implementado |
+| Filtro de período | Un solo chip: período rápido (Hoy/Semana/Quincena/Mes/Año/Todo) + "Elegir mes específico" | ✅ Implementado |
 | Selector de mes/año | Modal con grid de meses, montos por mes, pills de año | ✅ Implementado |
 | Gráfica de Categorías | Barras verticales con scroll horizontal, ghost tracks, alertas por color | ✅ Implementado |
 | Lista de Transacciones | `FlatList` con items tipo tarjeta (fondo blanco + sombra en modo claro) y swipe-to-delete | ✅ Implementado |
 | Dock Flotante | FAB micrófono, botón +, lupa — reemplaza tab bar | ✅ Implementado |
+| Detalle de transacción | Modal centrado estilo Stitch al hacer long-press en un item: emoji, monto, categoría, tipo, cuenta, fecha, hora (12h), descripción, tags | ✅ Implementado |
 | Colapso de gráfica | La gráfica se colapsa progresivamente al hacer scroll (animación opacity + height) | ✅ Implementado |
 
 ### 2.2 Nuevo Gasto / Nuevo Ingreso (Modal)
@@ -41,7 +42,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Título dinámico | "Nuevo Gasto" o "Nuevo Ingreso" según origen | ✅ Implementado |
 | Monto grande | Tamaño adaptable según dígitos (36-64px) con `adjustsFontSizeToFit` | ✅ Implementado |
 | Campo de texto NLP | Detecta monto, categoría, fecha en tiempo real | ✅ Implementado |
-| Selectores rápidos | Fecha, Categoría (grid contextual: 8 de gasto ó 5 de ingreso), Cuenta | ✅ Implementado |
+| Selectores rápidos | Fecha (Hoy/Calendario), Categoría (grid dinámico), Cuenta (método de pago guardado en transacción) | ✅ Implementado |
 | Tags | Sugeridos (#viaje, #trabajo, etc.) + custom | ✅ Implementado |
 | Guardar | Botón ✓ + vibración háptica + regresa al Dashboard | ✅ Implementado |
 | Auto-formato | Puntos de miles automáticos mientras se escribe | ✅ Implementado |
@@ -61,11 +62,10 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
-| Período de pago | Mensual o Quincenal — **primera opción** en "Control Financiero" (afecta cálculos de presupuesto en Dashboard) | ✅ Implementado |
-| Ingreso mensual | Etiqueta dinámica: "Ingreso quincenal" si biweekly. Subtítulo muestra monto efectivo + referencia "Mensual: $X". Modal siempre pide monto mensual con nota "Se divide automáticamente para cada quincena" | ✅ Implementado |
+| Ingreso mensual | Cuánto dinero se tiene disponible al mes para gastar. 0 = sin presupuesto | ✅ Implementado |
 | Métodos de pago | Agregar/editar/eliminar (modal full-screen) | ✅ Implementado |
-| Presupuesto por categoría | Límite por cada una de las 8 categorías de gasto (modal full-screen) | ✅ Implementado |
-| Metas de ahorro | Crear/abonar/eliminar metas; eliminar deslizando a la izquierda (swipe-to-delete) | ✅ Implementado |
+| Presupuesto por categoría | Límite por cada categoría de gasto del usuario (modal full-screen) | ✅ Implementado |
+| Metas de ahorro | Crear/abonar/eliminar metas; eliminar deslizando a la izquierda (swipe-to-delete). Al abonar se crea transacción de gasto automáticamente (con emoji de la meta, tag #ahorro) | ✅ Implementado |
 | Apariencia | Sistema / Claro / Oscuro (dark mode completo) | ✅ Implementado |
 | Exportar datos | CSV compartible por email, Drive, etc. | ✅ Implementado |
 | Limpiar datos | Elimina todas las transacciones (con confirmación vía diálogo custom animado) | ✅ Implementado |
@@ -147,6 +147,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 3.2 | Como usuario, quiero buscar transacciones por descripción, categoría o tag | ✅ |
 | HU 3.3 | Como usuario, quiero ver el historial completo en un modal con filtros por categoría | ✅ |
 | HU 3.4 | Como usuario, quiero que la descripción de cada transacción se trunque con "..." si es muy larga | ✅ |
+| HU 3.5 | Como usuario, quiero mantener presionado un registro para ver su detalle completo (categoría, monto, tipo, cuenta, fecha, hora, descripción) | ✅ |
 
 > **Nota:** La edición de transacciones fue descartada por diseño. La práctica en apps de finanzas personales es eliminar y crear nueva. Simplifica la UX.
 
@@ -163,51 +164,50 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 |----|---------|--------|
 | HU 5.1 | Como usuario, quiero elegir entre modo claro, oscuro o automático del sistema | ✅ |
 | HU 5.2 | Como usuario, quiero configurar mis métodos de pago (Efectivo, Ahorros, Tarjeta, custom) | ✅ |
-| HU 5.3 | Como usuario, quiero definir mi presupuesto mensual o quincenal | ✅ |
+| HU 5.3 | Como usuario, quiero definir mi presupuesto mensual | ✅ |
 
 ### Épica 6: Funcionalidades Avanzadas
 
 | ID | Historia | Estado |
 |----|---------|--------|
 | HU 6.1 | Como usuario, quiero definir metas de ahorro, abonarles y eliminarlas con swipe-to-delete en Ajustes | ✅ |
-| HU 6.2 | Como usuario, quiero que el período quincenal afecte los cálculos de presupuesto (1-15 y 16-fin) | ✅ |
+| HU 6.2 | Como usuario, quiero que el presupuesto sea siempre mensual para un control financiero claro y simple | ✅ |
 | HU 6.3 | Como usuario, quiero ver un desglose de mis ingresos por categoría en la gráfica | ✅ |
 | HU 6.4 | Como usuario, quiero que al tocar una columna de la gráfica se muestre el nombre de la categoría | ✅ |
 | HU 6.5 | Como usuario, quiero que al registrar un ingreso el selector de categoría muestre solo categorías de ingreso | ✅ |
 | HU 6.6 | Como usuario nuevo, quiero un tour guiado que me muestre los pasos esenciales (configurar ingreso, registrar gasto por voz y manualmente) la primera vez que abro la app | ✅ |
-| HU 6.7 | Como usuario, quiero ver un mensaje motivacional ("Nuevo mes/quincena, ¡comienza ahora!") cuando no hay transacciones en el período actual | ✅ |
-| HU 6.8 | Como usuario, quiero que la etiqueta de presupuesto diga "Ingreso quincenal" y muestre el monto dividido cuando mi período es quincenal | ✅ |
+| HU 6.7 | Como usuario, quiero ver un mensaje motivacional ("Nuevo mes, ¡comienza ahora!") cuando no hay transacciones en el período actual | ✅ |
+| HU 6.8 | Como usuario, quiero que la etiqueta de presupuesto diga "Ingreso mensual" y muestre el monto configurado | ✅ |
+| HU 6.9 | Como usuario, quiero que al abonar a una meta de ahorro se registre como gasto en mi Dashboard para que mi balance refleje el dinero comprometido | ✅ |
 
 ---
 
-## 4. Categorías
+## 4. Categorías (Sistema Dinámico)
 
-### 4.1 Categorías de Gasto (8)
+### 4.1 Resumen
 
-Conjunto fijo. Toda la app (NLP, gráfica de gastos, formulario de gasto, búsqueda) depende de esta lista:
+Las categorías son **dinámicas y personalizables**. El usuario elige de un catálogo de presets y/o crea categorías custom en el onboarding. Se almacenan en `useSettingsStore.userCategories`.
 
-| Emoji | Nombre | Color | Palabras Clave NLP |
-|-------|--------|-------|-------------------|
-| 🍔 | Comida | Naranja `#D2601A` | restaurante, almuerzo, cena, pizza, café, mercado, supermercado, domicilio |
-| 🚗 | Transporte | Azul `#1565C0` | uber, taxi, bus, metro, gasolina, transporte, moto |
-| 🏠 | Hogar | Amarillo `#D97706` | arriendo, luz, agua, gas, internet, servicios, reparación |
-| 🛍️ | Compras | Rosa `#C2185B` | ropa, zara, shopping, gadget, tecnología, amazon |
-| 🏥 | Salud | Rojo `#C62828` | farmacia, médico, doctor, hospital, clínica, medicamento |
-| 🎮 | Entretenimiento | Púrpura `#6D28D9` | netflix, spotify, cine, juego, concierto, teatro, suscripción |
-| 🎓 | Educación | Verde `#059669` | curso, libro, universidad, clase, colegio, capacitación |
-| 👤 | Personal | Gris `#475569` | personal, peluquería, barbería, belleza, spa |
+### 4.2 Catálogo de Presets de Gasto (18)
 
-### 4.2 Categorías de Ingreso (5)
+Incluye las 8 originales + 10 adicionales: Comida, Transporte, Hogar, Compras, Salud, Entretenimiento, Educación, Personal, Ropa, Mascotas, Vehículo, Lujo, Viajes, Suscripciones, Deportes, Café, Regalos, Comer afuera.
 
-Se muestran en el selector de categoría al registrar un ingreso y en la gráfica cuando el pill "↑ Ingresos" está activo:
+### 4.3 Catálogo de Presets de Ingreso (6)
 
-| Emoji | Nombre | Palabras Clave NLP |
-|-------|--------|-------------------|
-| 💼 | Salario | salario, sueldo, nomina, quincena, mensualidad, empresa, pago |
-| 💻 | Freelance | freelance, honorarios, proyecto, cliente, trabajo independiente |
-| 📈 | Inversiones | inversión, dividendos, rendimientos, intereses, acciones |
-| 🎁 | Extra | extra, regalo, bono, reembolso, devolución, premio, venta |
-| 🏢 | Negocio | negocio, local, venta, factura, ingreso negocio |
+Salario, Freelance, Inversiones, Extra, Negocio, Otros ingresos.
+
+### 4.4 Categorías Custom
+
+El usuario puede crear categorías personalizadas con emoji, nombre, color (de paleta de 12 colores premium) y keywords automáticos basados en el nombre.
+
+### 4.5 Onboarding de Categorías
+
+- Se muestra después del splash screen (primera vez)
+- Grid de tarjetas redondeadas con emoji + nombre
+- Tarjeta especial "Añadir categoría" con bordes punteados
+- Modal centrado para crear categoría: selector horizontal de emoji, paleta de colores, campo de nombre
+- No se puede saltar la selección (mínimo 1 categoría)
+- Accesible desde Settings > "Mis categorías" > "Gestionar categorías" para editar después
 
 ---
 
@@ -278,6 +278,10 @@ Se muestran en el selector de categoría al registrar un ingreso y en la gráfic
 | Colapso de gráfica | Al hacer scroll, la gráfica colapsa suavemente (opacity + maxHeight) |
 | Diálogo de confirmación | Spring scale + fade-in con variante visual (danger/warning/info) |
 | Spotlight onboarding | GuidedTour: fade-in overlay oscuro con cutout circular + spring scale tooltip entre pasos |
+| Reordenamiento de gráfica | `LayoutAnimation` suave al cambiar el orden de categorías por monto |
+| Números animados | `AnimatedNumber` interpola Balance neto, Gastos e Ingresos al cambiar valores |
+| Long-press detalle | Modal fade con tarjeta centrada, haptic feedback al activar (500ms) |
+| Selección de categoría (onboarding) | Spring scale en modal de nueva categoría; checkmark animado en tarjetas |
 
 ---
 
@@ -289,12 +293,17 @@ Se muestran en el selector de categoría al registrar un ingreso y en la gráfic
 - Balance neto = `SUM(amount)` (negativo = saldo positivo para el usuario)
 - Se almacenan con fecha ISO local (sin UTC) para evitar desfase horario
 - Tags opcionales en formato JSON: `["#trabajo", "#viaje"]`
+- Se almacenan con `payment_method` (método de pago: cash, savings, credit u otro personalizado)
 
 ### Presupuesto
-- Presupuesto mensual: valor numérico global, `0` = no configurado
+- Presupuesto mensual: valor numérico global, `0` = no configurado. Siempre mensual (sin división por períodos).
 - Presupuesto por categoría: `emoji → monto`, activa alertas en gráfica
 - Alertas: < 70% base, 70-89% ámbar, ≥ 90% rojo
 - Sin presupuesto: barra al 50% fijo con color base (solo informativo)
+
+### Metas de ahorro
+- Al abonar a una meta, se crea automáticamente una transacción de gasto (amount positivo) con category_emoji = emoji de la meta, description = 'Abono a [nombre]', tags = ['#ahorro']. El savedAmount de la meta también se actualiza.
+- Si se elimina la transacción, el savedAmount NO se sincroniza automáticamente.
 
 ### Moneda
 - Pesos colombianos ($ COP), siempre con punto como separador de miles
@@ -331,4 +340,4 @@ Se muestran en el selector de categoría al registrar un ingreso y en la gráfic
 
 ---
 
-*Documento de requerimientos actualizado para MyWallet v1.0.0 — Marzo 2026*
+*Documento de requerimientos actualizado para MyWallet v1.1.0 — Marzo 2026*

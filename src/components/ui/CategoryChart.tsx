@@ -47,6 +47,7 @@ interface CategoryChartProps {
   onNewTransaction?: (emoji: string, categoryName: string) => void;
   alertColors?: boolean;
   isIncomeMode?: boolean; // barras verdes proporcionales, sin presupuesto ni editar
+  animationKey?: string;  // cambia para re-disparar entrada escalonada de barras
 }
 
 interface BudgetEditState {
@@ -336,7 +337,7 @@ function CategoryPopup({ popup }: { popup: PopupState }) {
 // ─── Barra con datos + PanResponder ──────────────────────────────────────────
 function AnimatedBar({
   stat, fillH, pct, hasBudget, bg, pctColor, delay, budgetLineH,
-  onLongPress, onSelectionChange, onRelease, onTap,
+  onLongPress, onSelectionChange, onRelease, onTap, animationKey,
 }: {
   stat: CategoryStat;
   fillH: number;
@@ -346,6 +347,7 @@ function AnimatedBar({
   pctColor: string;
   delay: number;
   budgetLineH?: number;
+  animationKey?: string;
   onLongPress: () => void;
   onSelectionChange: (sel: "up" | "down" | null) => void;
   onRelease: (sel: "up" | "down" | null) => void;
@@ -355,13 +357,15 @@ function AnimatedBar({
   const heightAnim = useSharedValue(0);
   const animStyle  = useAnimatedStyle(() => ({ height: heightAnim.value }));
 
+  // Animar al cambiar fillH O al cambiar animationKey (re-entrada escalonada)
   useEffect(() => {
+    heightAnim.value = 0;
     heightAnim.value = withDelay(
       delay,
-      withTiming(fillH, { duration: 560, easing: Easing.out(Easing.cubic) })
+      withTiming(fillH, { duration: 520, easing: Easing.out(Easing.cubic) })
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fillH]);
+  }, [fillH, animationKey]);
 
   const overBudget = budgetLineH !== undefined && fillH > budgetLineH;
   const nearBudget = budgetLineH !== undefined && !overBudget && fillH > budgetLineH * 0.8;
@@ -637,6 +641,7 @@ export function CategoryChart({
   onNewTransaction,
   alertColors = true,
   isIncomeMode = false,
+  animationKey,
 }: CategoryChartProps) {
   const userCategories = useSettingsStore((s) => s.userCategories);
   const savingsGoals   = useSettingsStore((s) => s.savingsGoals);
@@ -794,6 +799,7 @@ export function CategoryChart({
                 pctColor={pctColor}
                 delay={d}
                 budgetLineH={effectiveBudgetLineH}
+                animationKey={animationKey}
                 {...handlers}
               />
             );

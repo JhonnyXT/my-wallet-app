@@ -4,7 +4,6 @@ import {
   Text,
   Animated,
   TextInput,
-  FlatList,
   ScrollView,
   StyleSheet,
   Pressable,
@@ -13,6 +12,13 @@ import {
   Keyboard,
   Modal,
 } from "react-native";
+import Reanimated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Settings, Search, X, Hash } from "lucide-react-native";
@@ -390,21 +396,59 @@ export default function DashboardScreen() {
     router.push("/active-expense");
   }
 
-  // ── Animación de colapso del chart al hacer scroll ────────────────────────
-  const scrollY     = useRef(new Animated.Value(0)).current;
-  const [chartHeight, setChartHeight] = useState(0);
-  const collapseEnd = chartHeight > 0 ? chartHeight : 300;
+  // ── Animación de colapso del chart al hacer scroll (UI thread) ──────────
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      "worklet";
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
-  const chartMaxHeight = scrollY.interpolate({
-    inputRange: [0, collapseEnd],
-    outputRange: [collapseEnd, 0],
-    extrapolate: "clamp",
+  const COLLAPSE_THRESHOLD = 180;
+
+  const chartAnimStyle = useAnimatedStyle(() => {
+    "worklet";
+    const progress = interpolate(
+      scrollY.value,
+      [0, COLLAPSE_THRESHOLD],
+      [0, 1],
+      Extrapolation.CLAMP,
+    );
+    return {
+      opacity: interpolate(progress, [0, 0.65], [1, 0], Extrapolation.CLAMP),
+      transform: [
+        { translateY: interpolate(progress, [0, 1], [0, -18], Extrapolation.CLAMP) },
+        { scaleY:     interpolate(progress, [0, 1], [1, 0.88], Extrapolation.CLAMP) },
+        { scaleX:     interpolate(progress, [0, 1], [1, 0.97], Extrapolation.CLAMP) },
+      ],
+    };
   });
-  const chartOpacity = scrollY.interpolate({
-    inputRange: [0, collapseEnd * 0.7],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
+
+  // Parallax: balance y pills se comprimen al scrollear
+  const headerParallaxStyle = useAnimatedStyle(() => {
+    "worklet";
+    return {
+      transform: [
+        { scale:      interpolate(scrollY.value, [0, 100], [1, 0.94], Extrapolation.CLAMP) },
+        { translateY: interpolate(scrollY.value, [0, 100], [0, -5],   Extrapolation.CLAMP) },
+      ],
+    };
   });
+
+  const pillsParallaxStyle = useAnimatedStyle(() => {
+    "worklet";
+    return {
+      opacity: interpolate(scrollY.value, [0, 80], [1, 0.45], Extrapolation.CLAMP),
+    };
+  });
+
+  // animationKey para re-animar barras cuando el filtro cambia
+  const chartAnimKey = useMemo(
+    () => `${typeFilter ?? "all"}-${periodFilterLabel(periodFilter)}`,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [typeFilter, periodFilter],
+  );
 
   // ── FlatList helpers ──────────────────────────────────────────────────────
   const keyExtractor = useCallback((item: TxRow) => item.id.toString(), []);
@@ -467,33 +511,28 @@ export default function DashboardScreen() {
     <>
       {/* Gráfica — oculta durante búsqueda */}
       {!isSearching && (
-        <Animated.View style={[
-          styles.chartWrapper,
-          { maxHeight: chartHeight > 0 ? chartMaxHeight : undefined, opacity: chartOpacity, overflow: "hidden" },
-        ]}>
-          <View onLayout={(e) => {
-            const h = e.nativeEvent.layout.height;
-            if (h > 0 && h !== chartHeight) setChartHeight(h);
-          }}>
-            {isNewPeriod && (
-              <View style={styles.newPeriodOverlay}>
-                <Text style={styles.newPeriodText}>{newPeriodMessage}</Text>
-                <Text style={styles.newPeriodSub}>Registra tu primer movimiento con + o el micrófono</Text>
-              </View>
-            )}
-            <View style={isNewPeriod ? { opacity: 0.18 } : undefined}>
-              <CategoryChart
-                stats={activeStats}
-                allEmojis={allEmojis}
-                totalExpenses={activeTotalForChart}
-                budgetByCategory={activeBudget}
-                onNewTransaction={handleNewTransactionFromChart}
-                alertColors={typeFilter !== "income"}
-                isIncomeMode={typeFilter === "income"}
-              />
+        <Reanimated.View style={[styles.chartWrapper, chartAnimStyle]}
+          pointerEvents={undefined}
+        >
+          {isNewPeriod && (
+            <View style={styles.newPeriodOverlay}>
+              <Text style={styles.newPeriodText}>{newPeriodMessage}</Text>
+              <Text style={styles.newPeriodSub}>Registra tu primer movimiento con + o el micrófono</Text>
             </View>
+          )}
+          <View style={isNewPeriod ? { opacity: 0.18 } : undefined}>
+            <CategoryChart
+              stats={activeStats}
+              allEmojis={allEmojis}
+              totalExpenses={activeTotalForChart}
+              budgetByCategory={activeBudget}
+              onNewTransaction={handleNewTransactionFromChart}
+              alertColors={typeFilter !== "income"}
+              isIncomeMode={typeFilter === "income"}
+              animationKey={chartAnimKey}
+            />
           </View>
-        </Animated.View>
+        </Reanimated.View>
       )}
 
       {/* Cabecera de sección */}
@@ -551,7 +590,7 @@ export default function DashboardScreen() {
         <View style={styles.headerLeft}>
 
           {/* Balance */}
-          <View style={styles.balanceSection}>
+          <Reanimated.View style={[styles.balanceSection, headerParallaxStyle]}>
             <Text style={styles.balanceLabel}>
               {isSearching
                 ? `BÚSQUEDA  ·  ${searchedTransactions.length} resultado${searchedTransactions.length !== 1 ? "s" : ""}`
@@ -564,7 +603,7 @@ export default function DashboardScreen() {
             />
 
             {/* Pills Gastos / Ingresos */}
-            <View style={styles.pillsRow}>
+            <Reanimated.View style={[styles.pillsRow, pillsParallaxStyle]}>
               <TouchableOpacity
                 onPress={() => handlePillPress("expense")}
                 activeOpacity={0.75}
@@ -592,7 +631,7 @@ export default function DashboardScreen() {
                   ↑  <AnimatedNumber value={incomeTotal} prefix="$" style={[styles.pillIngresoText, typeFilter === "income" && styles.pillIngresoActiveText]} />
                 </Text>
               </TouchableOpacity>
-            </View>
+            </Reanimated.View>
 
             {/* Barra de presupuesto — solo período actual, sin filtro de tipo */}
             {monthlyBudget > 0 && !isSearching && typeFilter === null && isCurrentPeriod && (
@@ -603,7 +642,7 @@ export default function DashboardScreen() {
                 <Text style={styles.budgetBarPct}>{budgetPct}% de {formatBalance(monthlyBudget)}</Text>
               </View>
             )}
-          </View>
+          </Reanimated.View>
 
           {/* Chip de período */}
           <FilterChips
@@ -624,7 +663,7 @@ export default function DashboardScreen() {
       {/* ══════════════════════════════════════════════════════════════
           LISTA (chart colapsable + transacciones)
           ══════════════════════════════════════════════════════════════ */}
-      <FlatList
+      <Reanimated.FlatList
         data={displayedTransactions}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
@@ -633,10 +672,7 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
+        onScroll={scrollHandler}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: scrollBottomPadding(insets.bottom) },
@@ -932,6 +968,7 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
   },
   chartWrapper: {
     marginBottom: 8,
+    overflow: "hidden",
   },
   newPeriodOverlay: {
     ...StyleSheet.absoluteFillObject,

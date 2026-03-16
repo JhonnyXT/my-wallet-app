@@ -1,0 +1,10 @@
+feat: animaciones de scroll profesionales 60fps en Dashboard
+
+- Migrar scrollY a useSharedValue + useAnimatedScrollHandler (UI thread)
+- Reemplazar maxHeight (Yoga jank) con translateY + scaleY + scaleX + opacity
+- Micro-parallax en balance neto: scale 1→0.94, translateY 0→-5px al scrollear
+- Pills Gastos/Ingresos: opacity 1→0.45 al scrollear (parallax suave)
+- Reanimated.FlatList para conectar scroll handler nativo sin puente JS
+- animationKey en CategoryChart: barras se re-animan con entrada escalonada
+  al cambiar período o tipo de filtro (expense/income/all)
+- AnimatedBar reinicia height a 0 y re-ejecuta withDelay×índice en cada cambio

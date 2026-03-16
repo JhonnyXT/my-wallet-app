@@ -1,0 +1,47 @@
+---
+description: Restricciones globales inmutables del proyecto MyWallet — moneda COP, offline-first, idioma, arquitectura
+alwaysApply: true
+---
+
+# MyWallet — Contexto Global
+
+## Restricciones Inmutables
+
+- **Moneda:** Pesos colombianos ($ COP). Puntos de miles, sin decimales.
+  Formatear con: `Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")`
+  NUNCA usar `toLocaleString()` — inconsistente entre dispositivos Android.
+- **Offline-first:** Cero llamadas a APIs externas. SQLite + AsyncStorage son las únicas fuentes de persistencia.
+- **Idioma:** UI en español, código en inglés, comentarios en español.
+- **Plataforma:** Android principal (Expo SDK 55, New Architecture obligatoria).
+
+## Arquitectura: Feature-Sliced Simplificado
+
+```
+app/                → Pantallas (Expo Router). Solo orquestan: leen stores, llaman utils, renderizan UI.
+src/store/          → Estado global (Zustand). Un store por dominio.
+src/db/             → Capa de datos SQLite pura, sin lógica de negocio.
+src/components/ui/  → Componentes reutilizables, reciben props, agnósticos a la pantalla.
+src/utils/          → Funciones puras sin side effects.
+src/constants/      → Configuración estática (colores, presets de categorías).
+src/theme/          → Tokens de tema light/dark.
+```
+
+## Reglas de Código
+
+- Estilos: `buildStyles(theme: AppTheme)` + `useMemo`. Nunca hardcodear colores — usar tokens del tema.
+- Imports: usar `@/` para paths desde la raíz. Agrupar: React/RN → Expo → Terceros → Locales.
+- Categorías: siempre consultar `userCategories` del store antes de mapas legacy como fallback.
+- Presupuesto: siempre mensual. No existen helpers de período quincenal.
+- Fechas: usar `localISOString()` de `src/db/db.ts` — nunca `toISOString()` (evita desfase UTC).
+- Animaciones: Reanimated para layout/gestos complejos, `Animated` de RN solo para PanResponder.
+- Iconos: `lucide-react-native`, color `theme.text` o `theme.textSub`.
+- Botón primario de acción: `#135BEC` fijo (no `t.accent`) para consistencia entre temas.
+
+## Prohibiciones
+
+- NO usar `toLocaleString()` para moneda.
+- NO llamar APIs externas (todo offline).
+- NO implementar edición de transacciones (solo crear y eliminar).
+- NO hacer push automático en CI — solo manual.
+- NO almacenar datos bancarios reales (números de cuenta/tarjeta).
+- NO usar class components — solo funcionales con hooks.

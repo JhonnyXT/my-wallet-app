@@ -1,0 +1,65 @@
+---
+description: Convenciones de base de datos SQLite para MyWallet — WAL mode, fechas ISO locales, migraciones seguras
+globs: src/db/**
+alwaysApply: false
+---
+
+# SQLite — Convenciones de Base de Datos
+
+## Conexión y Modo
+
+- Usar `expo-sqlite` con `openDatabaseAsync("mywallet.db")`.
+- WAL mode activado en `initDatabase()`: `PRAGMA journal_mode = WAL;`
+- Singleton: reutilizar la instancia `_db` vía `getNativeDatabase()`.
+
+## Esquema: tabla `transactions`
+
+```sql
+CREATE TABLE IF NOT EXISTS transactions (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  amount          REAL NOT NULL,        -- Positivo = gasto, Negativo = ingreso
+  description     TEXT NOT NULL,
+  category_emoji  TEXT NOT NULL DEFAULT '💰',
+  date            TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+  tags            TEXT NOT NULL DEFAULT '',   -- JSON: '["#trabajo","#comida"]'
+  payment_method  TEXT NOT NULL DEFAULT 'cash'
+);
+```
+
+## Convención de Signos
+
+- `amount > 0` → **Gasto**
+- `amount < 0` → **Ingreso**
+- Balance neto = `SUM(amount)` donde negativo es positivo para el usuario.
+
+## Fechas — CRÍTICO
+
+Usar SIEMPRE `localISOString()` para generar fechas:
+
+```typescript
+function localISOString(date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T` +
+    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.000`;
+}
+```
+
+NUNCA usar `toISOString()` ni `new Date().toJSON()` — generan UTC y causan desfase de zona horaria en las queries.
+
+En `queries.ts` usar el mismo helper `localISO()` para los parámetros de comparación SQL.
+
+## Migraciones
+
+- Envolver en `try/catch` (la columna puede ya existir):
+  ```typescript
+  try { await db.execAsync(`ALTER TABLE transactions ADD COLUMN nueva_col TEXT NOT NULL DEFAULT ''`); } catch {}
+  ```
+- NUNCA borrar columnas existentes.
+- NUNCA cambiar tipos de columnas existentes.
+- Actualizar `TransactionRow` interface en `db.ts` al agregar columnas.
+
+## Queries
+
+- Ordenar transacciones por `date DESC` en `getAllTransactions()`.
+- Queries de totales agregados viven en `queries.ts`, operaciones CRUD en `db.ts`.
+- No incluir lógica de negocio en la capa de DB — eso pertenece a los stores.

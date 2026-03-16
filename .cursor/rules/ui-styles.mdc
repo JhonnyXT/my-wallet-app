@@ -1,0 +1,69 @@
+---
+description: Reglas de UI para MyWallet — Stitch Design System, NativeWind, tema dinámico light/dark
+globs: "**/*.tsx"
+alwaysApply: false
+---
+
+# UI y Estilos — Stitch Design System
+
+## Sistema de Temas
+
+Cada componente obtiene el tema vía `useTheme()` del `ThemeContext`:
+
+```typescript
+const theme = useTheme();
+const st = useMemo(() => buildStyles(theme), [theme]);
+```
+
+Tokens principales: `bg`, `surface`, `border`, `text`, `textSub`, `accent`, `itemBg`, `inputBg`.
+
+## Reglas de Estilo
+
+- Crear estilos con `buildStyles(t: AppTheme)` que retorna `StyleSheet.create({...})`.
+- SIEMPRE envolver en `useMemo(() => buildStyles(theme), [theme])`.
+- NUNCA hardcodear colores — usar tokens del tema.
+- Excepción: botón primario usa `#135BEC` fijo para consistencia entre temas.
+- En un componente, usar UN solo sistema: StyleSheet O NativeWind, no ambos.
+
+## Tokens de Color
+
+| Token | Light | Dark |
+|-------|-------|------|
+| `bg` | `#F2F2F4` | `#0D1117` |
+| `surface` | `#FFFFFF` | `#161B22` |
+| `border` | `#E2E8F0` | `#30363D` |
+| `text` | `#0F172A` | `#E6EDF3` |
+| `textSub` | `#64748B` | `#8B949E` |
+| `accent` | `#135BEC` | `#4B82EF` |
+
+## Patrón Stitch
+
+- Espacio negativo generoso: 24-32px padding en contenedores principales.
+- Tipografía: Inter. Montos con `fontWeight: "800"`, tamaño 38px para balance principal.
+- Bordes redondeados: `borderRadius: 16-24` para tarjetas y modales.
+- Iconos: `lucide-react-native`, 24px stroke, color `theme.text` o `theme.textSub`.
+- Emojis: nativos del sistema para categorías (no imágenes).
+
+## Componentes Nuevos — Checklist
+
+1. Crear en `src/components/ui/`.
+2. Props tipadas con TypeScript (interface o type).
+3. Soporte dark mode obligatorio vía `useTheme()`.
+4. Exportar como named export.
+5. Gastos: texto negro con `−`. Ingresos: texto verde con `+`.
+
+## Pantallas Nuevas — Checklist
+
+1. Crear en `app/` (Expo Router).
+2. Si es modal: registrar en Stack de `app/_layout.tsx` con `presentation: "modal"`.
+3. Usar `useTheme()` + `buildStyles()` + `useMemo`.
+4. Todos los textos de UI en español.
+5. `KeyboardAvoidingView behavior="padding"` dentro de modales.
+
+## Animaciones
+
+- Entrada de items: `FadeInDown` (Reanimated).
+- Duraciones estándar: 200-300ms entrada, 100-150ms feedback.
+- Haptic feedback: `expo-haptics` en acciones de guardar y long-press.
+- LayoutAnimation: para reordenar listas/charts suavemente.
+- PanResponder: usar `Animated` de RN (no Reanimated) para swipe gestures.

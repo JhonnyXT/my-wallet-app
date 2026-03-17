@@ -72,7 +72,7 @@ const BAR_W    = 68;
 const BAR_GAP  = 14;
 const H_PAD    = 28;
 const GHOST_H  = 280;
-const CHART_H  = GHOST_H + 8;
+export const CHART_H  = GHOST_H + 8;
 const POPUP_W  = 170;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

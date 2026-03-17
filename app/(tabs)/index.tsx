@@ -30,7 +30,7 @@ import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useUIStore } from "@/src/store/useUIStore";
 import { FilterChips, PERIODS } from "@/src/components/ui/FilterChips";
-import { CategoryChart } from "@/src/components/ui/CategoryChart";
+import { CategoryChart, CHART_H } from "@/src/components/ui/CategoryChart";
 import { TransactionItem } from "@/src/components/ui/TransactionItem";
 import { EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
 import { getUserExpenseCategories, getUserIncomeCategories } from "@/src/store/useSettingsStore";
@@ -405,23 +405,15 @@ export default function DashboardScreen() {
     },
   });
 
-  const COLLAPSE_THRESHOLD = 180;
+  // El threshold es exactamente la altura del chart para que desaparezca justo al scrollearlo
+  const COLLAPSE_THRESHOLD = CHART_H;
 
   const chartAnimStyle = useAnimatedStyle(() => {
     "worklet";
-    const progress = interpolate(
-      scrollY.value,
-      [0, COLLAPSE_THRESHOLD],
-      [0, 1],
-      Extrapolation.CLAMP,
-    );
     return {
-      opacity: interpolate(progress, [0, 0.65], [1, 0], Extrapolation.CLAMP),
-      transform: [
-        { translateY: interpolate(progress, [0, 1], [0, -18], Extrapolation.CLAMP) },
-        { scaleY:     interpolate(progress, [0, 1], [1, 0.88], Extrapolation.CLAMP) },
-        { scaleX:     interpolate(progress, [0, 1], [1, 0.97], Extrapolation.CLAMP) },
-      ],
+      height:  interpolate(scrollY.value, [0, COLLAPSE_THRESHOLD], [CHART_H, 0], Extrapolation.CLAMP),
+      opacity: interpolate(scrollY.value, [0, COLLAPSE_THRESHOLD * 0.7], [1, 0], Extrapolation.CLAMP),
+      overflow: "hidden" as const,
     };
   });
 
@@ -968,7 +960,6 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
   },
   chartWrapper: {
     marginBottom: 8,
-    overflow: "hidden",
   },
   newPeriodOverlay: {
     ...StyleSheet.absoluteFillObject,

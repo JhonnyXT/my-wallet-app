@@ -413,7 +413,6 @@ export default function DashboardScreen() {
     return {
       height:  interpolate(scrollY.value, [0, COLLAPSE_THRESHOLD], [CHART_H, 0], Extrapolation.CLAMP),
       opacity: interpolate(scrollY.value, [0, COLLAPSE_THRESHOLD * 0.7], [1, 0], Extrapolation.CLAMP),
-      overflow: "hidden" as const,
     };
   });
 
@@ -960,6 +959,7 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
   },
   chartWrapper: {
     marginBottom: 8,
+    overflow: "hidden",
   },
   newPeriodOverlay: {
     ...StyleSheet.absoluteFillObject,

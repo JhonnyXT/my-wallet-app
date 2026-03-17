@@ -32,8 +32,9 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Gráfica de Categorías | Barras verticales con scroll horizontal, ghost tracks, alertas por color | ✅ Implementado |
 | Lista de Transacciones | `FlatList` con items tipo tarjeta (fondo blanco + sombra en modo claro) y swipe-to-delete | ✅ Implementado |
 | Dock Flotante | FAB micrófono, botón +, lupa — reemplaza tab bar | ✅ Implementado |
-| Detalle de transacción | Modal centrado estilo Stitch al hacer long-press en un item: emoji, monto, categoría, tipo, cuenta, fecha, hora (12h), descripción, tags | ✅ Implementado |
-| Colapso de gráfica | La gráfica se colapsa progresivamente al hacer scroll (animación opacity + height) | ✅ Implementado |
+| Detalle de transacción | Modal centrado estilo Stitch al hacer **tap** en un item: emoji, monto, categoría, tipo, cuenta, fecha, hora (12h), descripción, tags | ✅ Implementado |
+| Animación scroll de gráfica | Las barras se comprimen progresivamente al hacer scroll (Reanimated `interpolate`). Las etiquetas hacen crossfade de vertical a horizontal compacto. Gráfica y lista en scroll unificado (`FlatList` + `ListHeaderComponent`) | ✅ Implementado |
+| Odómetro de valores | `RollingNumber`: cada dígito tiene su columna 0-9 animada con Reanimated. Separadores de miles COP con fade-in/out. Usado en Balance neto + Pills de gastos/ingresos | ✅ Implementado |
 
 ### 2.2 Nuevo Gasto / Nuevo Ingreso (Modal)
 

@@ -1,7 +1,7 @@
 import { useRef, useMemo, useCallback } from "react";
 import {
   View, Text, StyleSheet, Animated,
-  PanResponder, TouchableOpacity, Pressable,
+  PanResponder, TouchableOpacity,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import AnimatedRN, { FadeInDown } from "react-native-reanimated";
@@ -20,7 +20,7 @@ interface TransactionItemProps {
   transaction: TransactionRow;
   index: number;
   dimmed?: boolean;
-  onLongPress?: (id: number) => void;
+  onDelete?: (id: number) => void;
   onDetail?: (tx: TransactionRow) => void;
 }
 
@@ -64,7 +64,7 @@ export function TransactionItem({
   transaction,
   index,
   dimmed = false,
-  onLongPress,
+  onDelete,
   onDetail,
 }: TransactionItemProps) {
   const theme          = useTheme();
@@ -89,11 +89,9 @@ export function TransactionItem({
 
   const title = cleanDescription(rawDesc) || categoryName;
 
-  // ── Swipe to delete + long-press to detail ─────────────────────────────────
-  const translateX  = useRef(new Animated.Value(0)).current;
-  const isOpen      = useRef(false);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const didLongPress   = useRef(false);
+  // ── Swipe to delete ──────────────────────────────────────────────────────────
+  const translateX = useRef(new Animated.Value(0)).current;
+  const isOpen     = useRef(false);
 
   const spring = (toValue: number, cb?: () => void) =>
     Animated.spring(translateX, {
@@ -103,23 +101,14 @@ export function TransactionItem({
       stiffness: 200,
     }).start(cb);
 
+  // onStartShouldSetPanResponder: false → el FlatList recibe los toques primero.
+  // El PanResponder sólo reclama el gesto cuando detecta un swipe horizontal claro.
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, g) =>
         Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
-      onPanResponderGrant: () => {
-        didLongPress.current = false;
-        longPressTimer.current = setTimeout(() => {
-          didLongPress.current = true;
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          onDetail?.(transaction);
-        }, 500);
-      },
       onPanResponderMove: (_, g) => {
-        if (Math.abs(g.dx) > 5 || Math.abs(g.dy) > 5) {
-          if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
-        }
         if (Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy)) {
           const base = isOpen.current ? -DELETE_WIDTH : 0;
           const next = Math.min(0, base + g.dx);
@@ -127,9 +116,6 @@ export function TransactionItem({
         }
       },
       onPanResponderRelease: (_, g) => {
-        if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
-        if (didLongPress.current) return;
-
         if (isOpen.current) {
           if (g.dx > 20) {
             isOpen.current = false;
@@ -147,18 +133,17 @@ export function TransactionItem({
         }
       },
       onPanResponderTerminate: () => {
-        if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+        spring(isOpen.current ? -DELETE_WIDTH : 0);
       },
     })
   ).current;
 
   function handleDelete() {
-    // Animación de salida antes de eliminar
     Animated.timing(translateX, {
       toValue: -400,
       duration: 220,
       useNativeDriver: true,
-    }).start(() => onLongPress?.(transaction.id));
+    }).start(() => onDelete?.(transaction.id));
   }
 
   function handleClose() {
@@ -183,45 +168,56 @@ export function TransactionItem({
         </TouchableOpacity>
       </View>
 
-      {/* Row que se desliza */}
+      {/* Animated.View: maneja el deslizamiento (translateX) + PanResponder para swipe */}
       <Animated.View
         style={[styles.row, { transform: [{ translateX }] }]}
         {...panResponder.panHandlers}
       >
-        {/* Icono circular */}
-        <View style={[styles.iconCircle, { backgroundColor: palette.bg }]}>
-          <Text style={styles.emoji}>{transaction.category_emoji}</Text>
-        </View>
-
-        {/* Bloque de texto */}
-        <View style={styles.textBlock}>
-          <View style={styles.categoryRow}>
-            <Text style={styles.categoryName}>
-              {categoryName}
-            </Text>
-            <Text style={styles.categorySep}>{"  ·  "}</Text>
-            <Text style={styles.categoryDate} numberOfLines={1}>
-              {dateStr}
-            </Text>
+        {/* TouchableOpacity: captura el tap → detail sin interferir con el swipe */}
+        <TouchableOpacity
+          activeOpacity={0.82}
+          onPress={() => {
+            if (isOpen.current) { handleClose(); return; }
+            Haptics.selectionAsync();
+            onDetail?.(transaction);
+          }}
+          style={styles.rowInner}
+        >
+          {/* Icono circular */}
+          <View style={[styles.iconCircle, { backgroundColor: palette.bg }]}>
+            <Text style={styles.emoji}>{transaction.category_emoji}</Text>
           </View>
-          <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-            {title}
-          </Text>
-          {tags.length > 0 && (
-            <View style={styles.tagsRow}>
-              {tags.map((tag) => (
-                <View key={tag} style={styles.tagPill}>
-                  <Text style={styles.tagText}>{tag}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
 
-        {/* Monto */}
-        <Text style={[styles.amount, { color: amountColor }]}>
-          {amountSign}{formatAmount(transaction.amount)}
-        </Text>
+          {/* Bloque de texto */}
+          <View style={styles.textBlock}>
+            <View style={styles.categoryRow}>
+              <Text style={styles.categoryName}>
+                {categoryName}
+              </Text>
+              <Text style={styles.categorySep}>{"  ·  "}</Text>
+              <Text style={styles.categoryDate} numberOfLines={1}>
+                {dateStr}
+              </Text>
+            </View>
+            <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+              {title}
+            </Text>
+            {tags.length > 0 && (
+              <View style={styles.tagsRow}>
+                {tags.map((tag) => (
+                  <View key={tag} style={styles.tagPill}>
+                    <Text style={styles.tagText}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Monto */}
+          <Text style={[styles.amount, { color: amountColor }]}>
+            {amountSign}{formatAmount(transaction.amount)}
+          </Text>
+        </TouchableOpacity>
       </Animated.View>
       </View>
     </AnimatedRN.View>
@@ -271,14 +267,18 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
     justifyContent: "center",
   },
 
+  // Animated.View: solo background + radio para que el translateX deslice correctamente
   row: {
+    backgroundColor: t.isDark ? t.itemBg : "#FFFFFF",
+    borderRadius: 16,
+  },
+  // TouchableOpacity interior: contiene todo el layout del item
+  rowInner: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 14,
     paddingLeft: 16,
     paddingRight: 16,
-    backgroundColor: t.isDark ? t.itemBg : "#FFFFFF",
-    borderRadius: 16,
   },
   iconCircle: {
     width: 52,

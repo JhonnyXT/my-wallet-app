@@ -64,6 +64,21 @@ Tokens principales: `bg`, `surface`, `border`, `text`, `textSub`, `accent`, `ite
 
 - Entrada de items: `FadeInDown` (Reanimated).
 - Duraciones estándar: 200-300ms entrada, 100-150ms feedback.
-- Haptic feedback: `expo-haptics` en acciones de guardar y long-press.
+- Haptic feedback: `expo-haptics` — `notificationAsync(success)` al guardar, `selectionAsync()` en taps de detalle.
 - LayoutAnimation: para reordenar listas/charts suavemente.
 - PanResponder: usar `Animated` de RN (no Reanimated) para swipe gestures.
+
+## Patrón: Item con Swipe + Tap
+
+Para items de lista que tienen swipe-to-delete Y tap-to-detail:
+- `Animated.View` (exterior): maneja `translateX` + `{...panResponder.panHandlers}`
+- `TouchableOpacity` (interior): captura el `onPress` → haptic + abrir detalle
+- `onStartShouldSetPanResponder: () => false` — el FlatList recibe los toques primero
+- `onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy)` — solo reclama con swipe horizontal claro
+
+## Valores Monetarios Animados (Dashboard)
+
+Usar `RollingNumber` (`src/components/ui/RollingNumber.tsx`) para todos los valores numéricos del Dashboard:
+- No puede ir dentro de `<Text>`. Reestructurar contenedor como `<View flexDirection="row">`.
+- Props: `value`, `prefix="$"`, `style: StyleProp<TextStyle>`, `duration`.
+- `AnimatedNumber` está legado — solo usar en pantallas fuera del Dashboard si ya estaba.

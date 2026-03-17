@@ -23,6 +23,9 @@ import ReAnimated, {
   withDelay,
   withTiming,
   Easing,
+  interpolate,
+  Extrapolation,
+  type SharedValue,
 } from "react-native-reanimated";
 import { useEffect, useRef, useState } from "react";
 import * as Haptics from "expo-haptics";
@@ -48,6 +51,7 @@ interface CategoryChartProps {
   alertColors?: boolean;
   isIncomeMode?: boolean; // barras verdes proporcionales, sin presupuesto ni editar
   animationKey?: string;  // cambia para re-disparar entrada escalonada de barras
+  scrollY?: SharedValue<number>; // reservado para animación futura — no usado actualmente
 }
 
 interface BudgetEditState {
@@ -68,26 +72,52 @@ interface PopupState {
 }
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
-const BAR_W    = 68;
+const BAR_W    = 68;   // ligeramente más ancho para mejor layout horizontal
 const BAR_GAP  = 14;
-const H_PAD    = 28;
-const GHOST_H  = 280;
-export const CHART_H  = GHOST_H + 8;
-const POPUP_W  = 170;
+const H_PAD      = 20;
+const MAX_BAR_H  = 280;  // altura máxima de una columna en pantalla
+const MIN_GHOST_H = 44;  // mínimo para que el ghost siempre sea visible
+const RADIUS     = 14;
+export const CHART_H = MAX_BAR_H + 24; // espacio extra para labels y padding
+const MIN_FILL_H   = 52;  // altura mínima comprimida del fill (cabe layout horizontal)
+export const COMPRESS_END  = 140; // px de scroll donde los fills quedan totalmente comprimidos
+export const CHART_COMPACT_H = MIN_FILL_H + 24; // altura compacta del chart wrapper (76px)
+const POPUP_W    = 170;
+
+// Borde punteado neutro — siempre gris, nunca colored
+const BORDER_LIGHT = "rgba(0,0,0,0.28)";
+const BORDER_DARK  = "rgba(255,255,255,0.45)";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function barColor(
+/**
+ * DISEÑO PROPORCIONAL DE COLUMNAS:
+ *
+ * ghostH = budget * scale  → altura del contenedor de presupuesto (proporcional)
+ * fillH  = spent  * scale  → altura del fill de gasto (puede > ghostH en overspent)
+ * scale  = MAX_BAR_H / maxBudget_entre_todas_las_categorias
+ *
+ * 3 estados:
+ *  NORMAL   (ratio < 60%): solo fill, sin borde ghost
+ *  WARNING  (60–99%): fill + borde ghost punteado gris (visible ENCIMA del fill)
+ *  OVERSPENT(≥100%):  fill rojo que supera al ghost, ghost visible DEBAJO del fill
+ *
+ * El borde superior del ghost ES la línea de presupuesto — no hay elemento extra.
+ */
+interface BarVisual {
+  fillColor: string;
+  hasBorder: boolean; // muestra el borde ghost punteado (Warning + Overspent)
+}
+
+function getBarVisual(
   emoji: string,
-  spent: number,
-  budget?: number,
+  ratio: number,  // spent / budget
   userCats?: import("@/src/constants/categoryPresets").UserCategory[],
-): { bg: string; pctColor: string } {
-  if (budget && budget > 0) {
-    const ratio = spent / budget;
-    if (ratio >= 0.90) return { bg: "#FEE2E2", pctColor: "#DC2626" };
-    if (ratio >= 0.70) return { bg: "#FEF3C7", pctColor: "#D97706" };
-  }
-  return { bg: getCategoryColor(emoji, userCats).bg, pctColor: "#1E293B" };
+): BarVisual {
+  const { accent } = getCategoryColor(emoji, userCats);
+  // Usa accent (color real de la categoría) — la opacidad se aplica en el fill View
+  if (ratio >= 1.0) return { fillColor: "#EF4444", hasBorder: true  };
+  if (ratio >= 0.60) return { fillColor: accent,   hasBorder: true  };
+  return                       { fillColor: accent,   hasBorder: false };
 }
 
 function fmtAmount(n: number): string {
@@ -336,18 +366,19 @@ function CategoryPopup({ popup }: { popup: PopupState }) {
 
 // ─── Barra con datos + PanResponder ──────────────────────────────────────────
 function AnimatedBar({
-  stat, fillH, pct, hasBudget, bg, pctColor, delay, budgetLineH,
-  onLongPress, onSelectionChange, onRelease, onTap, animationKey,
+  stat, fillH, ghostH, pct, hasBudget, fillColor, hasBorder,
+  delay, onLongPress, onSelectionChange, onRelease, onTap, animationKey, scrollY,
 }: {
   stat: CategoryStat;
-  fillH: number;
+  fillH: number;   // altura del fill (puede > ghostH en overspent)
+  ghostH: number;  // altura del ghost proporcional al presupuesto
   pct: number;
   hasBudget: boolean;
-  bg: string;
-  pctColor: string;
+  fillColor: string;
+  hasBorder: boolean;
   delay: number;
-  budgetLineH?: number;
   animationKey?: string;
+  scrollY?: SharedValue<number>;
   onLongPress: () => void;
   onSelectionChange: (sel: "up" | "down" | null) => void;
   onRelease: (sel: "up" | "down" | null) => void;
@@ -355,7 +386,49 @@ function AnimatedBar({
 }) {
   const { isDark } = useTheme();
   const heightAnim = useSharedValue(0);
-  const animStyle  = useAnimatedStyle(() => ({ height: heightAnim.value }));
+  // Fallback si scrollY no se pasa (queda en 0, sin comprimir)
+  const localScrollY = useSharedValue(0);
+  const sv = scrollY ?? localScrollY;
+
+  // Fill height = animación de entrada ∩ compresión por scroll
+  const fillHeightStyle = useAnimatedStyle(() => {
+    "worklet";
+    const ratio   = interpolate(sv.value, [0, COMPRESS_END], [0, 1], Extrapolation.CLAMP);
+    const minH    = Math.min(fillH, MIN_FILL_H);
+    const scrolledH = fillH - (fillH - minH) * ratio; // fillH → minH
+    return { height: Math.min(heightAnim.value, scrolledH) };
+  });
+
+  // Ghost: permanece visible hasta el 85% del scroll, solo desaparece al final
+  const ghostFadeStyle = useAnimatedStyle(() => {
+    "worklet";
+    return {
+      opacity: interpolate(sv.value, [COMPRESS_END * 0.85, COMPRESS_END], [1, 0], Extrapolation.CLAMP),
+    };
+  });
+
+  // Para barras ya compactas (fillH <= MIN_FILL_H) siempre mostramos horizontal.
+  // Para barras altas, el crossfade ocurre en el último 25% del recorrido de scroll,
+  // así los labels verticales (emoji+monto+%) quedan visibles durante toda la compresión.
+  const isShortBar = fillH <= MIN_FILL_H;
+
+  const verticalOpacityStyle = useAnimatedStyle(() => {
+    "worklet";
+    if (isShortBar) return { opacity: 0 };
+    return {
+      // Empieza a desvanecerse en el 75% del scroll y termina al 100%
+      opacity: interpolate(sv.value, [COMPRESS_END * 0.75, COMPRESS_END], [1, 0], Extrapolation.CLAMP),
+    };
+  });
+
+  const horizontalOpacityStyle = useAnimatedStyle(() => {
+    "worklet";
+    if (isShortBar) return { opacity: 1 };
+    return {
+      // Aparece en el último 25% del scroll, cuando el pill ya es pequeño
+      opacity: interpolate(sv.value, [COMPRESS_END * 0.75, COMPRESS_END], [0, 1], Extrapolation.CLAMP),
+    };
+  });
 
   // Animar al cambiar fillH O al cambiar animationKey (re-entrada escalonada)
   useEffect(() => {
@@ -366,10 +439,6 @@ function AnimatedBar({
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fillH, animationKey]);
-
-  const overBudget = budgetLineH !== undefined && fillH > budgetLineH;
-  const nearBudget = budgetLineH !== undefined && !overBudget && fillH > budgetLineH * 0.8;
-  const lineColor  = overBudget ? "#DC2626" : nearBudget ? "#F59E0B" : "#135BEC";
 
   // ── Callbacks en refs para evitar stale closures en PanResponder ──
   const onLongPressRef       = useRef(onLongPress);
@@ -427,37 +496,39 @@ function AnimatedBar({
     })
   ).current;
 
-  const ghostTheme = isDark
-    ? { borderColor: "rgba(255,255,255,0.18)", backgroundColor: "rgba(255,255,255,0.07)" }
-    : { borderColor: "rgba(0,0,0,0.10)",       backgroundColor: "rgba(0,0,0,0.018)" };
-  const amtColor = isDark ? "#8B949E" : "#64748B";
+  const labelColor  = isDark ? "#F1F5F9" : "#1E293B";
+  const borderColor = isDark ? BORDER_DARK : BORDER_LIGHT;
 
   return (
-    // El column es puramente visual — el overlay transparente encima captura los gestos
     <View style={styles.column}>
-      <View style={[styles.ghost, ghostTheme]}>
-        <ReAnimated.View style={[styles.fill, animStyle, { backgroundColor: bg }]} />
 
-        {budgetLineH !== undefined && budgetLineH > 0 && budgetLineH <= GHOST_H && (
-          <View
-            style={[
-              styles.budgetLine,
-              { bottom: Math.min(budgetLineH, GHOST_H - 4), borderColor: lineColor },
-            ]}
-          />
-        )}
+      {/* 1. Fill: crece desde abajo hasta fillH. opacity:0.68 da el tono suave sin perder el color */}
+      <ReAnimated.View style={[styles.fill, fillHeightStyle, { backgroundColor: fillColor, opacity: 0.68 }]} />
 
-        <Text style={styles.emoji}>{stat.emoji}</Text>
-        <View style={styles.labelsBottom}>
-          {hasBudget
-            ? <Text style={[styles.pctText, { color: pctColor }]}>{pct}%</Text>
-            : null
-          }
-          <Text style={[styles.amtText, { color: !hasBudget ? pctColor : amtColor }]}>
-            {fmtAmount(stat.total)}
-          </Text>
-        </View>
-      </View>
+      {/* 2. Ghost border — se desvanece al comprimir (no hay espacio en modo compacto) */}
+      {hasBorder && ghostH > 0 && (
+        <ReAnimated.View style={[styles.ghostBorder, { height: ghostH, borderColor }, ghostFadeStyle]} />
+      )}
+
+      {/* 3a. Labels verticales (emoji + monto + %) — desaparecen cuando la barra se comprime */}
+      <ReAnimated.View style={[styles.labelsInner, verticalOpacityStyle]}>
+        <Text style={styles.emojiText}>{stat.emoji}</Text>
+        <Text style={[styles.amtText, { color: labelColor }]}>
+          {fmtAmount(stat.total)}
+        </Text>
+        {hasBudget && !(fillH > ghostH && ghostH > 0)
+          ? <Text style={[styles.pctText, { color: labelColor }]}>{pct}%</Text>
+          : null
+        }
+      </ReAnimated.View>
+
+      {/* 3b. Labels horizontales (emoji izq | monto der) — aparecen al comprimir */}
+      <ReAnimated.View style={[styles.labelsHorizontal, horizontalOpacityStyle]}>
+        <Text style={styles.emojiCompact}>{stat.emoji}</Text>
+        <Text style={[styles.amtTextCompact, { color: labelColor }]} numberOfLines={1}>
+          {fmtAmount(stat.total)}
+        </Text>
+      </ReAnimated.View>
       {/* Overlay transparente: inicia el timer de long-press sin reclamar el responder */}
       <View
         style={styles.gestureOverlay}
@@ -474,7 +545,8 @@ function AnimatedBar({
           if (activeRef.current) return;
           const dx = Math.abs(e.nativeEvent.pageX - touchX0Ref.current);
           const dy = Math.abs(e.nativeEvent.pageY - touchY0Ref.current);
-          if (dx > 8 && dx > dy) clearTimeout(timerRef.current);
+          // Cancelar en cualquier movimiento significativo — permite el scroll vertical al FlatList
+          if (dx > 8 || dy > 8) clearTimeout(timerRef.current);
         }}
         onTouchEnd={(e) => {
           clearTimeout(timerRef.current);
@@ -504,11 +576,10 @@ function AnimatedBar({
 
 // ─── Barra vacía + PanResponder ───────────────────────────────────────────────
 function GhostBar({
-  emoji, budgetLineH,
+  emoji,
   onLongPress, onSelectionChange, onRelease, onTap,
 }: {
   emoji: string;
-  budgetLineH?: number;
   onLongPress: () => void;
   onSelectionChange: (sel: "up" | "down" | null) => void;
   onRelease: (sel: "up" | "down" | null) => void;
@@ -560,26 +631,14 @@ function GhostBar({
     })
   ).current;
 
-  const ghostTheme = isDark
-    ? { borderColor: "rgba(255,255,255,0.18)", backgroundColor: "rgba(255,255,255,0.07)" }
-    : { borderColor: "rgba(0,0,0,0.10)",       backgroundColor: "rgba(0,0,0,0.018)" };
-  const ghostPctColor = isDark ? "#8B949E" : "#94A3B8";
+  const labelColor = isDark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.18)";
 
   return (
     <View style={styles.column}>
-      <View style={[styles.ghost, ghostTheme]}>
-        {budgetLineH !== undefined && budgetLineH > 0 && budgetLineH <= GHOST_H && (
-          <View
-            style={[
-              styles.budgetLine,
-              { bottom: Math.min(budgetLineH, GHOST_H - 4), borderColor: "#135BEC" },
-            ]}
-          />
-        )}
-        <Text style={[styles.emoji, { opacity: 0.28 }]}>{emoji}</Text>
-        <View style={styles.labelsBottom}>
-          <Text style={[styles.ghostPct, { color: ghostPctColor }]}>0%</Text>
-        </View>
+      {/* Sin ghost border — columna vacía es solo el emoji con baja opacidad */}
+      <View style={styles.labelsInner}>
+        <Text style={[styles.emojiText, { opacity: 0.25 }]}>{emoji}</Text>
+        <Text style={[styles.ghostDash, { color: labelColor }]}>—</Text>
       </View>
       <View
         style={styles.gestureOverlay}
@@ -596,7 +655,8 @@ function GhostBar({
           if (activeRef.current) return;
           const dx = Math.abs(e.nativeEvent.pageX - touchX0Ref.current);
           const dy = Math.abs(e.nativeEvent.pageY - touchY0Ref.current);
-          if (dx > 8 && dx > dy) clearTimeout(timerRef.current);
+          // Cancelar en cualquier movimiento significativo — permite el scroll vertical al FlatList
+          if (dx > 8 || dy > 8) clearTimeout(timerRef.current);
         }}
         onTouchEnd={(e) => {
           clearTimeout(timerRef.current);
@@ -642,6 +702,7 @@ export function CategoryChart({
   alertColors = true,
   isIncomeMode = false,
   animationKey,
+  scrollY,
 }: CategoryChartProps) {
   const userCategories = useSettingsStore((s) => s.userCategories);
   const savingsGoals   = useSettingsStore((s) => s.savingsGoals);
@@ -681,9 +742,18 @@ export function CategoryChart({
   const [chartOrigin, setChartOrigin] = useState({ x: 0, y: 0 });
 
   // Máximo ingreso por categoría — base para calcular proporciones en modo ingreso
+  // ─── Escala proporcional ──────────────────────────────────────────────────
+  // Cada ghost height = budget * scale, cada fill height = spent * scale
+  // El máximo budget define la escala → la categoría con mayor presupuesto llena MAX_BAR_H
   const maxIncomeStat = isIncomeMode && stats.length > 0
     ? Math.max(...stats.map(s => s.total))
     : 1;
+
+  const maxBudget = isIncomeMode
+    ? maxIncomeStat
+    : Math.max(...Object.values(budgetByCategory ?? {}).filter(v => v > 0), 1);
+
+  const scale = MAX_BAR_H / maxBudget;
 
   const withDataSet = new Set(stats.map(s => s.emoji));
   const ordered = [
@@ -747,43 +817,44 @@ export function CategoryChart({
         scrollEnabled={popup === null}
       >
         {ordered.map((emoji, idx) => {
-          const stat = stats.find(s => s.emoji === emoji);
-          const budgetAmt   = isIncomeMode ? undefined : budgetByCategory[emoji];
-          const budgetLineH = undefined;
-          const handlers = makeHandlers(emoji, idx);
+          const stat      = stats.find(s => s.emoji === emoji);
+          const budgetAmt = isIncomeMode ? undefined : budgetByCategory[emoji];
+          const handlers  = makeHandlers(emoji, idx);
 
           if (stat) {
-            let fillH: number;
+            // ── Alturas proporcionales ───────────────────────────────────────
+            let fillH:    number;
+            let ghostH:   number;
             let displayPct: number;
-            let effectiveBudgetLineH: number | undefined = undefined;
+            let ratio = 0;
 
             if (isIncomeMode) {
-              // Modo ingresos: barra proporcional al mayor ingreso de categoría
-              const ratio = maxIncomeStat > 0 ? stat.total / maxIncomeStat : 0;
-              fillH      = Math.round(ratio * GHOST_H);
+              ratio   = maxIncomeStat > 0 ? stat.total / maxIncomeStat : 0;
+              fillH   = Math.round(ratio * MAX_BAR_H);
+              ghostH  = 0; // sin ghost en ingresos
               displayPct = Math.round(ratio * 100);
             } else if (budgetAmt && budgetAmt > 0) {
-              // Con presupuesto: barra = gastado / presupuesto (máx 100%)
-              const ratio = Math.min(stat.total / budgetAmt, 1);
-              fillH        = Math.round(ratio * GHOST_H);
-              displayPct   = Math.round(ratio * 100);
+              ratio      = stat.total / budgetAmt;
+              fillH      = Math.min(Math.round(stat.total  * scale), MAX_BAR_H);
+              // MIN_GHOST_H garantiza que el ghost siempre sea visible aunque el presupuesto sea muy pequeño
+              ghostH     = Math.max(Math.min(Math.round(budgetAmt * scale), MAX_BAR_H), MIN_GHOST_H);
+              displayPct = Math.round(ratio * 100);
             } else {
-              // Sin presupuesto: barra neutra al 50% — indica que hay datos, sin alarmar
-              fillH        = Math.round(GHOST_H * 0.5);
-              displayPct   = 0;
-              effectiveBudgetLineH = budgetLineH;
+              // Sin presupuesto: barra neutra al 40% de la altura máxima
+              fillH      = Math.round(MAX_BAR_H * 0.4);
+              ghostH     = 0;
+              displayPct = 0;
             }
 
-            let bg: string;
-            let pctColor: string;
+            // ── Visual ──────────────────────────────────────────────────────
+            let visual: BarVisual;
             if (isIncomeMode) {
-              bg       = "#DCFCE7"; // verde claro
-              pctColor = "#16A34A"; // verde
-            } else if (alertColors) {
-              ({ bg, pctColor } = barColor(emoji, stat.total, budgetAmt, userCategories));
+              visual = { fillColor: "#22C55E", hasBorder: false }; // verde para ingresos
+            } else if (alertColors && budgetAmt && budgetAmt > 0) {
+              visual = getBarVisual(emoji, ratio, userCategories);
             } else {
-              bg       = getCategoryColor(emoji, userCategories).bg;
-              pctColor = "#1E293B";
+              const { accent } = getCategoryColor(emoji, userCategories);
+              visual = { fillColor: accent, hasBorder: false };
             }
 
             const d = delay;
@@ -793,13 +864,14 @@ export function CategoryChart({
                 key={emoji}
                 stat={stat}
                 fillH={fillH}
+                ghostH={ghostH}
                 pct={displayPct}
                 hasBudget={isIncomeMode || !!(budgetAmt && budgetAmt > 0)}
-                bg={bg}
-                pctColor={pctColor}
+                fillColor={visual.fillColor}
+                hasBorder={visual.hasBorder}
                 delay={d}
-                budgetLineH={effectiveBudgetLineH}
                 animationKey={animationKey}
+                scrollY={scrollY}
                 {...handlers}
               />
             );
@@ -808,7 +880,6 @@ export function CategoryChart({
             <GhostBar
               key={emoji}
               emoji={emoji}
-              budgetLineH={budgetLineH}
               {...handlers}
             />
           );
@@ -891,74 +962,94 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: H_PAD,
+    paddingBottom: 12,
     gap: BAR_GAP,
   },
   column: {
     width: BAR_W,
-    height: CHART_H,
-    justifyContent: "flex-end",
+    height: MAX_BAR_H,
     alignItems: "center",
+    // Sin overflow:hidden — fill capped a MAX_BAR_H, no necesita clipping
   },
-  ghost: {
-    width: BAR_W,
-    height: GHOST_H,
-    borderRadius: 9999,
-    borderWidth: 1,
+  // Borde punteado del ghost (transparente + outline dashed)
+  ghostBorder: {
+    position: "absolute",
+    bottom: 0,   // anclar al fondo — height se pasa dinámicamente (ghostH)
+    left: 0,
+    right: 0,
+    // NO top: 0 aquí — si se pone top:0 + bottom:0 juntos ignoran el height dinámico
+    borderRadius: RADIUS,
+    borderWidth: 1.5,
     borderStyle: "dashed",
-    borderColor: "rgba(0,0,0,0.10)",
-    backgroundColor: "rgba(0,0,0,0.018)",
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 14,
-    paddingBottom: 14,
+    backgroundColor: "transparent",
+    zIndex: 2,   // encima del fill (zIndex 0), debajo de labels (zIndex 5)
   },
-  emoji: {
-    fontSize: 22,
-    lineHeight: 28,
-    zIndex: 2,
-  },
+  // Barra de relleno — absolutamente posicionada en el fondo del column
   fill: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    borderRadius: 9999,
-    zIndex: 0,
+    borderRadius: RADIUS, // redondeado en las 4 esquinas
   },
-  labelsBottom: {
+  // Labels verticales: emoji + monto + % apilados al fondo del fill
+  labelsInner: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     alignItems: "center",
-    gap: 2,
-    zIndex: 2,
+    paddingBottom: 8,
+    zIndex: 5,
   },
-  pctText: {
-    fontSize: 11,
-    fontWeight: "800",
-    lineHeight: 15,
+  // Labels horizontales: emoji izq | monto der (layout compacto al comprimir)
+  labelsHorizontal: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: MIN_FILL_H,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 8,
+    zIndex: 5,
+  },
+  emojiText: {
+    fontSize: 18,
+    lineHeight: 22,
+    includeFontPadding: false,
+  },
+  emojiCompact: {
+    fontSize: 15,
+    lineHeight: 18,
     includeFontPadding: false,
   },
   amtText: {
     fontSize: 10,
-    fontWeight: "700",
-    color: "rgba(0,0,0,0.45)",
+    fontWeight: "800",
     lineHeight: 13,
     includeFontPadding: false,
   },
-  ghostPct: {
-    fontSize: 11,
+  amtTextCompact: {
+    fontSize: 9,
+    fontWeight: "800",
+    lineHeight: 12,
+    includeFontPadding: false,
+    flexShrink: 1,
+    textAlign: "right",
+  },
+  pctText: {
+    fontSize: 10,
     fontWeight: "700",
-    color: "rgba(0,0,0,0.20)",
-    lineHeight: 15,
+    lineHeight: 13,
     includeFontPadding: false,
   },
-  budgetLine: {
-    position: "absolute",
-    left: 6,
-    right: 6,
-    height: 0,
-    borderTopWidth: 1.5,
-    borderStyle: "dashed",
-    zIndex: 3,
+  ghostDash: {
+    fontSize: 11,
+    fontWeight: "600",
+    lineHeight: 14,
+    includeFontPadding: false,
   },
   // Overlay transparente que captura gestos sin afectar el renderizado visual del ghost
   gestureOverlay: {

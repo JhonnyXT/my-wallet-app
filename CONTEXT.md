@@ -100,7 +100,7 @@ my-wallet-app/
 │   ├── components/ui/            # Componentes reutilizables
 │   │   ├── ActionPills.tsx       # Pills Gastos/Ingresos
 │   │   ├── BudgetBar.tsx         # Barra de progreso presupuesto
-│   │   ├── CategoryChart.tsx     # Gráfica de categorías (barras)
+│   │   ├── CategoryChart.tsx     # Gráfica de categorías (barras + animaciones scroll)
 │   │   ├── ConfirmDialog.tsx     # Diálogo de confirmación reutilizable (danger/warning/info)
 │   │   ├── CustomTabBar.tsx      # Tab bar custom (NO se usa)
 │   │   ├── GuidedTour.tsx        # Overlay de onboarding paso a paso con spotlight
@@ -108,8 +108,9 @@ my-wallet-app/
 │   │   ├── FloatingDock.tsx      # Dock flotante + FAB micrófono
 │   │   ├── FloatingInput.tsx     # Overlay input/búsqueda flotante
 │   │   ├── MonthPickerModal.tsx  # Selector de mes/año con montos
-│   │   ├── AnimatedNumber.tsx     # Interpolación visual de montos ($COP)
-│   │   └── TransactionItem.tsx   # Item transacción + swipe-delete
+│   │   ├── AnimatedNumber.tsx    # Interpolación visual de montos (legacy, no usado en Dashboard)
+│   │   ├── RollingNumber.tsx     # Odómetro por dígito (Reanimated) — usado en Dashboard
+│   │   └── TransactionItem.tsx   # Item transacción + swipe-delete + tap-to-detail
 │   │
 │   ├── constants/
 │   │   ├── categoryPresets.ts    # UserCategory, presets, paleta colores, emojis curados
@@ -520,11 +521,21 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - **Modo gastos:** porcentaje según presupuesto (o 50% fijo), colores de alerta (base/ámbar/rojo)
 - **Modo ingresos** (prop `isIncomeMode`): barras verdes proporcionales al mayor ingreso de categoría; sin presupuesto ni "Editar presupuesto" en popup
 - Ghost tracks para categorías vacías (gris con borde punteado)
+- **3 estados visuales de barra:**
+  - Normal: color `accent` de la categoría con `opacity: 0.68`, sin ghost visible
+  - Warning (≥60% del presupuesto): color ámbar, ghost visible con borde punteado
+  - Overspent (>100%): color rojo `#EF4444`, ghost visible por debajo del fill
+- **Animación scroll-driven (Reanimated):** `scrollY` pasado desde el Dashboard anima las barras al hacer scroll
+  - Cada `AnimatedBar` recibe `scrollY: SharedValue<number>` y usa `interpolate` para comprimir `fillH` desde el valor real hasta `MIN_FILL_H` (52px)
+  - Las etiquetas verticales (emoji + monto + %) hacen crossfade a un layout horizontal compacto (emoji | monto) cuando las barras se comprimen
+  - El ghost hace fade-out coordinado con la compresión
+  - Barras ya compactas (`fillH ≤ MIN_FILL_H`) muestran etiqueta horizontal desde el inicio
 - **Tap corto en columna:** badge animado (fade + slide up) con emoji + nombre de la categoría, se auto-descarta en 1.6s
 - Long-press: popup con "Editar presupuesto ↑ / Nueva transacción ↓" (en ingresos solo "↓")
 - **Reordenamiento animado:** `LayoutAnimation.configureNext()` se activa cuando cambian las stats, proporcionando una transición suave al reordenar columnas
 - Lee `userCategories` del store para colores y nombres dinámicos
 - `containerRef` + `measure()` para calcular posición absoluta del badge en pantalla
+- **Constantes clave:** `BAR_W=68`, `MAX_BAR_H=280`, `MIN_FILL_H=52`, `MIN_GHOST_H=44`, `COMPRESS_END=140`, `CHART_H=304`, `CHART_COMPACT_H=76`
 
 ### FloatingDock
 - Dock inferior que reemplaza la tab bar nativa
@@ -538,10 +549,15 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Resolución de nombre de categoría: `userCategories` → `savingsGoals` → `EMOJI_TO_CATEGORY_NAME` → "General"
 - **Modo claro:** fondo blanco (`#FFFFFF`) con sombra sutil (card-like)
 - **Modo oscuro:** fondo `t.itemBg`
-- Swipe-to-delete (PanResponder + Animated): deslizar izquierda revela botón papelera
-- **Long-press (500ms):** abre modal de detalle de transacción con haptic feedback
-- Animación de entrada: `FadeInDown`
-- Gastos en negro con `−`, ingresos en verde con `+`
+- **Swipe-to-delete** (PanResponder + Animated): deslizar izquierda revela botón papelera rojo
+  - `onStartShouldSetPanResponder: () => false` — el FlatList recibe los toques primero
+  - `onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy)` — solo reclama el gesto cuando hay swipe horizontal claro
+- **Tap → detalle** (reemplazó long-press): toque simple abre el modal de detalle con haptic `selectionAsync`
+  - Si hay un swipe abierto, el tap cierra el swipe en lugar de abrir el detalle
+- **Patrón de capas:** `Animated.View` (exterior: swipe + PanResponder) envuelve `TouchableOpacity` (interior: tap → detalle)
+- Prop `onDelete` (antes `onLongPress`) para el callback de eliminación desde el botón de la papelera
+- Animación de entrada: `FadeInDown.delay(index * 40)`
+- Gastos en negro con `−`, ingresos en verde `#059669` con `+`
 
 ### FilterChips
 - **Un solo chip** de período: 6 períodos fijos: Hoy, Esta semana, Esta quincena, Este mes, Este año, Todo + "📅 Elegir mes específico..." al fondo del sheet
@@ -572,7 +588,17 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Componente que interpola visualmente entre valores numéricos con `Animated.timing`
 - Props: `value`, `prefix` (default `"$ "`), `style`, `duration` (default 450ms), `formatFn`
 - Usa `setNativeProps` para actualizaciones de alto rendimiento sin re-renders
-- Usado en Dashboard: Balance neto, Gastos y Ingresos
+- **Legado** — reemplazado en el Dashboard por `RollingNumber`. Conservado por si se usa en otras pantallas
+
+### RollingNumber
+- **Odómetro por dígito** estilo cuentakilómetros de carro: cada posición tiene su propia columna de 10 dígitos (0–9) apilados verticalmente con `overflow: hidden`
+- Cuando el valor cambia, cada columna anima su `translateY` con `withTiming(Easing.out(Easing.cubic))` en el UI thread (60fps, Reanimated)
+- **Keys estables** basados en posición desde la derecha (`d-0`, `d-1`, `sep-3`, etc.): cuando el conteo de dígitos cambia, los dígitos existentes conservan su estado y solo los nuevos/eliminados hacen fade-in/out con `FadeInDown` y `FadeOut`
+- **Separadores de miles COP** (`.`) renderizados como componentes independientes entre columnas; aparecen/desaparecen con animación cuando el número de dígitos cruza una frontera de grupo (×3)
+- **`digitHeight`:** calculado desde `lineHeight` del estilo; si no hay `lineHeight`, se estima como `fontSize * 1.28`
+- **Compatibilidad:** no puede ir dentro de `<Text>` (es un `View`). Las pills del Dashboard fueron reestructuradas a `<View row>` con `<Text>↓</Text>` + `<RollingNumber />`
+- Props: `value`, `prefix` (default `"$ "`), `style: StyleProp<TextStyle>`, `duration` (default 400ms)
+- Usado en Dashboard: Balance neto (fontSize 38, lineHeight 44), Pill gastos (fontSize 13), Pill ingresos (fontSize 13)
 
 ### GuidedTour
 - Overlay reutilizable de onboarding paso a paso con efecto spotlight
@@ -617,7 +643,7 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - `categoryStats` e `incomeStats` usan `filteredTransactions` (dinámicos al período seleccionado)
 - Presupuesto solo visible si `isCurrentPeriod === true`
 - **Estado "período vacío":** cuando `filteredTransactions.length === 0` y es el período actual, muestra barras fantasma (opacity 0.18) con mensaje centrado: "Nuevo mes, ¡comienza ahora!". Si es un período pasado sin datos: "Sin registros en este período"
-- **Modal de detalle de transacción:** al hacer long-press en un item de la lista, se abre un modal centrado estilo Stitch con: emoji, monto, categoría, tipo (Gasto/Ingreso), cuenta (método de pago), fecha, hora (formato 12h), descripción y tags
+- **Modal de detalle de transacción:** al hacer **tap** en un item de la lista se abre un modal centrado estilo Stitch con: emoji, monto, categoría, tipo (Gasto/Ingreso), cuenta (método de pago), fecha, hora (formato 12h), descripción y tags. Si el item tiene el swipe abierto, el tap cierra el swipe primero
 - Barra de búsqueda: `keyboardExtraAnim` sube la barra sobre el teclado al abrirse
 - **Guided Tour:** integración con `GuidedTour` (5 pasos, solo primera vez). Refs de targets registrados en `tourRefs.ts`. El flujo alterna entre Dashboard y Settings. Persistido con `hasCompletedOnboarding` + `onboardingStep`
 - **Eliminado:** chip de categoría, estilos de metas de ahorro, ScrollView+map
@@ -683,24 +709,29 @@ formatMoneyInput(text: string): string
 
 | Efecto | Componente | Implementación |
 |--------|-----------|----------------|
-| Entrada de items | TransactionItem | `FadeInDown` de Reanimated |
+| Entrada de items | TransactionItem | `FadeInDown.delay(index*40).duration(300)` de Reanimated |
 | Palabra por palabra | voice-input AnimatedWords | `FadeIn.duration(220)` por palabra nueva |
 | Barra de presupuesto | BudgetBar | `useSharedValue` + `withTiming` |
 | Orb de voz | voice-input VoiceOrb | `withRepeat` + `withTiming` (pulsación) |
-| Feedback háptico | active-expense (guardar) | `expo-haptics` `notificationAsync(success)` |
-| Swipe-to-delete transacciones | TransactionItem | `PanResponder` + `Animated` de RN |
+| Feedback háptico guardar | active-expense | `expo-haptics` `notificationAsync(success)` |
+| Feedback háptico tap-detalle | TransactionItem | `expo-haptics` `selectionAsync()` en cada tap |
+| Swipe-to-delete transacciones | TransactionItem | `PanResponder` + `Animated` de RN (`translateX`) |
 | Swipe-to-delete metas | SwipeableGoalItem (settings) | `PanResponder` + `Animated` de RN |
 | Badge nombre categoría | CategoryChart | `Animated.Value` fade + translateY, auto-descarta 1.6s |
-| Colapso de gráfica al scroll | Dashboard (index.tsx) | `Animated.event` → `scrollY` interpola `maxHeight` + `opacity` del chart wrapper |
+| **Compresión de barras al scroll** | CategoryChart + Dashboard | `scrollY: SharedValue` + `interpolate` en `AnimatedBar`: `fillH` comprime de valor real a `MIN_FILL_H(52)` cuando `scrollY ∈ [0, COMPRESS_END(140)]` |
+| **Crossfade labels scroll** | CategoryChart `AnimatedBar` | `verticalOpacityStyle` (fade-out) + `horizontalOpacityStyle` (fade-in) con rangos `[COMPRESS_END*0.75, COMPRESS_END]`; barras cortas muestran horizontal desde el inicio |
+| **Ghost fade al scroll** | CategoryChart `AnimatedBar` | `ghostFadeStyle`: opacity `[COMPRESS_END*0.85, COMPRESS_END]` |
+| **Odómetro de dígitos** | RollingNumber → DigitColumn | `useSharedValue` + `withTiming(Easing.out(cubic), 400ms)` por columna; `FadeInDown`/`FadeOut` para columnas que aparecen/desaparecen |
 | Diálogo de confirmación | ConfirmDialog | Spring scale (0.85→1) + fade-in opacity, 3 variantes (danger/warning/info) |
 | Spotlight de onboarding | GuidedTour | Fade-in overlay oscuro con cutout circular + spring scale del tooltip. Transición animada entre pasos |
-| Long-press detalle | TransactionItem | Timer 500ms en PanResponder, haptic feedback, modal fade |
+| Tap → detalle transacción | TransactionItem | `TouchableOpacity.onPress` → haptic + modal fade. Si swipe abierto: cierra swipe primero |
 
 ### Reglas para animaciones
-- Usar `Reanimated` para animaciones de layout y gestos complejos
+- Usar `Reanimated` para animaciones de layout y gestos complejos (scroll-driven, odómetro)
 - Usar `Animated` de RN solo para `PanResponder` (incompatible con Reanimated en algunos casos)
 - Duraciones estándar: entrada 200-300ms, feedback 100-150ms
 - Easing por defecto: `Easing.out(Easing.cubic)`
+- **Patrón para items con swipe + tap:** `Animated.View` (outer, maneja `translateX` + `PanResponder`) envuelve `TouchableOpacity` (inner, captura el tap). `onStartShouldSetPanResponder: () => false` para no bloquear el scroll del `FlatList`
 
 ---
 

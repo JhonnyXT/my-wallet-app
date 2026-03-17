@@ -30,7 +30,7 @@ import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useUIStore } from "@/src/store/useUIStore";
 import { FilterChips, PERIODS } from "@/src/components/ui/FilterChips";
-import { CategoryChart, CHART_H } from "@/src/components/ui/CategoryChart";
+import { CategoryChart } from "@/src/components/ui/CategoryChart";
 import { TransactionItem } from "@/src/components/ui/TransactionItem";
 import { EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
 import { getUserExpenseCategories, getUserIncomeCategories } from "@/src/store/useSettingsStore";
@@ -38,7 +38,7 @@ import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
 import { MonthPickerModal } from "@/src/components/ui/MonthPickerModal";
 import { GuidedTour, type TourStep } from "@/src/components/ui/GuidedTour";
-import { AnimatedNumber } from "@/src/components/ui/AnimatedNumber";
+import { RollingNumber } from "@/src/components/ui/RollingNumber";
 import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
 
 // ─── Tipos y constantes ───────────────────────────────────────────────────────
@@ -405,18 +405,7 @@ export default function DashboardScreen() {
     },
   });
 
-  // El threshold es exactamente la altura del chart para que desaparezca justo al scrollearlo
-  const COLLAPSE_THRESHOLD = CHART_H;
-
-  const chartAnimStyle = useAnimatedStyle(() => {
-    "worklet";
-    return {
-      height:  interpolate(scrollY.value, [0, COLLAPSE_THRESHOLD], [CHART_H, 0], Extrapolation.CLAMP),
-      opacity: interpolate(scrollY.value, [0, COLLAPSE_THRESHOLD * 0.7], [1, 0], Extrapolation.CLAMP),
-    };
-  });
-
-  // Parallax: balance y pills se comprimen al scrollear
+  // Micro-parallax: balance y pills se comprimen suavemente al inicio del scroll
   const headerParallaxStyle = useAnimatedStyle(() => {
     "worklet";
     return {
@@ -452,7 +441,7 @@ export default function DashboardScreen() {
         transaction={item}
         index={index}
         dimmed={false}
-        onLongPress={deleteTransaction}
+        onDelete={deleteTransaction}
         onDetail={handleDetail}
       />
     </View>
@@ -500,18 +489,16 @@ export default function DashboardScreen() {
 
   const listHeader = (
     <>
-      {/* Gráfica — oculta durante búsqueda */}
+      {/* Gráfica — forma parte del scroll unificado con la lista */}
       {!isSearching && (
-        <Reanimated.View style={[styles.chartWrapper, chartAnimStyle]}
-          pointerEvents={undefined}
-        >
+        <View style={styles.chartWrapper}>
           {isNewPeriod && (
             <View style={styles.newPeriodOverlay}>
               <Text style={styles.newPeriodText}>{newPeriodMessage}</Text>
               <Text style={styles.newPeriodSub}>Registra tu primer movimiento con + o el micrófono</Text>
             </View>
           )}
-          <View style={isNewPeriod ? { opacity: 0.18 } : undefined}>
+          <View style={[isNewPeriod ? { opacity: 0.18 } : undefined, { paddingBottom: 16 }]}>
             <CategoryChart
               stats={activeStats}
               allEmojis={allEmojis}
@@ -521,9 +508,10 @@ export default function DashboardScreen() {
               alertColors={typeFilter !== "income"}
               isIncomeMode={typeFilter === "income"}
               animationKey={chartAnimKey}
+              scrollY={scrollY}
             />
           </View>
-        </Reanimated.View>
+        </View>
       )}
 
       {/* Cabecera de sección */}
@@ -575,25 +563,21 @@ export default function DashboardScreen() {
       <StatusBar barStyle={theme.statusBar} backgroundColor={theme.bg} />
 
       {/* ══════════════════════════════════════════════════════════════
-          HEADER FIJO
+          HEADER FIJO — siempre visible
           ══════════════════════════════════════════════════════════════ */}
       <View style={styles.headerOuter}>
         <View style={styles.headerLeft}>
-
-          {/* Balance */}
           <Reanimated.View style={[styles.balanceSection, headerParallaxStyle]}>
             <Text style={styles.balanceLabel}>
               {isSearching
                 ? `BÚSQUEDA  ·  ${searchedTransactions.length} resultado${searchedTransactions.length !== 1 ? "s" : ""}`
                 : "BALANCE NETO"}
             </Text>
-            <AnimatedNumber
+            <RollingNumber
               value={Math.abs(netBalance)}
               prefix="$"
               style={[styles.balanceAmount, netBalance < 0 && styles.balanceNegative]}
             />
-
-            {/* Pills Gastos / Ingresos */}
             <Reanimated.View style={[styles.pillsRow, pillsParallaxStyle]}>
               <TouchableOpacity
                 onPress={() => handlePillPress("expense")}
@@ -604,11 +588,17 @@ export default function DashboardScreen() {
                   typeFilter === "income"  && styles.pillDimmed,
                 ]}
               >
-                <Text style={[styles.pillGastoText, typeFilter === "expense" && styles.pillGastoActiveText]}>
-                  ↓  <AnimatedNumber value={expenseTotal} prefix="$" style={[styles.pillGastoText, typeFilter === "expense" && styles.pillGastoActiveText]} />
-                </Text>
+                <View style={styles.pillContent}>
+                  <Text style={[styles.pillGastoText, typeFilter === "expense" && styles.pillGastoActiveText]}>
+                    {"↓ "}
+                  </Text>
+                  <RollingNumber
+                    value={expenseTotal}
+                    prefix="$"
+                    style={[styles.pillGastoText, typeFilter === "expense" && styles.pillGastoActiveText]}
+                  />
+                </View>
               </TouchableOpacity>
-
               <TouchableOpacity
                 onPress={() => handlePillPress("income")}
                 activeOpacity={0.75}
@@ -618,13 +608,18 @@ export default function DashboardScreen() {
                   typeFilter === "expense" && styles.pillDimmed,
                 ]}
               >
-                <Text style={[styles.pillIngresoText, typeFilter === "income" && styles.pillIngresoActiveText]}>
-                  ↑  <AnimatedNumber value={incomeTotal} prefix="$" style={[styles.pillIngresoText, typeFilter === "income" && styles.pillIngresoActiveText]} />
-                </Text>
+                <View style={styles.pillContent}>
+                  <Text style={[styles.pillIngresoText, typeFilter === "income" && styles.pillIngresoActiveText]}>
+                    {"↑ "}
+                  </Text>
+                  <RollingNumber
+                    value={incomeTotal}
+                    prefix="$"
+                    style={[styles.pillIngresoText, typeFilter === "income" && styles.pillIngresoActiveText]}
+                  />
+                </View>
               </TouchableOpacity>
             </Reanimated.View>
-
-            {/* Barra de presupuesto — solo período actual, sin filtro de tipo */}
             {monthlyBudget > 0 && !isSearching && typeFilter === null && isCurrentPeriod && (
               <View style={styles.budgetBar}>
                 <View style={styles.budgetTrack}>
@@ -634,8 +629,6 @@ export default function DashboardScreen() {
               </View>
             )}
           </Reanimated.View>
-
-          {/* Chip de período */}
           <FilterChips
             period={quickLabel}
             periodLabel={chipLabel !== quickLabel ? chipLabel : undefined}
@@ -643,7 +636,6 @@ export default function DashboardScreen() {
             onOpenMonthPicker={() => setMonthPickerOpen(true)}
           />
         </View>
-
         <View ref={getTourRef(TOUR_KEYS.SETTINGS_BTN)} collapsable={false}>
           <Pressable style={styles.settingsBtn} onPress={() => router.push("/settings")}>
             <Settings size={22} color={theme.text} strokeWidth={1.6} />
@@ -652,7 +644,7 @@ export default function DashboardScreen() {
       </View>
 
       {/* ══════════════════════════════════════════════════════════════
-          LISTA (chart colapsable + transacciones)
+          LISTA — gráfica + transacciones en un solo scroll unificado
           ══════════════════════════════════════════════════════════════ */}
       <Reanimated.FlatList
         data={displayedTransactions}
@@ -848,7 +840,7 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
     backgroundColor: t.bg,
   },
 
-  // ── Header ─────────────────────────────────────────────────────────────
+  // ── Header fijo ──────────────────────────────────────────────────────────
   headerOuter: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -925,6 +917,10 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
   },
   pillIngresoActiveText: { color: "#16A34A", fontWeight: "700" },
   pillDimmed:            { opacity: 0.4 },
+  pillContent: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+  },
 
   // ── Presupuesto ─────────────────────────────────────────────────────────
   budgetBar: {
@@ -958,8 +954,7 @@ function createStyles(t: AppTheme) { return StyleSheet.create({
     paddingTop: 0,
   },
   chartWrapper: {
-    marginBottom: 8,
-    overflow: "hidden",
+    overflow: "hidden", // necesario para el colapso animado en Android
   },
   newPeriodOverlay: {
     ...StyleSheet.absoluteFillObject,

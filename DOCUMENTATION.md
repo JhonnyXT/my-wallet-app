@@ -107,7 +107,7 @@ Cuando no hay movimientos en el período seleccionado:
 - Cada registro muestra la fecha exacta en que fue creado (ej: "3 mar 2026")
 - **Gastos:** monto en negro con signo `−`
 - **Ingresos:** monto en verde con signo `+`
-- **Mantén presionado** un registro durante medio segundo para ver el **detalle completo**: emoji, monto, categoría, tipo, cuenta (método de pago), fecha, hora y descripción
+- **Toca** cualquier registro para ver el **detalle completo**: emoji, monto, categoría, tipo, cuenta (método de pago), fecha, hora y descripción
 - **Desliza izquierda** sobre cualquier registro para ver el botón de eliminar (rojo con ícono de papelera)
 
 ---
@@ -414,7 +414,7 @@ No hay límite técnico. La base de datos SQLite puede manejar millones de regis
 La primera vez que abres MyWallet aparece un **tour guiado** de 5 pasos con un spotlight que resalta elementos clave de la pantalla. Te lleva a configurar tu ingreso mensual, te muestra el registro por voz (micrófono) y el registro manual (botón +). Si no quieres seguirlo, toca **"Omitir"** en cualquier paso. El tour no vuelve a aparecer una vez completado o saltado.
 
 ### ¿Cómo veo el detalle de una transacción?
-Mantén presionado (long-press) cualquier registro en la lista de transacciones durante medio segundo. Se abrirá una tarjeta con toda la información: emoji de categoría, monto, tipo (Gasto/Ingreso), cuenta (método de pago), fecha, hora y descripción. Toca fuera de la tarjeta para cerrarla.
+Toca (tap) cualquier registro en la lista de transacciones. Se abrirá una tarjeta con toda la información: emoji de categoría, monto, tipo (Gasto/Ingreso), cuenta (método de pago), fecha, hora y descripción. Toca fuera de la tarjeta para cerrarla. Si el item está con el swipe de eliminar abierto, el primer tap cierra el swipe.
 
 ### ¿Al abonar a una meta de ahorro se descuenta de mi balance?
 Sí. Cada abono crea automáticamente una transacción de gasto, así tu balance refleja que ese dinero ya no está disponible. La transacción aparece en la lista y gráfica del Dashboard con el tag `#ahorro`.
@@ -458,13 +458,14 @@ Una vez al mes:
 | **Tag** | Etiqueta personalizada para organizar transacciones (ej: `#viaje`, `#trabajo`) |
 | **Presupuesto por categoría** | Límite de gasto mensual para una categoría específica. Activa alertas en la gráfica |
 | **Ghost bar** | Barra de categoría sin gastos. Aparece gris para recordarte que existe esa categoría |
-| **Long-press** | Mantener presionado ~0.4 segundos para activar acciones avanzadas. En la lista de transacciones, abre el detalle completo del registro |
+| **Long-press** | Mantener presionado ~0.4 segundos para activar acciones avanzadas. En la gráfica de categorías activa el popup de opciones |
+| **Tap detalle** | Toque corto en un registro de la lista para abrir el detalle completo (categoría, monto, cuenta, fecha, hora, descripción) |
 | **Swipe-to-delete** | Deslizar un item hacia la izquierda para revelar el botón de eliminar (transacciones y metas de ahorro) |
 | **Badge de categoría** | Pequeño globo flotante con emoji + nombre que aparece al tocar una columna de la gráfica |
 | **Selector de mes/año** | Modal con grid de meses que permite filtrar el Dashboard a un período específico |
 | **Diálogo de confirmación** | Ventana emergente minimalista con icono, título y botones (reemplaza las alertas nativas del sistema) |
 | **Estado draft** | Cambios pendientes en el selector de mes que solo se aplican al confirmar con "Aplicar" |
-| **Detalle de transacción** | Tarjeta modal que aparece al hacer long-press en un registro, mostrando información completa (categoría, monto, tipo, cuenta, fecha, hora, descripción, tags) |
+| **Detalle de transacción** | Tarjeta modal que aparece al hacer tap en un registro, mostrando información completa (categoría, monto, tipo, cuenta, fecha, hora, descripción, tags) |
 | **Guided Tour / Onboarding** | Tour guiado de 5 pasos que aparece la primera vez que abres la app. Te muestra cómo configurar tu ingreso y registrar transacciones |
 
 ---

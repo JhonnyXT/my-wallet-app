@@ -1190,8 +1190,8 @@ export default function SettingsScreen() {
           <View style={s.rowSep} />
           <SettingRow
             icon={<Trash2 size={18} color="#DC2626" strokeWidth={1.8} />}
-            label="Limpiar todos los datos"
-            subtitle="Elimina todas las transacciones"
+            label="Borrar historial de transacciones"
+            subtitle="Elimina todos los registros. Tu configuración se conserva"
             onPress={handleClearData}
             danger
           />
@@ -1419,9 +1419,9 @@ export default function SettingsScreen() {
       <ConfirmDialog
         visible={clearDataDialog}
         variant="danger"
-        title="Eliminar todas las transacciones"
-        message="Esta acción no se puede deshacer. Se borrarán todos tus registros de ingresos y gastos."
-        confirmLabel="Eliminar todo"
+        title="Borrar historial"
+        message="Se eliminarán todos tus registros de ingresos y gastos. Tu configuración, categorías, presupuestos y metas se conservarán. Esta acción no se puede deshacer."
+        confirmLabel="Borrar historial"
         onConfirm={executeClearData}
         onCancel={() => setClearDataDialog(false)}
       />

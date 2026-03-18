@@ -340,7 +340,7 @@ Gestiona tus metas desde la sección "Metas de ahorro":
 | Opción | Qué hace |
 |--------|---------|
 | Exportar datos | Genera un archivo CSV con todas tus transacciones y lo comparte (email, Drive, etc.) |
-| Limpiar todos los datos | ⚠️ **Acción irreversible.** Elimina TODAS las transacciones. Muestra un diálogo de confirmación elegante con icono de advertencia antes de proceder |
+| Borrar historial de transacciones | ⚠️ **Acción irreversible.** Elimina todos los registros de ingresos y gastos. Tu configuración (categorías, presupuestos, metas) se conserva intacta. Muestra un diálogo de confirmación antes de proceder |
 
 ---
 

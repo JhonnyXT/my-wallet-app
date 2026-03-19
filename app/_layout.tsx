@@ -8,6 +8,7 @@ import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { ThemeProvider } from "@/src/context/ThemeContext";
 import { AnimatedSplash } from "@/src/components/ui/AnimatedSplash";
+import { ToastContainer } from "@/src/components/ui/ToastContainer";
 import { light, dark } from "@/src/theme";
 
 import "../global.css";
@@ -43,6 +44,8 @@ export default function RootLayout() {
       await initDatabase();
       await loadTransactions();
       await SplashScreen.hideAsync();
+      // Limpiar notificaciones de presupuesto de meses anteriores
+      useSettingsStore.getState().clearExpiredBudgetNotifications();
       setAppReady(true);
     }
     bootstrap();
@@ -98,6 +101,7 @@ export default function RootLayout() {
       {appReady && !splashDone && (
         <AnimatedSplash onFinish={() => setSplashDone(true)} />
       )}
+      <ToastContainer />
     </ThemeProvider>
   );
 }

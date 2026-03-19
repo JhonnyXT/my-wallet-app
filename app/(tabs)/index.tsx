@@ -29,6 +29,7 @@ import type { TransactionRow } from "@/src/db/db";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useUIStore } from "@/src/store/useUIStore";
+import { useToastStore } from "@/src/store/useToastStore";
 import { FilterChips, PERIODS } from "@/src/components/ui/FilterChips";
 import { CategoryChart } from "@/src/components/ui/CategoryChart";
 import { TransactionItem } from "@/src/components/ui/TransactionItem";
@@ -170,6 +171,7 @@ export default function DashboardScreen() {
   const insets            = useSafeAreaInsets();
   const transactions      = useFinanceStore((s) => s.transactions);
   const deleteTransaction = useFinanceStore((s) => s.deleteTransaction);
+  const addTransaction    = useFinanceStore((s) => s.addTransaction);
   const monthlyBudget     = useSettingsStore((s) => s.monthlyBudget);
   const budgetByCategory  = useSettingsStore((s) => s.budgetByCategory);
   const userCategories    = useSettingsStore((s) => s.userCategories);
@@ -177,6 +179,7 @@ export default function DashboardScreen() {
   const setExpenseCategory = useExpenseStore((s) => s.setCategory);
   const paymentMethods    = useSettingsStore((s) => s.paymentMethods);
   const savingsGoals      = useSettingsStore((s) => s.savingsGoals);
+  const addToast          = useToastStore((s) => s.addToast);
 
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -435,17 +438,33 @@ export default function DashboardScreen() {
 
   const handleDetail = useCallback((tx: TransactionRow) => setDetailTx(tx), []);
 
+  const handleDeleteTransaction = useCallback(async (id: number) => {
+    const tx = transactions.find((t) => t.id === id);
+    await deleteTransaction(id);
+    if (!tx) return;
+
+    const tags = (() => { try { return JSON.parse(tx.tags || "[]"); } catch { return []; } })();
+    addToast({
+      level: "info",
+      icon: tx.category_emoji,
+      title: "Transacción eliminada",
+      actionLabel: "Deshacer",
+      duration: 6000,
+      onAction: () => addTransaction(tx.amount, tx.description, tx.category_emoji, tags, new Date(tx.date), tx.payment_method ?? "cash"),
+    });
+  }, [transactions, deleteTransaction, addTransaction, addToast]);
+
   const renderItem = useCallback(({ item, index }: { item: TxRow; index: number }) => (
     <View style={styles.txItem}>
       <TransactionItem
         transaction={item}
         index={index}
         dimmed={false}
-        onDelete={deleteTransaction}
+        onDelete={handleDeleteTransaction}
         onDetail={handleDetail}
       />
     </View>
-  ), [deleteTransaction, handleDetail, styles.txItem]);
+  ), [handleDeleteTransaction, handleDetail, styles.txItem]);
 
   // ── Onboarding tour ──────────────────────────────────────────────────────
   const hasCompletedOnboarding = useSettingsStore((s) => s.hasCompletedOnboarding);

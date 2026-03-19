@@ -1,6 +1,6 @@
 # MyWallet — Guía Completa de Usuario
 
-> **Versión:** 1.1.0 | **Plataforma:** Android (iOS en desarrollo) | **Idioma:** Español
+> **Versión:** 1.2.0 | **Plataforma:** Android (iOS en desarrollo) | **Idioma:** Español
 
 ---
 
@@ -22,7 +22,8 @@ MyWallet es tu aplicación personal de control financiero. Diseñada para ser **
 6. [Búsqueda](#6-búsqueda)
 7. [Configuración (Settings)](#7-configuración-settings)
 8. [Categorías de gasto e ingreso](#8-categorías-de-gasto-e-ingreso)
-9. [Preguntas frecuentes y recomendaciones](#9-preguntas-frecuentes-y-recomendaciones)
+9. [Sistema de notificaciones](#9-sistema-de-notificaciones)
+10. [Preguntas frecuentes y recomendaciones](#10-preguntas-frecuentes-y-recomendaciones)
 
 ---
 
@@ -387,7 +388,48 @@ Cada categoría tiene palabras clave que el NLP detecta automáticamente. Las ca
 
 ---
 
-## 9. Preguntas Frecuentes y Recomendaciones
+## 9. Sistema de Notificaciones
+
+MyWallet cuenta con dos capas de notificación para mantenerte informado sin interrumpirte.
+
+### Notificaciones del sistema (fuera de la app)
+
+Estas son alertas que aparecen en la barra de notificaciones de tu teléfono, incluso cuando la app está en segundo plano.
+
+**¿Qué las activa?**
+- **Presupuesto superado:** cuando el total gastado en una categoría supera el límite mensual configurado
+- **Meta de ahorro cumplida:** cuando el monto acumulado de una meta llega al objetivo
+
+**¿Cómo se activan los permisos?**
+La primera vez que configures un presupuesto para una categoría, la app te preguntará si deseas activar las notificaciones del sistema. Puedes aceptar o rechazar — si rechazas, solo recibirás los avisos dentro de la app.
+
+> ℹ️ Cada alerta se muestra **una sola vez por mes** (presupuesto) o **una sola vez** (meta cumplida). No recibirás notificaciones repetidas.
+
+### Avisos dentro de la app (banners in-app)
+
+Son banners que aparecen en la parte superior de la pantalla mientras usas la app. Se descartan automáticamente en **3.5 segundos** o puedes cerrarlos manualmente.
+
+**Cómo cerrar un banner:**
+- Toca la **× a la derecha** para cerrar inmediatamente
+- **Desliza el banner hacia arriba** — se va con una animación suave
+
+**Tipos de banner:**
+
+| Tipo | Ejemplo | Fondo |
+|------|---------|-------|
+| Éxito ✅ | "Gasto registrado" · "Categoría creada" | Blanco (neutro) |
+| Info 💬 | "Transacción eliminada" · "Datos exportados" | Blanco (neutro) |
+| Advertencia ⚠️ | "Presupuesto al 85%: Transporte" | Ámbar suave |
+| Alerta 🚨 | "Presupuesto superado: Comida" | Rojo suave |
+
+**Banner "Deshacer" (eliminación de transacción):**
+- Al eliminar una transacción con swipe-to-delete aparece un banner con el botón **"Deshacer"**
+- Tienes **6 segundos** para tocar "Deshacer" y recuperar la transacción
+- Pasado ese tiempo, la eliminación es definitiva
+
+---
+
+## 10. Preguntas Frecuentes y Recomendaciones
 
 ### ¿Mis datos están seguros?
 Sí. **Todo se almacena localmente en tu dispositivo** en una base de datos SQLite. La app no envía ningún dato a servidores externos ni requiere internet para funcionar.
@@ -484,7 +526,10 @@ Una vez al mes:
 | **Estado draft** | Cambios pendientes en el selector de mes que solo se aplican al confirmar con "Aplicar" |
 | **Detalle de transacción** | Tarjeta modal que aparece al hacer tap en un registro, mostrando información completa (categoría, monto, tipo, cuenta, fecha, hora, descripción, tags) |
 | **Guided Tour / Onboarding** | Tour guiado de 5 pasos que aparece la primera vez que abres la app. Te muestra cómo configurar tu ingreso y registrar transacciones |
+|| **Banner in-app** | Aviso temporal en la parte superior de la pantalla. Se cierra solo (3.5s), con × o arrastrando hacia arriba |
+|| **Notificación del sistema** | Alerta en la barra de notificaciones del teléfono (fuera de la app) para eventos críticos: presupuesto superado o meta cumplida |
+|| **Deshacer** | Botón en el banner de eliminación. Tienes 6 segundos para recuperar la transacción eliminada |
 
 ---
 
-*Documentación generada para MyWallet v1.1.0*
+*Documentación generada para MyWallet v1.2.0*

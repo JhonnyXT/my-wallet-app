@@ -52,6 +52,11 @@ export interface SettingsState {
   hasCompletedOnboarding: boolean;
   onboardingStep: number;
 
+  // Notificaciones del sistema
+  notificationsEnabled: boolean;
+  budgetNotifiedMonth: Record<string, string>; // emoji → "YYYY-MM" (último mes notificado)
+  goalNotifiedIds: string[];                   // IDs de metas ya notificadas como cumplidas
+
   // Acciones
   setUserName: (name: string) => void;
   setUserCategories: (cats: UserCategory[]) => void;
@@ -72,6 +77,10 @@ export interface SettingsState {
   removeSavingsGoal: (id: string) => void;
   setOnboardingStep: (step: number) => void;
   completeOnboarding: () => void;
+  setNotificationsEnabled: (enabled: boolean) => void;
+  markBudgetNotified: (emoji: string, month: string) => void;
+  markGoalNotified: (goalId: string) => void;
+  clearExpiredBudgetNotifications: () => void;
 }
 
 // ─── Helpers de categorías ────────────────────────────────────────────────────
@@ -114,6 +123,9 @@ export const useSettingsStore = create<SettingsState>()(
       darkMode:          "system",
       hasCompletedOnboarding: false,
       onboardingStep:         0,
+      notificationsEnabled:   false,
+      budgetNotifiedMonth:    {},
+      goalNotifiedIds:        [],
 
       setUserName:     (name)   => set({ userName: name }),
 
@@ -185,6 +197,28 @@ export const useSettingsStore = create<SettingsState>()(
 
       setOnboardingStep: (step) => set({ onboardingStep: step }),
       completeOnboarding: () => set({ hasCompletedOnboarding: true, onboardingStep: 5 }),
+
+      setNotificationsEnabled: (enabled) => set({ notificationsEnabled: enabled }),
+
+      markBudgetNotified: (emoji, month) =>
+        set((s) => ({
+          budgetNotifiedMonth: { ...s.budgetNotifiedMonth, [emoji]: month },
+        })),
+
+      markGoalNotified: (goalId) =>
+        set((s) => ({ goalNotifiedIds: [...s.goalNotifiedIds, goalId] })),
+
+      clearExpiredBudgetNotifications: () => {
+        const now = new Date();
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        set((s) => {
+          const cleaned: Record<string, string> = {};
+          for (const [emoji, month] of Object.entries(s.budgetNotifiedMonth)) {
+            if (month === currentMonth) cleaned[emoji] = month;
+          }
+          return { budgetNotifiedMonth: cleaned };
+        });
+      },
     }),
     {
       name:    "mywallet-settings",

@@ -1,6 +1,6 @@
 # MyWallet — Requerimientos de Producto
 
-> **Versión:** 1.1.0 | **Plataforma:** Android (iOS futuro) | **Moneda:** COP | **Idioma UI:** Español
+> **Versión:** 1.2.0 | **Plataforma:** Android (iOS futuro) | **Moneda:** COP | **Idioma UI:** Español
 
 ---
 
@@ -70,6 +70,32 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Apariencia | Sistema / Claro / Oscuro (dark mode completo) | ✅ Implementado |
 | Exportar datos | CSV compartible por email, Drive, etc. | ✅ Implementado |
 | Limpiar datos | Elimina todas las transacciones (con confirmación vía diálogo custom animado) | ✅ Implementado |
+
+### 2.7 Sistema de Notificaciones (dos capas)
+
+#### Capa 1 — Notificaciones OS locales (`expo-notifications`)
+
+| Sección | Descripción | Estado |
+|---------|-------------|--------|
+| Servicio | `src/services/notificationService.ts` — `requestNotificationPermissions`, `checkAndNotifyBudget`, `checkAndNotifyGoalCompleted` | ✅ Implementado |
+| Permiso | Se solicita la primera vez que el usuario configura un presupuesto por categoría (vía `ConfirmDialog` previo) | ✅ Implementado |
+| Anti-duplicación presupuesto | `budgetNotifiedMonth: Record<string, string>` en `useSettingsStore` — una sola notificación por categoría por mes | ✅ Implementado |
+| Anti-duplicación metas | `goalNotifiedIds: string[]` en `useSettingsStore` — una sola notificación por meta | ✅ Implementado |
+| Limpieza automática | `clearExpiredBudgetNotifications()` se ejecuta en el bootstrap de la app (`app/_layout.tsx`) para limpiar flags de meses anteriores | ✅ Implementado |
+
+#### Capa 2 — Banners in-app (`useToastStore` + `ToastBanner` + `ToastContainer`)
+
+| Sección | Descripción | Estado |
+|---------|-------------|--------|
+| Store | `src/store/useToastStore.ts` — cola LIFO, máx. 3 toasts, `addToast` / `removeToast` | ✅ Implementado |
+| Componente banner | `src/components/ui/ToastBanner.tsx` — icono izquierdo + título + botón acción opcional + × | ✅ Implementado |
+| Diseño | Fondo blanco/surface neutro para success/info; fondo tintado sólido para warning/danger. Sin valores monetarios | ✅ Implementado |
+| Icono izquierdo | `toast.icon` (emoji custom) o default según `level`: ✅/💬/⚠️/🚨. Contenedor redondeado 38×38 con fondo coloreado por nivel | ✅ Implementado |
+| Auto-dismiss | 3500 ms por defecto; 6000 ms para "Deshacer" (time-sensitive) | ✅ Implementado |
+| Dismiss manual — botón | × alineado al borde derecho | ✅ Implementado |
+| Dismiss manual — swipe | `PanResponder`: arrastar > 40px arriba → `translateY -100` + `opacity 0` (220ms) → `removeToast`; si no supera umbral → spring de vuelta | ✅ Implementado |
+| Contenedor global | `src/components/ui/ToastContainer.tsx` — `position: absolute`, `left/right: 12`, `top: safeArea + 8`. Montado en `app/_layout.tsx` | ✅ Implementado |
+| Eventos disparadores | Gasto/ingreso guardado, categoría creada, presupuesto superado (danger), presupuesto al 80%+ (warning), meta cumplida (success), abono registrado, exportar datos, borrar historial, eliminar transacción + Deshacer | ✅ Implementado |
 
 ### 2.8 Guided Tour / Onboarding (primera vez)
 
@@ -166,6 +192,18 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 5.1 | Como usuario, quiero elegir entre modo claro, oscuro o automático del sistema | ✅ |
 | HU 5.2 | Como usuario, quiero configurar mis métodos de pago (Efectivo, Ahorros, Tarjeta, custom) | ✅ |
 | HU 5.3 | Como usuario, quiero definir mi presupuesto mensual | ✅ |
+
+### Épica 7: Notificaciones
+
+| ID | Historia | Estado |
+|----|---------|--------|
+| HU 7.1 | Como usuario, quiero recibir una notificación en mi teléfono cuando supero el presupuesto de una categoría, incluso si la app está en segundo plano | ✅ |
+| HU 7.2 | Como usuario, quiero recibir una notificación cuando completo una meta de ahorro | ✅ |
+| HU 7.3 | Como usuario, quiero que la app me pida permiso de notificaciones antes de activarlas, no de forma intrusiva al abrir la app | ✅ |
+| HU 7.4 | Como usuario, quiero ver un aviso dentro de la app cuando registro un gasto, elimino una transacción u ocurre cualquier acción relevante | ✅ |
+| HU 7.5 | Como usuario, quiero poder deshacer la eliminación de una transacción desde el aviso que aparece en pantalla | ✅ |
+| HU 7.6 | Como usuario, quiero que los avisos dentro de la app desaparezcan solos después de unos segundos si no los cierro | ✅ |
+| HU 7.7 | Como usuario, quiero poder cerrar un aviso dentro de la app tocando × o arrastrándolo hacia arriba | ✅ |
 
 ### Épica 6: Funcionalidades Avanzadas
 
@@ -276,6 +314,7 @@ Las categorías se pueden crear desde **tres contextos**:
 | Espacio negativo | Padding lateral 24px, gaps generosos entre secciones |
 | Modales | Slide desde abajo, fondo semi-transparente oscuro |
 | Diálogos de confirmación | `ConfirmDialog` custom con icono + variante + animación spring (reemplaza `Alert.alert` nativo) |
+| Banners in-app | \ToastBanner\: icono izquierdo coloreado por nivel + título. Fondo neutro para success/info, tintado sólido para warning/danger |
 
 ### Micro-interacciones
 | Interacción | Efecto |
@@ -289,6 +328,8 @@ Las categorías se pueden crear desde **tres contextos**:
 | Colapso de gráfica | Al hacer scroll, la gráfica colapsa suavemente (opacity + maxHeight) |
 | Diálogo de confirmación | Spring scale + fade-in con variante visual (danger/warning/info) |
 | Spotlight onboarding | GuidedTour: fade-in overlay oscuro con cutout circular + spring scale tooltip entre pasos |
+| Toast entrada | \FadeInDown.springify()\ al aparecer; \FadeOutUp.duration(200)\ al salir |
+| Toast swipe-up | \PanResponder\ + \Animated.timing\ translateY −90 + opacity 0 (220ms); spring de vuelta si no supera umbral |
 | Reordenamiento de gráfica | `LayoutAnimation` suave al cambiar el orden de categorías por monto |
 | Números animados | `AnimatedNumber` interpola Balance neto, Gastos e Ingresos al cambiar valores |
 | Long-press detalle | Modal fade con tarjeta centrada, haptic feedback al activar (500ms) |
@@ -351,4 +392,4 @@ Las categorías se pueden crear desde **tres contextos**:
 
 ---
 
-*Documento de requerimientos actualizado para MyWallet v1.1.0 — Marzo 2026*
+*Documento de requerimientos actualizado para MyWallet v1.2.0 — Marzo 2026*

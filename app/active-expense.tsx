@@ -20,6 +20,8 @@ import * as Haptics from "expo-haptics";
 import { useExpenseStore, DateOption, AccountType } from "@/src/store/useExpenseStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { useToastStore } from "@/src/store/useToastStore";
+import { checkAndNotifyBudget } from "@/src/services/notificationService";
 import { NewCategoryModal } from "@/app/category-onboarding";
 import type { UserCategory } from "@/src/constants/categoryPresets";
 import { processVoiceInput } from "@/src/utils/voiceParser";
@@ -318,6 +320,9 @@ export default function ActiveExpenseScreen() {
   const paymentMethods    = useSettingsStore((s) => s.paymentMethods);
   const userCategories    = useSettingsStore((s) => s.userCategories);
   const addUserCategory   = useSettingsStore((s) => s.addUserCategory);
+  const budgetByCategory  = useSettingsStore((s) => s.budgetByCategory);
+  const transactions      = useFinanceStore((s) => s.transactions);
+  const addToast          = useToastStore((s) => s.addToast);
 
   const expenseCatOptions = useMemo(() =>
     userCategories.filter(c => c.type === "expense").map(c => ({ key: c.emoji, label: c.name, colorBg: c.colorBg, colorAccent: c.colorAccent })),
@@ -411,6 +416,10 @@ export default function ActiveExpenseScreen() {
       ? store.customDate
       : new Date();
 
+    const savedAmount = store.amount;
+    const savedEmoji  = store.categoryEmoji;
+    const savedIsExp  = isExpense;
+
     await addTx(
       isExpense ? store.amount : -store.amount,
       store.note || store.rawTranscript || (isExpense ? "Gasto" : "Ingreso"),
@@ -419,6 +428,46 @@ export default function ActiveExpenseScreen() {
       txDate,
       store.account,
     );
+
+    // ── Toast de confirmación ──────────────────────────────────────────────
+    addToast({
+      level: "success",
+      icon: savedEmoji,
+      title: savedIsExp ? `Gasto registrado` : `Ingreso registrado`,
+    });
+
+    // ── Verificar presupuesto de la categoría (solo gastos) ───────────────
+    if (savedIsExp) {
+      const budget = budgetByCategory[savedEmoji];
+      if (budget && budget > 0) {
+        const now = new Date();
+        const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        const monthlySpent = transactions
+          .filter((t) => t.amount > 0 && t.category_emoji === savedEmoji && t.date.startsWith(thisMonth))
+          .reduce((acc, t) => acc + t.amount, 0) + savedAmount;
+
+        const ratio = monthlySpent / budget;
+        const catName = userCategories.find((c) => c.emoji === savedEmoji)?.name ?? savedEmoji;
+
+        if (ratio >= 1.0) {
+          addToast({
+            level: "danger",
+            icon: savedEmoji,
+            title: `Presupuesto superado: ${catName}`,
+          });
+          checkAndNotifyBudget(savedEmoji, catName, monthlySpent, budget);
+        } else if (ratio >= 0.8) {
+          const pct = Math.round(ratio * 100);
+          addToast({
+            level: "warning",
+            icon: savedEmoji,
+            title: `Presupuesto al ${pct}%: ${catName}`,
+          });
+          checkAndNotifyBudget(savedEmoji, catName, monthlySpent, budget);
+        }
+      }
+    }
+
     store.reset();
     router.dismissAll();
   }

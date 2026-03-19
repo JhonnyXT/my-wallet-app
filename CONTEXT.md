@@ -2,7 +2,7 @@
 
 > **Propósito:** Este documento es la referencia técnica completa del proyecto. Cualquier desarrollador, IA o colaborador que lea este archivo tendrá TODO el contexto necesario para desarrollar, modificar o extender la aplicación sin perder consistencia.
 >
-> **Última actualización:** Marzo 2026 | **Versión:** 1.1.0
+> **Última actualización:** Marzo 2026 | **Versión:** 1.2.0
 
 ---
 
@@ -64,6 +64,7 @@
 | **expo-sqlite** | ^55.0.10 | Base de datos local con WAL |
 | **NativeWind** | ^4.2.2 | Estilos Tailwind CSS para React Native |
 | **React Native Reanimated** | ^4.2.1 | Animaciones de alto rendimiento |
+| **expo-notifications** | ~0.29.x | Notificaciones locales del sistema (OS) |
 | **lucide-react-native** | ^0.576.0 | Iconografía (línea, 24px stroke) |
 | **expo-speech-recognition** | ^3.1.1 | Reconocimiento de voz local |
 | **expo-haptics** | ^55.0.8 | Feedback háptico |
@@ -111,6 +112,8 @@ my-wallet-app/
 │   │   ├── AnimatedNumber.tsx    # Interpolación visual de montos (legacy, no usado en Dashboard)
 │   │   ├── HueColorPicker.tsx    # Slider continuo de tono (PanResponder + LinearGradient) para categorías
 │   │   ├── RollingNumber.tsx     # Odómetro por dígito (Reanimated) — usado en Dashboard
+│   │   ├── ToastBanner.tsx       # Banner in-app individual: icono izq. + título + swipe-up + auto-dismiss
+│   │   ├── ToastContainer.tsx    # Cola global de banners (posición absolute top, Reanimated layout)
 │   │   └── TransactionItem.tsx   # Item transacción + swipe-delete + tap-to-detail
 │   │
 │   ├── constants/
@@ -128,10 +131,14 @@ my-wallet-app/
 │   ├── features/
 │   │   └── voice/useVoiceExpense.ts # Hook expo-speech-recognition
 │   │
+│   ├── services/
+│   │   └── notificationService.ts  # Notificaciones OS locales (expo-notifications): permisos, budget, metas
+│   │
 │   ├── store/
 │   │   ├── useFinanceStore.ts    # Transacciones (Zustand + SQLite)
 │   │   ├── useExpenseStore.ts    # Formulario gasto/ingreso en curso
-│   │   ├── useSettingsStore.ts   # Config usuario (persist AsyncStorage)
+│   │   ├── useSettingsStore.ts   # Config usuario (persist AsyncStorage) + flags de notificaciones
+│   │   ├── useToastStore.ts      # Cola global de toasts in-app (no persistido)
 │   │   ├── useUIStore.ts         # Estado de UI (búsqueda)
 │   │   └── useVoiceStore.ts      # Estado de reconocimiento de voz
 │   │
@@ -277,11 +284,18 @@ interface ActiveExpense {
   darkMode: "system" | "light" | "dark"
   hasCompletedOnboarding: boolean   // true tras completar o saltar el Guided Tour
   onboardingStep: number            // paso actual del tour (0-4)
+  notificationsEnabled: boolean     // si el usuario concedió permiso de notificaciones OS
+  budgetNotifiedMonth: Record<string, string>  // emoji → "YYYY-MM" — anti-duplicación notif. presupuesto
+  goalNotifiedIds: string[]         // IDs de metas ya notificadas — anti-duplicación
 }
 
-// Acciones adicionales
+// Acciones
 setOnboardingStep(step: number): void
 completeOnboarding(): void
+setNotificationsEnabled(val: boolean): void
+markBudgetNotified(emoji: string): void
+markGoalNotified(id: string): void
+clearExpiredBudgetNotifications(): void  // limpia entradas de meses anteriores al arrancar la app
 ```
 
 El presupuesto es siempre mensual. No existen helpers de período — los montos se usan directamente.
@@ -305,6 +319,22 @@ type PeriodFilter =
   | { type: "all" };                    // Sin filtro de fecha
 ```
 Reemplaza los estados separados `period` + `pickerYear` + `pickerMonth`. Vive en `app/(tabs)/index.tsx`.
+
+### useToastStore (no persistido)
+```typescript
+export type ToastLevel = "success" | "warning" | "danger" | "info";
+
+export interface Toast {
+  id: string;
+  level: ToastLevel;
+  title: string;
+  icon?: string;        // emoji del icono izquierdo; si no se pasa, se usa el default del level
+  actionLabel?: string;
+  onAction?: () => void;
+  duration?: number;    // ms — auto-dismiss solo si está definido. Default: 3500 ms en ToastBanner
+}
+```
+**Patrón:** Cola LIFO, máximo 3 toasts simultáneos. Los nuevos toasts entran al inicio del array. Solo se usa vía `addToast` y `removeToast`.
 
 ### useVoiceStore (no persistido)
 ```typescript
@@ -614,6 +644,26 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Animación: fade-in del overlay + spring scale del tooltip
 - Utilidad complementaria: `src/utils/tourRefs.ts` — registro global de refs (`getTourRef(key)`, constantes `TOUR_KEYS`)
 
+### ToastBanner
+- Banner in-app minimalista e individual renderizado por `ToastContainer`
+- **Layout:** `[contenedor_icono 38×38] [título flex:1] [acción?] [×]`
+- **Icono izquierdo:** `toast.icon` si se provee; de lo contrario, default según `level` (✅ success, 💬 info, ⚠️ warning, 🚨 danger). Fondo sólido coloreado por nivel (verde/azul/naranja/rojo pastel)
+- **Fondo de tarjeta:** neutro (`#FFFFFF` / `#1C2128`) para `success` e `info`; tintado sólido para `warning` (`#FEF3C7` / `#1C1000`) y `danger` (`#FEE2E2` / `#1A0505`)
+- **Sin valores monetarios** en los toasts — solo título descriptivo
+- **Auto-dismiss:** `toast.duration ?? 3500` ms. El toast de "Deshacer" usa `6000` ms por ser time-sensitive
+- **Dismiss manual:** botón `×` o swipe hacia arriba (`PanResponder` + `Animated`)
+  - Swipe arriba: si `dy < -40px` al soltar → animación `translateY → -100` + `opacity → 0` + `removeToast`
+  - Si no llega al umbral: spring de vuelta a posición original
+- **"Deshacer":** color `#135BEC` en modo claro, `#FFFFFF` en modo oscuro
+- Animación de entrada/salida: `FadeInDown.springify()` / `FadeOutUp.duration(200)` (Reanimated) en la capa interior; `Animated.View` exterior para el swipe
+
+### ToastContainer
+- Renderiza la cola de `toasts` de `useToastStore`
+- Posición `absolute` en la parte superior, respetando `SafeAreaInsets` (top + 8px)
+- Ancho: `left: 12, right: 12` (casi full-width)
+- Cada toast envuelto en `Reanimated.View` con `Layout.springify()` para reordenamiento animado
+- Montado **una sola vez** en `app/_layout.tsx`, después del `Stack` navigator
+
 ### BudgetBar
 - Barra de progreso animada (Reanimated)
 - Muestra `X% de $presupuesto`
@@ -728,6 +778,10 @@ formatMoneyInput(text: string): string
 | Diálogo de confirmación | ConfirmDialog | Spring scale (0.85→1) + fade-in opacity, 3 variantes (danger/warning/info) |
 | Spotlight de onboarding | GuidedTour | Fade-in overlay oscuro con cutout circular + spring scale del tooltip. Transición animada entre pasos |
 | Tap → detalle transacción | TransactionItem | `TouchableOpacity.onPress` → haptic + modal fade. Si swipe abierto: cierra swipe primero |
+
+| Swipe-up dismiss toast | ToastBanner | `PanResponder` + `Animated.timing` (`translateY → -100`, `opacity → 0`, 220ms); spring de vuelta si no supera umbral `-40px` |
+| Entrada/salida de toast | ToastBanner (Reanimated layer) | `FadeInDown.springify().damping(18).stiffness(200)` / `FadeOutUp.duration(200)` |
+| Reordenamiento de toasts | ToastContainer | `Layout.springify()` en cada `Reanimated.View` envolvente |
 
 ### Reglas para animaciones
 - Usar `Reanimated` para animaciones de layout y gestos complejos (scroll-driven, odómetro)
@@ -850,6 +904,11 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 - **Búsqueda por voz:** El flujo directo voz → FloatingInput está desconectado.
 - **Sincronización metas-transacciones:** Si el usuario elimina una transacción de abono desde el Dashboard, el `savedAmount` de la meta NO se actualiza automáticamente (son independientes). Aceptable para la v1.
 
+### Sistema de notificaciones
+- `expo-notifications` no funciona en Expo Go — requiere build nativa
+- Los permisos de notificación OS en Android se solicitan la primera vez que el usuario configura un presupuesto por categoría (diálogo `ConfirmDialog` antes de solicitar)
+- En iOS los permisos son más estrictos; la lógica de `requestNotificationPermissions()` maneja ambas plataformas
+
 ### Riesgos técnicos
 - `BlurView` no funciona consistentemente en emuladores Android
 - `Appearance.setColorScheme(null)` causa crash en Android — fue removido
@@ -863,6 +922,19 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 ---
 
 ## 19. Reglas para Futuro Desarrollo
+
+### Al agregar un nuevo toast in-app
+1. Llamar `useToastStore.getState().addToast({ level, icon?, title, actionLabel?, onAction?, duration? })`
+2. Pasar `icon` (emoji) para personalizar el icono izquierdo; si no, se usa el default del `level`
+3. **No incluir valores monetarios** en `title` — los toasts son informativos, no numéricos
+4. Solo pasar `duration` explícito si el toast es time-sensitive (ej: "Deshacer" → 6000ms). Por defecto 3500ms
+5. Nunca pasar `id` — se genera automáticamente con `Date.now().toString()`
+
+### Al disparar notificaciones OS
+1. Usar `checkAndNotifyBudget()` después de guardar una transacción de gasto con presupuesto
+2. Usar `checkAndNotifyGoalCompleted()` después de actualizar el `savedAmount` de una meta
+3. Ambas funciones son no-op si `notificationsEnabled === false` o si ya se notificó ese mes/meta
+4. `requestNotificationPermissions()` debe llamarse antes del primer intento de notificación
 
 ### Al agregar una nueva pantalla
 1. Crear el archivo en `app/` siguiendo la convención de Expo Router
@@ -915,6 +987,7 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 ```json
 {
   "@react-native-async-storage/async-storage": "^2.2.0",
+  "expo-notifications": "~0.29.x",
   "@react-native-community/datetimepicker": "8.6.0",
   "@react-navigation/native": "^7.1.28",
   "expo": "~55.0.4",
@@ -960,5 +1033,5 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 
 ---
 
-*Documento generado para MyWallet v1.1.0 — Marzo 2026*
+*Documento generado para MyWallet v1.2.0 — Marzo 2026*
 *Mantener actualizado ante cualquier cambio significativo en arquitectura, stores, DB o componentes.*

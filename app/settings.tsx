@@ -37,6 +37,8 @@ import {
 import { router } from "expo-router";
 import Constants from "expo-constants";
 import { useSettingsStore, type PaymentMethod, type PaymentMethodType, type SavingsGoal } from "@/src/store/useSettingsStore";
+import { useToastStore } from "@/src/store/useToastStore";
+import { checkAndNotifyGoalCompleted, requestNotificationPermissions } from "@/src/services/notificationService";
 import { CURATED_EMOJIS, type UserCategory } from "@/src/constants/categoryPresets";
 import { HueColorPicker } from "@/src/components/ui/HueColorPicker";
 import { hueToColors, hexToHue } from "@/src/utils/colorUtils";
@@ -571,6 +573,7 @@ function AbonarMetaModal({
   const theme             = useTheme();
   const updateSavingsGoal = useSettingsStore((st) => st.updateSavingsGoal);
   const addTransaction    = useFinanceStore((st) => st.addTransaction);
+  const addToast          = useToastStore((st) => st.addToast);
 
   const [abonoDisplay, setAbonoDisplay] = useState("");
 
@@ -589,9 +592,18 @@ function AbonarMetaModal({
     `$${Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 
   const handleAbonar = async () => {
-    if (abono <= 0) return;
+    if (abono <= 0 || !goal) return;
     await addTransaction(abono, `Abono a ${goal.name}`, goal.emoji, ["#ahorro"]);
-    updateSavingsGoal(goal.id, goal.savedAmount + abono);
+    const newSaved = goal.savedAmount + abono;
+    updateSavingsGoal(goal.id, newSaved);
+
+    addToast({ level: "success", icon: goal.emoji, title: `Abono registrado: ${goal.name}` });
+
+    if (newSaved >= goal.targetAmount) {
+      addToast({ level: "success", icon: "🎉", title: `¡Meta "${goal.name}" alcanzada!` });
+      checkAndNotifyGoalCompleted(goal.id, goal.emoji, goal.name, goal.targetAmount);
+    }
+
     onClose();
   };
 
@@ -1006,6 +1018,8 @@ export default function SettingsScreen() {
   const setDarkMode             = useSettingsStore((s) => s.setDarkMode);
   const setBudgetForCategory    = useSettingsStore((s) => s.setBudgetForCategory);
   const removeBudgetForCategory = useSettingsStore((s) => s.removeBudgetForCategory);
+  const notificationsEnabled    = useSettingsStore((s) => s.notificationsEnabled);
+  const addToast                = useToastStore((s) => s.addToast);
 
   // Modals state
   const [budgetModal,        setBudgetModal]        = useState(false);
@@ -1016,8 +1030,9 @@ export default function SettingsScreen() {
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [editingCat, setEditingCat] = useState<UserCategory | null>(null);
 
-  const [clearDataDialog,  setClearDataDialog]  = useState(false);
-  const [exportErrorDialog, setExportErrorDialog] = useState(false);
+  const [clearDataDialog,       setClearDataDialog]       = useState(false);
+  const [exportErrorDialog,     setExportErrorDialog]     = useState(false);
+  const [notifPermDialog,       setNotifPermDialog]       = useState(false);
 
   // Onboarding tour
   const hasCompletedOnboarding = useSettingsStore((s) => s.hasCompletedOnboarding);
@@ -1085,6 +1100,7 @@ export default function SettingsScreen() {
       const uri = FileSystem.documentDirectory + "mywallet_export.csv";
       await FileSystem.default.writeAsStringAsync(uri, csv, { encoding: "utf8" });
       await shareAsync(uri, { mimeType: "text/csv", dialogTitle: "Exportar transacciones" });
+      addToast({ level: "info", icon: "📤", title: "Datos exportados correctamente" });
     } catch {
       setExportErrorDialog(true);
     }
@@ -1100,6 +1116,7 @@ export default function SettingsScreen() {
     const { clearTransactions } = await import("@/src/db/db");
     await clearTransactions();
     useFinanceStore.getState().loadTransactions();
+    addToast({ level: "info", icon: "🗑️", title: "Historial de transacciones borrado" });
   }
 
   const incomeSubtitle = monthlyBudget <= 0 ? "Sin configurar" : formatCOP(monthlyBudget);
@@ -1403,12 +1420,31 @@ export default function SettingsScreen() {
           keyboardType="numeric"
           onConfirm={(v) => {
             const amount = parseFloat(v.replace(/\D/g, "")) || 0;
-            if (amount > 0) setBudgetForCategory(catBudgetEmoji, amount);
-            else removeBudgetForCategory(catBudgetEmoji);
+            if (amount > 0) {
+              setBudgetForCategory(catBudgetEmoji, amount);
+              // Si las notificaciones no están habilitadas, sugerir activarlas
+              if (!notificationsEnabled) setNotifPermDialog(true);
+            } else {
+              removeBudgetForCategory(catBudgetEmoji);
+            }
           }}
           onClose={() => setCatBudgetEmoji(null)}
         />
       )}
+
+      <ConfirmDialog
+        visible={notifPermDialog}
+        variant="info"
+        title="Alertas de presupuesto"
+        message="¿Quieres recibir una notificación cuando superes el límite de una categoría? Puedes desactivarlo después."
+        confirmLabel="Activar alertas"
+        cancelLabel="Ahora no"
+        onConfirm={async () => {
+          setNotifPermDialog(false);
+          await requestNotificationPermissions();
+        }}
+        onCancel={() => setNotifPermDialog(false)}
+      />
 
       <ConfirmDialog
         visible={clearDataDialog}

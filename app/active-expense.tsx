@@ -5,7 +5,7 @@ import {
   Platform, KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   X, Check, Plus, Edit3,
   Calendar, UtensilsCrossed, Wallet,
@@ -18,6 +18,7 @@ import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/dat
 import * as Haptics from "expo-haptics";
 
 import { useExpenseStore, DateOption, AccountType } from "@/src/store/useExpenseStore";
+import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useToastStore } from "@/src/store/useToastStore";
@@ -311,10 +312,15 @@ function fmtCOP(n: number) {
 
 // ─── Pantalla ─────────────────────────────────────────────────────────────────
 export default function ActiveExpenseScreen() {
-  const insets = useSafeAreaInsets();
-  const store  = useExpenseStore();
-  const addTx  = useFinanceStore((s) => s.addTransaction);
-  const theme  = useTheme();
+  const insets  = useSafeAreaInsets();
+  const store   = useExpenseStore();
+  const addTx   = useFinanceStore((s) => s.addTransaction);
+  const theme   = useTheme();
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  const fromBatchReview = from === "batch-review";
+  const setPendingManualItem = useVoiceStore((s) => s.setPendingManualItem);
+  // Si venimos de voice-batch-review, solo volvemos atrás al guardar (no cerramos todo)
+  const navigateAfterSave = () => fromBatchReview ? router.back() : router.dismissAll();
   const st     = useMemo(() => buildS(theme), [theme]);
 
   const paymentMethods    = useSettingsStore((s) => s.paymentMethods);
@@ -412,6 +418,24 @@ export default function ActiveExpenseScreen() {
     if (store.amount <= 0) return;
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+    // ── Modo batch-review: no guardar en DB, devolver a la pantalla de revisión ──
+    if (fromBatchReview) {
+      const catName = userCategories.find((c) => c.emoji === store.categoryEmoji)?.name
+        ?? store.categoryEmoji;
+      setPendingManualItem({
+        amount: store.amount,
+        description: store.note || store.rawTranscript || (isExpense ? "Gasto" : "Ingreso"),
+        categoryEmoji: store.categoryEmoji,
+        categoryName: catName,
+        isExpense,
+        paymentMethod: store.account ?? "cash",
+      });
+      store.reset();
+      router.back();
+      return;
+    }
+
+    // ── Flujo normal: guardar en la base de datos ─────────────────────────────
     const txDate = store.date === "custom" && store.customDate
       ? store.customDate
       : new Date();
@@ -429,14 +453,12 @@ export default function ActiveExpenseScreen() {
       store.account,
     );
 
-    // ── Toast de confirmación ──────────────────────────────────────────────
     addToast({
       level: "success",
       icon: savedEmoji,
       title: savedIsExp ? `Gasto registrado` : `Ingreso registrado`,
     });
 
-    // ── Verificar presupuesto de la categoría (solo gastos) ───────────────
     if (savedIsExp) {
       const budget = budgetByCategory[savedEmoji];
       if (budget && budget > 0) {
@@ -450,29 +472,21 @@ export default function ActiveExpenseScreen() {
         const catName = userCategories.find((c) => c.emoji === savedEmoji)?.name ?? savedEmoji;
 
         if (ratio >= 1.0) {
-          addToast({
-            level: "danger",
-            icon: savedEmoji,
-            title: `Presupuesto superado: ${catName}`,
-          });
+          addToast({ level: "danger", icon: savedEmoji, title: `Presupuesto superado: ${catName}` });
           checkAndNotifyBudget(savedEmoji, catName, monthlySpent, budget);
         } else if (ratio >= 0.8) {
           const pct = Math.round(ratio * 100);
-          addToast({
-            level: "warning",
-            icon: savedEmoji,
-            title: `Presupuesto al ${pct}%: ${catName}`,
-          });
+          addToast({ level: "warning", icon: savedEmoji, title: `Presupuesto al ${pct}%: ${catName}` });
           checkAndNotifyBudget(savedEmoji, catName, monthlySpent, budget);
         }
       }
     }
 
     store.reset();
-    router.dismissAll();
+    navigateAfterSave();
   }
 
-  function handleClose() { store.reset(); router.dismissAll(); }
+  function handleClose() { store.reset(); navigateAfterSave(); }
 
   function handleAddTag() {
     const t = tagInput.trim().replace(/^#/, "");

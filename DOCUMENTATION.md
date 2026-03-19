@@ -1,6 +1,6 @@
 # MyWallet — Guía Completa de Usuario
 
-> **Versión:** 1.3.0 | **Plataforma:** Android (iOS en desarrollo) | **Idioma:** Español
+> **Versión:** 1.4.0 | **Plataforma:** Android (iOS en desarrollo) | **Idioma:** Español
 
 ---
 
@@ -187,7 +187,7 @@ La entrada por voz es la forma más rápida de registrar un movimiento.
 4. La app se **detiene automáticamente** después de 2 segundos de silencio
 5. Procesa el audio y:
    - Si detectó **una sola transacción** → abre el formulario con los campos ya llenados para que revises y confirmes con **✓**
-   - Si detectó **varias transacciones** → las guarda todas directamente y regresa al Dashboard (ver abajo)
+   - Si detectó **varias transacciones** → abre la pantalla **"Revisar registros"** (ver abajo)
 6. En el flujo de una transacción: revisa y ajusta si es necesario, luego confirma con **✓**
 
 ### Lo que detecta la voz
@@ -213,20 +213,42 @@ Así el texto queda limpio y legible, sin palabras numéricas.
 ### Tamaño del monto adaptable
 El número grande del formulario **reduce su tamaño automáticamente** cuando el monto tiene muchos dígitos (millones, miles de millones), para que siempre sea visible y no se salga de la pantalla.
 
-### Registro de múltiples transacciones con una sola frase *(nuevo)*
+### Registro de múltiples transacciones con una sola frase
 
-Puedes mencionar varios gastos o ingresos en un solo input de voz. La app detecta los montos, los separa y los guarda todos automáticamente:
+Puedes mencionar varios gastos o ingresos en un solo input de voz. La app detecta los montos y te lleva a una **pantalla de revisión** donde puedes editar, eliminar o agregar más antes de guardar todo de golpe.
 
-**Ejemplos:**
-- `"Gasté 30 mil en almuerzo y 15 mil en café"`
+**Ejemplos de frases:**
+- `"Gasté treinta mil en almuerzo y quince mil en café"`
 - `"Pagué 80 mil de gasolina y también 12 mil de parqueadero"`
-- `"Mercado 95 mil, café 8 mil y transporte 6 mil quinientos"`
+- `"Mercado 95 mil, café 8 mil y transporte 6.500"`
 
-**Qué pasa al terminar:**
-1. La app guarda todas las transacciones a la vez
-2. Aparece un banner: `"N transacciones guardadas"` con un botón **"Deshacer"**
-3. Tienes **8 segundos** para tocar **"Deshacer"** y eliminar el lote completo
-4. Vuelves directamente al Dashboard sin pasar por el formulario
+> 💡 Puedes decir los montos en palabras ("treinta mil", "quince mil") o en números ("30 mil", "15.000") — la app entiende ambos formatos.
+
+**Qué pasa al terminar la grabación:**
+1. La app detecta que hay varios montos y abre la pantalla **"Revisar registros"**
+2. Cada transacción detectada aparece como una **tarjeta editable**
+3. Revisa y ajusta lo que necesites antes de confirmar
+
+### Pantalla "Revisar registros"
+
+Esta pantalla aparece automáticamente cuando el input de voz contiene ≥ 2 transacciones.
+
+**Qué puedes hacer en cada tarjeta:**
+- Tocar el **ícono ✏️** para editar: monto, descripción, tipo (Gasto/Ingreso) o categoría
+- **Deslizar la tarjeta hacia la izquierda** para eliminarla del lote
+
+**Agregar un registro adicional:**
+- Toca **"Añadir registro manual"** al final de la lista
+- Se abre el formulario estándar "Nuevo Gasto/Ingreso"
+- Al guardar, el registro **vuelve a la pantalla de revisión** como una tarjeta más — no se guarda todavía en la base de datos
+- Así puedes agregar todos los que quieras y guardar todo junto al final
+
+**Guardar todo:**
+1. El footer muestra: `"N registros · Total $ X"`
+2. Toca **✓ Guardar todo** — se guardan todas las tarjetas a la vez
+3. Aparece un banner: `"N transacciones guardadas"` con botón **"Deshacer"**
+4. Tienes **8 segundos** para tocar **"Deshacer"** y eliminar el lote completo
+5. Vuelves al Dashboard
 
 > 💡 Si mencionas varias cosas del mismo tipo (todos gastos o todos ingresos), no necesitas repetir "gasté" en cada una — la app hereda el tipo de la primera frase.
 
@@ -551,9 +573,10 @@ Una vez al mes:
 || **Banner in-app** | Aviso temporal en la parte superior de la pantalla. Se cierra solo (3.5s), con × o arrastrando hacia arriba |
 || **Notificación del sistema** | Alerta en la barra de notificaciones del teléfono (fuera de la app) para eventos críticos: presupuesto superado o meta cumplida |
 || **Deshacer** | Botón en el banner de eliminación o de lote de voz. Tienes 6 s (eliminación) u 8 s (lote de voz) para recuperar lo eliminado |
-|| **Multi-transacción por voz** | Cuando dices varios montos en un mismo input de voz, la app los detecta, separa y guarda todos a la vez con un solo banner "Deshacer" de 8 s |
+|| **Multi-transacción por voz** | Cuando dices varios montos en un mismo input de voz, la app los detecta y navega a la pantalla "Revisar registros" donde puedes editar, eliminar o agregar más antes de guardar el lote |
+|| **Revisar registros** | Pantalla de revisión del lote multi-voz. Tarjetas editables por swipe/edición, botón "Guardar todo" y opción "Añadir registro manual" que lleva al formulario y regresa sin guardar aún en DB |
 || **CSV** | Formato de exportación de datos (Comma-Separated Values). Abre en Excel o Google Sheets como tabla con todas tus transacciones |
 
 ---
 
-*Documentación generada para MyWallet v1.3.0*
+*Documentación generada para MyWallet v1.4.0*

@@ -35,9 +35,7 @@ import * as Haptics from "expo-haptics";
 
 import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
-import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
-import { useToastStore } from "@/src/store/useToastStore";
 import {
   processVoiceInput,
   processMultiVoiceInput,
@@ -152,13 +150,10 @@ export default function VoiceInputScreen() {
   const {
     status, transcript, finalTranscript,
     errorMessage, setStatus, setTranscript,
-    setFinalTranscript, setError, reset,
+    setFinalTranscript, setError, reset, setPendingBatch,
   } = useVoiceStore();
-  const setFromVoice         = useExpenseStore((s) => s.setFromVoice);
-  const addTransactionBatch  = useFinanceStore((s) => s.addTransactionBatch);
-  const deleteTransaction    = useFinanceStore((s) => s.deleteTransaction);
-  const userCategories       = useSettingsStore((s) => s.userCategories);
-  const addToast             = useToastStore((s) => s.addToast);
+  const setFromVoice   = useExpenseStore((s) => s.setFromVoice);
+  const userCategories = useSettingsStore((s) => s.userCategories);
 
   const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -198,41 +193,16 @@ export default function VoiceInputScreen() {
           return;
         }
 
-        // ── Flujo batch: múltiples transacciones → guardar directo ───────────
-        try {
-          const items = result.transactions.map((t) => ({
-            amount: (t.isExpense ?? true) ? (t.amount ?? 0) : -(t.amount ?? 0),
-            description: t.note ?? t.rawTranscript ?? "Registro por voz",
-            categoryEmoji: t.categoryEmoji ?? "💰",
-            tags: t.tags ?? [],
-            paymentMethod: "cash",
-          }));
-
-          const savedIds = await addTransactionBatch(items);
-
-          addToast({
-            level: "success",
-            icon: "🎙️",
-            title: `${items.length} transacciones guardadas`,
-            actionLabel: "Deshacer",
-            duration: 8000,
-            onAction: () =>
-              savedIds.forEach((id) => deleteTransaction(id)),
-          });
-
-          reset();
-          router.dismissAll();
-        } catch {
-          // Si el batch falla, caer al formulario con la primera transacción
-          setFromVoice(result.transactions[0]);
-          reset();
-          router.replace("/active-expense");
-        }
+        // ── Flujo batch: múltiples transacciones → pantalla de revisión ────────
+        // reset() debe ir ANTES de setPendingBatch porque reset() limpia pendingBatch
+        reset();
+        setPendingBatch(result.transactions);
+        router.replace("/voice-batch-review");
       }, 1000);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [clearSilenceTimer, reset, setFinalTranscript, setFromVoice, setStatus,
-     addTransactionBatch, deleteTransaction, userCategories, addToast]
+     setPendingBatch, userCategories]
   );
 
   // ─── Listeners de voz ────────────────────────────────────────────────────

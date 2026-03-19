@@ -2,7 +2,7 @@
 
 > **Propósito:** Este documento es la referencia técnica completa del proyecto. Cualquier desarrollador, IA o colaborador que lea este archivo tendrá TODO el contexto necesario para desarrollar, modificar o extender la aplicación sin perder consistencia.
 >
-> **Última actualización:** Marzo 2026 | **Versión:** 1.3.0
+> **Última actualización:** Marzo 2026 | **Versión:** 1.4.0
 
 ---
 
@@ -92,6 +92,7 @@ my-wallet-app/
 │   ├── active-expense.tsx        # Modal: nuevo gasto/ingreso
 │   ├── settings.tsx              # Modal: configuración
 │   ├── voice-input.tsx           # Modal: entrada por voz
+│   ├── voice-batch-review.tsx    # Modal: revisión de transacciones multi-voz
 │   └── (tabs)/
 │       ├── _layout.tsx           # Tabs (barra oculta) + FloatingDock
 │       ├── index.tsx             # Dashboard principal
@@ -222,10 +223,11 @@ Stack
 │   ├── index           → Dashboard
 │   └── wallet          → Placeholder (href: null, invisible)
 │
-├── voice-input         → Modal slide_from_bottom
-├── active-expense      → Modal slide_from_bottom
-├── settings            → Modal slide_from_bottom
-└── +not-found          → 404
+├── voice-input           → Modal slide_from_bottom
+├── voice-batch-review    → Modal slide_from_bottom (revisión de lote multi-voz)
+├── active-expense        → Modal slide_from_bottom
+├── settings              → Modal slide_from_bottom
+└── +not-found            → 404
 ```
 
 ### Dock Flotante (FloatingDock)
@@ -352,9 +354,22 @@ export interface Toast {
   status: "idle" | "listening" | "processing" | "error"
   transcript: string
   finalTranscript: string
-  errorMessage: string
+  errorMessage: string | null
+  pendingBatch: PendingTransaction[] | null  // transacciones multi-voz esperando revisión
+  pendingManualItem: ManualAddItem | null    // registro manual que viene de active-expense (from=batch-review)
 }
+
+// PendingTransaction = tipo inferido de processMultiVoiceInput (transactions[number])
+// ManualAddItem = { amount, description, categoryEmoji, categoryName, isExpense, paymentMethod }
+
+// Acciones
+setPendingBatch(items: PendingTransaction[]): void
+clearPendingBatch(): void
+setPendingManualItem(item: ManualAddItem): void
+clearPendingManualItem(): void
+reset(): void  // limpia todo incluyendo pendingBatch y pendingManualItem
 ```
+**Patrón de pendingManualItem:** cuando `active-expense` se abre con el param `?from=batch-review`, al confirmar la transacción en lugar de guardar en DB llama `setPendingManualItem(...)` y hace `router.back()`. `voice-batch-review` lo recoge con `useFocusEffect` al recuperar el foco, lo agrega como tarjeta y llama `clearPendingManualItem()`.
 
 ### Regla crítica de stores
 - **NUNCA** mezclar lógica de servidor/API en los stores (la app es offline)
@@ -499,8 +514,8 @@ type AppTheme = {
 - `replaceAmountInNote(text, amount)`: convierte `"cinco millones 400 mil"` → `"$5.400.000"` en la nota. Además asegura un espacio antes de `$` cuando está precedido por una letra (corrige "gasté$500.000" → "gasté $500.000")
 
 **Multi-transacción (nuevas funciones):**
-- `findAmountSpans(text)`: detecta todos los spans de expresiones monetarias distintas en el texto normalizado y retorna sus posiciones `{start, end}`
-- `splitIntoSegments(text)`: divide el transcript completo en segmentos individuales usando conjunciones ("y", "también", "además", "luego", "después") que aparecen entre dos spans de monto
+- `findAmountSpans(text)`: detecta todos los spans de expresiones monetarias distintas en el texto normalizado y retorna sus posiciones `{start, end}`. Soporta tanto dígitos (`30 mil`, `30.000`, `30000`) como **palabras en español** (`treinta mil`, `quince mil`, `cinco millones`, `cien mil`). El regex combina patrones numéricos y un vocabulario completo de números base (`W`) para cubrir los casos reales del habla colombiana
+- `splitIntoSegments(text)`: divide el transcript completo en segmentos individuales usando conjunciones ("y", "también", "además", "luego", "después") que aparecen entre dos spans de monto. Los índices de los spans (del texto normalizado) mapean 1:1 con el texto original para español estándar (NFD preserva count de caracteres)
 - `processMultiVoiceInput(raw, userCats?)`: función principal de entrada múltiple
   - Si detecta `≤ 1` monto → delega a `processVoiceInput` (flujo single)
   - Si detecta `> 1` montos → usa `splitIntoSegments`, procesa cada segmento con `processVoiceInput`, hereda `isExpense` del primer segmento si los siguientes no declaran tipo
@@ -729,6 +744,11 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Tags sugeridos + custom
 - Botón ✓ para guardar (vibración + navegar atrás)
 - `adjustsFontSizeToFit` como fallback para montos enormes
+- **Param `?from=batch-review`:** cuando la pantalla es abierta desde `voice-batch-review`, el flujo de guardar cambia:
+  - Lee `from` con `useLocalSearchParams<{ from?: string }>()`
+  - Al confirmar ✓: en lugar de `addTransaction` + `router.dismissAll()`, llama `setPendingManualItem({...})` + `store.reset()` + `router.back()`
+  - Esto devuelve los datos al store sin guardar en DB; `voice-batch-review` los recoge con `useFocusEffect` y los agrega a la lista de revisión
+  - Al cerrar ✗ también usa `router.back()` (no `router.dismissAll()`) para preservar `voice-batch-review` en la pila
 
 ### Voice Input (`app/voice-input.tsx`)
 - Orb animado que indica estado de escucha
@@ -736,11 +756,19 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Estados: idle → listening → processing → done
 - **Flujo single:** si `processMultiVoiceInput` detecta 1 transacción → `setFromVoice(single)` + `router.replace("/active-expense")` para revisar/confirmar el formulario
 - **Flujo multi-transacción:** si detecta ≥ 2 montos en el transcript:
-  - Convierte cada resultado en `BatchTransactionItem` y llama `addTransactionBatch(items)`
-  - Muestra toast de éxito: `"N transacciones guardadas"` con botón `"Deshacer"` (8s) que elimina todos los IDs del lote
-  - Llama `router.dismissAll()` para volver al Dashboard directamente sin pasar por el formulario
-  - Si el batch falla, hace fallback al flujo single (abre formulario con la primera transacción detectada)
+  - Llama `reset()` (limpia estado de voz) y luego `setPendingBatch(result.transactions)` — **el orden importa**: `reset()` debe ir antes de `setPendingBatch` porque `reset()` limpia `pendingBatch`
+  - Navega con `router.replace("/voice-batch-review")` a la pantalla de revisión
 - `statusLabel` muestra `"Analizando tu registro..."` durante el procesamiento multi-voz
+
+### Voice Batch Review (`app/voice-batch-review.tsx`) *(nuevo)*
+- Pantalla fullscreen modal que se muestra cuando el flujo multi-voz detecta ≥ 2 transacciones
+- **Header:** flecha atrás + "Revisar registros" + contador de transacciones detectadas
+- **FlatList** de `ReviewItemCard`s: cada tarjeta muestra emoji coloreado, descripción, nombre de categoría, badge tipo (↓ Gasto rojo / ↑ Ingreso verde), monto, botón ✏️
+- **Swipe-left en tarjeta** → botón rojo eliminar (PanResponder + Animated, mismo patrón que `TransactionItem`)
+- **Botón ✏️** → abre `EditItemSheet` (Modal bottom-sheet) con: toggle Gasto/Ingreso, campo monto, campo descripción, selector de categoría (abre `CategorySheet` interno)
+- **Link "Añadir registro manual"** → `router.push("/active-expense?from=batch-review")`. El registro no se guarda en DB — cuando el usuario confirma en `active-expense`, los datos van a `useVoiceStore.pendingManualItem` y al volver a `voice-batch-review` se agregan como nueva tarjeta via `useFocusEffect`
+- **Footer sticky:** `"N registros · Total $ X"` + botón azul `"Guardar todo"`. Al confirmar: `addTransactionBatch(items)` → toast 8s con "Deshacer" → `clearPendingBatch()` → `router.dismissAll()`
+- Si `pendingBatch` está vacío al montar (p.ej. llegó por error), hace `router.back()` inmediatamente
 
 ### Settings (`app/settings.tsx`)
 - **Control financiero (orden de opciones):**
@@ -1058,5 +1086,5 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 
 ---
 
-*Documento generado para MyWallet v1.3.0 — Marzo 2026*
+*Documento generado para MyWallet v1.4.0 — Marzo 2026*
 *Mantener actualizado ante cualquier cambio significativo en arquitectura, stores, DB o componentes.*

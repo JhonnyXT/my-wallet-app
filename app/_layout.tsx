@@ -80,6 +80,14 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
+          name="voice-batch-review"
+          options={{
+            presentation: "fullScreenModal",
+            animation: "slide_from_bottom",
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="active-expense"
           options={{
             presentation: "fullScreenModal",

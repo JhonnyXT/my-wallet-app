@@ -328,8 +328,30 @@ function findAmountSpans(text: string): Array<{ start: number; end: number }> {
   const n = normalize(text);
   const spans: Array<{ start: number; end: number }> = [];
 
-  const AMOUNT_RE =
-    /\d+(?:[.,]\d+)?\s*millones?(?:\s+\d+(?:[.,]\d*)?\s*(?:mil(?:es)?)?)?\s*|\d+(?:[.,]\d*)?\s*\bmil\b|\d{1,3}(?:[.,]\d{3})+|\b\d{4,}\b/g;
+  // Números base en español (sin acentos, para trabajar con texto normalizado)
+  const W =
+    "veintiun[ao]?|veintidos|veintitres|veinticuatro|veinticinco|veintiseis|veintisiete|veintiocho|veintinueve" +
+    "|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa" +
+    "|veinte|quince|catorce|trece|doce|once|diez|nueve|ocho|siete|seis|cinco|cuatro|tres|dos|uno|un" +
+    "|cien(?:to)?|doscientos?|trescientos?|cuatrocientos?|quinientos?|seiscientos?|setecientos?|ochocientos?|novecientos?";
+
+  const AMOUNT_RE = new RegExp(
+    [
+      // Dígitos + millones (con extra opcional): "5 millones 400"
+      "\\d+(?:[.,]\\d+)?\\s*millones?(?:\\s+\\d+(?:[.,]\\d*)?\\s*(?:mil(?:es?)?)?)?\\s*",
+      // Palabras + millones: "cinco millones", "dos millones 400"
+      `(?:${W})\\s+millones?(?:\\s+\\d+(?:[.,]\\d*)?\\s*(?:mil(?:es?)?)?)?`,
+      // Dígitos + mil: "30 mil", "30mil"
+      "\\d+(?:[.,]\\d*)?\\s*\\bmil\\b",
+      // Palabras + mil: "treinta mil", "quince mil", "cien mil"
+      `(?:${W})\\s+mil(?:es)?\\b`,
+      // Números formateados con puntos o comas: "30.000" / "30,000"
+      "\\d{1,3}(?:[.,]\\d{3})+",
+      // Número largo sin formato: "30000"
+      "\\b\\d{4,}\\b",
+    ].join("|"),
+    "g"
+  );
 
   let m;
   while ((m = AMOUNT_RE.exec(n)) !== null) {

@@ -1,0 +1,14 @@
+feat: pantalla Revisar registros para multi-voz + fixes de deteccion y navegacion
+
+- Nueva pantalla voice-batch-review: revision de lote multi-voz antes de guardar
+  - FlatList de tarjetas editables con swipe-left para eliminar
+  - EditItemSheet: editar monto, descripcion, tipo y categoria por tarjeta
+  - Anadir registro manual desde active-expense sin guardar en DB (retorna como tarjeta)
+  - Footer sticky con resumen y boton Guardar todo (addTransactionBatch + toast Deshacer 8s)
+- Extiende useVoiceStore con pendingBatch, pendingManualItem y sus acciones
+- Fix: reset() llamado antes de setPendingBatch para no limpiar el batch al navegar
+- Fix: findAmountSpans ahora detecta montos escritos en palabras (treinta mil, quince mil)
+- Fix: active-expense con param from=batch-review usa router.back() y deposita
+  pendingManualItem en store en lugar de guardar en DB
+- Registra ruta voice-batch-review en _layout.tsx como fullScreenModal
+- Actualiza documentacion a v1.4.0

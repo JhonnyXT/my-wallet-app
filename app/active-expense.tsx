@@ -20,6 +20,8 @@ import * as Haptics from "expo-haptics";
 import { useExpenseStore, DateOption, AccountType } from "@/src/store/useExpenseStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { NewCategoryModal } from "@/app/category-onboarding";
+import type { UserCategory } from "@/src/constants/categoryPresets";
 import { processVoiceInput } from "@/src/utils/voiceParser";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -126,11 +128,11 @@ function ListSheet({
 
 // ─── Sheet: CATEGORÍA — grid dinámico + botón CONFIRMAR ──────────────────────
 function CategorySheet({
-  visible, selected, accent, isExpense, categories, onSelect, onClose,
+  visible, selected, accent, isExpense, categories, onSelect, onClose, onCreateNew,
 }: {
   visible: boolean; selected: string; accent: string; isExpense: boolean;
   categories: { key: string; label: string; colorBg: string; colorAccent: string }[];
-  onSelect: (k: string) => void; onClose: () => void;
+  onSelect: (k: string) => void; onClose: () => void; onCreateNew: () => void;
 }) {
   const [temp, setTemp] = useState(selected);
   useEffect(() => { if (visible) setTemp(selected); }, [visible, selected]);
@@ -187,6 +189,18 @@ function CategorySheet({
                 </TouchableOpacity>
               );
             })}
+            {/* Ítem "Nueva categoría" */}
+            <TouchableOpacity
+              key="__new__"
+              style={cs.item}
+              onPress={onCreateNew}
+              activeOpacity={0.7}
+            >
+              <View style={[cs.iconBox, { backgroundColor: theme.inputBg, borderWidth: 1.5, borderColor: accent, borderStyle: "dashed" }]}>
+                <Plus size={24} color={accent} strokeWidth={2.5} />
+              </View>
+              <Text style={[cs.itemLabel, { color: accent, fontWeight: "700" }]}>Nueva</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
         <TouchableOpacity
@@ -301,8 +315,9 @@ export default function ActiveExpenseScreen() {
   const theme  = useTheme();
   const st     = useMemo(() => buildS(theme), [theme]);
 
-  const paymentMethods  = useSettingsStore((s) => s.paymentMethods);
-  const userCategories  = useSettingsStore((s) => s.userCategories);
+  const paymentMethods    = useSettingsStore((s) => s.paymentMethods);
+  const userCategories    = useSettingsStore((s) => s.userCategories);
+  const addUserCategory   = useSettingsStore((s) => s.addUserCategory);
 
   const expenseCatOptions = useMemo(() =>
     userCategories.filter(c => c.type === "expense").map(c => ({ key: c.emoji, label: c.name, colorBg: c.colorBg, colorAccent: c.colorAccent })),
@@ -320,8 +335,16 @@ export default function ActiveExpenseScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [amountEditing, setAmountEditing] = useState(false);
   const [amountDisplay, setAmountDisplay] = useState("");
+  const [showNewCatModal, setShowNewCatModal] = useState(false);
   const amountInputRef = useRef<TextInput>(null);
   const noteRef = useRef<TextInput>(null);
+
+  function handleNewCategoryCreated(cat: UserCategory) {
+    addUserCategory(cat);
+    store.setCategory(cat.emoji, cat.name);
+    setShowNewCatModal(false);
+    setActiveSheet(null);
+  }
 
   const isExpense  = store.isExpense;
   const accent     = isExpense ? RED   : GREEN;
@@ -598,7 +621,19 @@ export default function ActiveExpenseScreen() {
           if (c) store.setCategory(c.key, c.label);
           else store.setCategory(k, k);
         }}
-        onClose={() => setActiveSheet(null)} />
+        onClose={() => setActiveSheet(null)}
+        onCreateNew={() => {
+          setActiveSheet(null);
+          setTimeout(() => setShowNewCatModal(true), 320);
+        }}
+      />
+      <NewCategoryModal
+        visible={showNewCatModal}
+        type={isExpense ? "expense" : "income"}
+        theme={theme}
+        onClose={() => setShowNewCatModal(false)}
+        onSave={handleNewCategoryCreated}
+      />
       <AccountSheet
         visible={activeSheet === "account"}
         selected={store.account}

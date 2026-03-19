@@ -37,7 +37,9 @@ import {
 import { router } from "expo-router";
 import Constants from "expo-constants";
 import { useSettingsStore, type PaymentMethod, type PaymentMethodType, type SavingsGoal } from "@/src/store/useSettingsStore";
-import { CURATED_EMOJIS, CATEGORY_COLOR_PALETTE, type UserCategory } from "@/src/constants/categoryPresets";
+import { CURATED_EMOJIS, type UserCategory } from "@/src/constants/categoryPresets";
+import { HueColorPicker } from "@/src/components/ui/HueColorPicker";
+import { hueToColors, hexToHue } from "@/src/utils/colorUtils";
 import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
@@ -841,26 +843,24 @@ function EditCategoryModal({
 }) {
   const [emoji, setEmoji] = useState(cat.emoji);
   const [name, setName] = useState(cat.name);
-  const [colorIdx, setColorIdx] = useState(() => {
-    const idx = CATEGORY_COLOR_PALETTE.findIndex(c => c.accent === cat.colorAccent);
-    return idx >= 0 ? idx : 0;
-  });
+  const [hue, setHue] = useState(() => hexToHue(cat.colorAccent));
 
   const handleSave = () => {
     if (!name.trim()) return;
-    const color = CATEGORY_COLOR_PALETTE[colorIdx];
+    const { accent, bg } = hueToColors(hue);
     onSave({
       ...cat,
       emoji,
       name: name.trim(),
-      colorBg: color.bg,
-      colorAccent: color.accent,
+      colorBg: bg,
+      colorAccent: accent,
       keywords: cat.isPreset ? cat.keywords : name.trim().toLowerCase().split(/\s+/),
     });
   };
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
       <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", paddingHorizontal: 28 }} onPress={onClose}>
         <View style={{ width: "100%", backgroundColor: theme.surface, borderRadius: 22, padding: 24, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, elevation: 20 }}>
           <Pressable>
@@ -887,19 +887,12 @@ function EditCategoryModal({
             </ScrollView>
 
             <Text style={{ fontSize: 11, fontWeight: "700", color: theme.textSub, letterSpacing: 1, marginBottom: 10, marginTop: 16 }}>COLOR DE TEMA</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
-              {CATEGORY_COLOR_PALETTE.map((c, i) => (
-                <TouchableOpacity
-                  key={i}
-                  onPress={() => setColorIdx(i)}
-                  style={[
-                    { width: 36, height: 36, borderRadius: 18, marginRight: 10, backgroundColor: c.accent },
-                    i === colorIdx && { borderWidth: 3, borderColor: theme.text },
-                  ]}
-                  activeOpacity={0.7}
-                />
-              ))}
-            </ScrollView>
+            <HueColorPicker
+              hue={hue}
+              onChange={setHue}
+              previewEmoji={emoji}
+              style={{ marginBottom: 4 }}
+            />
 
             <Text style={{ fontSize: 11, fontWeight: "700", color: theme.textSub, letterSpacing: 1, marginBottom: 10, marginTop: 16 }}>NOMBRE</Text>
             <TextInput
@@ -928,6 +921,7 @@ function EditCategoryModal({
           </Pressable>
         </View>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

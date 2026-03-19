@@ -153,7 +153,7 @@ Cuando no hay movimientos en el período seleccionado:
 | Ícono | Selector | Opciones |
 |-------|----------|----------|
 | 📅 Fecha | Hoy / Calendario | Por defecto: Hoy |
-| 🍽️ Categoría | Grid dinámico con tus categorías elegidas | Se actualiza automáticamente con el NLP |
+| 🍽️ Categoría | Grid dinámico con tus categorías elegidas + ítem "Nueva" para crear al vuelo | Se actualiza automáticamente con el NLP |
 | 👛 Cuenta | Tus métodos de pago configurados | Por defecto: el primero disponible |
 
 > ℹ️ El método de pago seleccionado en "Cuenta" queda registrado junto con la transacción.
@@ -346,7 +346,7 @@ Gestiona tus metas desde la sección "Metas de ahorro":
 
 ## 8. Categorías Personalizables
 
-MyWallet te permite **elegir y crear tus propias categorías** de gasto e ingreso.
+MyWallet te permite **elegir y crear tus propias categorías** de gasto e ingreso desde tres lugares diferentes.
 
 ### Primera vez: Selección de categorías
 
@@ -355,12 +355,29 @@ La primera vez que abres la app, después de la pantalla de bienvenida, aparece 
 1. Verás una cuadrícula de tarjetas con las categorías predefinidas (18 de gasto, 6 de ingreso)
 2. Toca las que quieras usar — se marcan con un check
 3. Al final hay una tarjeta con "+" para **crear una categoría personalizada**
-4. En el popup de creación puedes elegir un emoji, un color y un nombre
+4. En el popup de creación elige un emoji, arrastra el **slider de color** para elegir el tono que quieras, y escribe un nombre
 5. Toca **Guardar** para confirmar tu selección
+
+### Crear una categoría mientras registras una transacción *(nuevo)*
+
+No tienes que salir del formulario para agregar una categoría nueva:
+
+1. En la pantalla **Nuevo Gasto / Nuevo Ingreso**, toca el selector **Categoría**
+2. En la grilla del selector, aparece el ítem **"Nueva"** con un ícono `+` al final
+3. Tócalo — el selector se cierra y se abre el modal de creación
+4. Elige emoji, color (slider) y nombre → **Guardar**
+5. La nueva categoría queda **autoseleccionada** en la transacción que estabas creando
 
 ### Editar categorías después
 
-Desde **Configuración > Mis categorías** puedes ver tus categorías actuales y tocar **"Gestionar categorías"** para volver a la pantalla de selección y agregar/quitar categorías.
+Desde **Configuración > Mis categorías** puedes ver tus categorías actuales y tocar **"Gestionar categorías"** para volver a la pantalla de selección y agregar/quitar categorías. Al editar una categoría existente puedes cambiar su emoji, nombre y color con el slider.
+
+### El selector de color (slider de tono)
+
+Al crear o editar una categoría, en lugar de una paleta fija verás una **barra de colores degradada**:
+- Desliza el pulgar a lo largo de la barra para elegir cualquier tono
+- El círculo de previsualización (con el emoji) actualiza el color en tiempo real
+- El color de fondo y el color de acento se derivan automáticamente del tono elegido
 
 ### Categorías y NLP
 

@@ -109,6 +109,7 @@ my-wallet-app/
 │   │   ├── FloatingInput.tsx     # Overlay input/búsqueda flotante
 │   │   ├── MonthPickerModal.tsx  # Selector de mes/año con montos
 │   │   ├── AnimatedNumber.tsx    # Interpolación visual de montos (legacy, no usado en Dashboard)
+│   │   ├── HueColorPicker.tsx    # Slider continuo de tono (PanResponder + LinearGradient) para categorías
 │   │   ├── RollingNumber.tsx     # Odómetro por dígito (Reanimated) — usado en Dashboard
 │   │   └── TransactionItem.tsx   # Item transacción + swipe-delete + tap-to-detail
 │   │
@@ -138,6 +139,7 @@ my-wallet-app/
 │   │   └── index.ts              # AppTheme: light y dark token objects
 │   │
 │   └── utils/
+│       ├── colorUtils.ts         # hueToColors, hslToHex, hexToHsl, hexToHue — conversiones HSL↔Hex
 │       ├── formatMoney.ts        # formatMoneyInput, formatMoneyDisplay, formatCOP
 │       ├── nlp.ts                # parseExpenseInput (texto rápido)
 │       ├── tourRefs.ts           # Registro global de refs para el GuidedTour (getTourRef, TOUR_KEYS)
@@ -500,9 +502,10 @@ Definidos en `src/constants/categoryPresets.ts`:
 
 ### 10.3 Flujo del Usuario
 
-1. **Primera vez (onboarding):** Después del splash, aparece `category-onboarding.tsx` con grid de tarjetas seleccionables + botón "Añadir categoría" (modal con selector de emoji, color y nombre).
-2. **Desde Settings:** Sección "Mis categorías" muestra las elegidas y botón "Gestionar categorías" que reabre la misma pantalla en modo edición.
-3. **No se puede saltar la selección:** El usuario debe elegir al menos 1 categoría.
+1. **Primera vez (onboarding):** Después del splash, aparece `category-onboarding.tsx` con grid de tarjetas seleccionables + botón "Añadir categoría" (`NewCategoryModal` con selector de emoji, `HueColorPicker` y nombre).
+2. **Desde Settings:** Sección "Mis categorías" muestra las elegidas y botón "Gestionar categorías" que reabre la misma pantalla en modo edición. Editar una categoría abre un modal con `HueColorPicker` para cambiar el color.
+3. **Inline desde Nuevo Gasto/Ingreso:** El `CategorySheet` en `active-expense.tsx` incluye un ítem "Nueva" (ícono `+`) al final de la grilla. Al tocarlo, cierra el sheet y abre `NewCategoryModal`; al guardar, la nueva categoría se persiste vía `addUserCategory()` y queda autoseleccionada en la transacción.
+4. **No se puede saltar la selección:** El usuario debe elegir al menos 1 categoría en el onboarding.
 
 ### 10.4 Fuentes de verdad
 - **`src/constants/categoryPresets.ts`**: Catálogo de presets, paleta de colores, emojis curados, tipo `UserCategory`
@@ -652,7 +655,7 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Título dinámico: "Nuevo Gasto" / "Nuevo Ingreso"
 - Monto grande con tamaño adaptable (36-64px según dígitos)
 - Campo de descripción con NLP en tiempo real
-- Selectores: Fecha (Hoy / Calendario), Categoría (grid contextual: `CATEGORY_OPTIONS` para gastos, `INCOME_CATEGORY_OPTIONS` para ingresos), Cuenta
+- Selectores: Fecha (Hoy / Calendario), Categoría (grid contextual con ítem "Nueva" para crear al vuelo), Cuenta
 - El método de pago (Cuenta) seleccionado se guarda en la transacción (campo `payment_method` en DB)
 - Tags sugeridos + custom
 - Botón ✓ para guardar (vibración + navegar atrás)
@@ -855,7 +858,7 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 ### Configuración de teclado (Android)
 - `app.json` usa `softwareKeyboardLayoutMode: "resize"` para evitar que el teclado cubra contenido
 - Pantallas principales (`active-expense`): `KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}` — Android lo maneja nativamente con `resize`
-- Modales (`settings`, `CategoryChart`): `KeyboardAvoidingView behavior="padding"` explícito — necesario porque `resize` no aplica dentro de modales
+- Modales (`settings`, `CategoryChart`, `NewCategoryModal`): `KeyboardAvoidingView behavior="padding"` explícito — necesario porque `resize` no aplica dentro de modales
 
 ---
 

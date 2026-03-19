@@ -43,7 +43,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Título dinámico | "Nuevo Gasto" o "Nuevo Ingreso" según origen | ✅ Implementado |
 | Monto grande | Tamaño adaptable según dígitos (36-64px) con `adjustsFontSizeToFit` | ✅ Implementado |
 | Campo de texto NLP | Detecta monto, categoría, fecha en tiempo real | ✅ Implementado |
-| Selectores rápidos | Fecha (Hoy/Calendario), Categoría (grid dinámico), Cuenta (método de pago guardado en transacción) | ✅ Implementado |
+| Selectores rápidos | Fecha (Hoy/Calendario), Categoría (grid dinámico + ítem "Nueva" para crear inline), Cuenta (método de pago guardado en transacción) | ✅ Implementado |
 | Tags | Sugeridos (#viaje, #trabajo, etc.) + custom | ✅ Implementado |
 | Guardar | Botón ✓ + vibración háptica + regresa al Dashboard | ✅ Implementado |
 | Auto-formato | Puntos de miles automáticos mientras se escribe | ✅ Implementado |
@@ -148,7 +148,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 3.2 | Como usuario, quiero buscar transacciones por descripción, categoría o tag | ✅ |
 | HU 3.3 | Como usuario, quiero ver el historial completo en un modal con filtros por categoría | ✅ |
 | HU 3.4 | Como usuario, quiero que la descripción de cada transacción se trunque con "..." si es muy larga | ✅ |
-| HU 3.5 | Como usuario, quiero mantener presionado un registro para ver su detalle completo (categoría, monto, tipo, cuenta, fecha, hora, descripción) | ✅ |
+| HU 3.5 | Como usuario, quiero tocar un registro para ver su detalle completo (categoría, monto, tipo, cuenta, fecha, hora, descripción) | ✅ |
 
 > **Nota:** La edición de transacciones fue descartada por diseño. La práctica en apps de finanzas personales es eliminar y crear nueva. Simplifica la UX.
 
@@ -176,6 +176,8 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 6.3 | Como usuario, quiero ver un desglose de mis ingresos por categoría en la gráfica | ✅ |
 | HU 6.4 | Como usuario, quiero que al tocar una columna de la gráfica se muestre el nombre de la categoría | ✅ |
 | HU 6.5 | Como usuario, quiero que al registrar un ingreso el selector de categoría muestre solo categorías de ingreso | ✅ |
+| HU 6.9 | Como usuario, quiero crear una categoría nueva directamente desde el selector de categoría al registrar una transacción, sin salir del formulario | ✅ |
+| HU 6.10 | Como usuario, quiero elegir cualquier color al crear o editar una categoría usando un slider continuo de tono | ✅ |
 | HU 6.6 | Como usuario nuevo, quiero un tour guiado que me muestre los pasos esenciales (configurar ingreso, registrar gasto por voz y manualmente) la primera vez que abro la app | ✅ |
 | HU 6.7 | Como usuario, quiero ver un mensaje motivacional ("Nuevo mes, ¡comienza ahora!") cuando no hay transacciones en el período actual | ✅ |
 | HU 6.8 | Como usuario, quiero que la etiqueta de presupuesto diga "Ingreso mensual" y muestre el monto configurado | ✅ |
@@ -199,14 +201,22 @@ Salario, Freelance, Inversiones, Extra, Negocio, Otros ingresos.
 
 ### 4.4 Categorías Custom
 
-El usuario puede crear categorías personalizadas con emoji, nombre, color (de paleta de 12 colores premium) y keywords automáticos basados en el nombre.
+El usuario puede crear categorías personalizadas con emoji, nombre, color continuo (slider de tono HSL) y keywords automáticos basados en el nombre. Los colores de acento y fondo se derivan automáticamente del tono elegido.
 
-### 4.5 Onboarding de Categorías
+### 4.5 Puntos de creación de categorías
+
+Las categorías se pueden crear desde **tres contextos**:
+
+1. **Onboarding** — primera apertura de la app, tarjeta "+" con bordes punteados en la grilla
+2. **Settings > Gestionar categorías** — misma pantalla de onboarding reutilizable
+3. **Inline desde Nuevo Gasto/Ingreso** — ítem "Nueva" (ícono `+`) al final del `CategorySheet`; al guardar la nueva categoría queda autoseleccionada sin salir del formulario de transacción
+
+### 4.6 Onboarding de Categorías
 
 - Se muestra después del splash screen (primera vez)
 - Grid de tarjetas redondeadas con emoji + nombre
 - Tarjeta especial "Añadir categoría" con bordes punteados
-- Modal centrado para crear categoría: selector horizontal de emoji, paleta de colores, campo de nombre
+- Modal centrado para crear categoría: selector horizontal de emoji, **slider continuo de tono** (`HueColorPicker`), campo de nombre con `KeyboardAvoidingView`
 - No se puede saltar la selección (mínimo 1 categoría)
 - Accesible desde Settings > "Mis categorías" > "Gestionar categorías" para editar después
 

@@ -13,6 +13,8 @@ import {
   Pressable,
   StyleSheet,
   Animated,
+  KeyboardAvoidingView,
+  Platform,
   StatusBar,
   Dimensions,
 } from "react-native";
@@ -25,9 +27,10 @@ import {
   EXPENSE_PRESETS,
   INCOME_PRESETS,
   CURATED_EMOJIS,
-  CATEGORY_COLOR_PALETTE,
   type UserCategory,
 } from "@/src/constants/categoryPresets";
+import { HueColorPicker } from "@/src/components/ui/HueColorPicker";
+import { hueToColors } from "@/src/utils/colorUtils";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const CARD_GAP = 12;
@@ -210,9 +213,9 @@ interface ModalProps {
   onSave: (cat: UserCategory) => void;
 }
 
-function NewCategoryModal({ visible, type, theme, onClose, onSave }: ModalProps) {
+export function NewCategoryModal({ visible, type, theme, onClose, onSave }: ModalProps) {
   const [emoji, setEmoji] = useState(CURATED_EMOJIS[0]);
-  const [colorIdx, setColorIdx] = useState(0);
+  const [hue, setHue] = useState(210); // Azul por defecto
   const [name, setName] = useState("");
   const scaleAnim = useState(new Animated.Value(0.9))[0];
 
@@ -220,7 +223,7 @@ function NewCategoryModal({ visible, type, theme, onClose, onSave }: ModalProps)
 
   const handleOpen = useCallback(() => {
     setEmoji(CURATED_EMOJIS[0]);
-    setColorIdx(0);
+    setHue(210);
     setName("");
     scaleAnim.setValue(0.9);
     Animated.spring(scaleAnim, { toValue: 1, damping: 18, stiffness: 200, useNativeDriver: true }).start();
@@ -228,22 +231,27 @@ function NewCategoryModal({ visible, type, theme, onClose, onSave }: ModalProps)
 
   const handleSave = useCallback(() => {
     if (!name.trim()) return;
-    const color = CATEGORY_COLOR_PALETTE[colorIdx];
+    const { accent, bg } = hueToColors(hue);
     const cat: UserCategory = {
       id: `custom_${Date.now()}`,
       emoji,
       name: name.trim(),
-      colorBg: color.bg,
-      colorAccent: color.accent,
+      colorBg: bg,
+      colorAccent: accent,
       type,
       keywords: name.trim().toLowerCase().split(/\s+/),
       isPreset: false,
     };
     onSave(cat);
-  }, [name, emoji, colorIdx, type, onSave]);
+  }, [name, emoji, hue, type, onSave]);
 
   return (
     <Modal visible={visible} transparent animationType="none" onShow={handleOpen} onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior="padding"
+        keyboardVerticalOffset={0}
+      >
       <Pressable style={ms.backdrop} onPress={onClose}>
         <Animated.View style={[ms.card, { transform: [{ scale: scaleAnim }] }]}>
           <Pressable>
@@ -271,20 +279,12 @@ function NewCategoryModal({ visible, type, theme, onClose, onSave }: ModalProps)
 
             {/* Color selector */}
             <Text style={ms.label}>COLOR DE TEMA</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={ms.colorScroll}>
-              {CATEGORY_COLOR_PALETTE.map((c, i) => (
-                <TouchableOpacity
-                  key={i}
-                  onPress={() => setColorIdx(i)}
-                  style={[
-                    ms.colorDot,
-                    { backgroundColor: c.accent },
-                    i === colorIdx && { borderWidth: 3, borderColor: theme.text },
-                  ]}
-                  activeOpacity={0.7}
-                />
-              ))}
-            </ScrollView>
+            <HueColorPicker
+              hue={hue}
+              onChange={setHue}
+              previewEmoji={emoji}
+              style={ms.colorPicker}
+            />
 
             {/* Name input */}
             <Text style={ms.label}>NOMBRE DE LA CATEGORÍA</Text>
@@ -315,6 +315,7 @@ function NewCategoryModal({ visible, type, theme, onClose, onSave }: ModalProps)
           </Pressable>
         </Animated.View>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -434,7 +435,7 @@ function modalStyles(t: AppTheme) {
       borderColor: "#135BEC",
     },
     emojiText: { fontSize: 22 },
-    colorScroll: { marginBottom: 4 },
+    colorPicker: { marginBottom: 4 },
     colorDot: {
       width: 36,
       height: 36,

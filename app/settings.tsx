@@ -17,6 +17,7 @@ import {
   Platform,
   Animated,
   PanResponder,
+  Share,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -49,7 +50,6 @@ import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { GuidedTour, type TourStep } from "@/src/components/ui/GuidedTour";
-
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const APP_VERSION = Constants.expoConfig?.version ?? "1.0.0";
 
@@ -1078,29 +1078,33 @@ export default function SettingsScreen() {
   // ── Exportar CSV ────────────────────────────────────────────────────────────
   async function handleExport() {
     try {
-      const { shareAsync } = await import("expo-sharing");
-      const { StorageAccessFramework } = await import("expo-file-system");
-      const FileSystem = await import("expo-file-system");
-
-      const header = "id,fecha,descripcion,categoria,monto,tags\n";
+      const header = "id,fecha,tipo,descripcion,categoria,monto,metodo_pago,tags\n";
       const rows = transactions
         .map((t) =>
           [
-            t.id,
-            t.date,
-            `"${t.description.replace(/"/g, '""')}"`,
-            t.category_emoji,
-            t.amount,
+            t.id ?? "",
+            t.date ?? "",
+            (t.amount ?? 0) > 0 ? "Gasto" : "Ingreso",
+            `"${(t.description ?? "").replace(/"/g, '""')}"`,
+            t.category_emoji ?? "",
+            Math.abs(t.amount ?? 0),
+            t.payment_method ?? "cash",
             `"${t.tags ?? ""}"`,
           ].join(",")
         )
         .join("\n");
 
       const csv = header + rows;
-      const uri = FileSystem.documentDirectory + "mywallet_export.csv";
-      await FileSystem.default.writeAsStringAsync(uri, csv, { encoding: "utf8" });
-      await shareAsync(uri, { mimeType: "text/csv", dialogTitle: "Exportar transacciones" });
-      addToast({ level: "info", icon: "📤", title: "Datos exportados correctamente" });
+
+      const result = await Share.share(
+        { title: "MyWallet — Exportar transacciones", message: csv },
+        { dialogTitle: "Exportar transacciones" },
+      );
+
+      // Solo mostrar toast si el usuario no canceló
+      if (result.action !== Share.dismissedAction) {
+        addToast({ level: "info", icon: "📤", title: "Datos exportados correctamente" });
+      }
     } catch {
       setExportErrorDialog(true);
     }

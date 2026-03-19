@@ -6,6 +6,15 @@ import {
   type TransactionRow,
 } from "@/src/db/db";
 
+export interface BatchTransactionItem {
+  amount: number;
+  description: string;
+  categoryEmoji: string;
+  tags?: string[];
+  date?: Date;
+  paymentMethod?: string;
+}
+
 interface FinanceState {
   transactions: TransactionRow[];
   isLoading: boolean;
@@ -19,6 +28,8 @@ interface FinanceState {
     date?: Date,
     paymentMethod?: string,
   ) => Promise<void>;
+  /** Inserta múltiples transacciones en lote y retorna sus IDs para permitir "Deshacer todo" */
+  addTransactionBatch: (items: BatchTransactionItem[]) => Promise<number[]>;
   deleteTransaction: (id: number) => Promise<void>;
 
   getTotalBalance: () => number;
@@ -39,6 +50,25 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     set((state) => ({
       transactions: [newTx, ...state.transactions],
     }));
+  },
+
+  addTransactionBatch: async (items) => {
+    const inserted = await Promise.all(
+      items.map((item) =>
+        insertTransaction(
+          item.amount,
+          item.description,
+          item.categoryEmoji,
+          item.tags ?? [],
+          item.date,
+          item.paymentMethod ?? "cash",
+        )
+      )
+    );
+    // Refresh en una sola operación para no disparar múltiples re-renders
+    const all = await getAllTransactions();
+    set({ transactions: all });
+    return inserted.map((tx) => tx.id);
   },
 
   deleteTransaction: async (id) => {

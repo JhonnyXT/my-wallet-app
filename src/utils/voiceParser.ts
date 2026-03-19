@@ -318,6 +318,66 @@ function extractIsExpense(text: string): boolean | undefined {
   return undefined;
 }
 
+// ─── Detección de múltiples montos ───────────────────────────────────────────
+
+/**
+ * Encuentra los rangos (start, end) de todas las expresiones monetarias
+ * distintas en el texto normalizado. Orden de prioridad: millones > mil > formateado > largo.
+ */
+function findAmountSpans(text: string): Array<{ start: number; end: number }> {
+  const n = normalize(text);
+  const spans: Array<{ start: number; end: number }> = [];
+
+  const AMOUNT_RE =
+    /\d+(?:[.,]\d+)?\s*millones?(?:\s+\d+(?:[.,]\d*)?\s*(?:mil(?:es)?)?)?\s*|\d+(?:[.,]\d*)?\s*\bmil\b|\d{1,3}(?:[.,]\d{3})+|\b\d{4,}\b/g;
+
+  let m;
+  while ((m = AMOUNT_RE.exec(n)) !== null) {
+    const span = { start: m.index, end: m.index + m[0].trimEnd().length };
+    const overlaps = spans.some(
+      (s) => span.start < s.end && span.end > s.start
+    );
+    if (!overlaps) spans.push(span);
+  }
+  return spans;
+}
+
+/**
+ * Divide el texto en segmentos, uno por transacción detectada.
+ * Busca conjunciones ("y", "también", "además", "luego") entre los montos
+ * consecutivos para determinar el punto de corte.
+ */
+function splitIntoSegments(text: string): string[] {
+  const spans = findAmountSpans(text);
+  if (spans.length <= 1) return [text];
+
+  const splitPoints: number[] = [];
+  for (let i = 0; i < spans.length - 1; i++) {
+    const between = text.slice(spans[i].end, spans[i + 1].start);
+    const conjMatch =
+      /\s+(?:y\s+(?:también\s+|además\s+)?|también\s+|además\s+|luego\s+|después\s+)/i.exec(
+        between
+      );
+    if (conjMatch) {
+      splitPoints.push(spans[i].end + conjMatch.index);
+    } else {
+      // Sin conjunción explícita: el corte es en el inicio del siguiente monto
+      splitPoints.push(spans[i + 1].start);
+    }
+  }
+
+  const segments: string[] = [];
+  let cursor = 0;
+  for (const sp of splitPoints) {
+    const seg = text.slice(cursor, sp).trim();
+    if (seg.length > 0) segments.push(seg);
+    cursor = sp;
+  }
+  const last = text.slice(cursor).trim();
+  if (last.length > 0) segments.push(last);
+  return segments;
+}
+
 // ─── Función principal exportada ─────────────────────────────────────────────
 export function processVoiceInput(raw: string, userCats?: import("@/src/constants/categoryPresets").UserCategory[]): Partial<ActiveExpense> & {
   _categoryDetected: boolean;
@@ -345,4 +405,55 @@ export function processVoiceInput(raw: string, userCats?: import("@/src/constant
   if (isExpense !== undefined) result.isExpense = isExpense;
 
   return result;
+}
+
+// ─── Multi-transacción ────────────────────────────────────────────────────────
+
+type SingleResult = ReturnType<typeof processVoiceInput>;
+
+export type MultiVoiceResult =
+  | { multiple: false; single: SingleResult }
+  | { multiple: true; transactions: SingleResult[] };
+
+/**
+ * Detecta si el transcript contiene múltiples transacciones (varios montos).
+ * Si hay 2+ montos distintos, divide el texto en segmentos y procesa cada uno.
+ * Los segmentos sin tipo explícito (gasto/ingreso) heredan el del primer segmento.
+ *
+ * Ejemplo:
+ *   "gasté treinta mil en almuerzo y quince mil en café y veinte mil en taxi"
+ *   → 3 transacciones de gasto
+ */
+export function processMultiVoiceInput(
+  raw: string,
+  userCats?: import("@/src/constants/categoryPresets").UserCategory[]
+): MultiVoiceResult {
+  const spans = findAmountSpans(raw);
+
+  // Un solo monto → flujo estándar
+  if (spans.length <= 1) {
+    return { multiple: false, single: processVoiceInput(raw, userCats) };
+  }
+
+  const segments = splitIntoSegments(raw);
+
+  // Parsear cada segmento de forma independiente
+  const parsed = segments.map((seg) => processVoiceInput(seg, userCats));
+
+  // Herencia de tipo: si el primer segmento tiene isExpense definido,
+  // los segmentos sin tipo explícito lo heredan
+  const firstType = parsed[0].isExpense;
+  const transactions = parsed.map((t) => ({
+    ...t,
+    isExpense: t.isExpense !== undefined ? t.isExpense : firstType,
+  }));
+
+  // Descartar segmentos sin monto válido
+  const valid = transactions.filter((t) => (t.amount ?? 0) > 0);
+
+  if (valid.length <= 1) {
+    return { multiple: false, single: processVoiceInput(raw, userCats) };
+  }
+
+  return { multiple: true, transactions: valid };
 }

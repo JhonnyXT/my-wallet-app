@@ -327,7 +327,7 @@ function CategoryPopup({ popup }: { popup: PopupState }) {
               strokeWidth={2.5}
             />
             <Text style={[popupStyles.rowLabel, upActive && popupStyles.rowLabelActive]}>
-              {"EDITAR\nPRESUPUESTO"}
+              {(budget !== undefined && budget > 0) ? "EDITAR\nPRESUPUESTO" : "AGREGAR\nPRESUPUESTO"}
             </Text>
           </View>
           <View style={popupStyles.divider} />

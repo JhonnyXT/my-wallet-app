@@ -1,6 +1,6 @@
 # MyWallet — Requerimientos de Producto
 
-> **Versión:** 1.2.0 | **Plataforma:** Android (iOS futuro) | **Moneda:** COP | **Idioma UI:** Español
+> **Versión:** 1.3.0 | **Plataforma:** Android (iOS futuro) | **Moneda:** COP | **Idioma UI:** Español
 
 ---
 
@@ -57,7 +57,8 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | NLP de voz | Detecta monto (incluye millones), tipo, fecha, categoría | ✅ Implementado |
 | Conversión texto→número | "cinco millones 400 mil" → "$5.400.000" en la nota | ✅ Implementado |
 | Auto-stop | Se detiene tras 2s de silencio | ✅ Implementado |
-| Transición | 1s de delay → abre formulario con datos pre-llenados | ✅ Implementado |
+| Transición (single) | 1s de delay → abre formulario con datos pre-llenados | ✅ Implementado |
+| **Multi-transacción por voz** | `processMultiVoiceInput` detecta ≥2 montos en el transcript; segmenta con `splitIntoSegments`; guarda el lote con `addTransactionBatch`; toast "N transacciones guardadas" + "Deshacer todo" (8 s); vuelve al Dashboard sin pantalla de revisión | ✅ Implementado |
 
 ### 2.4 Configuración (Modal)
 
@@ -68,7 +69,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Presupuesto por categoría | Límite por cada categoría de gasto del usuario (modal full-screen) | ✅ Implementado |
 | Metas de ahorro | Crear/abonar/eliminar metas; eliminar deslizando a la izquierda (swipe-to-delete). Al abonar se crea transacción de gasto automáticamente (con emoji de la meta, tag #ahorro) | ✅ Implementado |
 | Apariencia | Sistema / Claro / Oscuro (dark mode completo) | ✅ Implementado |
-| Exportar datos | CSV compartible por email, Drive, etc. | ✅ Implementado |
+| Exportar datos | CSV con columnas id/fecha/tipo/descripcion/categoria/monto/metodo_pago/tags. Compartido con `Share` nativo de React Native (sin módulos externos) | ✅ Implementado |
 | Limpiar datos | Elimina todas las transacciones (con confirmación vía diálogo custom animado) | ✅ Implementado |
 
 ### 2.7 Sistema de Notificaciones (dos capas)
@@ -133,8 +134,8 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Alertas por color | Base (< 70%), ámbar (70-89%), rojo (≥ 90%) — solo en modo gastos | ✅ Implementado |
 | Ghost tracks | Categorías sin movimientos visibles en gris | ✅ Implementado |
 | Tap en columna | Badge animado con emoji + nombre de la categoría sobre la columna tocada | ✅ Implementado |
-| Long-press popup (gastos) | Editar presupuesto ↑ / Restante (centro) / Nueva transacción ↓ | ✅ Implementado |
-| Long-press popup (ingresos) | Solo "Nueva transacción ↓" (sin editar presupuesto) | ✅ Implementado |
+| Long-press popup (gastos) | Etiqueta ↑ dinámica: "AGREGAR PRESUPUESTO" si no hay límite, "EDITAR PRESUPUESTO" si existe. Restante (centro) / Nueva transacción ↓ | ✅ Implementado |
+| Long-press popup (ingresos) | Solo "Nueva transacción ↓" (sin fila de presupuesto) | ✅ Implementado |
 | Mini-popup presupuesto | Editar límite inline con preview de barra | ✅ Implementado |
 | Scroll horizontal | Deslizar para ver todas las categorías | ✅ Implementado |
 
@@ -150,6 +151,8 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 1.2 | Como usuario, quiero que el sistema extraiga el monto, la categoría y la fecha de mi texto libre en tiempo real | ✅ |
 | HU 1.3 | Como usuario, quiero registrar gastos por voz diciendo "Gasté treinta mil en almuerzo" y que se procese automáticamente | ✅ |
 | HU 1.4 | Como usuario, quiero que al decir montos en palabras ("cinco millones 400 mil"), la nota muestre la cifra formateada ($5.400.000) | ✅ |
+| HU 1.7 | Como usuario, quiero decir varios gastos en un mismo input de voz ("gasté 30 mil en almuerzo y 15 mil en café") y que todos se guarden automáticamente en lote | ✅ |
+| HU 1.8 | Como usuario, quiero poder deshacer un lote de transacciones registradas por voz con un solo botón "Deshacer todo" durante 8 segundos | ✅ |
 | HU 1.5 | Como usuario, quiero elegir rápidamente entre Gasto e Ingreso desde el botón + del dock flotante | ✅ |
 | HU 1.6 | Como usuario, quiero que los montos se formateen automáticamente con puntos de miles mientras escribo | ✅ |
 
@@ -163,7 +166,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 2.4 | Como usuario, quiero una gráfica de barras que muestre cuánto gasté en cada categoría con alertas visuales | ✅ |
 | HU 2.5 | Como usuario, quiero filtrar la vista completa (gráfica + lista) tocando los pills de Gastos o Ingresos | ✅ |
 | HU 2.6 | Como usuario, quiero configurar presupuestos por categoría y ver alertas cuando me acerque al límite | ✅ |
-| HU 2.7 | Como usuario, quiero dejar presionada una columna de la gráfica para editar su presupuesto o crear una transacción en esa categoría | ✅ |
+| HU 2.7 | Como usuario, quiero dejar presionada una columna de la gráfica para editar su presupuesto (o agregarlo si no existe) o crear una transacción en esa categoría | ✅ |
 | HU 2.8 | Como usuario, quiero seleccionar un mes y año específico para ver los movimientos y la gráfica de ese período | ✅ |
 
 ### Épica 3: Gestión de Transacciones
@@ -182,7 +185,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | ID | Historia | Estado |
 |----|---------|--------|
-| HU 4.1 | Como usuario, quiero exportar mis datos como CSV para tener un respaldo | ✅ |
+| HU 4.1 | Como usuario, quiero exportar mis datos como CSV y compartirlos por email, WhatsApp, Drive u otra app usando el diálogo nativo del sistema | ✅ |
 | HU 4.2 | Como usuario, quiero que toda la app funcione sin internet | ✅ |
 
 ### Épica 5: Personalización
@@ -392,4 +395,4 @@ Las categorías se pueden crear desde **tres contextos**:
 
 ---
 
-*Documento de requerimientos actualizado para MyWallet v1.2.0 — Marzo 2026*
+*Documento de requerimientos actualizado para MyWallet v1.3.0 — Marzo 2026*

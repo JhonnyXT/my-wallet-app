@@ -2,7 +2,7 @@
 
 > **Propósito:** Este documento es la referencia técnica completa del proyecto. Cualquier desarrollador, IA o colaborador que lea este archivo tendrá TODO el contexto necesario para desarrollar, modificar o extender la aplicación sin perder consistencia.
 >
-> **Última actualización:** Marzo 2026 | **Versión:** 1.2.0
+> **Última actualización:** Marzo 2026 | **Versión:** 1.3.0
 
 ---
 
@@ -252,9 +252,19 @@ Todos los modales usan `presentation: "modal"` con `animation: "slide_from_botto
   addTransaction(...): Promise<TransactionRow>
   deleteTransaction(id): Promise<void>
   getTotalBalance(): number         // Suma de todos los amounts
+  addTransactionBatch(items: BatchTransactionItem[]): Promise<number[]> // Inserta múltiples transacciones en paralelo; retorna los IDs para "Deshacer todo"
+}
+
+interface BatchTransactionItem {
+  amount: number          // Positivo = gasto, negativo = ingreso
+  description: string
+  categoryEmoji: string
+  tags?: string[]
+  date?: string
+  paymentMethod?: string
 }
 ```
-**Patrón:** SQLite es la fuente de verdad. El store es un cache en memoria.
+**Patrón:** SQLite es la fuente de verdad. El store es un cache en memoria. `addTransactionBatch` usa `Promise.all(insertTransaction(...))` y llama `getAllTransactions()` una sola vez al terminar para eficiencia.
 
 ### useExpenseStore (no persistido)
 ```typescript
@@ -488,6 +498,15 @@ type AppTheme = {
 - `normalizeMoneyText(text)`: convierte `$40,000` → `$40.000` en el texto
 - `replaceAmountInNote(text, amount)`: convierte `"cinco millones 400 mil"` → `"$5.400.000"` en la nota. Además asegura un espacio antes de `$` cuando está precedido por una letra (corrige "gasté$500.000" → "gasté $500.000")
 
+**Multi-transacción (nuevas funciones):**
+- `findAmountSpans(text)`: detecta todos los spans de expresiones monetarias distintas en el texto normalizado y retorna sus posiciones `{start, end}`
+- `splitIntoSegments(text)`: divide el transcript completo en segmentos individuales usando conjunciones ("y", "también", "además", "luego", "después") que aparecen entre dos spans de monto
+- `processMultiVoiceInput(raw, userCats?)`: función principal de entrada múltiple
+  - Si detecta `≤ 1` monto → delega a `processVoiceInput` (flujo single)
+  - Si detecta `> 1` montos → usa `splitIntoSegments`, procesa cada segmento con `processVoiceInput`, hereda `isExpense` del primer segmento si los siguientes no declaran tipo
+  - Filtra segmentos sin monto válido
+  - Retorna `{ multiple: false, single? } | { multiple: true, transactions[] }`
+
 ### nlp.ts — parseExpenseInput
 
 Parseo simple para el campo de texto del formulario:
@@ -564,7 +583,7 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
   - El ghost hace fade-out coordinado con la compresión
   - Barras ya compactas (`fillH ≤ MIN_FILL_H`) muestran etiqueta horizontal desde el inicio
 - **Tap corto en columna:** badge animado (fade + slide up) con emoji + nombre de la categoría, se auto-descarta en 1.6s
-- Long-press: popup con "Editar presupuesto ↑ / Nueva transacción ↓" (en ingresos solo "↓")
+- **Long-press popup:** etiqueta superior dinámica — muestra `"AGREGAR\nPRESUPUESTO"` si `budgetByCategory[emoji]` es undefined o 0, y `"EDITAR\nPRESUPUESTO"` si tiene un valor configurado. Fila inferior siempre disponible: `"NUEVA\nTRANSACCIÓN"`. En modo ingresos solo aparece `"NUEVA\nTRANSACCIÓN"` (sin fila de presupuesto).
 - **Reordenamiento animado:** `LayoutAnimation.configureNext()` se activa cuando cambian las stats, proporcionando una transición suave al reordenar columnas
 - Lee `userCategories` del store para colores y nombres dinámicos
 - `containerRef` + `measure()` para calcular posición absoluta del badge en pantalla
@@ -715,8 +734,13 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Orb animado que indica estado de escucha
 - Transcripción en tiempo real con animación palabra por palabra (AnimatedWords)
 - Estados: idle → listening → processing → done
-- Al completar: navega a active-expense con datos pre-llenados
-- Delay de 1000ms antes de navegar
+- **Flujo single:** si `processMultiVoiceInput` detecta 1 transacción → `setFromVoice(single)` + `router.replace("/active-expense")` para revisar/confirmar el formulario
+- **Flujo multi-transacción:** si detecta ≥ 2 montos en el transcript:
+  - Convierte cada resultado en `BatchTransactionItem` y llama `addTransactionBatch(items)`
+  - Muestra toast de éxito: `"N transacciones guardadas"` con botón `"Deshacer"` (8s) que elimina todos los IDs del lote
+  - Llama `router.dismissAll()` para volver al Dashboard directamente sin pasar por el formulario
+  - Si el batch falla, hace fallback al flujo single (abre formulario con la primera transacción detectada)
+- `statusLabel` muestra `"Analizando tu registro..."` durante el procesamiento multi-voz
 
 ### Settings (`app/settings.tsx`)
 - **Control financiero (orden de opciones):**
@@ -726,6 +750,7 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - **Metas de ahorro:** `NuevaMetaModal` (crear), `AbonarMetaModal` (abonar), `SavingsGoalsSection` con `SwipeableGoalItem` (swipe-to-delete izquierda revela botón papelera rojo). Al abonar a una meta, se crea automáticamente una transacción de gasto con el emoji de la meta, descripción "Abono a [nombre]" y tag #ahorro
 - Apariencia → selector dark mode
 - Sistema: exportar CSV, limpiar datos
+- **Exportar CSV:** usa `Share` de `react-native` (módulo nativo incluido en cualquier APK, sin dependencias externas). Construye el CSV en memoria con columnas `id, fecha, tipo, descripcion, categoria, monto, metodo_pago, tags`, lo comparte con `Share.share({ message: csv })`. Si el usuario cancela el diálogo de Share no se muestra toast ni error. No usa `expo-sharing` ni `expo-file-system`.
 - **Confirmaciones:** Todas las alertas usan `ConfirmDialog` (componente custom con animación y variantes) en lugar de `Alert.alert` nativo — limpiar datos (`danger`), eliminar método de pago (`danger`), mínimo un método (`info`), error al exportar (`warning`)
 - **Guided Tour:** paso 2 hace spotlight en la fila "Ingreso mensual"; paso 3 hace spotlight en el botón ← (volver) tras guardar el ingreso
 
@@ -1033,5 +1058,5 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 
 ---
 
-*Documento generado para MyWallet v1.2.0 — Marzo 2026*
+*Documento generado para MyWallet v1.3.0 — Marzo 2026*
 *Mantener actualizado ante cualquier cambio significativo en arquitectura, stores, DB o componentes.*

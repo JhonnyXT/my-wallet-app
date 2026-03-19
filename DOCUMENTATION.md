@@ -1,6 +1,6 @@
 # MyWallet — Guía Completa de Usuario
 
-> **Versión:** 1.2.0 | **Plataforma:** Android (iOS en desarrollo) | **Idioma:** Español
+> **Versión:** 1.3.0 | **Plataforma:** Android (iOS en desarrollo) | **Idioma:** Español
 
 ---
 
@@ -183,9 +183,12 @@ La entrada por voz es la forma más rápida de registrar un movimiento.
    - `"Taxi veinte mil quinientos"`
    - `"Recibí doscientos mil de freelance"`
    - `"Supermercado ochenta y cinco mil ayer"`
+   - `"Gasté 30 mil en almuerzo y 15 mil en café"` *(múltiples gastos)*
 4. La app se **detiene automáticamente** después de 2 segundos de silencio
-5. Procesa el audio y abre el formulario con los campos ya llenados
-6. Revisa y ajusta si es necesario, luego confirma con **✓**
+5. Procesa el audio y:
+   - Si detectó **una sola transacción** → abre el formulario con los campos ya llenados para que revises y confirmes con **✓**
+   - Si detectó **varias transacciones** → las guarda todas directamente y regresa al Dashboard (ver abajo)
+6. En el flujo de una transacción: revisa y ajusta si es necesario, luego confirma con **✓**
 
 ### Lo que detecta la voz
 | Dato | Ejemplos reconocidos |
@@ -210,10 +213,28 @@ Así el texto queda limpio y legible, sin palabras numéricas.
 ### Tamaño del monto adaptable
 El número grande del formulario **reduce su tamaño automáticamente** cuando el monto tiene muchos dígitos (millones, miles de millones), para que siempre sea visible y no se salga de la pantalla.
 
+### Registro de múltiples transacciones con una sola frase *(nuevo)*
+
+Puedes mencionar varios gastos o ingresos en un solo input de voz. La app detecta los montos, los separa y los guarda todos automáticamente:
+
+**Ejemplos:**
+- `"Gasté 30 mil en almuerzo y 15 mil en café"`
+- `"Pagué 80 mil de gasolina y también 12 mil de parqueadero"`
+- `"Mercado 95 mil, café 8 mil y transporte 6 mil quinientos"`
+
+**Qué pasa al terminar:**
+1. La app guarda todas las transacciones a la vez
+2. Aparece un banner: `"N transacciones guardadas"` con un botón **"Deshacer"**
+3. Tienes **8 segundos** para tocar **"Deshacer"** y eliminar el lote completo
+4. Vuelves directamente al Dashboard sin pasar por el formulario
+
+> 💡 Si mencionas varias cosas del mismo tipo (todos gastos o todos ingresos), no necesitas repetir "gasté" en cada una — la app hereda el tipo de la primera frase.
+
 ### Consejos para mejor reconocimiento
 - Habla con claridad y a velocidad normal
 - Para millones, di la cifra completa: "cinco millones cuatrocientos mil" o "5 millones 400 mil"
 - Di el monto antes o después de la descripción: "Uber quince mil" o "Quince mil de Uber"
+- Separa múltiples gastos con "y", "también", "además", "luego" o "después"
 - Si el reconocimiento no fue preciso, puedes editar el texto en el formulario que se abre
 
 > ℹ️ **Nota:** El reconocimiento de voz requiere una **build nativa** de la app. En Expo Go no está disponible.
@@ -261,7 +282,8 @@ Desliza horizontalmente para ver todas las categorías. Las que tienen movimient
 ### Long-press en una columna (función avanzada)
 1. **Mantén presionada** una columna por ~0.4 segundos
 2. Aparece un popup con opciones:
-   - **↑ Editar presupuesto** → desliza hacia arriba *(solo en modo gastos)*
+   - **↑ Agregar presupuesto** → si esa categoría aún no tiene límite configurado *(solo en modo gastos)*
+   - **↑ Editar presupuesto** → si ya tiene un límite configurado *(solo en modo gastos)*
    - **Monto restante o total** → información del centro
    - **↓ Nueva transacción** → desliza hacia abajo para crear una transacción en esa categoría
 3. Al soltar el dedo con una opción seleccionada, se ejecuta la acción
@@ -340,7 +362,7 @@ Gestiona tus metas desde la sección "Metas de ahorro":
 ### Sistema
 | Opción | Qué hace |
 |--------|---------|
-| Exportar datos | Genera un archivo CSV con todas tus transacciones y lo comparte (email, Drive, etc.) |
+| Exportar datos | Genera un CSV con todas tus transacciones (id, fecha, tipo, descripción, categoría, monto, método de pago, tags) y abre el diálogo nativo del sistema para compartirlo (email, WhatsApp, Drive, copiar, etc.) |
 | Borrar historial de transacciones | ⚠️ **Acción irreversible.** Elimina todos los registros de ingresos y gastos. Tu configuración (categorías, presupuestos, metas) se conserva intacta. Muestra un diálogo de confirmación antes de proceder |
 
 ---
@@ -528,8 +550,10 @@ Una vez al mes:
 | **Guided Tour / Onboarding** | Tour guiado de 5 pasos que aparece la primera vez que abres la app. Te muestra cómo configurar tu ingreso y registrar transacciones |
 || **Banner in-app** | Aviso temporal en la parte superior de la pantalla. Se cierra solo (3.5s), con × o arrastrando hacia arriba |
 || **Notificación del sistema** | Alerta en la barra de notificaciones del teléfono (fuera de la app) para eventos críticos: presupuesto superado o meta cumplida |
-|| **Deshacer** | Botón en el banner de eliminación. Tienes 6 segundos para recuperar la transacción eliminada |
+|| **Deshacer** | Botón en el banner de eliminación o de lote de voz. Tienes 6 s (eliminación) u 8 s (lote de voz) para recuperar lo eliminado |
+|| **Multi-transacción por voz** | Cuando dices varios montos en un mismo input de voz, la app los detecta, separa y guarda todos a la vez con un solo banner "Deshacer" de 8 s |
+|| **CSV** | Formato de exportación de datos (Comma-Separated Values). Abre en Excel o Google Sheets como tabla con todas tus transacciones |
 
 ---
 
-*Documentación generada para MyWallet v1.2.0*
+*Documentación generada para MyWallet v1.3.0*

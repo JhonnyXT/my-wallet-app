@@ -1,6 +1,6 @@
 # MyWallet — Guía Completa de Usuario
 
-> **Versión:** 1.4.0 | **Plataforma:** Android (iOS en desarrollo) | **Idioma:** Español
+> **Versión:** 1.5.0 | **Plataforma:** Android (iOS en desarrollo) | **Idioma:** Español
 
 ---
 
@@ -380,6 +380,32 @@ Gestiona tus metas desde la sección "Metas de ahorro":
 ### Apariencia
 - **Modo oscuro:** Sistema (sigue el tema del dispositivo) / Claro / Oscuro
 - El modo oscuro se aplica en **todas las pantallas** de la app: Dashboard, Nuevo Gasto/Ingreso, Historial, Configuración y todos los modales
+
+### Detección automática *(nuevo en v1.5.0)*
+
+MyWallet puede detectar transacciones directamente desde las notificaciones de tus apps bancarias y mostrarte un resumen para que las confirmes antes de guardar.
+
+**¿Cómo activarlo?**
+1. En Configuración, desplázate hasta la sección **"Detección automática"**
+2. Activa el toggle **"Detectar transacciones"**
+3. Aparecerá un diálogo explicativo — toca **"Abrir ajustes"**
+4. En los ajustes del sistema, busca **"MyWallet"** y activa el acceso a notificaciones
+5. Vuelve a la app — el toggle quedará activo
+
+**¿Qué bancos son compatibles?**
+Bancolombia, Nequi, Davivienda, DaviPlata, BBVA, Banco de Occidente, Banco Popular, AV Villas, Nubank, Lulo Bank, Scotiabank, Colpatria, Rappi Pay, Tpaga, Ding, Banco Bogotá, Itaú.
+
+Puedes elegir **solo algunos bancos** tocando la opción "Bancos activos". Si no seleccionas ninguno, se usarán todos.
+
+**¿Cómo funciona la revisión?**
+Cuando se detecta una transacción, aparece un **badge rojo 🔔** sobre el ícono de configuración en el Dashboard. Tócalo para abrir la pantalla de revisión:
+- Cada transacción muestra el banco, la descripción, el monto y un **indicador de confianza** (punto verde = alta, naranja = revisar, rojo = verificar)
+- Puedes **editar** la transacción (monto, descripción, categoría, tipo)
+- Puedes **eliminar** una transacción deslizando hacia la izquierda
+- Cuando todo está listo, toca **"GUARDAR TODOS"**
+
+**¿Qué datos se procesan?**
+Solo el monto y el nombre del comercio. Nunca se lee el saldo disponible, números de tarjeta ni datos personales. Todo el procesamiento ocurre localmente en tu dispositivo.
 
 ### Sistema
 | Opción | Qué hace |

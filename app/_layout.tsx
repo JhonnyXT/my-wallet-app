@@ -88,6 +88,14 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
+          name="notification-review"
+          options={{
+            presentation: "fullScreenModal",
+            animation: "slide_from_bottom",
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="active-expense"
           options={{
             presentation: "fullScreenModal",

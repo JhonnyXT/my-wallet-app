@@ -1,14 +1,19 @@
-feat: pantalla Revisar registros para multi-voz + fixes de deteccion y navegacion
+feat: detección automática de transacciones desde notificaciones bancarias (v1.5.0)
 
-- Nueva pantalla voice-batch-review: revision de lote multi-voz antes de guardar
-  - FlatList de tarjetas editables con swipe-left para eliminar
-  - EditItemSheet: editar monto, descripcion, tipo y categoria por tarjeta
-  - Anadir registro manual desde active-expense sin guardar en DB (retorna como tarjeta)
-  - Footer sticky con resumen y boton Guardar todo (addTransactionBatch + toast Deshacer 8s)
-- Extiende useVoiceStore con pendingBatch, pendingManualItem y sus acciones
-- Fix: reset() llamado antes de setPendingBatch para no limpiar el batch al navegar
-- Fix: findAmountSpans ahora detecta montos escritos en palabras (treinta mil, quince mil)
-- Fix: active-expense con param from=batch-review usa router.back() y deposita
-  pendingManualItem en store en lugar de guardar en DB
-- Registra ruta voice-batch-review en _layout.tsx como fullScreenModal
-- Actualiza documentacion a v1.4.0
+- Instala react-native-android-notification-listener para captura en background
+- Registra NotificationListenerService en AndroidManifest.xml con tools:replace
+- Crea notificationParser.ts: whitelist 17 bancos colombianos (Bancolombia, Nequi,
+  Davivienda, BBVA, Nubank y más), regex por banco, score de confianza alto/medio/bajo,
+  filtros de ruido (OTPs, alertas de seguridad, publicidad) y protección de privacidad
+- Crea useNotificationStore.ts: cola en memoria con dedup por banco+monto (<2 min)
+- Crea notificationHeadlessTask.ts: procesa notificaciones bancarias en background
+  verificando configuración del usuario desde AsyncStorage (sin React ni hooks)
+- Crea index.js como nuevo entrypoint: registra HeadlessJS task antes de Expo Router
+  (package.json main actualizado de expo-router/entry a index.js)
+- Crea notification-review.tsx: pantalla fullscreen con swipe-to-delete, EditItemSheet,
+  indicador de confianza por color, footer con totales y guardado en lote
+- Agrega sección Detección automática en Settings: toggle + flujo permiso del sistema
+  + selector de 17 bancos + card informativa de privacidad
+- Agrega badge con campana en Dashboard: aparece solo cuando hay pendientes, navega a
+  notification-review al tocarlo
+- Actualiza documentación a v1.5.0 (CONTEXT.md, DOCUMENTATION.md, PRODUCT_REQUIREMENTS.md)

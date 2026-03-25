@@ -21,7 +21,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Settings, Search, X, Hash } from "lucide-react-native";
+import { Settings, Search, X, Hash, Bell } from "lucide-react-native";
 import { router } from "expo-router";
 import { scrollBottomPadding, DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
@@ -29,6 +29,7 @@ import type { TransactionRow } from "@/src/db/db";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useUIStore } from "@/src/store/useUIStore";
+import { useNotificationStore } from "@/src/store/useNotificationStore";
 import { useToastStore } from "@/src/store/useToastStore";
 import { FilterChips, PERIODS } from "@/src/components/ui/FilterChips";
 import { CategoryChart } from "@/src/components/ui/CategoryChart";
@@ -163,6 +164,44 @@ function applyPeriodFilter(transactions: TxRow[], f: PeriodFilter): TxRow[] {
       }
   }
 }
+
+// ─── Badge de transacciones detectadas automáticamente ───────────────────────
+
+function NotificationBadgeBtn() {
+  const theme        = useTheme();
+  const pendingItems = useNotificationStore((s) => s.pendingItems);
+  const count        = pendingItems.length;
+
+  if (count === 0) return null;
+
+  return (
+    <Pressable
+      style={[notifBadgeS.btn, { backgroundColor: theme.surface }]}
+      onPress={() => router.push("/notification-review")}
+    >
+      <Bell size={20} color="#135BEC" strokeWidth={1.8} />
+      <View style={notifBadgeS.badge}>
+        <Text style={notifBadgeS.badgeText}>{count > 9 ? "9+" : count}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+const notifBadgeS = StyleSheet.create({
+  btn: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+    position: "relative",
+  },
+  badge: {
+    position: "absolute", top: -4, right: -4,
+    minWidth: 18, height: 18, borderRadius: 9,
+    backgroundColor: "#DC2626", alignItems: "center", justifyContent: "center",
+    paddingHorizontal: 4, borderWidth: 2, borderColor: "#fff",
+  },
+  badgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+});
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -655,10 +694,14 @@ export default function DashboardScreen() {
             onOpenMonthPicker={() => setMonthPickerOpen(true)}
           />
         </View>
-        <View ref={getTourRef(TOUR_KEYS.SETTINGS_BTN)} collapsable={false}>
-          <Pressable style={styles.settingsBtn} onPress={() => router.push("/settings")}>
-            <Settings size={22} color={theme.text} strokeWidth={1.6} />
-          </Pressable>
+        <View style={{ alignItems: "center", gap: 8 }}>
+          {/* Badge de transacciones detectadas automáticamente */}
+          <NotificationBadgeBtn />
+          <View ref={getTourRef(TOUR_KEYS.SETTINGS_BTN)} collapsable={false}>
+            <Pressable style={styles.settingsBtn} onPress={() => router.push("/settings")}>
+              <Settings size={22} color={theme.text} strokeWidth={1.6} />
+            </Pressable>
+          </View>
         </View>
       </View>
 

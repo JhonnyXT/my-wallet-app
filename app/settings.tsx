@@ -2,7 +2,7 @@
  * app/settings.tsx — Modal de Configuración
  * Diseño: Stitch "Professional Settings Interface"
  */
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -18,7 +18,11 @@ import {
   Animated,
   PanResponder,
   Share,
+  Linking,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import RNAndroidNotificationListener from "react-native-android-notification-listener";
+import { KNOWN_BANKS, type BankConfig } from "@/src/utils/notificationParser";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ChevronLeft,
@@ -1002,6 +1006,208 @@ function SavingsGoalsSection() {
   );
 }
 
+// ─── Claves de AsyncStorage para detección automática ────────────────────────
+const AUTO_DETECT_ENABLED_KEY = "mywallet-auto-detect-enabled";
+const ALLOWED_BANKS_KEY       = "mywallet-auto-detect-banks";
+
+// ─── Sección: Detección automática de transacciones ──────────────────────────
+
+function AutoDetectSection() {
+  const s     = useStyles();
+  const theme = useTheme();
+  const ACCENT = "#135BEC";
+
+  const [enabled,      setEnabled]      = useState(false);
+  const [allowedBanks, setAllowedBanks] = useState<string[]>([]);
+  const [hasPermission, setHasPermission] = useState(false);
+  const [showPermDialog, setShowPermDialog] = useState(false);
+  const [showBankSelector, setShowBankSelector] = useState(false);
+
+  // Cargar configuración desde AsyncStorage al montar
+  useEffect(() => {
+    (async () => {
+      const savedEnabled = await AsyncStorage.getItem(AUTO_DETECT_ENABLED_KEY);
+      const savedBanks   = await AsyncStorage.getItem(ALLOWED_BANKS_KEY);
+      if (savedEnabled === "true") setEnabled(true);
+      if (savedBanks) {
+        const parsed = JSON.parse(savedBanks);
+        if (Array.isArray(parsed)) setAllowedBanks(parsed);
+      }
+    })();
+    checkPermission();
+  }, []);
+
+  const checkPermission = useCallback(async () => {
+    try {
+      const status = await RNAndroidNotificationListener.getPermissionStatus();
+      setHasPermission(status === "authorized");
+    } catch {
+      setHasPermission(false);
+    }
+  }, []);
+
+  const handleToggle = useCallback(async (value: boolean) => {
+    if (value && !hasPermission) {
+      // Mostrar diálogo explicativo antes de abrir configuración del sistema
+      setShowPermDialog(true);
+      return;
+    }
+    setEnabled(value);
+    await AsyncStorage.setItem(AUTO_DETECT_ENABLED_KEY, value ? "true" : "false");
+  }, [hasPermission]);
+
+  const handleOpenPermissionSettings = useCallback(() => {
+    setShowPermDialog(false);
+    RNAndroidNotificationListener.requestPermission();
+  }, []);
+
+  const toggleBank = useCallback(async (packageName: string) => {
+    const updated = allowedBanks.includes(packageName)
+      ? allowedBanks.filter((p) => p !== packageName)
+      : [...allowedBanks, packageName];
+    setAllowedBanks(updated);
+    await AsyncStorage.setItem(ALLOWED_BANKS_KEY, JSON.stringify(updated));
+  }, [allowedBanks]);
+
+  const activeCount = allowedBanks.length === 0 ? KNOWN_BANKS.length : allowedBanks.length;
+
+  return (
+    <>
+      {/* Toggle principal */}
+      <View style={s.card}>
+        <SettingRow
+          icon={<Text style={{ fontSize: 18 }}>🏦</Text>}
+          label="Detectar transacciones"
+          subtitle={
+            !hasPermission
+              ? "Requiere permiso de notificaciones"
+              : enabled
+              ? `Activo · ${activeCount} banco${activeCount !== 1 ? "s" : ""}`
+              : "Desactivado"
+          }
+          rightElement={
+            <Switch
+              value={enabled}
+              onValueChange={handleToggle}
+              trackColor={{ true: ACCENT, false: theme.border }}
+              thumbColor={enabled ? "#fff" : theme.textSub}
+            />
+          }
+        />
+
+        {enabled && (
+          <>
+            <View style={s.rowSep} />
+            <SettingRow
+              icon={<Text style={{ fontSize: 18 }}>🏛️</Text>}
+              label="Bancos activos"
+              subtitle={
+                allowedBanks.length === 0
+                  ? "Todos los bancos compatibles"
+                  : `${allowedBanks.length} seleccionado${allowedBanks.length !== 1 ? "s" : ""}`
+              }
+              onPress={() => setShowBankSelector(true)}
+            />
+          </>
+        )}
+      </View>
+
+      {/* Info card: explicación de privacidad */}
+      {enabled && (
+        <View style={[autoS.infoCard, { backgroundColor: ACCENT + "0D", borderColor: ACCENT + "30" }]}>
+          <Text style={[autoS.infoTitle, { color: ACCENT }]}>🔒 Tu privacidad, protegida</Text>
+          <Text style={[autoS.infoText, { color: theme.textSub }]}>
+            Solo se extrae el monto y comercio de cada notificación. Nunca se leen saldos, números de tarjeta ni datos personales. Todo se procesa localmente en tu dispositivo.
+          </Text>
+        </View>
+      )}
+
+      {/* Diálogo de permiso */}
+      <Modal visible={showPermDialog} transparent animationType="fade" onRequestClose={() => setShowPermDialog(false)}>
+        <Pressable style={s.modalOverlay} onPress={() => setShowPermDialog(false)}>
+          <View style={[s.modalCard, { gap: 16 }]}>
+            <Text style={{ fontSize: 24, textAlign: "center" }}>🔔</Text>
+            <Text style={[s.modalTitle, { textAlign: "center" }]}>Acceso a notificaciones</Text>
+            <Text style={{ fontSize: 14, color: theme.textSub, lineHeight: 20, textAlign: "center" }}>
+              MyWallet necesita permiso para leer notificaciones de tus apps bancarias. Esto es estrictamente para detectar transacciones.{"\n\n"}
+              Se abrirá la configuración del sistema. Busca "MyWallet" y activa el acceso.
+            </Text>
+            <View style={s.modalBtns}>
+              <TouchableOpacity style={s.modalBtnCancel} onPress={() => setShowPermDialog(false)} activeOpacity={0.7}>
+                <Text style={s.modalBtnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.modalBtnConfirm} onPress={handleOpenPermissionSettings} activeOpacity={0.7}>
+                <Text style={s.modalBtnConfirmText}>Abrir ajustes</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Selector de bancos */}
+      <Modal visible={showBankSelector} transparent animationType="slide" onRequestClose={() => setShowBankSelector(false)}>
+        <Pressable style={s.sheetBackdrop} onPress={() => setShowBankSelector(false)} />
+        <View style={[s.sheet, { paddingBottom: 40, maxHeight: "75%" }]}>
+          <View style={s.sheetHandle} />
+          <Text style={[s.sheetTitle, { marginBottom: 8 }]}>Bancos activos</Text>
+          <Text style={{ fontSize: 13, color: theme.textSub, paddingHorizontal: 20, marginBottom: 12 }}>
+            Elige de qué apps detectar transacciones. Si no seleccionas ninguno, se usan todos.
+          </Text>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {KNOWN_BANKS.map((bank) => {
+              const isSelected = allowedBanks.length === 0 || allowedBanks.includes(bank.packageName);
+              return (
+                <TouchableOpacity
+                  key={bank.packageName}
+                  style={[autoS.bankRow, { borderBottomColor: theme.border }]}
+                  onPress={() => toggleBank(bank.packageName)}
+                  activeOpacity={0.65}
+                >
+                  <Text style={{ fontSize: 22 }}>{bank.emoji}</Text>
+                  <Text style={{ flex: 1, fontSize: 15, fontWeight: "600", color: theme.text }}>{bank.displayName}</Text>
+                  <View style={[autoS.bankCheck, { borderColor: isSelected ? ACCENT : theme.border, backgroundColor: isSelected ? ACCENT : "transparent" }]}>
+                    {isSelected && <Check size={12} color="#fff" strokeWidth={3} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          {allowedBanks.length > 0 && (
+            <TouchableOpacity
+              style={{ alignItems: "center", paddingVertical: 14 }}
+              onPress={async () => { setAllowedBanks([]); await AsyncStorage.setItem(ALLOWED_BANKS_KEY, "[]"); }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 13, color: ACCENT, fontWeight: "600" }}>Seleccionar todos</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </Modal>
+    </>
+  );
+}
+
+const autoS = StyleSheet.create({
+  infoCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    marginTop: 8,
+    gap: 4,
+  },
+  infoTitle: { fontSize: 13, fontWeight: "700", marginBottom: 4 },
+  infoText:  { fontSize: 12, lineHeight: 18 },
+  bankRow: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  bankCheck: {
+    width: 22, height: 22, borderRadius: 11,
+    borderWidth: 2, alignItems: "center", justifyContent: "center",
+  },
+});
+
 // ─── Screen principal ─────────────────────────────────────────────────────────
 
 export default function SettingsScreen() {
@@ -1192,6 +1398,10 @@ export default function SettingsScreen() {
             onPress={() => setDarkSheet(true)}
           />
         </View>
+
+        {/* ── DETECCIÓN AUTOMÁTICA ──────────────────────────────────────── */}
+        <SectionHeader title="DETECCIÓN AUTOMÁTICA" />
+        <AutoDetectSection />
 
         {/* ── SISTEMA ──────────────────────────────────────────────────── */}
         <SectionHeader title="SISTEMA" />

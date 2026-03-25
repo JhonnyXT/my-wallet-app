@@ -1,6 +1,6 @@
 # MyWallet — Requerimientos de Producto
 
-> **Versión:** 1.4.0 | **Plataforma:** Android (iOS futuro) | **Moneda:** COP | **Idioma UI:** Español
+> **Versión:** 1.5.0 | **Plataforma:** Android (iOS futuro) | **Moneda:** COP | **Idioma UI:** Español
 
 ---
 
@@ -225,6 +225,19 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 6.7 | Como usuario, quiero ver un mensaje motivacional ("Nuevo mes, ¡comienza ahora!") cuando no hay transacciones en el período actual | ✅ |
 | HU 6.8 | Como usuario, quiero que la etiqueta de presupuesto diga "Ingreso mensual" y muestre el monto configurado | ✅ |
 | HU 6.9 | Como usuario, quiero que al abonar a una meta de ahorro se registre como gasto en mi Dashboard para que mi balance refleje el dinero comprometido | ✅ |
+
+### Épica 8: Detección Automática de Transacciones *(v1.5.0)*
+
+| ID | Historia | Estado |
+|----|---------|--------|
+| HU 8.1 | Como usuario, quiero que la app detecte automáticamente transacciones desde las notificaciones de mis apps bancarias (Bancolombia, Nequi, Davivienda y más) para no tener que registrarlas manualmente | ✅ |
+| HU 8.2 | Como usuario, quiero revisar y editar cada transacción detectada antes de confirmar que se guarde, para evitar errores | ✅ |
+| HU 8.3 | Como usuario, quiero ver un indicador de confianza (alto/medio/bajo) en cada transacción detectada, para saber cuáles necesitan más atención | ✅ |
+| HU 8.4 | Como usuario, quiero eliminar individualmente una transacción detectada que no quiero guardar, deslizando la tarjeta hacia la izquierda | ✅ |
+| HU 8.5 | Como usuario, quiero descartar todas las transacciones detectadas de una sola vez si no quiero guardar ninguna | ✅ |
+| HU 8.6 | Como usuario, quiero que la app me avise visualmente (badge rojo) cuando hay transacciones bancarias detectadas esperando revisión | ✅ |
+| HU 8.7 | Como usuario, quiero elegir qué bancos quiero que la app monitoree, para no recibir transacciones de cuentas que no me interesan | ✅ |
+| HU 8.8 | Como usuario, quiero que la detección de notificaciones respete mi privacidad: solo el monto y el comercio, nunca saldos ni números de tarjeta | ✅ |
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **Propósito:** Este documento es la referencia técnica completa del proyecto. Cualquier desarrollador, IA o colaborador que lea este archivo tendrá TODO el contexto necesario para desarrollar, modificar o extender la aplicación sin perder consistencia.
 >
-> **Última actualización:** Marzo 2026 | **Versión:** 1.4.0
+> **Última actualización:** Marzo 2026 | **Versión:** 1.5.0
 
 ---
 
@@ -72,6 +72,7 @@
 | **expo-linear-gradient** | ~55.0.8 | Gradientes |
 | **AsyncStorage** | ^2.2.0 | Persistencia de configuración de usuario |
 | **react-native-svg** | ^15.15.3 | Gráficos SVG (tarjetas semanales) |
+| **react-native-android-notification-listener** | ^5.0.1 | Captura de notificaciones push bancarias en background (Android) |
 
 ### Configuración Clave
 
@@ -90,12 +91,13 @@ my-wallet-app/
 │   ├── _layout.tsx               # Root: ThemeProvider, initDB, Stack
 │   ├── +not-found.tsx            # 404
 │   ├── active-expense.tsx        # Modal: nuevo gasto/ingreso
-│   ├── settings.tsx              # Modal: configuración
+│   ├── settings.tsx              # Modal: configuración (incluye sección Detección automática)
 │   ├── voice-input.tsx           # Modal: entrada por voz
 │   ├── voice-batch-review.tsx    # Modal: revisión de transacciones multi-voz
+│   ├── notification-review.tsx   # Modal: revisión de transacciones detectadas desde notificaciones bancarias
 │   └── (tabs)/
 │       ├── _layout.tsx           # Tabs (barra oculta) + FloatingDock
-│       ├── index.tsx             # Dashboard principal
+│       ├── index.tsx             # Dashboard principal (con badge de notificaciones bancarias)
 │       └── wallet.tsx            # Placeholder (href: null)
 │
 ├── src/                          # Lógica y componentes
@@ -133,26 +135,30 @@ my-wallet-app/
 │   │   └── voice/useVoiceExpense.ts # Hook expo-speech-recognition
 │   │
 │   ├── services/
-│   │   └── notificationService.ts  # Notificaciones OS locales (expo-notifications): permisos, budget, metas
+│   │   ├── notificationService.ts       # Notificaciones OS locales (expo-notifications): permisos, budget, metas
+│   │   └── notificationHeadlessTask.ts  # HeadlessJS task: procesa notif. bancarias en background
 │   │
 │   ├── store/
-│   │   ├── useFinanceStore.ts    # Transacciones (Zustand + SQLite)
-│   │   ├── useExpenseStore.ts    # Formulario gasto/ingreso en curso
-│   │   ├── useSettingsStore.ts   # Config usuario (persist AsyncStorage) + flags de notificaciones
-│   │   ├── useToastStore.ts      # Cola global de toasts in-app (no persistido)
-│   │   ├── useUIStore.ts         # Estado de UI (búsqueda)
-│   │   └── useVoiceStore.ts      # Estado de reconocimiento de voz
+│   │   ├── useFinanceStore.ts       # Transacciones (Zustand + SQLite)
+│   │   ├── useExpenseStore.ts       # Formulario gasto/ingreso en curso
+│   │   ├── useNotificationStore.ts  # Cola en memoria de transacciones detectadas de notificaciones bancarias
+│   │   ├── useSettingsStore.ts      # Config usuario (persist AsyncStorage) + flags de notificaciones
+│   │   ├── useToastStore.ts         # Cola global de toasts in-app (no persistido)
+│   │   ├── useUIStore.ts            # Estado de UI (búsqueda)
+│   │   └── useVoiceStore.ts         # Estado de reconocimiento de voz
 │   │
 │   ├── theme/
 │   │   └── index.ts              # AppTheme: light y dark token objects
 │   │
 │   └── utils/
-│       ├── colorUtils.ts         # hueToColors, hslToHex, hexToHsl, hexToHue — conversiones HSL↔Hex
-│       ├── formatMoney.ts        # formatMoneyInput, formatMoneyDisplay, formatCOP
-│       ├── nlp.ts                # parseExpenseInput (texto rápido)
-│       ├── tourRefs.ts           # Registro global de refs para el GuidedTour (getTourRef, TOUR_KEYS)
-│       └── voiceParser.ts        # Parseo de transcripción de voz
+│       ├── colorUtils.ts           # hueToColors, hslToHex, hexToHsl, hexToHue — conversiones HSL↔Hex
+│       ├── formatMoney.ts          # formatMoneyInput, formatMoneyDisplay, formatCOP
+│       ├── nlp.ts                  # parseExpenseInput (texto rápido)
+│       ├── notificationParser.ts   # Parser de notificaciones bancarias: whitelist 17 bancos, regex por banco, score de confianza
+│       ├── tourRefs.ts             # Registro global de refs para el GuidedTour (getTourRef, TOUR_KEYS)
+│       └── voiceParser.ts          # Parseo de transcripción de voz
 │
+├── index.js                      # Entrypoint: registra HeadlessJS task + delega a expo-router/entry
 ├── assets/images/                # Iconos, splash, favicon
 ├── .github/workflows/            # CI: eas-build.yml, eas-update.yml
 ├── DOCUMENTATION.md              # Guía de usuario
@@ -223,11 +229,12 @@ Stack
 │   ├── index           → Dashboard
 │   └── wallet          → Placeholder (href: null, invisible)
 │
-├── voice-input           → Modal slide_from_bottom
-├── voice-batch-review    → Modal slide_from_bottom (revisión de lote multi-voz)
-├── active-expense        → Modal slide_from_bottom
-├── settings              → Modal slide_from_bottom
-└── +not-found            → 404
+├── voice-input              → Modal slide_from_bottom
+├── voice-batch-review       → Modal slide_from_bottom (revisión de lote multi-voz)
+├── notification-review      → Modal slide_from_bottom (revisión de transacciones detectadas de notif. bancarias)
+├── active-expense           → Modal slide_from_bottom
+├── settings                 → Modal slide_from_bottom
+└── +not-found               → 404
 ```
 
 ### Dock Flotante (FloatingDock)
@@ -370,6 +377,23 @@ clearPendingManualItem(): void
 reset(): void  // limpia todo incluyendo pendingBatch y pendingManualItem
 ```
 **Patrón de pendingManualItem:** cuando `active-expense` se abre con el param `?from=batch-review`, al confirmar la transacción en lugar de guardar en DB llama `setPendingManualItem(...)` y hace `router.back()`. `voice-batch-review` lo recoge con `useFocusEffect` al recuperar el foco, lo agrega como tarjeta y llama `clearPendingManualItem()`.
+
+### useNotificationStore (no persistido — solo en memoria)
+```typescript
+{
+  pendingItems: PendingNotificationItem[]  // cola de transacciones detectadas desde notificaciones bancarias
+}
+
+// PendingNotificationItem extiende ParsedTransaction + { id: string }
+// ParsedTransaction = { amount, isExpense, description, bankName, bankEmoji, packageName,
+//                       rawTitle, rawText, confidence: "high"|"medium"|"low", detectedAt }
+
+// Acciones
+addPendingItem(item: ParsedTransaction): void   // agrega a la cola, evita duplicados (<2 min mismo banco+monto)
+removePendingItem(id: string): void
+clearAll(): void
+```
+**Importante:** Este store NO se persiste en AsyncStorage. Los items solo viven mientras la app está abierta. Si el usuario cierra la app sin revisar, las notificaciones se pierden (por diseño: el usuario siempre revisa antes de guardar).
 
 ### Regla crítica de stores
 - **NUNCA** mezclar lógica de servidor/API en los stores (la app es offline)
@@ -533,6 +557,78 @@ Parseo simple para el campo de texto del formulario:
 - Mantener offline: **NUNCA** llamar APIs externas
 - Los retornos de `extractCategory` y `extractDate` son `null` si no hay match (no forzar defaults)
 - Usar `\b` (word boundaries) para evitar falsos positivos en regex
+
+---
+
+## 9b. Detección Automática de Transacciones Bancarias *(v1.5.0)*
+
+### Componentes del Sistema
+
+| Archivo | Rol |
+|---------|-----|
+| `index.js` | Entrypoint: registra el HeadlessJS task `RNAndroidNotificationListenerHeadlessJsName` |
+| `src/services/notificationHeadlessTask.ts` | Función async que procesa cada notificación en background |
+| `src/utils/notificationParser.ts` | Motor de extracción: whitelist de bancos, regex por banco, filtros de ruido |
+| `src/store/useNotificationStore.ts` | Cola en memoria de transacciones pendientes de confirmación |
+| `app/notification-review.tsx` | Pantalla de revisión antes de guardar |
+| `app/settings.tsx` → `AutoDetectSection` | UI de configuración: toggle + permisos + selector de bancos |
+
+### Flujo completo
+```
+Notificación bancaria (Nequi, Bancolombia, etc.)
+    ↓
+NotificationListenerService (nativo Android)
+    ↓
+HeadlessJS Task (notificationHeadlessTask.ts) — corre en background, incluso con la app cerrada
+    ↓ [verifica: detección activa en AsyncStorage + banco en whitelist]
+parseNotification(packageName, title, text) — extrae monto, tipo, descripción
+    ↓ [retorna null si: no es transacción, OTP, publicidad, no hay monto]
+useNotificationStore.addPendingItem(parsed) — agrega a la cola (dedup <2 min)
+    ↓
+Dashboard: badge 🔔 rojo con contador aparece sobre el botón de configuración
+    ↓ [usuario toca el badge]
+app/notification-review.tsx — lista de transacciones para revisar/editar/descartar
+    ↓ [usuario confirma]
+addTransactionBatch() → se guardan en SQLite
+```
+
+### notificationParser.ts — Diseño
+- **Whitelist de 17 bancos colombianos**: Bancolombia, Nequi, Davivienda, DaviPlata, BBVA, Bco. Occidente, Bco. Popular, AV Villas, Nubank, Lulo Bank, Scotiabank, Colpatria, Rappi Pay, Tpaga, Ding, Bco. Bogotá, Itaú
+- **Filtros de ruido** (retornan `null`): OTPs (`ingresa el código`), tokens, alertas de seguridad, bloqueos de cuenta, publicidad, actualizaciones de app
+- **Extracción de monto**: 4 patrones de mayor a menor especificidad: `$1.234.567`, `$45000`, `45.000`, `45000`
+- **Extracción de tipo** (gasto/ingreso): keywords explícitas (`compra`, `débito`, `recibiste`, `consignación`, etc.) → confidence `"high"`. Si no hay keyword: heurística → gasto, confidence `"medium"`
+- **Patrones específicos por banco**:
+  - **Bancolombia**: regex `\ben\s+([comercio]{2,40})` para el nombre del comercio
+  - **Nequi**: detecta `en [comercio]` y `de [persona]` (para transferencias)
+  - **Davivienda**: detecta `comercio: [nombre]`
+  - **Resto**: patrón genérico `GENERIC_PATTERN`
+- **Score de confianza**: `"high"` (keyword explícita + patrón específico) / `"medium"` (heurística) / `"low"` (solo monto detectado)
+- **Privacidad**: `rawTitle` limitado a 100 chars, `rawText` a 200 chars. Saldos, números de tarjeta y datos personales son descartados.
+
+### Configuración en AndroidManifest.xml
+```xml
+<service
+  android:name="com.leandrosimoes.reactnativeandroidnotificationlistener.RNAndroidNotificationListenerService"
+  android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+  android:exported="true">
+  <intent-filter>
+    <action android:name="android.service.notification.NotificationListenerService"/>
+  </intent-filter>
+</service>
+```
+
+### Restricciones de permiso
+- Android **requiere** que el usuario habilite manualmente el acceso en **Ajustes → Aplicaciones → Acceso a notificaciones**
+- La app abre esa pantalla con `RNAndroidNotificationListener.requestPermission()`
+- Si el permiso no está activo, el HeadlessJS task no recibirá notificaciones (Android lo bloquea a nivel OS)
+- La configuración persiste en AsyncStorage, no en `useSettingsStore` (para acceso desde HeadlessJS sin React)
+
+### Entrypoint: `index.js`
+El archivo `package.json` apunta `"main": "index.js"` (en lugar del default `expo-router/entry`). El `index.js` registra el HeadlessJS task **antes** de inicializar Expo Router, garantizando que el task esté disponible desde el inicio:
+```javascript
+AppRegistry.registerHeadlessTask(RNAndroidNotificationListenerHeadlessJsName, () => notificationHeadlessTask);
+import "expo-router/entry";
+```
 
 ---
 
@@ -777,10 +873,27 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Presupuesto por categoría → modal full-screen
 - **Metas de ahorro:** `NuevaMetaModal` (crear), `AbonarMetaModal` (abonar), `SavingsGoalsSection` con `SwipeableGoalItem` (swipe-to-delete izquierda revela botón papelera rojo). Al abonar a una meta, se crea automáticamente una transacción de gasto con el emoji de la meta, descripción "Abono a [nombre]" y tag #ahorro
 - Apariencia → selector dark mode
+- **Detección automática** *(nuevo en v1.5.0)*: sección con componente `AutoDetectSection`:
+  - Toggle para activar/desactivar la captura de notificaciones bancarias
+  - Al activar sin permiso: muestra diálogo explicativo centrado → abre ajustes del sistema con `RNAndroidNotificationListener.requestPermission()`
+  - Selector de bancos: lista todos los 17 bancos de la whitelist; si no se selecciona ninguno, usa todos
+  - Card informativa de privacidad (azul tenue): explica que solo se extrae monto y comercio
+  - Configuración persiste en `AsyncStorage` con claves `mywallet-auto-detect-enabled` y `mywallet-auto-detect-banks`
 - Sistema: exportar CSV, limpiar datos
-- **Exportar CSV:** usa `Share` de `react-native` (módulo nativo incluido en cualquier APK, sin dependencias externas). Construye el CSV en memoria con columnas `id, fecha, tipo, descripcion, categoria, monto, metodo_pago, tags`, lo comparte con `Share.share({ message: csv })`. Si el usuario cancela el diálogo de Share no se muestra toast ni error. No usa `expo-sharing` ni `expo-file-system`.
-- **Confirmaciones:** Todas las alertas usan `ConfirmDialog` (componente custom con animación y variantes) en lugar de `Alert.alert` nativo — limpiar datos (`danger`), eliminar método de pago (`danger`), mínimo un método (`info`), error al exportar (`warning`)
-- **Guided Tour:** paso 2 hace spotlight en la fila "Ingreso mensual"; paso 3 hace spotlight en el botón ← (volver) tras guardar el ingreso
+- **Exportar CSV:** usa `Share` de `react-native`. No usa `expo-sharing` ni `expo-file-system`.
+- **Confirmaciones:** Todas las alertas usan `ConfirmDialog` (componente custom con animación y variantes)
+- **Guided Tour:** paso 2 hace spotlight en la fila "Ingreso mensual"; paso 3 hace spotlight en el botón ← (volver)
+
+### Notification Review (`app/notification-review.tsx`) *(nuevo en v1.5.0)*
+- Pantalla fullscreen modal para revisar transacciones detectadas automáticamente desde notificaciones bancarias
+- **Header:** flecha atrás + título + contador "N por confirmar" + botón "Descartar" (rojo) que descarta toda la cola
+- **Banner informativo** (azul): "Detectadas automáticamente · Revisa antes de guardar"
+- **FlatList** de `ReviewCard`s: cada tarjeta muestra categoría, descripción, banco (emoji + nombre), **indicador de confianza** (punto verde/naranja/rojo en esquina superior derecha), monto coloreado, botones ✏️ y 🗑️
+- **Swipe-left** → botón rojo "Eliminar" (PanResponder, igual patrón que `TransactionItem`)
+- **Botón ✏️** → `EditItemSheet`: toggle gasto/ingreso, monto, descripción, categoría
+- **Footer sticky:** resumen de gastos/ingresos + botón azul "GUARDAR TODOS (N)"
+- **Estado vacío:** icono 🔕, mensaje explicativo, botón "Entendido"
+- Al guardar: `addTransactionBatch(items)` + `clearAll()` (store) + toast 8s + `router.back()`
 
 ---
 

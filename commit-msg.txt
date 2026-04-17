@@ -1,19 +1,9 @@
-feat: detección automática de transacciones desde notificaciones bancarias (v1.5.0)
+﻿fix(notifications): corregir deteccion automatica de transacciones
 
-- Instala react-native-android-notification-listener para captura en background
-- Registra NotificationListenerService en AndroidManifest.xml con tools:replace
-- Crea notificationParser.ts: whitelist 17 bancos colombianos (Bancolombia, Nequi,
-  Davivienda, BBVA, Nubank y más), regex por banco, score de confianza alto/medio/bajo,
-  filtros de ruido (OTPs, alertas de seguridad, publicidad) y protección de privacidad
-- Crea useNotificationStore.ts: cola en memoria con dedup por banco+monto (<2 min)
-- Crea notificationHeadlessTask.ts: procesa notificaciones bancarias en background
-  verificando configuración del usuario desde AsyncStorage (sin React ni hooks)
-- Crea index.js como nuevo entrypoint: registra HeadlessJS task antes de Expo Router
-  (package.json main actualizado de expo-router/entry a index.js)
-- Crea notification-review.tsx: pantalla fullscreen con swipe-to-delete, EditItemSheet,
-  indicador de confianza por color, footer con totales y guardado en lote
-- Agrega sección Detección automática en Settings: toggle + flujo permiso del sistema
-  + selector de 17 bancos + card informativa de privacidad
-- Agrega badge con campana en Dashboard: aparece solo cuando hay pendientes, navega a
-  notification-review al tocarlo
-- Actualiza documentación a v1.5.0 (CONTEXT.md, DOCUMENTATION.md, PRODUCT_REQUIREMENTS.md)
+- Corregir packageNames de 11 bancos colombianos verificando Play Store
+  (Davivienda, DaviPlata, BBVA, Bco. Occidente, Bco. Popular, AV Villas,
+   Lulo Bank, Scotiabank Colpatria, Rappi, Tpaga, Itau)
+- Corregir parseo del JSON en notificationHeadlessTask (JSON.parse)
+- Eliminar campos emoji y defaultCategoryEmoji de BankConfig
+- Ordenar lista de bancos activos: seleccionados primero
+- Agregar listener AppState en settings para re-verificar permisos

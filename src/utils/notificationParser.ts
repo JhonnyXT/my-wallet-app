@@ -14,29 +14,24 @@
 export interface BankConfig {
   packageName: string;
   displayName: string;
-  emoji: string;
-  /** Categoría predeterminada si no se puede inferir de la descripción */
-  defaultCategoryEmoji: string;
 }
 
 export const KNOWN_BANKS: BankConfig[] = [
-  { packageName: "com.bancolombia.sucursalvirtual", displayName: "Bancolombia",  emoji: "🏦", defaultCategoryEmoji: "💳" },
-  { packageName: "com.nequi.MobileApp",             displayName: "Nequi",        emoji: "💜", defaultCategoryEmoji: "💳" },
-  { packageName: "com.davivienda.banca",             displayName: "Davivienda",   emoji: "🔴", defaultCategoryEmoji: "💳" },
-  { packageName: "com.davivienda.daviplata",         displayName: "DaviPlata",    emoji: "🔴", defaultCategoryEmoji: "💳" },
-  { packageName: "co.bbva.netcash",                  displayName: "BBVA",         emoji: "🏦", defaultCategoryEmoji: "💳" },
-  { packageName: "com.bancodeoccidente.bdo",         displayName: "Bco. Occidente",emoji:"🏦", defaultCategoryEmoji: "💳" },
-  { packageName: "com.bdo.popular",                  displayName: "Bco. Popular",  emoji:"🏦", defaultCategoryEmoji: "💳" },
-  { packageName: "com.avvillas.app",                 displayName: "AV Villas",    emoji: "🏦", defaultCategoryEmoji: "💳" },
-  { packageName: "co.nubank",                        displayName: "Nubank",       emoji: "🟣", defaultCategoryEmoji: "💳" },
-  { packageName: "com.lulobank.app",                 displayName: "Lulo Bank",    emoji: "🟡", defaultCategoryEmoji: "💳" },
-  { packageName: "co.com.scotiabank.app",            displayName: "Scotiabank",   emoji: "🏦", defaultCategoryEmoji: "💳" },
-  { packageName: "com.colpatria.banca",              displayName: "Colpatria",    emoji: "🏦", defaultCategoryEmoji: "💳" },
-  { packageName: "com.rappipay",                     displayName: "Rappi Pay",    emoji: "🟠", defaultCategoryEmoji: "💳" },
-  { packageName: "co.tpaga",                         displayName: "Tpaga",        emoji: "🟢", defaultCategoryEmoji: "💳" },
-  { packageName: "com.rbm.ding",                     displayName: "Ding",         emoji: "🟢", defaultCategoryEmoji: "💳" },
-  { packageName: "co.bancobogota.personas",          displayName: "Bco. Bogotá",  emoji: "🏦", defaultCategoryEmoji: "💳" },
-  { packageName: "com.itau.banca",                   displayName: "Itaú",         emoji: "🔵", defaultCategoryEmoji: "💳" },
+  { packageName: "co.com.bancolombia.personas.superapp", displayName: "Bancolombia" },
+  { packageName: "com.nequi.MobileApp",                  displayName: "Nequi" },
+  { packageName: "com.davivienda.daviviendaapp",         displayName: "Davivienda" },
+  { packageName: "com.davivienda.daviplataapp",          displayName: "DaviPlata" },
+  { packageName: "co.com.bbva.mb",                       displayName: "BBVA" },
+  { packageName: "com.grupoavaloc1.bancamovil",          displayName: "Bco. Occidente" },
+  { packageName: "com.grupoavalpo.bancamovil",           displayName: "Bco. Popular" },
+  { packageName: "com.grupoavalav1.bancamovil",          displayName: "AV Villas" },
+  { packageName: "com.nu.production",                    displayName: "Nu" },
+  { packageName: "co.com.lulobank.production",           displayName: "Lulo Bank" },
+  { packageName: "eu.netinfo.colpatria.system",          displayName: "Scotiabank Colpatria" },
+  { packageName: "com.grability.rappi",                  displayName: "Rappi" },
+  { packageName: "co.tpaga.wallet",                      displayName: "Tpaga" },
+  { packageName: "com.bancodebogota.bancamovil",         displayName: "Bco. Bogotá" },
+  { packageName: "com.co.app.unica.latam",               displayName: "Itaú" },
 ];
 
 export const BANK_PACKAGE_NAMES = new Set(KNOWN_BANKS.map((b) => b.packageName));
@@ -50,7 +45,6 @@ export interface ParsedTransaction {
   isExpense: boolean;       // true = gasto, false = ingreso
   description: string;      // comercio o descripción limpia
   bankName: string;         // nombre del banco
-  bankEmoji: string;        // emoji del banco
   packageName: string;      // app que generó la notificación
   rawTitle: string;         // título original (para debugging)
   rawText: string;          // texto original (para debugging)
@@ -67,10 +61,14 @@ export interface ParsedTransaction {
 function extractAmount(text: string): number | null {
   // Patrones de mayor a menor especificidad
   const patterns = [
+    // "$200.000,00" o "$1.234.567,00" — formato COP con decimales (Nu, Itaú)
+    /\$\s*([\d]{1,3}(?:\.[\d]{3})+),\d{2}\b/,
     // "$1.234.567" o "$1,234,567" — con símbolo y separadores
     /\$\s*([\d]{1,3}(?:[.,][\d]{3})+)/,
     // "$45000" — con símbolo sin separadores
     /\$\s*(\d{4,})/,
+    // "200.000,00" — sin símbolo pero con decimales
+    /\b(\d{1,3}(?:\.\d{3})+),\d{2}\b/,
     // "45.000" o "45,000" — sin símbolo, con separadores de miles
     /\b(\d{1,3}(?:[.,]\d{3})+)\b/,
     // "45000" — sin símbolo ni separadores (>= 4 dígitos)
@@ -80,7 +78,7 @@ function extractAmount(text: string): number | null {
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (match) {
-      // Normalizar: quitar símbolo, unificar separadores
+      // Normalizar: quitar puntos de miles y comas
       const raw = match[1].replace(/\./g, "").replace(/,/g, "");
       const value = parseInt(raw, 10);
       if (value > 0) return value;
@@ -212,6 +210,34 @@ const DAVIVIENDA_PATTERN: BankPattern = {
   },
 };
 
+const NU_PATTERN: BankPattern = {
+  matches: (title, text) =>
+    /(enviaste|recibiste|pagaste|compra|transferencia|\$[\d.,]+)/i.test(title + " " + text),
+  parse: (title, text, bank) => {
+    const combined = title + " " + text;
+    const amount = extractAmount(combined);
+    if (!amount) return null;
+    const { isExpense, confidence } = extractIsExpense(combined);
+    // "Le enviaste a JON******* BLA******* en su cuenta de Nequi" → "Transferencia a Nequi"
+    const cuentaMatch = combined.match(/en su cuenta de\s+(\w+)/i);
+    // "Pagaste en TIENDA XYZ" → "TIENDA XYZ"
+    const enMatch = combined.match(/(?:pagaste|compra)\s+(?:en\s+)?([A-ZÁÉÍÓÚa-záéíóú0-9\s.,*&/-]{2,40}?)(?:\.|$|\s+por)/i);
+    // "Le enviaste a JON..." → simplificar como transferencia
+    const envioMatch = combined.match(/enviaste a\s+([A-ZÁÉÍÓÚ][A-Za-záéíóú*]+)/i);
+    let description: string;
+    if (cuentaMatch) {
+      description = `Transferencia a ${cuentaMatch[1]}`;
+    } else if (enMatch) {
+      description = enMatch[1].trim();
+    } else if (envioMatch) {
+      description = `Envío a ${envioMatch[1].replace(/\*+/g, "").trim()}`;
+    } else {
+      description = extractDescription(combined, bank.displayName);
+    }
+    return { amount, isExpense, description, confidence };
+  },
+};
+
 const GENERIC_PATTERN: BankPattern = {
   matches: (_, text) => /\$[\d.,]+/.test(text),
   parse: (title, text, bank) => {
@@ -225,10 +251,11 @@ const GENERIC_PATTERN: BankPattern = {
 
 // Mapa de patrones por packageName (los que tienen patrón específico)
 const BANK_PATTERNS: Record<string, BankPattern> = {
-  "com.bancolombia.sucursalvirtual": BANCOLOMBIA_PATTERN,
-  "com.nequi.MobileApp":             NEQUI_PATTERN,
-  "com.davivienda.banca":            DAVIVIENDA_PATTERN,
-  "com.davivienda.daviplata":        DAVIVIENDA_PATTERN,
+  "co.com.bancolombia.personas.superapp": BANCOLOMBIA_PATTERN,
+  "com.nequi.MobileApp":                  NEQUI_PATTERN,
+  "com.davivienda.daviviendaapp":         DAVIVIENDA_PATTERN,
+  "com.davivienda.daviplataapp":          DAVIVIENDA_PATTERN,
+  "com.nu.production":                    NU_PATTERN,
 };
 
 // ─── Función principal exportada ─────────────────────────────────────────────
@@ -284,7 +311,6 @@ export function parseNotification(
     isExpense: result.isExpense ?? true,
     description: (result.description ?? bank.displayName).substring(0, 80),
     bankName: bank.displayName,
-    bankEmoji: bank.emoji,
     packageName,
     rawTitle: title.substring(0, 100),    // limitado a 100 chars para no almacenar saldos largos
     rawText: text.substring(0, 200),      // limitado para privacidad

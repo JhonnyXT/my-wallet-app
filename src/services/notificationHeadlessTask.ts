@@ -6,20 +6,20 @@
  *
  * IMPORTANTE: Esta función NO puede usar hooks de React ni acceder a
  * componentes. Solo puede usar el store directamente y lógica pura.
+ *
+ * La librería react-native-android-notification-listener pasa al headless task
+ * un objeto { notification: string } donde notification es un JSON serializado.
+ * Hay que hacer JSON.parse antes de leer los campos.
  */
-import { parseNotification } from "@/src/utils/notificationParser";
+import { parseNotification, BANK_PACKAGE_NAMES } from "@/src/utils/notificationParser";
 import { useNotificationStore } from "@/src/store/useNotificationStore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const AUTO_DETECT_ENABLED_KEY = "mywallet-auto-detect-enabled";
 const ALLOWED_BANKS_KEY       = "mywallet-auto-detect-banks";
 
-/**
- * Headless task: recibe el objeto de notificación de react-native-android-notification-listener
- * y lo procesa si cumple con los criterios.
- */
-export async function notificationHeadlessTask(notification: {
-  app: string;      // packageName de la app que envió la notificación
+interface RawNotification {
+  app: string;
   title: string;
   titleBig: string;
   text: string;
@@ -32,8 +32,23 @@ export async function notificationHeadlessTask(notification: {
   groupedMessages: Array<{ title: string; text: string }>;
   icon: string;
   image: string;
-}): Promise<void> {
+  time: string;
+}
+
+/**
+ * Headless task: recibe { notification: string } de la librería nativa.
+ * El campo notification es un JSON STRING que hay que parsear.
+ */
+export async function notificationHeadlessTask(taskData: { notification: string }): Promise<void> {
   try {
+    if (!taskData || !taskData.notification) return;
+
+    const notification: RawNotification = JSON.parse(taskData.notification);
+    if (!notification || !notification.app) return;
+
+    // Descarte rápido: si no es una app bancaria conocida, no gastar en IO
+    if (!BANK_PACKAGE_NAMES.has(notification.app)) return;
+
     // 1. Verificar que la detección automática está activa
     const enabledRaw = await AsyncStorage.getItem(AUTO_DETECT_ENABLED_KEY);
     if (enabledRaw !== "true") return;

@@ -46,7 +46,6 @@ type ReviewItem = {
   isExpense: boolean;
   paymentMethod: string;
   bankName: string;
-  bankEmoji: string;
   confidence: "high" | "medium" | "low";
 };
 
@@ -60,7 +59,6 @@ function pendingToReview(item: PendingNotificationItem): ReviewItem {
     isExpense: item.isExpense,
     paymentMethod: "debit",
     bankName: item.bankName,
-    bankEmoji: item.bankEmoji,
     confidence: item.confidence,
   };
 }
@@ -318,7 +316,7 @@ function ReviewCard({
           <View style={cardS.textCol}>
             <Text style={[cardS.desc, { color: theme.text }]} numberOfLines={1}>{item.description}</Text>
             <Text style={[cardS.meta, { color: theme.textSub }]}>
-              {item.bankEmoji} {item.bankName} · <Text style={{ color: confidenceColor }}>{confidenceLabel}</Text>
+              {item.bankName} · <Text style={{ color: confidenceColor }}>{confidenceLabel}</Text>
             </Text>
           </View>
         </View>

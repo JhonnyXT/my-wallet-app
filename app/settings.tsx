@@ -19,6 +19,7 @@ import {
   PanResponder,
   Share,
   Linking,
+  AppState,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import RNAndroidNotificationListener from "react-native-android-notification-listener";
@@ -1037,6 +1038,16 @@ function AutoDetectSection() {
     checkPermission();
   }, []);
 
+  // Re-verificar permiso cuando el usuario vuelve de ajustes del sistema
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        checkPermissionAndAutoEnable();
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   const checkPermission = useCallback(async () => {
     try {
       const status = await RNAndroidNotificationListener.getPermissionStatus();
@@ -1046,9 +1057,22 @@ function AutoDetectSection() {
     }
   }, []);
 
+  const checkPermissionAndAutoEnable = useCallback(async () => {
+    try {
+      const status = await RNAndroidNotificationListener.getPermissionStatus();
+      const authorized = status === "authorized";
+      setHasPermission(authorized);
+      if (authorized) {
+        setEnabled(true);
+        await AsyncStorage.setItem(AUTO_DETECT_ENABLED_KEY, "true");
+      }
+    } catch {
+      setHasPermission(false);
+    }
+  }, []);
+
   const handleToggle = useCallback(async (value: boolean) => {
     if (value && !hasPermission) {
-      // Mostrar diálogo explicativo antes de abrir configuración del sistema
       setShowPermDialog(true);
       return;
     }
@@ -1154,7 +1178,12 @@ function AutoDetectSection() {
             Elige de qué apps detectar transacciones. Si no seleccionas ninguno, se usan todos.
           </Text>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {KNOWN_BANKS.map((bank) => {
+            {[...KNOWN_BANKS].sort((a, b) => {
+              const aSelected = allowedBanks.length === 0 || allowedBanks.includes(a.packageName);
+              const bSelected = allowedBanks.length === 0 || allowedBanks.includes(b.packageName);
+              if (aSelected === bSelected) return 0;
+              return aSelected ? -1 : 1;
+            }).map((bank) => {
               const isSelected = allowedBanks.length === 0 || allowedBanks.includes(bank.packageName);
               return (
                 <TouchableOpacity
@@ -1163,7 +1192,6 @@ function AutoDetectSection() {
                   onPress={() => toggleBank(bank.packageName)}
                   activeOpacity={0.65}
                 >
-                  <Text style={{ fontSize: 22 }}>{bank.emoji}</Text>
                   <Text style={{ flex: 1, fontSize: 15, fontWeight: "600", color: theme.text }}>{bank.displayName}</Text>
                   <View style={[autoS.bankCheck, { borderColor: isSelected ? ACCENT : theme.border, backgroundColor: isSelected ? ACCENT : "transparent" }]}>
                     {isSelected && <Check size={12} color="#fff" strokeWidth={3} />}

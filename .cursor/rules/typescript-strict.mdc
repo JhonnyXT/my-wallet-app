@@ -1,0 +1,86 @@
+---
+description: "Reglas TypeScript estrictas para MyWallet — tipos, imports, patrones de Zustand y React Native"
+globs: "**/*.ts,**/*.tsx"
+alwaysApply: false
+---
+
+# TypeScript — Convenciones Estrictas
+
+## Configuración
+- `strict: true` en `tsconfig.json`. Respetar siempre.
+- Alias `@/*` mapeado a `./*` desde la raíz del repo.
+
+## Tipos
+
+### Prohibido
+- NUNCA usar `any` excepto donde RN/Reanimated lo exija para estilos animados (documentar con comentario).
+- NUNCA usar `// @ts-ignore` o `// @ts-expect-error` sin justificación.
+
+### Zustand stores
+Patrón estándar del proyecto:
+```typescript
+import { create } from "zustand";
+
+interface StoreState {
+  field: string;
+  action: (param: string) => void;
+}
+
+export const useMyStore = create<StoreState>((set, get) => ({
+  field: "",
+  action: (param) => set({ field: param }),
+}));
+```
+
+Store persistido (solo `useSettingsStore` usa esto):
+```typescript
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+export const useSettingsStore = create<State>()(
+  persist(
+    (set, get) => ({ /* ... */ }),
+    {
+      name: "mywallet-settings",
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);
+```
+
+### TransactionRow (fuente de verdad del esquema)
+```typescript
+interface TransactionRow {
+  id: number;
+  amount: number;
+  description: string;
+  category_emoji: string;
+  date: string;
+  tags: string;          // JSON: '["#trabajo","#comida"]'
+  payment_method: string; // 'cash' | 'debit' | 'credit' | 'transfer' | custom
+}
+```
+Referencia: `@/src/db/db.ts`
+
+### Props de componentes
+- Siempre interface con nombre `XxxProps`.
+- Tipos de dominio importados desde los archivos fuente (no redefinir).
+
+### Exports
+- Componentes UI: named exports (`export function Component`).
+- Stores: named exports (`export const useXStore`).
+- Pantallas: default exports (`export default function Screen`).
+- Tipos: `export interface` / `export type`.
+
+## Imports
+Orden obligatorio:
+1. `react`, `react-native`
+2. `expo-*` (router, haptics, etc.)
+3. Terceros (`zustand`, `lucide-react-native`, `react-native-reanimated`)
+4. Locales `@/src/...`
+
+## Patrones de error
+- En `src/db/`: `try/catch {}` vacíos solo para migraciones `ALTER TABLE` (columna ya existe).
+- En servicios HeadlessJS: `try/catch` silenciosos para no tumbar el proceso background.
+- En pantallas: `try/catch` con toast de error al usuario.

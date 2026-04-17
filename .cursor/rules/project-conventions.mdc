@@ -1,0 +1,91 @@
+---
+description: "Restricciones globales inmutables del proyecto MyWallet — moneda COP, offline-first, arquitectura Feature-Sliced, convenciones de código"
+alwaysApply: true
+---
+
+# MyWallet — Convenciones de Proyecto
+
+## Identidad
+- **App**: Control financiero personal para Android, 100% offline.
+- **Moneda**: Pesos colombianos ($ COP), puntos de miles, sin decimales.
+- **Idioma**: UI en español, código en inglés, comentarios en español.
+- **Diseño**: Minimalismo Funcional inspirado en Google Stitch.
+
+## Restricciones inmutables
+
+### Offline-first
+Cero llamadas a APIs externas. SQLite + AsyncStorage son las únicas fuentes de persistencia. NUNCA agregar `fetch()`, `axios`, `http://` ni `https://` en código de producción.
+
+### Moneda COP
+Formatear siempre con:
+```typescript
+Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+```
+NUNCA usar `toLocaleString()` — inconsistente entre dispositivos Android.
+Referencia: `@/src/utils/formatMoney.ts`
+
+### Fechas locales
+Usar SIEMPRE `localISOString()` de `@/src/db/db.ts` para generar fechas.
+NUNCA usar `toISOString()` ni `new Date().toJSON()` — generan UTC y causan desfase de zona horaria.
+
+### Categorías dinámicas
+Consultar siempre `userCategories` del `useSettingsStore` antes de usar mapas legacy como fallback.
+Referencia: `@/src/store/useSettingsStore.ts`
+
+### Convención de signos
+- `amount > 0` → Gasto
+- `amount < 0` → Ingreso
+- Balance neto = `SUM(amount)` donde negativo suma al saldo del usuario.
+
+## Arquitectura: Feature-Sliced Simplificado
+
+```
+app/                → Pantallas (Expo Router). Solo orquestan: leen stores, llaman utils, renderizan UI.
+src/store/          → Estado global (Zustand). Un store por dominio. 7 stores, 1 persistido.
+src/db/             → Capa de datos SQLite pura, sin lógica de negocio.
+src/components/ui/  → Componentes reutilizables, reciben props, agnósticos a la pantalla.
+src/features/       → Hooks de dominio (NLP, voz).
+src/services/       → Infraestructura (notificaciones push, headless tasks).
+src/utils/          → Funciones puras sin side effects.
+src/constants/      → Configuración estática (colores, presets de categorías).
+src/theme/          → Tokens de tema light/dark.
+```
+
+## Reglas de código
+
+### Naming
+- Archivos pantalla: **kebab-case** (`active-expense.tsx`)
+- Componentes UI: **PascalCase** (`CategoryChart.tsx`)
+- Stores: **camelCase** con prefijo `use` (`useFinanceStore.ts`)
+- Utils: **camelCase** (`formatMoney.ts`)
+- Constantes en código: **UPPER_SNAKE** (`MAX_TOASTS`, `DEFAULTS`)
+
+### Imports
+- Alias `@/` para paths desde la raíz (`@/src/store/useFinanceStore`).
+- Orden: React/RN → Expo → Terceros → Locales `@/`.
+- NUNCA rutas relativas `../` cuando `@/` aplica.
+
+### Estilos
+- `buildStyles(t: AppTheme)` retorna `StyleSheet.create({...})`.
+- SIEMPRE envolver en `useMemo(() => buildStyles(theme), [theme])`.
+- NUNCA hardcodear colores — usar tokens del tema.
+- Excepción: botón primario usa `#135BEC` fijo para consistencia entre temas.
+- En un componente, usar UN solo sistema: StyleSheet O NativeWind, no ambos.
+
+### Animaciones
+- Reanimated para layout/gestos complejos.
+- `Animated` de RN (no Reanimated) para PanResponder.
+- `expo-haptics`: `notificationAsync(success)` al guardar, `selectionAsync()` en taps.
+
+### Acceso a stores fuera de React
+- En servicios y HeadlessJS: usar `useXStore.getState()` directamente (no hooks).
+- En `notificationHeadlessTask.ts`: leer config desde AsyncStorage (no de Zustand) porque el proceso corre sin React.
+
+## Prohibiciones
+- NO usar `toLocaleString()` para moneda.
+- NO llamar APIs externas (todo offline).
+- NO implementar edición de transacciones (solo crear y eliminar).
+- NO hacer push automático a remoto.
+- NO almacenar datos bancarios reales (números de cuenta/tarjeta).
+- NO usar class components — solo funcionales con hooks.
+- NO crear archivos en `src/features/voice/useVoiceExpense.ts` — está deprecado.

@@ -1,0 +1,93 @@
+---
+description: "Reglas de UI para MyWallet — Stitch Design System, NativeWind, tema dinámico light/dark, patrones de componentes"
+globs: "**/*.tsx"
+alwaysApply: false
+---
+
+# UI y Estilos — Stitch Design System
+
+## Sistema de temas
+
+Obtener tema con `useTheme()` desde `@/src/context/ThemeContext`:
+
+```typescript
+import { useTheme } from "@/src/context/ThemeContext";
+import type { AppTheme } from "@/src/theme";
+
+const theme = useTheme();
+const st = useMemo(() => buildStyles(theme), [theme]);
+```
+
+### Tokens de color
+
+| Token | Light | Dark |
+|-------|-------|------|
+| `bg` | `#F2F2F4` | `#0D1117` |
+| `surface` | `#FFFFFF` | `#161B22` |
+| `border` | `#E2E8F0` | `#30363D` |
+| `text` | `#0F172A` | `#E6EDF3` |
+| `textSub` | `#64748B` | `#8B949E` |
+| `textTertiary` | `#94A3B8` | `#484F58` |
+| `itemBg` | `#FFFFFF` | `#161B22` |
+| `accent` | `#135BEC` | `#4B82EF` |
+| `inputBg` | `#F1F5F9` | `#21262D` |
+
+## Patrón Stitch
+
+- Espacio negativo generoso: 24-32px padding en contenedores principales.
+- Tipografía: Inter. Montos con `fontWeight: "800"`, tamaño 38px para balance principal.
+- Bordes redondeados: `borderRadius: 16-24` para tarjetas y modales.
+- Iconos: `lucide-react-native`, 24px stroke, color `theme.text` o `theme.textSub`.
+- Emojis: nativos del sistema para categorías (no imágenes).
+- Gastos: texto oscuro con `−`. Ingresos: texto verde con `+`.
+
+## Crear componente UI nuevo
+
+1. Crear en `src/components/ui/NombreComponente.tsx`.
+2. Props tipadas con interface `NombreComponenteProps`.
+3. Dark mode obligatorio con `useTheme()`.
+4. Named export (`export function NombreComponente`).
+5. Estilos con `buildStyles(t: AppTheme)` + `useMemo`.
+
+Referencia: `@/src/components/ui/TransactionItem.tsx`, `@/src/components/ui/CategoryChart.tsx`
+
+## Crear pantalla nueva
+
+1. Crear en `app/nombre-pantalla.tsx`.
+2. Registrar en `app/_layout.tsx`:
+   ```tsx
+   <Stack.Screen name="nombre-pantalla" options={{ presentation: "fullScreenModal", animation: "slide_from_bottom", headerShown: false }} />
+   ```
+3. Usar `useTheme()` + `buildStyles()` + `useMemo`.
+4. Textos de UI en español.
+5. `KeyboardAvoidingView behavior="padding"` en modales con inputs.
+
+Referencia: `@/app/active-expense.tsx`, `@/app/voice-input.tsx`
+
+## Animaciones
+
+| Tipo | Librería | Ejemplo |
+|------|----------|---------|
+| Entrada de items | Reanimated `FadeInDown` | Listas de transacciones |
+| Layout transitions | Reanimated `LayoutAnimation` | Reordenar charts |
+| Swipe gestures | `Animated` de RN + PanResponder | TransactionItem, ToastBanner |
+| Feedback táctil | `expo-haptics` | Guardar, seleccionar |
+
+### Swipe pattern (PanResponder)
+
+```typescript
+onStartShouldSetPanResponder: () => false  // FlatList recibe toques primero
+onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy)
+```
+
+## Valores monetarios animados (Dashboard)
+
+Usar `RollingNumber` (`@/src/components/ui/RollingNumber.tsx`) para todos los valores numéricos.
+- No puede ir dentro de `<Text>`. Reestructurar como `<View flexDirection="row">`.
+- `AnimatedNumber` está LEGADO — no usar en código nuevo.
+
+## Componentes huérfanos (NO USAR)
+
+- `ActionPills.tsx` — sin imports, legacy.
+- `CustomTabBar.tsx` — sin imports, las tabs usan `tabBar={() => null}`.
+- `AnimatedNumber.tsx` — legado, reemplazado por `RollingNumber`.

@@ -39,3 +39,11 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Skills públicas del catálogo (reinstalar con: npx skills add según skills-lock.json)
+.agents/skills/systematic-debugging/
+.agents/skills/react-native/
+.agents/skills/expo-react-native-typescript/
+.agents/skills/expo-react-native-performance/
+.agents/skills/finishing-a-development-branch/
+.agents/skills/test-driven-development/

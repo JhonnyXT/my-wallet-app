@@ -1,32 +1,33 @@
 ---
-description: Convenciones de base de datos SQLite para MyWallet — WAL mode, fechas ISO locales, migraciones seguras
-globs: src/db/**
+description: "Convenciones de base de datos SQLite para MyWallet — WAL mode, fechas ISO locales, migraciones seguras, queries"
+globs: "src/db/**"
 alwaysApply: false
 ---
 
 # SQLite — Convenciones de Base de Datos
 
-## Conexión y Modo
+## Conexión y modo
 
-- Usar `expo-sqlite` con `openDatabaseAsync("mywallet.db")`.
+- Librería: `expo-sqlite` con `openDatabaseAsync("mywallet.db")`.
 - WAL mode activado en `initDatabase()`: `PRAGMA journal_mode = WAL;`
 - Singleton: reutilizar la instancia `_db` vía `getNativeDatabase()`.
+- Referencia: `@/src/db/db.ts`
 
 ## Esquema: tabla `transactions`
 
 ```sql
 CREATE TABLE IF NOT EXISTS transactions (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  amount          REAL NOT NULL,        -- Positivo = gasto, Negativo = ingreso
+  amount          REAL NOT NULL,
   description     TEXT NOT NULL,
   category_emoji  TEXT NOT NULL DEFAULT '💰',
   date            TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-  tags            TEXT NOT NULL DEFAULT '',   -- JSON: '["#trabajo","#comida"]'
+  tags            TEXT NOT NULL DEFAULT '',
   payment_method  TEXT NOT NULL DEFAULT 'cash'
 );
 ```
 
-## Convención de Signos
+## Convención de signos
 
 - `amount > 0` → **Gasto**
 - `amount < 0` → **Ingreso**
@@ -34,7 +35,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 ## Fechas — CRÍTICO
 
-Usar SIEMPRE `localISOString()` para generar fechas:
+SIEMPRE usar `localISOString()` para generar fechas:
 
 ```typescript
 function localISOString(date = new Date()): string {
@@ -44,22 +45,31 @@ function localISOString(date = new Date()): string {
 }
 ```
 
-NUNCA usar `toISOString()` ni `new Date().toJSON()` — generan UTC y causan desfase de zona horaria en las queries.
+NUNCA usar `toISOString()` ni `toJSON()` — generan UTC y causan desfase de zona horaria.
 
-En `queries.ts` usar el mismo helper `localISO()` para los parámetros de comparación SQL.
+En `queries.ts` usar el mismo patrón `localISO()` para parámetros de comparación SQL.
 
 ## Migraciones
 
-- Envolver en `try/catch` (la columna puede ya existir):
+- Envolver en `try/catch` vacío (la columna puede ya existir):
   ```typescript
-  try { await db.execAsync(`ALTER TABLE transactions ADD COLUMN nueva_col TEXT NOT NULL DEFAULT ''`); } catch {}
+  try { await db.execAsync(`ALTER TABLE transactions ADD COLUMN nueva_col TYPE NOT NULL DEFAULT 'value'`); } catch {}
   ```
 - NUNCA borrar columnas existentes.
 - NUNCA cambiar tipos de columnas existentes.
-- Actualizar `TransactionRow` interface en `db.ts` al agregar columnas.
+- SIEMPRE actualizar `TransactionRow` interface en `db.ts` al agregar columnas.
 
 ## Queries
 
-- Ordenar transacciones por `date DESC` en `getAllTransactions()`.
-- Queries de totales agregados viven en `queries.ts`, operaciones CRUD en `db.ts`.
+- Ordenar transacciones: `ORDER BY date DESC` en `getAllTransactions()`.
+- Queries de totales agregados → `queries.ts`. CRUD básico → `db.ts`.
+- SQL SIEMPRE con placeholders `?` y arrays de parámetros. NUNCA concatenar strings de usuario.
 - No incluir lógica de negocio en la capa de DB — eso pertenece a los stores.
+
+## Organización de archivos
+
+| Archivo | Responsabilidad |
+|---------|-----------------|
+| `db.ts` | Singleton, initDatabase, CRUD, TransactionRow, migraciones |
+| `queries.ts` | Queries derivadas, totales mensuales, agregaciones |
+| `chatDb.ts` | Persistencia del historial de chat NLP |

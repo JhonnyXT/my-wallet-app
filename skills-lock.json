@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "expo-react-native-performance": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "github",
+      "computedHash": "6fb56ac57c3b2967bf9ae44219e8945d66b1b736912b96eaa7a194ff85cfd124"
+    },
+    "expo-react-native-typescript": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "computedHash": "ae6a3db1d4b800bf9d69e64600bbdccadbacd22b127feeb71a041c56ad4f1e55"
+    },
+    "finishing-a-development-branch": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "9edba9a38684c060fdc38290f640e1dc0c37de286723ac9be73bacacf7cd6f3d"
+    },
+    "react-native": {
+      "source": "jezweb/claude-skills",
+      "sourceType": "github",
+      "computedHash": "febc1780fcace64e3c5f2c52c387b19465a76e19c8713a70207bcabdfccf305e"
+    },
+    "systematic-debugging": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "72e9ab72627e4fd8ed26a582e82309a98ecdc4f6e1c99418430ac05682c9e91d"
+    },
+    "test-driven-development": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "126f1ebf6ccd414f42544f6e83d8cc5adb089e1108eaffb7c400701e37eecd9f"
+    }
+  }
+}

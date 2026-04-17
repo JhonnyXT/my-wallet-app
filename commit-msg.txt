@@ -1,9 +1,5 @@
-﻿fix(notifications): corregir deteccion automatica de transacciones
+﻿docs(agents): revisar documentacion de notificaciones y mejorar /commit
 
-- Corregir packageNames de 11 bancos colombianos verificando Play Store
-  (Davivienda, DaviPlata, BBVA, Bco. Occidente, Bco. Popular, AV Villas,
-   Lulo Bank, Scotiabank Colpatria, Rappi, Tpaga, Itau)
-- Corregir parseo del JSON en notificationHeadlessTask (JSON.parse)
-- Eliminar campos emoji y defaultCategoryEmoji de BankConfig
-- Ordenar lista de bancos activos: seleccionados primero
-- Agregar listener AppState en settings para re-verificar permisos
+- Actualizar CONTEXT.md: quitar bankEmoji de ParsedTransaction y corregir
+  descripcion de ReviewCard (ya no muestra emoji del banco)
+- Agregar Paso 3 en /commit para verificar documentacion antes de commitear

@@ -385,7 +385,7 @@ reset(): void  // limpia todo incluyendo pendingBatch y pendingManualItem
 }
 
 // PendingNotificationItem extiende ParsedTransaction + { id: string }
-// ParsedTransaction = { amount, isExpense, description, bankName, bankEmoji, packageName,
+// ParsedTransaction = { amount, isExpense, description, bankName, packageName,
 //                       rawTitle, rawText, confidence: "high"|"medium"|"low", detectedAt }
 
 // Acciones
@@ -888,7 +888,7 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Pantalla fullscreen modal para revisar transacciones detectadas automáticamente desde notificaciones bancarias
 - **Header:** flecha atrás + título + contador "N por confirmar" + botón "Descartar" (rojo) que descarta toda la cola
 - **Banner informativo** (azul): "Detectadas automáticamente · Revisa antes de guardar"
-- **FlatList** de `ReviewCard`s: cada tarjeta muestra categoría, descripción, banco (emoji + nombre), **indicador de confianza** (punto verde/naranja/rojo en esquina superior derecha), monto coloreado, botones ✏️ y 🗑️
+- **FlatList** de `ReviewCard`s: cada tarjeta muestra categoría, descripción, nombre del banco, **indicador de confianza** (punto verde/naranja/rojo en esquina superior derecha), monto coloreado, botones ✏️ y 🗑️
 - **Swipe-left** → botón rojo "Eliminar" (PanResponder, igual patrón que `TransactionItem`)
 - **Botón ✏️** → `EditItemSheet`: toggle gasto/ingreso, monto, descripción, categoría
 - **Footer sticky:** resumen de gastos/ingresos + botón azul "GUARDAR TODOS (N)"

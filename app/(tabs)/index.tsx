@@ -179,7 +179,7 @@ function NotificationBadgeBtn() {
       style={[notifBadgeS.btn, { backgroundColor: theme.surface }]}
       onPress={() => router.push("/notification-review")}
     >
-      <Bell size={20} color="#135BEC" strokeWidth={1.8} />
+      <Bell size={20} color={theme.text} strokeWidth={1.8} />
       <View style={notifBadgeS.badge}>
         <Text style={notifBadgeS.badgeText}>{count > 9 ? "9+" : count}</Text>
       </View>
@@ -694,7 +694,7 @@ export default function DashboardScreen() {
             onOpenMonthPicker={() => setMonthPickerOpen(true)}
           />
         </View>
-        <View style={{ alignItems: "center", gap: 8 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
           {/* Badge de transacciones detectadas automáticamente */}
           <NotificationBadgeBtn />
           <View ref={getTourRef(TOUR_KEYS.SETTINGS_BTN)} collapsable={false}>

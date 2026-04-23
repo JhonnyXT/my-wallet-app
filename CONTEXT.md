@@ -893,7 +893,7 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - **Botón ✏️** → `EditItemSheet`: toggle gasto/ingreso, monto, descripción, categoría
 - **Footer sticky:** resumen de gastos/ingresos + botón azul "GUARDAR TODOS (N)"
 - **Estado vacío:** icono 🔕, mensaje explicativo, botón "Entendido"
-- Al guardar: `addTransactionBatch(items)` + `clearAll()` (store) + toast 8s + `router.back()`
+- Al guardar: `addTransactionBatch(items)` (con `date: new Date()`) + `clearAll()` (store) + toast 8s + `router.back()`
 
 ---
 

@@ -1,5 +1,8 @@
-﻿docs(agents): revisar documentacion de notificaciones y mejorar /commit
+﻿fix(notifications): corregir guardar transacciones y UI del header
 
-- Actualizar CONTEXT.md: quitar bankEmoji de ParsedTransaction y corregir
-  descripcion de ReviewCard (ya no muestra emoji del banco)
-- Agregar Paso 3 en /commit para verificar documentacion antes de commitear
+- Corregir handleSaveAll: date pasaba como string ISO en lugar de Date,
+  causando que insertTransaction fallara silenciosamente al guardar
+- Corregir addToast en notification-review: firma posicional antigua
+  causaba toast.level=undefined y crash 'Cannot read property cardBgDark'
+- Icono Bell en header: cambiar color fijo #135BEC a theme.text (igual que Settings)
+- Layout header: botones Bell y Settings ahora en fila horizontal (gap: 4)

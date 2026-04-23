@@ -405,9 +405,8 @@ export default function NotificationReviewScreen() {
       amount: item.isExpense ? -Math.abs(item.amount) : Math.abs(item.amount),
       description: item.description,
       categoryEmoji: item.categoryEmoji,
-      categoryName: item.categoryName,
       paymentMethod: item.paymentMethod,
-      date: new Date().toISOString(),
+      date: new Date(),
     }));
 
     await addTransactionBatch(batch);
@@ -416,12 +415,13 @@ export default function NotificationReviewScreen() {
     const expenseCount = items.filter((i) => i.isExpense).length;
     const incomeCount = items.length - expenseCount;
 
-    addToast(
-      `✅ ${items.length} registro${items.length !== 1 ? "s" : ""} guardado${items.length !== 1 ? "s" : ""}` +
-      (incomeCount > 0 ? ` · ${incomeCount} ingreso${incomeCount !== 1 ? "s" : ""}` : ""),
-      "success",
-      8000
-    );
+    addToast({
+      level: "success",
+      icon: "✅",
+      title: `${items.length} registro${items.length !== 1 ? "s" : ""} guardado${items.length !== 1 ? "s" : ""}` +
+        (incomeCount > 0 ? ` · ${incomeCount} ingreso${incomeCount !== 1 ? "s" : ""}` : ""),
+      duration: 8000,
+    });
 
     router.back();
   }, [items, addTransactionBatch, clearAll, addToast]);

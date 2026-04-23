@@ -11,13 +11,16 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Mic, Pause, Play, Sparkles, X } from "lucide-react-native";
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
     Dimensions,
+    Modal,
     Pressable,
     ScrollView,
     StyleSheet,
     Text,
+    TouchableOpacity,
     View,
 } from "react-native";
 import Animated, {
@@ -156,6 +159,10 @@ export default function VoiceInputScreen() {
 
   const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ─── Prominent Disclosure micrófono ───────────────────────────────────────
+  const MIC_DISCLOSED_KEY = "mywallet-mic-disclosed";
+  const [showMicDisclosure, setShowMicDisclosure] = useState(false);
+
   // Ref que siempre tiene el valor actual de status para los listeners
   // (evita el stale-closure bug en el evento "end")
   const statusRef = useRef(status);
@@ -255,7 +262,7 @@ export default function VoiceInputScreen() {
 
   // ─── Iniciar al montar la pantalla ────────────────────────────────────────
   useEffect(() => {
-    startVoice();
+    checkDisclosureAndStart();
     return () => {
       clearSilenceTimer();
       try { SpeechModule?.stop(); } catch { /* ignore */ }
@@ -263,6 +270,21 @@ export default function VoiceInputScreen() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function checkDisclosureAndStart() {
+    const disclosed = await AsyncStorage.getItem(MIC_DISCLOSED_KEY);
+    if (disclosed === "true") {
+      startVoice();
+    } else {
+      setShowMicDisclosure(true);
+    }
+  }
+
+  async function handleMicDisclosureConfirm() {
+    await AsyncStorage.setItem(MIC_DISCLOSED_KEY, "true");
+    setShowMicDisclosure(false);
+    startVoice();
+  }
 
   async function startVoice() {
     if (!SpeechModule) return;
@@ -322,6 +344,39 @@ export default function VoiceInputScreen() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <View style={styles.screen}>
+      {/* ── Prominent Disclosure: micrófono (se muestra solo la primera vez) ── */}
+      <Modal visible={showMicDisclosure} transparent animationType="fade">
+        <View style={micDiscS.overlay}>
+          <View style={micDiscS.card}>
+            <Text style={micDiscS.icon}>🎙️</Text>
+            <Text style={micDiscS.title}>Uso del micrófono</Text>
+            <Text style={micDiscS.body}>
+              MyWallet usará el micrófono mientras hablas para transcribir tu gasto.{"\n\n"}
+              {"✅ Solo se activa cuando tú lo inicias\n"}
+              {"✅ El audio no se graba ni almacena\n"}
+              {"✅ La transcripción ocurre en tu dispositivo\n"}
+              {"❌ Ningún audio sale de tu teléfono"}
+            </Text>
+            <View style={micDiscS.btns}>
+              <TouchableOpacity
+                style={micDiscS.btnCancel}
+                onPress={() => { setShowMicDisclosure(false); handleClose(); }}
+                activeOpacity={0.7}
+              >
+                <Text style={micDiscS.btnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={micDiscS.btnConfirm}
+                onPress={handleMicDisclosureConfirm}
+                activeOpacity={0.7}
+              >
+                <Text style={micDiscS.btnConfirmText}>Continuar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Fondo glassmorphism */}
       <BlurView intensity={85} tint="dark" style={StyleSheet.absoluteFillObject} />
       <View style={[StyleSheet.absoluteFillObject, styles.overlay]} />
@@ -645,4 +700,36 @@ const styles = StyleSheet.create({
     color: "#64748B",
     letterSpacing: 1.8,
   },
+});
+
+const micDiscS = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.72)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  card: {
+    backgroundColor: "#1C2128",
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+    gap: 12,
+    width: "100%",
+  },
+  icon:  { fontSize: 32 },
+  title: { fontSize: 18, fontWeight: "700", color: "#E6EDF3", textAlign: "center" },
+  body:  { fontSize: 14, color: "#8B949E", lineHeight: 21, textAlign: "center" },
+  btns:  { flexDirection: "row", gap: 12, marginTop: 4, width: "100%" },
+  btnCancel: {
+    flex: 1, paddingVertical: 12, borderRadius: 12,
+    borderWidth: 1, borderColor: "#30363D", alignItems: "center",
+  },
+  btnCancelText:  { fontSize: 15, fontWeight: "600", color: "#8B949E" },
+  btnConfirm: {
+    flex: 1, paddingVertical: 12, borderRadius: 12,
+    backgroundColor: "#135BEC", alignItems: "center",
+  },
+  btnConfirmText: { fontSize: 15, fontWeight: "700", color: "#fff" },
 });

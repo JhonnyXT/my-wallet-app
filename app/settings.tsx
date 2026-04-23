@@ -1150,8 +1150,12 @@ function AutoDetectSection() {
           <View style={[s.modalCard, { gap: 16 }]}>
             <Text style={{ fontSize: 24, textAlign: "center" }}>🔔</Text>
             <Text style={[s.modalTitle, { textAlign: "center" }]}>Acceso a notificaciones</Text>
-            <Text style={{ fontSize: 14, color: theme.textSub, lineHeight: 20, textAlign: "center" }}>
-              MyWallet necesita permiso para leer notificaciones de tus apps bancarias. Esto es estrictamente para detectar transacciones.{"\n\n"}
+            <Text style={{ fontSize: 14, color: theme.textSub, lineHeight: 21, textAlign: "center" }}>
+              MyWallet leerá notificaciones de tus apps bancarias para detectar transacciones automáticamente.{"\n\n"}
+              {"✅ Solo apps bancarias que tú elijas\n"}
+              {"✅ Procesamiento 100% en tu dispositivo\n"}
+              {"✅ Ningún dato sale de tu teléfono\n"}
+              {"❌ No accede a mensajes, fotos ni otras apps\n\n"}
               Se abrirá la configuración del sistema. Busca "MyWallet" y activa el acceso.
             </Text>
             <View style={s.modalBtns}>

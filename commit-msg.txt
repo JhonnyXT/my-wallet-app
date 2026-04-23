@@ -1,12 +1,8 @@
-﻿chore(security): preparacion lanzamiento Play Store v1.5.0
+﻿feat(security): agregar Prominent Disclosures para notificaciones y microfono
 
-- app.json: version 1.5.0, versionCode 2, userInterfaceStyle automatic
-- settings.tsx: mejorar Prominent Disclosure de notificaciones con lista
-  de garantias exigida por Google (que se accede, donde se procesa, que no ocurre)
+- settings.tsx: mejorar modal de permiso de notificaciones con lista de
+  garantias exigida por Google (que se accede, procesamiento local,
+  que no sale del telefono, que no accede a otras apps)
 - voice-input.tsx: agregar modal Prominent Disclosure para microfono
-  (solo aparece la primera vez, se persiste en AsyncStorage)
-- docs/index.html: Politica de Privacidad completa para GitHub Pages
-  con soporte dark/light mode, tabla Data Safety y permisos detallados
-- AndroidManifest.xml: excluir mywallet.db del Auto-Backup y quitar
-  SYSTEM_ALERT_WINDOW (cambios en disco, carpeta android/ no versionada)
-- android/res/xml/backup_rules.xml: reglas de exclusion de DB financiera
+  que aparece solo la primera vez (persistido en AsyncStorage).
+  Flujo: checkDisclosureAndStart -> modal -> Continuar -> startVoice()

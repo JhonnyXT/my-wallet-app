@@ -2,59 +2,57 @@
  * app/settings.tsx — Modal de Configuración
  * Diseño: Stitch "Professional Settings Interface"
  */
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Switch,
-  Modal,
-  Pressable,
-  KeyboardAvoidingView,
-  Platform,
-  Animated,
-  PanResponder,
-  Share,
-  Linking,
-  AppState,
-} from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import RNAndroidNotificationListener from "react-native-android-notification-listener";
-import { KNOWN_BANKS, type BankConfig } from "@/src/utils/notificationParser";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Wallet,
-  CreditCard,
-  PiggyBank,
-  Moon,
-  Download,
-  Plus,
-  Pencil,
-  Trash2,
-  Check,
-  X,
-  LayoutGrid,
-} from "lucide-react-native";
-import { router } from "expo-router";
-import Constants from "expo-constants";
-import { useSettingsStore, type PaymentMethod, type PaymentMethodType, type SavingsGoal } from "@/src/store/useSettingsStore";
-import { useToastStore } from "@/src/store/useToastStore";
-import { checkAndNotifyGoalCompleted, requestNotificationPermissions } from "@/src/services/notificationService";
-import { CURATED_EMOJIS, type UserCategory } from "@/src/constants/categoryPresets";
-import { HueColorPicker } from "@/src/components/ui/HueColorPicker";
-import { hueToColors, hexToHue } from "@/src/utils/colorUtils";
-import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
-import { useFinanceStore } from "@/src/store/useFinanceStore";
-import { formatMoneyInput } from "@/src/utils/formatMoney";
-import { useTheme } from "@/src/context/ThemeContext";
-import type { AppTheme } from "@/src/theme";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { GuidedTour, type TourStep } from "@/src/components/ui/GuidedTour";
+import { HueColorPicker } from "@/src/components/ui/HueColorPicker";
+import { CURATED_EMOJIS, type UserCategory } from "@/src/constants/categoryPresets";
+import { useTheme } from "@/src/context/ThemeContext";
+import { checkAndNotifyGoalCompleted, requestNotificationPermissions } from "@/src/services/notificationService";
+import { useFinanceStore } from "@/src/store/useFinanceStore";
+import { useSettingsStore, type PaymentMethod, type PaymentMethodType, type SavingsGoal } from "@/src/store/useSettingsStore";
+import { useToastStore } from "@/src/store/useToastStore";
+import type { AppTheme } from "@/src/theme";
+import { hexToHue, hueToColors } from "@/src/utils/colorUtils";
+import { formatMoneyInput } from "@/src/utils/formatMoney";
+import { KNOWN_BANKS } from "@/src/utils/notificationParser";
+import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
+import { router } from "expo-router";
+import {
+    Check,
+    ChevronLeft,
+    ChevronRight,
+    CreditCard,
+    Download,
+    LayoutGrid,
+    Moon,
+    Pencil,
+    PiggyBank,
+    Plus,
+    Trash2,
+    Wallet,
+    X,
+} from "lucide-react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+    Animated,
+    AppState,
+    KeyboardAvoidingView,
+    Modal,
+    PanResponder,
+    Pressable,
+    ScrollView,
+    Share,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from "react-native";
+import RNAndroidNotificationListener from "react-native-android-notification-listener";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const APP_VERSION = Constants.expoConfig?.version ?? "1.0.0";
 

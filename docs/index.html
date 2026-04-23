@@ -1,0 +1,165 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Politica de Privacidad - MyWallet</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#e6edf3;--text-sub:#8b949e;--accent:#135BEC;--accent-light:#1f6feb;--green:#3fb950;--red:#f85149}
+    body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.7;padding:0 16px 80px}
+    header{background:var(--surface);border-bottom:1px solid var(--border);padding:32px 24px;text-align:center;margin:0 -16px 40px}
+    header .logo{font-size:40px;margin-bottom:8px}
+    header h1{font-size:26px;font-weight:700;color:var(--text);margin-bottom:6px}
+    header .meta{font-size:13px;color:var(--text-sub)}
+    .container{max-width:720px;margin:0 auto}
+    h2{font-size:20px;font-weight:700;color:var(--text);margin:40px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+    h3{font-size:16px;font-weight:600;color:var(--accent-light);margin:24px 0 8px}
+    p{color:var(--text-sub);margin-bottom:12px}
+    .summary-box{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:20px 24px;margin:24px 0}
+    .summary-box p{margin:0;color:var(--text);font-size:15px}
+    .check-list{list-style:none;margin:12px 0;padding:0}
+    .check-list li{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;color:var(--text-sub);font-size:15px}
+    .check-list li .icon{font-size:16px;flex-shrink:0;margin-top:2px}
+    .permission-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+    .permission-card .perm-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    .permission-card .perm-icon{width:40px;height:40px;background:#21262d;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .permission-card .perm-title{font-size:16px;font-weight:700;color:var(--text)}
+    .permission-card .perm-name{font-size:12px;color:var(--text-sub);font-family:monospace}
+    .never-list{background:#160d0d;border:1px solid #3d1111;border-radius:8px;padding:16px 20px;margin:12px 0;list-style:none}
+    .never-list li{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;color:#f85149;font-size:15px}
+    .never-list li:last-child{margin-bottom:0}
+    table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
+    th{background:var(--surface);color:var(--text);font-weight:600;padding:10px 14px;text-align:left;border:1px solid var(--border)}
+    td{padding:10px 14px;border:1px solid var(--border);color:var(--text-sub)}
+    td.yes{color:var(--green);font-weight:600}
+    td.no{color:var(--red);font-weight:600}
+    .contact-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin:16px 0;text-align:center}
+    .contact-card a{color:var(--accent-light);text-decoration:none;font-weight:600}
+    .contact-card a:hover{text-decoration:underline}
+    footer{text-align:center;color:var(--text-sub);font-size:13px;margin-top:60px;padding-top:24px;border-top:1px solid var(--border)}
+    @media(prefers-color-scheme:light){:root{--bg:#f6f8fa;--surface:#ffffff;--border:#d0d7de;--text:#1f2328;--text-sub:#656d76}.never-list{background:#fff5f5;border-color:#ffd7d5}.never-list li{color:#cf222e}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo">&#x1F4B3;</div>
+  <h1>Politica de Privacidad</h1>
+  <p class="meta">MyWallet &middot; Version 1.5.0 &middot; Ultima actualizacion: abril 2026</p>
+</header>
+<div class="container">
+  <div class="summary-box">
+    <p><strong>MyWallet es una aplicacion 100% local.</strong> Todos tus datos financieros se almacenan unicamente en tu dispositivo. No existe ningun servidor, ninguna nube propia ni sincronizacion externa. Tus datos nunca salen de tu telefono.</p>
+  </div>
+  <h2>1. Informacion que MyWallet procesa</h2>
+  <p>MyWallet procesa la siguiente informacion <strong>exclusivamente en tu dispositivo</strong>, en la base de datos local de la app:</p>
+  <ul class="check-list">
+    <li><span class="icon">&#x1F4B0;</span> Montos de transacciones (gastos e ingresos)</li>
+    <li><span class="icon">&#x1F4DD;</span> Descripciones y comercios</li>
+    <li><span class="icon">&#x1F3F7;&#xFE0F;</span> Categorias y etiquetas</li>
+    <li><span class="icon">&#x1F4C5;</span> Fechas y horas de las transacciones</li>
+    <li><span class="icon">&#x1F4B3;</span> Metodos de pago seleccionados</li>
+    <li><span class="icon">&#x1F3AF;</span> Metas de ahorro y presupuestos</li>
+    <li><span class="icon">&#x2699;&#xFE0F;</span> Preferencias de configuracion (tema, categorias personalizadas)</li>
+  </ul>
+  <h2>2. Permisos sensibles</h2>
+  <p>MyWallet solicita los siguientes permisos del sistema. Cada uno se usa exclusivamente para la funcion descrita:</p>
+  <div class="permission-card">
+    <div class="perm-header">
+      <div class="perm-icon">&#x1F514;</div>
+      <div>
+        <div class="perm-title">Acceso a Notificaciones</div>
+        <div class="perm-name">NotificationListenerService</div>
+      </div>
+    </div>
+    <p><strong>Para que se usa:</strong> Leer notificaciones de apps bancarias instaladas en tu dispositivo para detectar transacciones automaticamente (ej. "Pago de $50.000 en Bancolombia").</p>
+    <ul class="check-list">
+      <li><span class="icon">&#x2705;</span> Solo procesa notificaciones de apps bancarias que tu eliges</li>
+      <li><span class="icon">&#x2705;</span> El procesamiento ocurre 100% en tu dispositivo</li>
+      <li><span class="icon">&#x2705;</span> Solo se extrae el monto y la descripcion de la transaccion</li>
+      <li><span class="icon">&#x2705;</span> No se almacena el texto completo de la notificacion</li>
+      <li><span class="icon">&#x274C;</span> No accede a notificaciones de mensajeria, redes sociales ni otras apps</li>
+      <li><span class="icon">&#x274C;</span> Ningun dato de las notificaciones sale de tu dispositivo</li>
+    </ul>
+    <p>Este permiso es <strong>opcional</strong>. Puedes usar MyWallet completamente sin activarlo, registrando transacciones manualmente o por voz.</p>
+  </div>
+  <div class="permission-card">
+    <div class="perm-header">
+      <div class="perm-icon">&#x1F399;&#xFE0F;</div>
+      <div>
+        <div class="perm-title">Microfono</div>
+        <div class="perm-name">RECORD_AUDIO</div>
+      </div>
+    </div>
+    <p><strong>Para que se usa:</strong> Transcribir en tiempo real lo que dices para registrar un gasto por voz (ej. "McDonald's 25 mil ayer").</p>
+    <ul class="check-list">
+      <li><span class="icon">&#x2705;</span> Solo se activa cuando tu inicias la funcion de voz</li>
+      <li><span class="icon">&#x2705;</span> La transcripcion usa el motor de reconocimiento de voz de Android</li>
+      <li><span class="icon">&#x2705;</span> El audio se procesa en tiempo real y de forma efimera</li>
+      <li><span class="icon">&#x274C;</span> MyWallet no graba ni almacena audio en ningun formato</li>
+      <li><span class="icon">&#x274C;</span> Ningun audio sale de tu dispositivo</li>
+    </ul>
+    <p>Este permiso es <strong>opcional</strong>. Puedes registrar todos tus gastos escribiendo manualmente.</p>
+  </div>
+  <div class="permission-card">
+    <div class="perm-header">
+      <div class="perm-icon">&#x1F4C1;</div>
+      <div>
+        <div class="perm-title">Almacenamiento</div>
+        <div class="perm-name">READ/WRITE_EXTERNAL_STORAGE (Android &le;12)</div>
+      </div>
+    </div>
+    <p><strong>Para que se usa:</strong> Guardar el archivo CSV cuando el usuario exporta su historial de transacciones manualmente desde Configuracion.</p>
+    <ul class="check-list">
+      <li><span class="icon">&#x2705;</span> Solo se usa cuando tu inicias la exportacion</li>
+      <li><span class="icon">&#x2705;</span> El archivo CSV se guarda en tu carpeta de Descargas</li>
+      <li><span class="icon">&#x274C;</span> MyWallet no accede a tus fotos, documentos ni otros archivos</li>
+    </ul>
+  </div>
+  <h2>3. Lo que NUNCA ocurre en MyWallet</h2>
+  <ul class="never-list">
+    <li><span class="icon">&#x274C;</span> Transmision de datos a servidores externos</li>
+    <li><span class="icon">&#x274C;</span> Sincronizacion con la nube (nuestra o de terceros)</li>
+    <li><span class="icon">&#x274C;</span> Recopilacion de analiticas de uso o comportamiento</li>
+    <li><span class="icon">&#x274C;</span> Publicidad personalizada ni seguimiento publicitario</li>
+    <li><span class="icon">&#x274C;</span> Venta, alquiler o comparticion de datos con terceros</li>
+    <li><span class="icon">&#x274C;</span> Acceso a contactos, camara, ubicacion GPS ni SMS</li>
+  </ul>
+  <h2>4. Resumen de datos (Data Safety)</h2>
+  <table>
+    <thead><tr><th>Tipo de dato</th><th>Se recopila?</th><th>Se comparte?</th><th>Uso</th></tr></thead>
+    <tbody>
+      <tr><td>Historial financiero</td><td class="no">Solo local</td><td class="no">No</td><td>Funcionalidad principal</td></tr>
+      <tr><td>Audio / Voz</td><td class="no">No se almacena</td><td class="no">No</td><td>Transcripcion efimera</td></tr>
+      <tr><td>Contenido de notificaciones</td><td class="no">Parcial local*</td><td class="no">No</td><td>Deteccion transacciones</td></tr>
+      <tr><td>Identificadores de dispositivo</td><td class="no">No</td><td class="no">No</td><td>-</td></tr>
+      <tr><td>Ubicacion</td><td class="no">No</td><td class="no">No</td><td>-</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:13px">* Solo se guarda el monto y descripcion extraidos, no el texto completo de la notificacion.</p>
+  <h2>5. Almacenamiento y backup</h2>
+  <p>La base de datos de MyWallet (<code>mywallet.db</code>) esta <strong>excluida explicitamente</strong> del sistema de Auto-Backup de Android. Esto significa que tus datos financieros <strong>no se suben a Google Drive</strong> ni a ningun otro servicio de respaldo automatico.</p>
+  <p>Si desinstalasla app, todos tus datos seran eliminados permanentemente del dispositivo. Puedes exportar un respaldo manual en formato CSV desde <strong>Configuracion &rarr; Exportar datos</strong> antes de desinstalar.</p>
+  <h2>6. Retencion y eliminacion de datos</h2>
+  <ul class="check-list">
+    <li><span class="icon">&#x1F5D1;&#xFE0F;</span> <strong>Borrar todo:</strong> Configuracion &rarr; Borrar historial de transacciones</li>
+    <li><span class="icon">&#x1F4E4;</span> <strong>Exportar:</strong> Configuracion &rarr; Exportar datos (CSV)</li>
+    <li><span class="icon">&#x1F4F2;</span> <strong>Desinstalar:</strong> Elimina todos los datos permanentemente</li>
+  </ul>
+  <h2>7. Menores de edad</h2>
+  <p>MyWallet no esta dirigida a menores de 13 anos. No recopilamos intencionalmente informacion de menores.</p>
+  <h2>8. Cambios a esta politica</h2>
+  <p>Si realizamos cambios materiales a esta Politica de Privacidad, actualizaremos la fecha de ultima actualizacion y notificaremos a los usuarios a traves de la app cuando sea apropiado.</p>
+  <h2>9. Contacto</h2>
+  <div class="contact-card">
+    <p style="font-size:15px;color:var(--text);margin-bottom:8px"><strong>Desarrollador de MyWallet</strong></p>
+    <p style="margin-bottom:4px">Email: <a href="mailto:TU_EMAIL_AQUI">TU_EMAIL_AQUI</a></p>
+    <p style="font-size:13px;color:var(--text-sub)">Respondemos solicitudes de privacidad en un plazo maximo de 30 dias habiles.</p>
+  </div>
+</div>
+<footer>
+  <p>MyWallet v1.5.0 &middot; Desarrollado en Colombia &#x1F1E8;&#x1F1F4;</p>
+  <p style="margin-top:6px">Esta politica fue actualizada por ultima vez en <strong>abril 2026</strong>.</p>
+</footer>
+</body>
+</html>

@@ -35,7 +35,7 @@
 
 **MyWallet** es una aplicación personal de control financiero diseñada bajo el principio de **"Minimalismo Funcional"** y **"Cero Fricción"**:
 
-- **Registro en < 3 segundos** mediante texto libre con NLP o entrada por voz
+- **Registro en un corto tiempo** mediante texto libre con NLP o entrada por voz
 - **100% offline** — datos locales en SQLite, sin servidores ni suscripciones
 - **Moneda:** Pesos colombianos ($ COP), separador de miles con puntos
 - **Idioma UI:** Español (todo texto visible al usuario debe estar en español)

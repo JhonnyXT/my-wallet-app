@@ -6,40 +6,39 @@
  * Voz:    expo-speech-recognition → parciales en tiempo real
  * Auto:   2 s de silencio → para y navega al formulario de gasto/ingreso
  */
-import { useEffect, useRef, useCallback, useLayoutEffect } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  Dimensions,
-  ScrollView,
-} from "react-native";
 import { BlurView } from "expo-blur";
-import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import { Mic, X, Sparkles, Pause, Play } from "lucide-react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
-  withSequence,
-  Easing,
-  FadeIn,
-  FadeOut,
-  ZoomIn,
-} from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import { Mic, Pause, Play, Sparkles, X } from "lucide-react-native";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import {
+    Dimensions,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
+import Animated, {
+    Easing,
+    FadeIn,
+    FadeOut,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withSequence,
+    withTiming,
+    ZoomIn,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { useVoiceStore } from "@/src/store/useVoiceStore";
 import {
-  processVoiceInput,
-  processMultiVoiceInput,
-  normalizeMoneyText,
+    normalizeMoneyText,
+    processMultiVoiceInput
 } from "@/src/utils/voiceParser";
 
 const { width: SW } = Dimensions.get("window");

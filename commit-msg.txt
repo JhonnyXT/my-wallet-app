@@ -1,0 +1,4 @@
+﻿docs(privacy): actualizar email de contacto en politica de privacidad
+
+Reemplazar placeholder TU_EMAIL_AQUI por jonathanblandon101@gmail.com
+en docs/index.html (GitHub Pages).

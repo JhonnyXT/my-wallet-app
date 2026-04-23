@@ -1,0 +1,6 @@
+﻿chore(commands): actualizar build-apk con rutas absolutas de ADB y APK
+
+- Usar .\gradlew.bat en lugar de .\gradlew
+- Eliminar paso 'clean' innecesario (build incremental mas rapido)
+- Rutas absolutas para adb.exe y app-release.apk
+- Manejo de error INSTALL_FAILED_UPDATE_INCOMPATIBLE

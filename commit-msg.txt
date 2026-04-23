@@ -1,8 +1,0 @@
-﻿feat(security): agregar Prominent Disclosures para notificaciones y microfono
-
-- settings.tsx: mejorar modal de permiso de notificaciones con lista de
-  garantias exigida por Google (que se accede, procesamiento local,
-  que no sale del telefono, que no accede a otras apps)
-- voice-input.tsx: agregar modal Prominent Disclosure para microfono
-  que aparece solo la primera vez (persistido en AsyncStorage).
-  Flujo: checkDisclosureAndStart -> modal -> Continuar -> startVoice()

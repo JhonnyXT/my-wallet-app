@@ -53,18 +53,19 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   addTransactionBatch: async (items) => {
-    const inserted = await Promise.all(
-      items.map((item) =>
-        insertTransaction(
-          item.amount,
-          item.description,
-          item.categoryEmoji,
-          item.tags ?? [],
-          item.date,
-          item.paymentMethod ?? "cash",
-        )
-      )
-    );
+    // Escrituras secuenciales para evitar bloqueos concurrentes de SQLite
+    const inserted = [];
+    for (const item of items) {
+      const tx = await insertTransaction(
+        item.amount,
+        item.description,
+        item.categoryEmoji,
+        item.tags ?? [],
+        item.date,
+        item.paymentMethod ?? "cash",
+      );
+      inserted.push(tx);
+    }
     // Refresh en una sola operación para no disparar múltiples re-renders
     const all = await getAllTransactions();
     set({ transactions: all });

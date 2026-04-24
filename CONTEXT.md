@@ -261,7 +261,7 @@ Todos los modales usan `presentation: "modal"` con `animation: "slide_from_botto
   addTransaction(...): Promise<TransactionRow>
   deleteTransaction(id): Promise<void>
   getTotalBalance(): number         // Suma de todos los amounts
-  addTransactionBatch(items: BatchTransactionItem[]): Promise<number[]> // Inserta múltiples transacciones en paralelo; retorna los IDs para "Deshacer todo"
+  addTransactionBatch(items: BatchTransactionItem[]): Promise<number[]> // Inserta múltiples transacciones de forma secuencial; retorna los IDs para "Deshacer todo"
 }
 
 interface BatchTransactionItem {
@@ -273,7 +273,7 @@ interface BatchTransactionItem {
   paymentMethod?: string
 }
 ```
-**Patrón:** SQLite es la fuente de verdad. El store es un cache en memoria. `addTransactionBatch` usa `Promise.all(insertTransaction(...))` y llama `getAllTransactions()` una sola vez al terminar para eficiencia.
+**Patrón:** SQLite es la fuente de verdad. El store es un cache en memoria. `addTransactionBatch` usa un loop secuencial (`for...of`) para evitar bloqueos concurrentes de SQLite, y llama `getAllTransactions()` una sola vez al terminar para eficiencia.
 
 ### useExpenseStore (no persistido)
 ```typescript

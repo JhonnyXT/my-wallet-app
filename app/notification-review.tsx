@@ -175,7 +175,11 @@ function EditItemSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === "android" ? 0 : 0}
+      >
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)" }} />
         </TouchableWithoutFeedback>
@@ -183,67 +187,73 @@ function EditItemSheet({
           <View style={[editS.handle, { backgroundColor: theme.border }]} />
           <Text style={[editS.title, { color: theme.text }]}>Editar registro</Text>
 
-          {/* Toggle gasto / ingreso */}
-          <View style={[editS.toggle, { backgroundColor: theme.bgAlt }]}>
-            {(["Gasto", "Ingreso"] as const).map((label, idx) => {
-              const active = idx === 0 ? isExpense : !isExpense;
-              return (
-                <TouchableOpacity
-                  key={label}
-                  style={[editS.toggleBtn, active && { backgroundColor: ACCENT }]}
-                  onPress={() => setIsExpense(idx === 0)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[editS.toggleLabel, { color: active ? "#fff" : theme.textSub }]}>{label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Monto */}
-          <Text style={[editS.label, { color: theme.textSub }]}>Monto</Text>
-          <View style={[editS.inputWrap, { borderColor: theme.border, backgroundColor: theme.bgAlt }]}>
-            <Text style={[editS.currency, { color: theme.textSub }]}>$</Text>
-            <TextInput
-              style={[editS.input, { color: theme.text }]}
-              value={amountStr}
-              onChangeText={(t) => setAmountStr(formatMoneyInput(t))}
-              keyboardType="numeric"
-              placeholder="0"
-              placeholderTextColor={theme.textSub}
-            />
-          </View>
-
-          {/* Descripción */}
-          <Text style={[editS.label, { color: theme.textSub }]}>Descripción</Text>
-          <View style={[editS.inputWrap, { borderColor: theme.border, backgroundColor: theme.bgAlt }]}>
-            <TextInput
-              style={[editS.input, { color: theme.text }]}
-              value={description}
-              onChangeText={setDesc}
-              placeholder="¿En qué?"
-              placeholderTextColor={theme.textSub}
-              maxLength={60}
-            />
-          </View>
-
-          {/* Categoría */}
-          <Text style={[editS.label, { color: theme.textSub }]}>Categoría</Text>
-          <TouchableOpacity
-            style={[editS.catRow, { borderColor: theme.border, backgroundColor: theme.bgAlt }]}
-            onPress={() => setShowCat(true)}
-            activeOpacity={0.75}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 8 }}
           >
-            <View style={[editS.catIcon, { backgroundColor: selCat?.colorBg ?? "#EEE" }]}>
-              <Text style={{ fontSize: 18 }}>{catEmoji}</Text>
+            {/* Toggle gasto / ingreso */}
+            <View style={[editS.toggle, { backgroundColor: theme.bgAlt }]}>
+              {(["Gasto", "Ingreso"] as const).map((label, idx) => {
+                const active = idx === 0 ? isExpense : !isExpense;
+                return (
+                  <TouchableOpacity
+                    key={label}
+                    style={[editS.toggleBtn, active && { backgroundColor: ACCENT }]}
+                    onPress={() => setIsExpense(idx === 0)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[editS.toggleLabel, { color: active ? "#fff" : theme.textSub }]}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-            <Text style={[editS.catLabel, { color: theme.text }]}>{catName}</Text>
-            <Text style={{ color: theme.textSub, marginLeft: "auto" }}>›</Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity style={[editS.saveBtn, { backgroundColor: ACCENT }]} onPress={handleSave} activeOpacity={0.85}>
-            <Text style={editS.saveBtnText}>GUARDAR CAMBIOS</Text>
-          </TouchableOpacity>
+            {/* Monto */}
+            <Text style={[editS.label, { color: theme.textSub }]}>Monto</Text>
+            <View style={[editS.inputWrap, { borderColor: theme.border, backgroundColor: theme.bgAlt }]}>
+              <Text style={[editS.currency, { color: theme.textSub }]}>$</Text>
+              <TextInput
+                style={[editS.input, { color: theme.text }]}
+                value={amountStr}
+                onChangeText={(t) => setAmountStr(formatMoneyInput(t))}
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor={theme.textSub}
+              />
+            </View>
+
+            {/* Descripción */}
+            <Text style={[editS.label, { color: theme.textSub }]}>Descripción</Text>
+            <View style={[editS.inputWrap, { borderColor: theme.border, backgroundColor: theme.bgAlt }]}>
+              <TextInput
+                style={[editS.input, { color: theme.text }]}
+                value={description}
+                onChangeText={setDesc}
+                placeholder="¿En qué?"
+                placeholderTextColor={theme.textSub}
+                maxLength={60}
+              />
+            </View>
+
+            {/* Categoría */}
+            <Text style={[editS.label, { color: theme.textSub }]}>Categoría</Text>
+            <TouchableOpacity
+              style={[editS.catRow, { borderColor: theme.border, backgroundColor: theme.bgAlt }]}
+              onPress={() => setShowCat(true)}
+              activeOpacity={0.75}
+            >
+              <View style={[editS.catIcon, { backgroundColor: selCat?.colorBg ?? "#EEE" }]}>
+                <Text style={{ fontSize: 18 }}>{catEmoji}</Text>
+              </View>
+              <Text style={[editS.catLabel, { color: theme.text }]}>{catName}</Text>
+              <Text style={{ color: theme.textSub, marginLeft: "auto" }}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[editS.saveBtn, { backgroundColor: ACCENT }]} onPress={handleSave} activeOpacity={0.85}>
+              <Text style={editS.saveBtnText}>GUARDAR CAMBIOS</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
 
@@ -409,21 +419,25 @@ export default function NotificationReviewScreen() {
       date: new Date(),
     }));
 
-    await addTransactionBatch(batch);
-    clearAll();
+    try {
+      await addTransactionBatch(batch);
+      clearAll();
 
-    const expenseCount = items.filter((i) => i.isExpense).length;
-    const incomeCount = items.length - expenseCount;
+      const expenseCount = items.filter((i) => i.isExpense).length;
+      const incomeCount = items.length - expenseCount;
 
-    addToast({
-      level: "success",
-      icon: "✅",
-      title: `${items.length} registro${items.length !== 1 ? "s" : ""} guardado${items.length !== 1 ? "s" : ""}` +
-        (incomeCount > 0 ? ` · ${incomeCount} ingreso${incomeCount !== 1 ? "s" : ""}` : ""),
-      duration: 8000,
-    });
+      addToast({
+        level: "success",
+        icon: "✅",
+        title: `${items.length} registro${items.length !== 1 ? "s" : ""} guardado${items.length !== 1 ? "s" : ""}` +
+          (incomeCount > 0 ? ` · ${incomeCount} ingreso${incomeCount !== 1 ? "s" : ""}` : ""),
+        duration: 8000,
+      });
 
-    router.back();
+      router.back();
+    } catch (e) {
+      addToast({ level: "error", icon: "❌", title: "Error al guardar. Intenta de nuevo.", duration: 5000 });
+    }
   }, [items, addTransactionBatch, clearAll, addToast]);
 
   const handleDiscardAll = useCallback(() => {

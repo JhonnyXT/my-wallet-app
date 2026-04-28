@@ -1,5 +1,0 @@
-﻿fix(notifications): corregir signo de monto al guardar transacciones detectadas
-
-handleSaveAll tenia los signos invertidos: guardaba gastos como negativos
-e ingresos como positivos, contradiciendo la convencion del proyecto.
-Convension correcta: amount > 0 = gasto, amount < 0 = ingreso.

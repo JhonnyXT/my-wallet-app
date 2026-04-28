@@ -412,7 +412,7 @@ export default function NotificationReviewScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     const batch = items.map((item) => ({
-      amount: item.isExpense ? -Math.abs(item.amount) : Math.abs(item.amount),
+      amount: item.isExpense ? Math.abs(item.amount) : -Math.abs(item.amount),
       description: item.description,
       categoryEmoji: item.categoryEmoji,
       paymentMethod: item.paymentMethod,

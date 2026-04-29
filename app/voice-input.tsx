@@ -352,10 +352,10 @@ export default function VoiceInputScreen() {
             <Text style={micDiscS.title}>Uso del micrófono</Text>
             <Text style={micDiscS.body}>
               MyWallet usará el micrófono mientras hablas para transcribir tu gasto.{"\n\n"}
-              {"✅ Solo se activa cuando tú lo inicias\n"}
-              {"✅ El audio no se graba ni almacena\n"}
-              {"✅ La transcripción ocurre en tu dispositivo\n"}
-              {"❌ Ningún audio sale de tu teléfono"}
+              {"· Solo se activa cuando tú lo inicias\n"}
+              {"· El audio no se graba ni almacena\n"}
+              {"· La transcripción ocurre en tu dispositivo\n"}
+              {"· Ningún audio sale de tu teléfono"}
             </Text>
             <View style={micDiscS.btns}>
               <TouchableOpacity

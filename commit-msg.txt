@@ -1,0 +1,10 @@
+﻿feat(ui): redisenar notification-review segun Stitch + fixes menores
+
+- notification-review: rediseño completo basado en 'Review Transactions (Light)'
+  de Stitch: header con flecha azul, cards con badge Gasto/Ingreso, seccion
+  '¿Falta algo?' con link manual, footer pill azul 'Guardar todo'
+  Se elimino: swipe-to-delete, banner informativo, botón Descartar, confidence dots
+- voice-input: quitar emojis ✅/❌ del modal de Prominent Disclosure del microfono,
+  reemplazados por puntos · mas discretos
+- commands/arrancar: corregir para usar gradlew + adb install en lugar de expo start
+- CONTEXT.md: actualizar descripcion de notification-review con nuevo diseño

@@ -1,39 +1,42 @@
 ---
-description: Instala dependencias y lanza el entorno de desarrollo completo de MyWallet
+description: Compila e instala el APK release de MyWallet en el dispositivo conectado
 ---
 
-# /arrancar — Setup y Dev Server
+# /arrancar — Build e Instalación
 
 ## Instrucciones
 
-### Paso 1 — Verificar y instalar dependencias
-Comprobar si `node_modules` existe. Si no:
-```bash
-npm install
-```
-Si hay errores de peer deps (React 19 incompatible):
-```bash
-npm install --legacy-peer-deps
-```
-
-### Paso 2 — Lanzar Metro bundler
-```bash
-npx expo start
-```
-Confirmar que Metro arranca y muestra QR code o URL.
-
-### Paso 3 — Conectar dispositivo/emulador
-Si hay dispositivo USB:
+### Paso 1 — Verificar dispositivo conectado
 ```powershell
-$adb = "C:\Users\FAMILY\AppData\Local\Android\Sdk\platform-tools\adb.exe"
-& $adb devices
+C:\Users\FAMILY\AppData\Local\Android\Sdk\platform-tools\adb.exe devices
 ```
-Si el dispositivo aparece, lanzar en Android:
-```bash
-npx expo run:android
+Si no aparece ningún dispositivo (solo "List of devices attached"), informar al usuario:
+1. Conectar el teléfono por USB
+2. Habilitar USB debugging en el teléfono
+3. Aceptar el diálogo de autorización en pantalla
+
+### Paso 2 — Build release
+```powershell
+cd android
+.\gradlew.bat assembleRelease 2>&1
+```
+Esperar a que termine. Reportar errores de Gradle si los hay.
+
+### Paso 3 — Verificar APK generado
+```powershell
+dir "c:\Users\FAMILY\Documents\ME\code\my-wallet-app\android\app\build\outputs\apk\release"
+```
+Confirmar que `app-release.apk` existe.
+
+### Paso 4 — Instalar en el dispositivo
+```powershell
+C:\Users\FAMILY\AppData\Local\Android\Sdk\platform-tools\adb.exe install -r "c:\Users\FAMILY\Documents\ME\code\my-wallet-app\android\app\build\outputs\apk\release\app-release.apk" 2>&1
+```
+Si falla con "INSTALL_FAILED_UPDATE_INCOMPATIBLE":
+```powershell
+C:\Users\FAMILY\AppData\Local\Android\Sdk\platform-tools\adb.exe uninstall com.mywallet.app
+C:\Users\FAMILY\AppData\Local\Android\Sdk\platform-tools\adb.exe install "c:\Users\FAMILY\Documents\ME\code\my-wallet-app\android\app\build\outputs\apk\release\app-release.apk" 2>&1
 ```
 
-### Paso 4 — Confirmar éxito
-- Metro bundler corriendo en el puerto 8081.
-- App abierta en el dispositivo mostrando el splash animado.
-- Reportar las URLs activas al usuario.
+### Paso 5 — Confirmar
+Reportar al usuario que la app fue instalada exitosamente.

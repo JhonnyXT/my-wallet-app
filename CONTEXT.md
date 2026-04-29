@@ -886,12 +886,12 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 
 ### Notification Review (`app/notification-review.tsx`) *(nuevo en v1.5.0)*
 - Pantalla fullscreen modal para revisar transacciones detectadas automáticamente desde notificaciones bancarias
-- **Header:** flecha atrás + título + contador "N por confirmar" + botón "Descartar" (rojo) que descarta toda la cola
-- **Banner informativo** (azul): "Detectadas automáticamente · Revisa antes de guardar"
-- **FlatList** de `ReviewCard`s: cada tarjeta muestra categoría, descripción, nombre del banco, **indicador de confianza** (punto verde/naranja/rojo en esquina superior derecha), monto coloreado, botones ✏️ y 🗑️
-- **Swipe-left** → botón rojo "Eliminar" (PanResponder, igual patrón que `TransactionItem`)
+- Diseño basado en la pantalla "Review Transactions (Light)" de Stitch
+- **Header:** flecha azul (ChevronLeft) + "Revisar registros" (bold 20px) + subtítulo "N transacciones detectadas"
+- **FlatList** de `ReviewCard`s: icono de categoría en círculo + descripción + fila de metadatos (nombre categoría + badge tipo `↓ Gasto` rojo / `↑ Ingreso` verde) + monto + botón ✏️
+- **Footer de la lista:** sección "¿Falta algo?" + "+ Añadir registro manual" (azul, abre `active-expense`)
 - **Botón ✏️** → `EditItemSheet`: toggle gasto/ingreso, monto, descripción, categoría
-- **Footer sticky:** resumen de gastos/ingresos + botón azul "GUARDAR TODOS (N)"
+- **Footer sticky:** `"N REGISTROS · TOTAL $ X"` (letras espaciadas) + botón pill azul "Guardar todo"
 - **Estado vacío:** icono 🔕, mensaje explicativo, botón "Entendido"
 - Al guardar: `addTransactionBatch(items)` (con `date: new Date()`) + `clearAll()` (store) + toast 8s + `router.back()`
 

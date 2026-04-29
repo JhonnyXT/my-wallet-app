@@ -2,8 +2,7 @@
  * notification-review.tsx — Pantalla de revisión de transacciones detectadas
  * automáticamente desde notificaciones bancarias.
  *
- * El usuario puede editar, descartar o confirmar cada transacción antes de guardarla.
- * Diseño basado en el sistema Stitch / Google Material You.
+ * Diseño basado en la pantalla "Review Transactions (Light)" de Stitch.
  */
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import {
@@ -14,17 +13,14 @@ import {
   FlatList,
   Modal,
   TextInput,
-  Animated,
-  PanResponder,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   TouchableWithoutFeedback,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { ChevronLeft, Pencil, Check, Trash2, Bell, BellOff } from "lucide-react-native";
+import { ChevronLeft, Pencil, Check, BellOff, Plus } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 
 import { useNotificationStore, type PendingNotificationItem } from "@/src/store/useNotificationStore";
@@ -87,7 +83,7 @@ function CategorySheet({
         <View style={[catS.handle, { backgroundColor: theme.border }]} />
         <View style={catS.header}>
           <View>
-            <Text style={[catS.title, { color: theme.textSub }]}>CATEGORÍA</Text>
+            <Text style={[catS.title, { color: theme.textSub }]}>CATEGORIA</Text>
             <Text style={[catS.subtitle, { color: theme.text }]}>
               {isExpense ? "Elige el tipo de gasto" : "Elige el tipo de ingreso"}
             </Text>
@@ -178,7 +174,6 @@ function EditItemSheet({
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === "android" ? 0 : 0}
       >
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)" }} />
@@ -223,21 +218,21 @@ function EditItemSheet({
               />
             </View>
 
-            {/* Descripción */}
-            <Text style={[editS.label, { color: theme.textSub }]}>Descripción</Text>
+            {/* Descripcion */}
+            <Text style={[editS.label, { color: theme.textSub }]}>Descripcion</Text>
             <View style={[editS.inputWrap, { borderColor: theme.border, backgroundColor: theme.bgAlt }]}>
               <TextInput
                 style={[editS.input, { color: theme.text }]}
                 value={description}
                 onChangeText={setDesc}
-                placeholder="¿En qué?"
+                placeholder="¿En que?"
                 placeholderTextColor={theme.textSub}
                 maxLength={60}
               />
             </View>
 
-            {/* Categoría */}
-            <Text style={[editS.label, { color: theme.textSub }]}>Categoría</Text>
+            {/* Categoria */}
+            <Text style={[editS.label, { color: theme.textSub }]}>Categoria</Text>
             <TouchableOpacity
               style={[editS.catRow, { borderColor: theme.border, backgroundColor: theme.bgAlt }]}
               onPress={() => setShowCat(true)}
@@ -270,89 +265,57 @@ function EditItemSheet({
   );
 }
 
-// ─── ReviewCard con swipe-left para eliminar ─────────────────────────────────
-
-const SWIPE_THRESHOLD = 80;
+// ─── ReviewCard — Diseño Stitch ──────────────────────────────────────────────
 
 function ReviewCard({
-  item, categories, onEdit, onRemove,
+  item, categories, onEdit,
 }: {
   item: ReviewItem;
   categories: CatOption[];
   onEdit: (item: ReviewItem) => void;
-  onRemove: (id: string) => void;
 }) {
   const theme = useTheme();
-  const translateX = useRef(new Animated.Value(0)).current;
-  const ACCENT = "#135BEC";
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
-      onPanResponderMove: (_, g) => {
-        if (g.dx < 0) translateX.setValue(Math.max(g.dx, -140));
-      },
-      onPanResponderRelease: (_, g) => {
-        if (g.dx < -SWIPE_THRESHOLD) {
-          Animated.timing(translateX, { toValue: -140, duration: 150, useNativeDriver: true }).start();
-        } else {
-          Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
-        }
-      },
-    })
-  ).current;
-
   const catOption = categories.find((c) => c.key === item.categoryEmoji);
-  const confidenceColor = item.confidence === "high" ? "#059669" : item.confidence === "medium" ? "#D97706" : "#DC2626";
-  const confidenceLabel = item.confidence === "high" ? "Alta confianza" : item.confidence === "medium" ? "Revisar" : "Verificar";
 
   return (
-    <View style={cardS.wrapper}>
-      {/* Fondo rojo (acción eliminar) */}
-      <View style={cardS.deleteBackground}>
-        <Trash2 size={22} color="#fff" />
-        <Text style={cardS.deleteText}>Eliminar</Text>
+    <View style={[cardS.card, { backgroundColor: theme.surface }]}>
+      {/* Icono de categoria */}
+      <View style={[cardS.catBox, { backgroundColor: catOption?.colorBg ?? "#F3F0E7" }]}>
+        <Text style={{ fontSize: 22 }}>{item.categoryEmoji}</Text>
       </View>
 
-      <Animated.View style={[cardS.card, { backgroundColor: theme.surface, transform: [{ translateX }] }]} {...panResponder.panHandlers}>
-        {/* Indicador de confianza */}
-        <View style={[cardS.confidenceDot, { backgroundColor: confidenceColor }]} />
-
-        <View style={cardS.leftCol}>
-          {/* Categoría */}
-          <View style={[cardS.catBox, { backgroundColor: catOption?.colorBg ?? "#EEE" }]}>
-            <Text style={{ fontSize: 20 }}>{item.categoryEmoji}</Text>
-          </View>
-          <View style={cardS.textCol}>
-            <Text style={[cardS.desc, { color: theme.text }]} numberOfLines={1}>{item.description}</Text>
-            <Text style={[cardS.meta, { color: theme.textSub }]}>
-              {item.bankName} · <Text style={{ color: confidenceColor }}>{confidenceLabel}</Text>
+      {/* Texto central */}
+      <View style={cardS.textCol}>
+        <Text style={[cardS.desc, { color: theme.text }]} numberOfLines={1}>
+          {item.description}
+        </Text>
+        <View style={cardS.metaRow}>
+          <Text style={[cardS.catName, { color: theme.textSub }]}>{item.categoryName}</Text>
+          <View style={[cardS.typeBadge, { backgroundColor: item.isExpense ? "#FEE2E2" : "#D1FAE5" }]}>
+            <Text style={[cardS.typeArrow, { color: item.isExpense ? "#DC2626" : "#059669" }]}>
+              {item.isExpense ? "↓" : "↑"}
+            </Text>
+            <Text style={[cardS.typeLabel, { color: item.isExpense ? "#DC2626" : "#059669" }]}>
+              {item.isExpense ? "Gasto" : "Ingreso"}
             </Text>
           </View>
         </View>
+      </View>
 
-        <View style={cardS.rightCol}>
-          <Text style={[cardS.amount, { color: item.isExpense ? "#DC2626" : "#059669" }]}>
-            {item.isExpense ? "-" : "+"}${formatMoneyDisplay(item.amount)}
-          </Text>
-          <View style={cardS.actions}>
-            <TouchableOpacity
-              style={[cardS.actionBtn, { backgroundColor: ACCENT + "15" }]}
-              onPress={() => onEdit(item)}
-              hitSlop={8}
-            >
-              <Pencil size={14} color={ACCENT} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[cardS.actionBtn, { backgroundColor: "#DC262615" }]}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onRemove(item.id); }}
-              hitSlop={8}
-            >
-              <Trash2 size={14} color="#DC2626" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Animated.View>
+      {/* Monto */}
+      <Text style={[cardS.amount, { color: theme.text }]}>
+        $ {formatMoneyDisplay(item.amount)}
+      </Text>
+
+      {/* Boton editar */}
+      <TouchableOpacity
+        style={cardS.editBtn}
+        onPress={() => onEdit(item)}
+        hitSlop={10}
+        activeOpacity={0.6}
+      >
+        <Pencil size={14} color={theme.textSub} />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -369,10 +332,8 @@ export default function NotificationReviewScreen() {
   const { userCategories } = useSettingsStore();
   const { addToast } = useToastStore();
 
-  // Convertir items de la cola a ReviewItems editables
   const [items, setItems] = useState<ReviewItem[]>(() => pendingItems.map(pendingToReview));
 
-  // Sincronizar si entran nuevas notificaciones mientras la pantalla está abierta
   useEffect(() => {
     const newIds = new Set(items.map((i) => i.id));
     const newOnes = pendingItems.filter((p) => !newIds.has(p.id)).map(pendingToReview);
@@ -381,7 +342,6 @@ export default function NotificationReviewScreen() {
 
   const [editTarget, setEditTarget] = useState<ReviewItem | null>(null);
 
-  // Construir lista de categorías para el selector
   const categories = useMemo<CatOption[]>(() => {
     const all = userCategories ?? [];
     return all.map((cat) => ({
@@ -391,12 +351,6 @@ export default function NotificationReviewScreen() {
       colorAccent: cat.colorAccent,
     }));
   }, [userCategories]);
-
-  const handleRemove = useCallback((id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
-    removePendingItem(id);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-  }, [removePendingItem]);
 
   const handleEdit = useCallback((item: ReviewItem) => {
     setEditTarget(item);
@@ -440,36 +394,30 @@ export default function NotificationReviewScreen() {
     }
   }, [items, addTransactionBatch, clearAll, addToast]);
 
-  const handleDiscardAll = useCallback(() => {
-    clearAll();
-    router.back();
-  }, [clearAll]);
-
-  // Totales
-  const totalExpenses = useMemo(() =>
-    items.filter((i) => i.isExpense).reduce((s, i) => s + i.amount, 0),
-    [items]
-  );
-  const totalIncome = useMemo(() =>
-    items.filter((i) => !i.isExpense).reduce((s, i) => s + i.amount, 0),
+  // Total absoluto para el footer
+  const grandTotal = useMemo(() =>
+    items.reduce((s, i) => s + i.amount, 0),
     [items]
   );
 
+  // ─── Estado vacio ─────────────────────────────────────────────────────────
   if (items.length === 0) {
     return (
       <SafeAreaView style={[s.root, { backgroundColor: theme.bg }]}>
-        <View style={[s.header, { borderBottomColor: theme.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={12}>
-            <ChevronLeft size={24} color={theme.text} />
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+            <ChevronLeft size={26} color={ACCENT} />
           </TouchableOpacity>
-          <Text style={[s.headerTitle, { color: theme.text }]}>Transacciones detectadas</Text>
-          <View style={{ width: 40 }} />
+          <View style={s.headerText}>
+            <Text style={[s.headerTitle, { color: theme.text }]}>Revisar registros</Text>
+            <Text style={[s.headerSub, { color: theme.textSub }]}>Sin transacciones pendientes</Text>
+          </View>
         </View>
         <View style={s.emptyState}>
           <BellOff size={48} color={theme.textSub} />
           <Text style={[s.emptyTitle, { color: theme.text }]}>Sin transacciones pendientes</Text>
           <Text style={[s.emptyDesc, { color: theme.textSub }]}>
-            Las transacciones detectadas automáticamente desde tus notificaciones bancarias aparecerán aquí.
+            Las transacciones detectadas automaticamente desde tus notificaciones bancarias apareceran aqui.
           </Text>
           <TouchableOpacity style={[s.emptyBtn, { backgroundColor: ACCENT }]} onPress={() => router.back()} activeOpacity={0.85}>
             <Text style={s.emptyBtnText}>Entendido</Text>
@@ -479,31 +427,23 @@ export default function NotificationReviewScreen() {
     );
   }
 
+  // ─── Pantalla con registros ───────────────────────────────────────────────
   return (
     <SafeAreaView style={[s.root, { backgroundColor: theme.bg }]}>
-      {/* Header */}
-      <View style={[s.header, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={12}>
-          <ChevronLeft size={24} color={theme.text} />
+      {/* Header — estilo Stitch */}
+      <View style={s.header}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+          <ChevronLeft size={26} color={ACCENT} />
         </TouchableOpacity>
-        <View style={s.headerCenter}>
-          <Text style={[s.headerTitle, { color: theme.text }]}>Transacciones detectadas</Text>
-          <Text style={[s.headerCount, { color: theme.textSub }]}>{items.length} por confirmar</Text>
+        <View style={s.headerText}>
+          <Text style={[s.headerTitle, { color: theme.text }]}>Revisar registros</Text>
+          <Text style={[s.headerSub, { color: theme.textSub }]}>
+            {items.length} transaccion{items.length !== 1 ? "es" : ""} detectada{items.length !== 1 ? "s" : ""}
+          </Text>
         </View>
-        <TouchableOpacity onPress={handleDiscardAll} style={s.discardBtn} hitSlop={8}>
-          <Text style={[s.discardText, { color: "#DC2626" }]}>Descartar</Text>
-        </TouchableOpacity>
       </View>
 
-      {/* Banner informativo */}
-      <View style={[s.infoBanner, { backgroundColor: ACCENT + "10", borderColor: ACCENT + "30" }]}>
-        <Bell size={14} color={ACCENT} />
-        <Text style={[s.infoBannerText, { color: ACCENT }]}>
-          Detectadas automáticamente · Revisa antes de guardar
-        </Text>
-      </View>
-
-      {/* Lista */}
+      {/* Lista de tarjetas */}
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
@@ -512,38 +452,42 @@ export default function NotificationReviewScreen() {
             item={item}
             categories={categories}
             onEdit={handleEdit}
-            onRemove={handleRemove}
           />
         )}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 200 }}
         showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        ListFooterComponent={
+          <View style={s.addSection}>
+            <Text style={[s.addQuestion, { color: theme.textSub }]}>¿Falta algo?</Text>
+            <TouchableOpacity
+              style={s.addManualBtn}
+              onPress={() => router.push("/active-expense?from=notification-review")}
+              activeOpacity={0.7}
+            >
+              <Plus size={16} color={ACCENT} />
+              <Text style={[s.addManualText, { color: ACCENT }]}>Anadir registro manual</Text>
+            </TouchableOpacity>
+          </View>
+        }
       />
 
-      {/* Footer fijo con resumen y botón */}
-      <View style={[s.footer, { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: insets.bottom + 12 }]}>
-        <View style={s.footerSummary}>
-          {totalExpenses > 0 && (
-            <Text style={[s.footerStat, { color: "#DC2626" }]}>
-              Gastos: -${formatMoneyDisplay(totalExpenses)}
-            </Text>
-          )}
-          {totalIncome > 0 && (
-            <Text style={[s.footerStat, { color: "#059669" }]}>
-              Ingresos: +${formatMoneyDisplay(totalIncome)}
-            </Text>
-          )}
-        </View>
+      {/* Footer fijo — estilo Stitch */}
+      <View style={[s.footer, { backgroundColor: theme.bg, paddingBottom: insets.bottom + 12 }]}>
+        <Text style={[s.footerSummary, { color: theme.textSub }]}>
+          {items.length} REGISTRO{items.length !== 1 ? "S" : ""} · TOTAL $ {formatMoneyDisplay(grandTotal)}
+        </Text>
         <TouchableOpacity
           style={[s.saveBtn, { backgroundColor: ACCENT }]}
           onPress={handleSaveAll}
           activeOpacity={0.85}
         >
-          <Check size={18} color="#fff" />
-          <Text style={s.saveBtnText}>GUARDAR TODOS ({items.length})</Text>
+          <Check size={18} color="#fff" strokeWidth={3} />
+          <Text style={s.saveBtnText}>Guardar todo</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Modal de edición */}
+      {/* Modal de edicion */}
       <EditItemSheet
         visible={editTarget !== null}
         item={editTarget}
@@ -559,36 +503,50 @@ export default function NotificationReviewScreen() {
 
 const s = StyleSheet.create({
   root: { flex: 1 },
+
   header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+    gap: 8,
   },
-  backBtn: { width: 40, alignItems: "flex-start" },
-  headerCenter: { flex: 1, alignItems: "center" },
-  headerTitle: { fontSize: 17, fontWeight: "700" },
-  headerCount: { fontSize: 12, marginTop: 1 },
-  discardBtn: { width: 80, alignItems: "flex-end" },
-  discardText: { fontSize: 14, fontWeight: "600" },
-  infoBanner: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    marginHorizontal: 16, marginTop: 10, marginBottom: 2,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: 10, borderWidth: 1,
-  },
-  infoBannerText: { fontSize: 12, fontWeight: "500", flex: 1 },
+  headerText: { flex: 1 },
+  headerTitle: { fontSize: 20, fontWeight: "700" },
+  headerSub: { fontSize: 13, marginTop: 2 },
+
+  addSection: { alignItems: "center", marginTop: 24 },
+  addQuestion: { fontSize: 14, marginBottom: 8 },
+  addManualBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+  addManualText: { fontSize: 14, fontWeight: "600" },
+
   footer: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
-    paddingTop: 12, paddingHorizontal: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 12, elevation: 8,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 16,
+    paddingHorizontal: 20,
+    alignItems: "center",
   },
-  footerSummary: { flexDirection: "row", justifyContent: "center", gap: 16, marginBottom: 10 },
-  footerStat: { fontSize: 13, fontWeight: "600" },
+  footerSummary: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 0.8,
+    marginBottom: 12,
+  },
   saveBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 8, paddingVertical: 14, borderRadius: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 28,
+    width: "100%",
   },
-  saveBtnText: { color: "#fff", fontSize: 15, fontWeight: "700", letterSpacing: 0.5 },
+  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
   emptyTitle: { fontSize: 20, fontWeight: "700", marginTop: 16, marginBottom: 8 },
   emptyDesc: { fontSize: 14, textAlign: "center", lineHeight: 20 },
@@ -597,32 +555,49 @@ const s = StyleSheet.create({
 });
 
 const cardS = StyleSheet.create({
-  wrapper: { marginBottom: 10, borderRadius: 16, overflow: "hidden" },
-  deleteBackground: {
-    position: "absolute", right: 0, top: 0, bottom: 0, width: 130,
-    backgroundColor: "#DC2626", flexDirection: "row", alignItems: "center",
-    justifyContent: "center", gap: 6, borderRadius: 16,
-  },
-  deleteText: { color: "#fff", fontWeight: "700", fontSize: 13 },
   card: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingVertical: 14, paddingHorizontal: 14, borderRadius: 16,
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
-    position: "relative",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingLeft: 14,
+    paddingRight: 10,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  confidenceDot: {
-    position: "absolute", top: 10, right: 10,
-    width: 7, height: 7, borderRadius: 3.5,
+  catBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
   },
-  leftCol: { flexDirection: "row", alignItems: "center", flex: 1, gap: 12 },
-  catBox: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   textCol: { flex: 1 },
-  desc: { fontSize: 15, fontWeight: "600", marginBottom: 3 },
-  meta: { fontSize: 12 },
-  rightCol: { alignItems: "flex-end", gap: 8 },
-  amount: { fontSize: 16, fontWeight: "700" },
-  actions: { flexDirection: "row", gap: 6 },
-  actionBtn: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  desc: { fontSize: 15, fontWeight: "600", marginBottom: 4 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  catName: { fontSize: 12 },
+  typeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 2,
+  },
+  typeArrow: { fontSize: 10, fontWeight: "700" },
+  typeLabel: { fontSize: 10, fontWeight: "600" },
+  amount: { fontSize: 16, fontWeight: "700", marginRight: 8 },
+  editBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });
 
 const editS = StyleSheet.create({

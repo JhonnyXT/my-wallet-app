@@ -1,17 +1,11 @@
 /**
  * Chat persistence layer — stores sessions and messages in the local SQLite DB.
- * Uses the same "mywallet.db" file as the rest of the app.
+ * Uses the same "mywallet.db" file as the rest of the app via the shared getNativeDatabase singleton.
  */
-import * as SQLite from "expo-sqlite";
-import { localISOString } from "@/src/db/db";
+import { localISOString, getNativeDatabase } from "@/src/db/db";
 
-let _db: SQLite.SQLiteDatabase | null = null;
-
-async function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (_db) return _db;
-  _db = await SQLite.openDatabaseAsync("mywallet.db");
-  return _db;
-}
+/** Alias interno para brevedad */
+const getDb = getNativeDatabase;
 
 // ─── Row types ───────────────────────────────────────────────────────────────
 
@@ -37,6 +31,7 @@ export async function initChatTables(): Promise<void> {
   const db = await getDb();
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
+    PRAGMA foreign_keys = ON;
 
     CREATE TABLE IF NOT EXISTS chat_sessions (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,8 +96,10 @@ export async function getChatSessions(): Promise<ChatSessionRow[]> {
 
 export async function deleteChatSession(id: number): Promise<void> {
   const db = await getDb();
-  await db.runAsync(`DELETE FROM chat_messages WHERE session_id = ?`, [id]);
-  await db.runAsync(`DELETE FROM chat_sessions WHERE id = ?`, [id]);
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`DELETE FROM chat_messages WHERE session_id = ?`, [id]);
+    await db.runAsync(`DELETE FROM chat_sessions WHERE id = ?`, [id]);
+  });
 }
 
 // ─── Messages ────────────────────────────────────────────────────────────────

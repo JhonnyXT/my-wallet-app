@@ -495,8 +495,9 @@ export default function VoiceBatchReview() {
 
       router.dismissAll();
     } catch {
-      setSaving(false);
       addToast({ level: "danger", icon: "⚠️", title: "Error al guardar, intenta de nuevo" });
+    } finally {
+      setSaving(false);
     }
   }
 

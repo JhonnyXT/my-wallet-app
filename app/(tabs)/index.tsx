@@ -361,6 +361,10 @@ export default function DashboardScreen() {
         scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
         onScroll={scrollHandler}
+        initialNumToRender={15}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: scrollBottomPadding(insets.bottom) },

@@ -1307,12 +1307,6 @@ export default function SettingsScreen() {
   const settingsTourVisible = hasSelectedCategories && !hasCompletedOnboarding && (onboardingStep === 1 || (onboardingStep === 2 && !budgetModal && monthlyBudget > 0));
   const settingsTourIndex = onboardingStep === 1 ? 0 : 1;
 
-  useEffect(() => {
-    if (onboardingStep === 2 && !budgetModal && monthlyBudget > 0) {
-      // Budget was just saved — auto-advance to step 3 (back button spotlight)
-    }
-  }, [budgetModal, monthlyBudget, onboardingStep]);
-
   const transactions = useFinanceStore((s) => s.transactions);
 
   // ── Exportar CSV ────────────────────────────────────────────────────────────

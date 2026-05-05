@@ -44,8 +44,12 @@ const DEFAULTS: ActiveExpense = {
   tags: [],
 };
 
+function initialState(): ActiveExpense {
+  return { ...DEFAULTS, tags: [] };
+}
+
 export const useExpenseStore = create<ExpenseStore>((set) => ({
-  ...DEFAULTS,
+  ...initialState(),
   setAmount: (amount) => set({ amount }),
   toggleExpense: () => set((s) => ({ isExpense: !s.isExpense })),
   setIsExpense: (isExpense) => set({ isExpense }),
@@ -59,5 +63,5 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
   removeTag: (tag) =>
     set((s) => ({ tags: s.tags.filter((t) => t !== tag) })),
   setFromVoice: (data) => set((s) => ({ ...s, ...data })),
-  reset: () => set(DEFAULTS),
+  reset: () => set(initialState()),
 }));

@@ -1,19 +1,9 @@
 import * as SQLite from "expo-sqlite";
 import type { TransactionRow } from "./db";
+import { localISOString as localISO, getNativeDatabase } from "./db";
 
-let _db: SQLite.SQLiteDatabase | null = null;
-
-async function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (_db) return _db;
-  _db = await SQLite.openDatabaseAsync("mywallet.db");
-  return _db;
-}
-
-function localISO(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T` +
-    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.000`;
-}
+/** Alias interno para brevedad */
+const getDb = getNativeDatabase;
 
 export async function queryMonthTotal(
   year: number,
@@ -94,28 +84,31 @@ export async function queryWeeklyTotals(): Promise<DayTotal[]> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - 6);
+
+  // Una sola query agrupada por día en lugar de 7 queries separadas (patrón N+1)
+  const rows = await db.getAllAsync<{ day_num: number; total: number }>(
+    `SELECT CAST(strftime('%w', date) AS INTEGER) as day_num,
+            SUM(amount) as total
+     FROM transactions
+     WHERE date >= ? AND date < ?
+     GROUP BY day_num`,
+    [localISO(weekStart), localISO(new Date(today.getTime() + 86400000))]
+  );
+
+  const totals = new Map(rows.map((r) => [r.day_num, r.total ?? 0]));
+
   const DAY_LABELS = ["D", "L", "M", "M", "J", "V", "S"];
-  const result: DayTotal[] = [];
-
-  for (let i = 6; i >= 0; i--) {
+  return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const nextD = new Date(d);
-    nextD.setDate(d.getDate() + 1);
-
-    const row = await db.getFirstAsync<{ total: number | null }>(
-      `SELECT SUM(amount) as total FROM transactions WHERE date >= ? AND date < ?`,
-      [localISO(d), localISO(nextD)]
-    );
-
-    result.push({
+    d.setDate(today.getDate() - (6 - i));
+    return {
       day: DAY_LABELS[d.getDay()],
-      amount: Math.max(row?.total ?? 0, 0),
-      isToday: i === 0,
-    });
-  }
-
-  return result;
+      amount: Math.max(totals.get(d.getDay()) ?? 0, 0),
+      isToday: i === 6,
+    };
+  });
 }
 
 export async function queryPrevWeekTotal(): Promise<number> {

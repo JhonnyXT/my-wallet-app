@@ -12,7 +12,7 @@ export interface TransactionRow {
 
 let _db: SQLite.SQLiteDatabase | null = null;
 
-async function getNativeDatabase() {
+export async function getNativeDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (_db) return _db;
   _db = await SQLite.openDatabaseAsync("mywallet.db");
   return _db;
@@ -30,10 +30,23 @@ export async function initDatabase(): Promise<void> {
       date TEXT NOT NULL DEFAULT (datetime('now','localtime')),
       tags TEXT NOT NULL DEFAULT ''
     );
+    CREATE INDEX IF NOT EXISTS idx_tx_date            ON transactions(date);
+    CREATE INDEX IF NOT EXISTS idx_tx_category_emoji  ON transactions(category_emoji);
   `);
-  // Migraciones seguras
-  try { await db.execAsync(`ALTER TABLE transactions ADD COLUMN tags TEXT NOT NULL DEFAULT ''`); } catch {}
-  try { await db.execAsync(`ALTER TABLE transactions ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash'`); } catch {}
+  // Migraciones aditivas: "duplicate column" es esperado en actualizaciones; otros errores se relanzar
+  for (const migration of [
+    `ALTER TABLE transactions ADD COLUMN tags TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE transactions ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash'`,
+  ]) {
+    try {
+      await db.execAsync(migration);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!msg.toLowerCase().includes("duplicate column")) {
+        throw e;
+      }
+    }
+  }
 }
 
 /** Formato ISO local (sin conversión UTC) para evitar desfase de zona horaria */

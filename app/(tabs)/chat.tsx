@@ -160,6 +160,7 @@ export default function ChatScreen() {
   const [renameText, setRenameText] = useState("");
 
   const flatListRef = useRef<FlatList>(null);
+  const isAtBottomRef = useRef(true);
   const insets = useSafeAreaInsets();
   const dockPad = Math.max(insets.bottom, 0) + 16;
 
@@ -381,9 +382,17 @@ export default function ChatScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          onContentSizeChange={() =>
-            flatListRef.current?.scrollToEnd({ animated: false })
-          }
+          onContentSizeChange={() => {
+            if (isAtBottomRef.current) {
+              flatListRef.current?.scrollToEnd({ animated: false });
+            }
+          }}
+          onScroll={(e) => {
+            const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+            isAtBottomRef.current =
+              contentOffset.y + layoutMeasurement.height >= contentSize.height - 60;
+          }}
+          scrollEventThrottle={100}
         />
 
         {/* ── Sugerencias rápidas ───────────────────────────────────────── */}

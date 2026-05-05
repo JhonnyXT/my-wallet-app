@@ -56,8 +56,9 @@ export async function notificationHeadlessTask(taskData: { notification: string 
     // 2. Verificar que este banco está en la lista permitida
     const allowedRaw = await AsyncStorage.getItem(ALLOWED_BANKS_KEY);
     if (allowedRaw) {
-      const allowedBanks: string[] = JSON.parse(allowedRaw);
-      if (allowedBanks.length > 0 && !allowedBanks.includes(notification.app)) return;
+      let allowedBanks: unknown;
+      try { allowedBanks = JSON.parse(allowedRaw); } catch { return; }
+      if (Array.isArray(allowedBanks) && allowedBanks.length > 0 && !allowedBanks.includes(notification.app)) return;
     }
 
     // 3. Usar el texto más completo disponible

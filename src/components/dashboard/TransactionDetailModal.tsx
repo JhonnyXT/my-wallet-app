@@ -45,7 +45,7 @@ export function TransactionDetailModal({
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.card} onPress={() => {}}>
           {transaction && (() => {
-            const isExp    = transaction.amount >= 0;
+            const isExp    = transaction.amount > 0;
             const catName  = resolveCategory(transaction.category_emoji, userCategories, savingsGoals);
             const pmName   =
               paymentMethods.find((m) => m.id === transaction.payment_method)?.name ??

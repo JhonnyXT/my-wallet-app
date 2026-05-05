@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,199 +9,42 @@ import {
   Pressable,
   StatusBar,
   TouchableOpacity,
-  Keyboard,
-  Modal,
 } from "react-native";
-import Reanimated, {
-  useSharedValue,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  interpolate,
-  Extrapolation,
-} from "react-native-reanimated";
+import Reanimated from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Settings, Search, X, Hash, Bell } from "lucide-react-native";
+import { Settings, Search, X, Hash } from "lucide-react-native";
 import { router } from "expo-router";
 import { scrollBottomPadding, DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import type { TransactionRow } from "@/src/db/db";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
-import { useUIStore } from "@/src/store/useUIStore";
-import { useNotificationStore } from "@/src/store/useNotificationStore";
 import { useToastStore } from "@/src/store/useToastStore";
-import { FilterChips, PERIODS } from "@/src/components/ui/FilterChips";
+import { FilterChips } from "@/src/components/ui/FilterChips";
 import { CategoryChart } from "@/src/components/ui/CategoryChart";
 import { TransactionItem } from "@/src/components/ui/TransactionItem";
-import { EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
-import { getUserExpenseCategories, getUserIncomeCategories } from "@/src/store/useSettingsStore";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
 import { MonthPickerModal } from "@/src/components/ui/MonthPickerModal";
-import { GuidedTour, type TourStep } from "@/src/components/ui/GuidedTour";
+import { GuidedTour } from "@/src/components/ui/GuidedTour";
 import { RollingNumber } from "@/src/components/ui/RollingNumber";
 import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
+import { formatBalance } from "@/src/utils/transactionFormatters";
+import { useTransactionFilters } from "@/src/hooks/useTransactionFilters";
+import { useDashboardSearch } from "@/src/hooks/useDashboardSearch";
+import { useDashboardTotals } from "@/src/hooks/useDashboardTotals";
+import { useDashboardScroll } from "@/src/hooks/useDashboardScroll";
+import { useDashboardTour } from "@/src/hooks/useDashboardTour";
+import { NotificationBadgeBtn } from "@/src/components/dashboard/NotificationBadgeBtn";
+import { TransactionDetailModal } from "@/src/components/dashboard/TransactionDetailModal";
 
-// ─── Tipos y constantes ───────────────────────────────────────────────────────
+// ─── Tipo local ───────────────────────────────────────────────────────────────
 
 type TxRow = ReturnType<typeof useFinanceStore.getState>["transactions"][0];
 
-export type PeriodFilter =
-  | { type: "quick"; label: string }
-  | { type: "month"; year: number; month: number }
-  | { type: "year";  year: number }
-  | { type: "all" };
-
-const MONTH_ABBR = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-function resolveCategory(
-  emoji: string,
-  userCats: { emoji: string; name: string }[],
-  goals: { emoji: string; name: string }[],
-): string {
-  const u = userCats.find((c) => c.emoji === emoji);
-  if (u) return u.name.charAt(0).toUpperCase() + u.name.slice(1).toLowerCase();
-  const g = goals.find((g) => g.emoji === emoji);
-  if (g) return g.name.charAt(0).toUpperCase() + g.name.slice(1).toLowerCase();
-  const n = EMOJI_TO_CATEGORY_NAME[emoji];
-  if (n) return n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
-  return "General";
-}
-
-function formatDetailDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return `${d.getDate()} ${MONTH_ABBR[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-function formatDetailTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  let h = d.getHours();
-  const m = String(d.getMinutes()).padStart(2, "0");
-  const suffix = h >= 12 ? "p.m." : "a.m.";
-  h = h % 12 || 12;
-  return `${h}:${m} ${suffix}`;
-}
-
-function formatDetailAmount(amount: number): string {
-  return `$ ${Math.round(Math.abs(amount)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
-}
-
-function getDefaultPeriod(): PeriodFilter {
-  return { type: "quick", label: "Este mes" };
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatBalance(amount: number): string {
-  return `$${Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
-}
-
-function normalize(text: string): string {
-  return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
-
-function extractTagsFromTx(tx: { description?: string | null; tags?: string | null }): string[] {
-  if (tx.tags) {
-    try {
-      const parsed = JSON.parse(tx.tags);
-      if (Array.isArray(parsed)) return parsed.map((t: string) => t.toLowerCase());
-    } catch { /* fallback */ }
-  }
-  const matches = (tx.description ?? "").match(/#(\w+)/g);
-  return matches ? matches.map((t) => t.toLowerCase()) : [];
-}
-
-function periodFilterLabel(f: PeriodFilter): string {
-  switch (f.type) {
-    case "quick": return f.label;
-    case "month": return `${MONTH_ABBR[f.month - 1]} ${f.year}`;
-    case "year":  return `${f.year}`;
-    case "all":   return "Todo";
-  }
-}
-
-function getBiweeklyRange(now: Date): { start: Date; end: Date } {
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  if (now.getDate() <= 15) {
-    return { start: new Date(y, m, 1), end: new Date(y, m, 15, 23, 59, 59) };
-  }
-  const lastDay = new Date(y, m + 1, 0).getDate();
-  return { start: new Date(y, m, 16), end: new Date(y, m, lastDay, 23, 59, 59) };
-}
-
-function applyPeriodFilter(transactions: TxRow[], f: PeriodFilter): TxRow[] {
-  const now        = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekStart  = new Date(todayStart);
-  weekStart.setDate(todayStart.getDate() - 7);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const yearStart  = new Date(now.getFullYear(), 0, 1);
-
-  switch (f.type) {
-    case "all": return [...transactions];
-    case "year": {
-      const s = new Date(f.year, 0, 1);
-      const e = new Date(f.year, 11, 31, 23, 59, 59);
-      return transactions.filter(t => { const d = new Date(t.date); return d >= s && d <= e; });
-    }
-    case "month": {
-      const s = new Date(f.year, f.month - 1, 1);
-      const e = new Date(f.year, f.month, 0, 23, 59, 59);
-      return transactions.filter(t => { const d = new Date(t.date); return d >= s && d <= e; });
-    }
-    case "quick":
-      switch (f.label) {
-        case "Hoy":            return transactions.filter(t => new Date(t.date) >= todayStart);
-        case "Esta semana":    return transactions.filter(t => new Date(t.date) >= weekStart);
-        case "Esta quincena": {
-          const { start, end } = getBiweeklyRange(now);
-          return transactions.filter(t => { const d = new Date(t.date); return d >= start && d <= end; });
-        }
-        case "Este mes":       return transactions.filter(t => new Date(t.date) >= monthStart);
-        case "Este año":       return transactions.filter(t => new Date(t.date) >= yearStart);
-        default:               return [...transactions];
-      }
-  }
-}
-
-// ─── Badge de transacciones detectadas automáticamente ───────────────────────
-
-function NotificationBadgeBtn() {
-  const theme        = useTheme();
-  const pendingItems = useNotificationStore((s) => s.pendingItems);
-  const count        = pendingItems.length;
-
-  if (count === 0) return null;
-
-  return (
-    <Pressable
-      style={[notifBadgeS.btn, { backgroundColor: theme.surface }]}
-      onPress={() => router.push("/notification-review")}
-    >
-      <Bell size={20} color={theme.text} strokeWidth={1.8} />
-      <View style={notifBadgeS.badge}>
-        <Text style={notifBadgeS.badgeText}>{count > 9 ? "9+" : count}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
-const notifBadgeS = StyleSheet.create({
-  btn: {
-    width: 40, height: 40, borderRadius: 12,
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
-    position: "relative",
-  },
-  badge: {
-    position: "absolute", top: -4, right: -4,
-    minWidth: 18, height: 18, borderRadius: 9,
-    backgroundColor: "#DC2626", alignItems: "center", justifyContent: "center",
-    paddingHorizontal: 4, borderWidth: 2, borderColor: "#fff",
-  },
-  badgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
-});
+// Re-exportar PeriodFilter para que importadores externos no se rompan
+export type { PeriodFilter } from "@/src/utils/periodFilter";
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -212,7 +55,6 @@ export default function DashboardScreen() {
   const deleteTransaction = useFinanceStore((s) => s.deleteTransaction);
   const addTransaction    = useFinanceStore((s) => s.addTransaction);
   const monthlyBudget     = useSettingsStore((s) => s.monthlyBudget);
-  const budgetByCategory  = useSettingsStore((s) => s.budgetByCategory);
   const userCategories    = useSettingsStore((s) => s.userCategories);
   const resetExpense      = useExpenseStore((s) => s.reset);
   const setExpenseCategory = useExpenseStore((s) => s.setCategory);
@@ -222,214 +64,84 @@ export default function DashboardScreen() {
 
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  // ── Detalle de transacción (long-press) ─────────────────────────────────
+  // ── Detalle de transacción (long-press) ──────────────────────────────────
   const [detailTx, setDetailTx] = useState<TransactionRow | null>(null);
 
+  // ── Filtros de período y tipo ────────────────────────────────────────────
+  const {
+    periodFilter,
+    setPeriodFilter,
+    typeFilter,
+    handlePillPress,
+    monthPickerOpen,
+    setMonthPickerOpen,
+    filteredTransactions,
+    typeFilteredTransactions,
+    chipLabel,
+    quickLabel,
+    isCurrentPeriod,
+  } = useTransactionFilters(transactions);
+
   // ── Búsqueda ──────────────────────────────────────────────────────────────
-  const searchOpen     = useUIStore((s) => s.searchOpen);
-  const searchQuery    = useUIStore((s) => s.searchQuery);
-  const setSearchQuery = useUIStore((s) => s.setSearchQuery);
-  const activeTags     = useUIStore((s) => s.activeTags);
-  const addTag         = useUIStore((s) => s.addTag);
-  const removeTag      = useUIStore((s) => s.removeTag);
-  const closeSearch    = useUIStore((s) => s.closeSearch);
-  const searchInputRef = useRef<TextInput>(null);
-  const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
-
-  const searchBarAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.spring(searchBarAnim, {
-      toValue: searchOpen ? 1 : 0,
-      useNativeDriver: false,
-      damping: 20,
-      stiffness: 180,
-    }).start();
-    if (searchOpen) setTimeout(() => searchInputRef.current?.focus(), 120);
-  }, [searchOpen]);
-
-  const searchBarOpacity = searchBarAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
-
-  // Barra de búsqueda sube cuando aparece el teclado
   const baseSearchBottom = Math.max(insets.bottom, 0) + DOCK_BOTTOM_OFFSET + DOCK_HEIGHT + 10;
-  const keyboardExtraAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const onShow = Keyboard.addListener("keyboardDidShow", (e) => {
-      const extra = Math.max(0, e.endCoordinates.height - baseSearchBottom + 10);
-      Animated.timing(keyboardExtraAnim, { toValue: extra, duration: 180, useNativeDriver: false }).start();
-    });
-    const onHide = Keyboard.addListener("keyboardDidHide", () => {
-      Animated.timing(keyboardExtraAnim, { toValue: 0, duration: 160, useNativeDriver: false }).start();
-    });
-    return () => { onShow.remove(); onHide.remove(); };
-  }, [baseSearchBottom]);
+  const {
+    searchInputRef,
+    tagDropdownOpen,
+    searchBarAnim,
+    keyboardExtraAnim,
+    searchBarOpacity,
+    tagSuggestions,
+    isTypingTag,
+    handleSelectTag,
+    handleSearchTextChange,
+    handleSearchSubmit,
+    searchedTransactions,
+    displayedTransactions,
+    isSearching,
+    searchOpen,
+    searchQuery,
+    activeTags,
+    removeTag,
+    closeSearch,
+  } = useDashboardSearch({ transactions, typeFilteredTransactions, baseSearchBottom });
 
-  // ── Tags únicos disponibles ─────────────────────────────────────────────
-  const allTags = useMemo(() => {
-    const tagSet = new Set<string>();
-    for (const tx of transactions) {
-      for (const t of extractTagsFromTx(tx)) {
-        tagSet.add(t.replace(/^#/, ""));
-      }
-    }
-    return [...tagSet].sort();
-  }, [transactions]);
+  // ── Totales y estadísticas ───────────────────────────────────────────────
+  const {
+    expenseTotal,
+    incomeTotal,
+    netBalance,
+    budgetPct,
+    activeStats,
+    activeTotalForChart,
+    activeBudget,
+    allEmojis,
+  } = useDashboardTotals({
+    transactions,
+    filteredTransactions,
+    typeFilteredTransactions,
+    searchedTransactions,
+    isSearching,
+    typeFilter,
+    isCurrentPeriod,
+  });
 
-  const isTypingTag = searchQuery.startsWith("#");
-  const tagFragment = isTypingTag ? searchQuery.slice(1).toLowerCase() : "";
+  // ── Scroll y animaciones ─────────────────────────────────────────────────
+  const {
+    scrollY,
+    scrollHandler,
+    headerParallaxStyle,
+    pillsParallaxStyle,
+    chartAnimKey,
+  } = useDashboardScroll(typeFilter, periodFilter);
 
-  const tagSuggestions = useMemo(() => {
-    if (!isTypingTag) return [];
-    return allTags
-      .filter((t) => t.includes(tagFragment) && !activeTags.includes(t))
-      .slice(0, 5);
-  }, [isTypingTag, tagFragment, allTags, activeTags]);
-
-  useEffect(() => {
-    setTagDropdownOpen(tagSuggestions.length > 0);
-  }, [tagSuggestions.length]);
-
-  function handleSelectTag(tag: string) {
-    addTag(tag);
-    setTagDropdownOpen(false);
-    searchInputRef.current?.focus();
-  }
-
-  function handleSearchTextChange(text: string) {
-    setSearchQuery(text);
-  }
-
-  function handleSearchSubmit() {
-    if (isTypingTag && tagFragment) {
-      const exact = allTags.find((t) => t === tagFragment);
-      if (exact) addTag(exact);
-      else if (tagSuggestions.length === 1) addTag(tagSuggestions[0]);
-    }
-  }
-
-  // ── Estado de período unificado ───────────────────────────────────────────
-  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>(getDefaultPeriod);
-  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
-
-  const chipLabel = periodFilterLabel(periodFilter);
-  const quickLabel = periodFilter.type === "quick" ? periodFilter.label : "";
-
-  // ── Filtro de tipo (Gastos / Ingresos) ────────────────────────────────────
-  type TypeFilter = "expense" | "income" | null;
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>(null);
-
-  async function handlePillPress(type: TypeFilter) {
-    await Haptics.selectionAsync();
-    setTypeFilter(prev => prev === type ? null : type);
-  }
-
-  // ── Pipeline de filtrado ──────────────────────────────────────────────────
-  const filteredTransactions = useMemo(
-    () => applyPeriodFilter(transactions, periodFilter),
-    [transactions, periodFilter]
-  );
-
-  const typeFilteredTransactions = useMemo(() => {
-    if (typeFilter === "expense") return filteredTransactions.filter(t => t.amount > 0);
-    if (typeFilter === "income")  return filteredTransactions.filter(t => t.amount < 0);
-    return filteredTransactions;
-  }, [filteredTransactions, typeFilter]);
-
-  const activeQuery = searchQuery.trim();
-  const hasActiveSearch = !!activeQuery || activeTags.length > 0;
-
-  const searchedTransactions = useMemo(() => {
-    let results = typeFilteredTransactions;
-
-    // Filtrar por tags activos (AND lógico)
-    if (activeTags.length > 0) {
-      results = results.filter((tx) => {
-        const txTags = extractTagsFromTx(tx).map((t) => t.replace(/^#/, ""));
-        return activeTags.every((at) => txTags.some((tt) => tt.includes(at)));
-      });
-    }
-
-    // Filtrar por texto libre (ignorar si empieza con # — eso es para buscar tag)
-    if (activeQuery && !isTypingTag) {
-      const q = normalize(activeQuery);
-      results = results.filter((tx) => {
-        const desc    = normalize(tx.description ?? "");
-        const catName = normalize(EMOJI_TO_CATEGORY_NAME[tx.category_emoji] ?? "");
-        return desc.includes(q) || catName.includes(q);
-      });
-    }
-
-    return results;
-  }, [typeFilteredTransactions, activeQuery, activeTags, isTypingTag]);
-
-  const displayedTransactions = (searchOpen && hasActiveSearch) ? searchedTransactions : typeFilteredTransactions;
-  const isSearching = searchOpen && hasActiveSearch;
-
-  // ── Totales ───────────────────────────────────────────────────────────────
-  const { expenseTotal, incomeTotal } = useMemo(() => {
-    const source = isSearching ? searchedTransactions : typeFilteredTransactions;
-    const exp = source.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-    const inc = source.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
-    return { expenseTotal: exp, incomeTotal: inc };
-  }, [isSearching, searchedTransactions, typeFilteredTransactions]);
-
-  const netBalance = incomeTotal - expenseTotal;
-
-  // ── Presupuesto — solo visible en período actual ──────────────────────────
-  const isCurrentPeriod = useMemo(() => {
-    const now = new Date();
-    if (periodFilter.type === "quick") return true;
-    if (periodFilter.type === "all")   return false;
-    if (periodFilter.type === "year")  return periodFilter.year === now.getFullYear();
-    return periodFilter.year === now.getFullYear() && periodFilter.month === now.getMonth() + 1;
-  }, [periodFilter]);
-
-  const budgetPct = useMemo(() => {
-    if (monthlyBudget <= 0 || !isCurrentPeriod) return 0;
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const exp = transactions.filter(t => new Date(t.date) >= start && t.amount > 0).reduce((s, t) => s + t.amount, 0);
-    return Math.min(Math.round((exp / monthlyBudget) * 100), 100);
-  }, [transactions, monthlyBudget, isCurrentPeriod]);
-
-  // ── Stats para la gráfica ─────────────────────────────────────────────────
-  const categoryStats = useMemo(() => {
-    const map: Record<string, { total: number; count: number }> = {};
-    for (const tx of filteredTransactions.filter(t => t.amount > 0)) {
-      if (!map[tx.category_emoji]) map[tx.category_emoji] = { total: 0, count: 0 };
-      map[tx.category_emoji].total += tx.amount;
-      map[tx.category_emoji].count += 1;
-    }
-    return Object.entries(map).map(([emoji, s]) => ({ emoji, ...s })).sort((a, b) => b.total - a.total);
-  }, [filteredTransactions]);
-
-  const incomeStats = useMemo(() => {
-    const map: Record<string, { total: number; count: number }> = {};
-    for (const tx of filteredTransactions.filter(t => t.amount < 0)) {
-      if (!map[tx.category_emoji]) map[tx.category_emoji] = { total: 0, count: 0 };
-      map[tx.category_emoji].total += Math.abs(tx.amount);
-      map[tx.category_emoji].count += 1;
-    }
-    return Object.entries(map).map(([emoji, s]) => ({ emoji, ...s })).sort((a, b) => b.total - a.total);
-  }, [filteredTransactions]);
-
-  const totalExpenses = useMemo(() => categoryStats.reduce((s, c) => s + c.total, 0), [categoryStats]);
-  const totalIncome   = useMemo(() => incomeStats.reduce((s, c) => s + c.total, 0),   [incomeStats]);
-
-  const activeStats         = typeFilter === "income" ? incomeStats   : categoryStats;
-  const activeTotalForChart = typeFilter === "income" ? totalIncome   : totalExpenses;
-  const activeBudget = typeFilter === "income" ? {} : budgetByCategory;
-
-  const allEmojis = useMemo(() => {
-    const cats = typeFilter === "income"
-      ? getUserIncomeCategories(userCategories)
-      : getUserExpenseCategories(userCategories);
-    const emojis = cats.map(c => c.emoji);
-    const known = new Set(emojis);
-    const extra = [...new Set(
-      transactions.map(t => t.category_emoji).filter(e => !known.has(e) && e !== "💸")
-    )];
-    return [...emojis, ...extra];
-  }, [transactions, typeFilter, userCategories]);
+  // ── Tour de onboarding ───────────────────────────────────────────────────
+  const {
+    dashboardTourSteps,
+    dashboardTourVisible,
+    dashboardTourIndex,
+    onboardingStep,
+    completeOnboarding,
+  } = useDashboardTour();
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   function handleNewTransactionFromChart(emoji: string, categoryName: string) {
@@ -438,41 +150,6 @@ export default function DashboardScreen() {
     router.push("/active-expense");
   }
 
-  // ── Animación de colapso del chart al hacer scroll (UI thread) ──────────
-  const scrollY = useSharedValue(0);
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      "worklet";
-      scrollY.value = event.contentOffset.y;
-    },
-  });
-
-  // Micro-parallax: balance y pills se comprimen suavemente al inicio del scroll
-  const headerParallaxStyle = useAnimatedStyle(() => {
-    "worklet";
-    return {
-      transform: [
-        { scale:      interpolate(scrollY.value, [0, 100], [1, 0.94], Extrapolation.CLAMP) },
-        { translateY: interpolate(scrollY.value, [0, 100], [0, -5],   Extrapolation.CLAMP) },
-      ],
-    };
-  });
-
-  const pillsParallaxStyle = useAnimatedStyle(() => {
-    "worklet";
-    return {
-      opacity: interpolate(scrollY.value, [0, 80], [1, 0.45], Extrapolation.CLAMP),
-    };
-  });
-
-  // animationKey para re-animar barras cuando el filtro cambia
-  const chartAnimKey = useMemo(
-    () => `${typeFilter ?? "all"}-${periodFilterLabel(periodFilter)}`,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [typeFilter, periodFilter],
-  );
-
-  // ── FlatList helpers ──────────────────────────────────────────────────────
   const keyExtractor = useCallback((item: TxRow) => item.id.toString(), []);
 
   const handleDetail = useCallback((tx: TransactionRow) => setDetailTx(tx), []);
@@ -489,7 +166,8 @@ export default function DashboardScreen() {
       title: "Transacción eliminada",
       actionLabel: "Deshacer",
       duration: 6000,
-      onAction: () => addTransaction(tx.amount, tx.description, tx.category_emoji, tags, new Date(tx.date), tx.payment_method ?? "cash"),
+      onAction: () =>
+        addTransaction(tx.amount, tx.description, tx.category_emoji, tags, new Date(tx.date), tx.payment_method ?? "cash"),
     });
   }, [transactions, deleteTransaction, addTransaction, addToast]);
 
@@ -505,49 +183,13 @@ export default function DashboardScreen() {
     </View>
   ), [handleDeleteTransaction, handleDetail, styles.txItem]);
 
-  // ── Onboarding tour ──────────────────────────────────────────────────────
-  const hasCompletedOnboarding = useSettingsStore((s) => s.hasCompletedOnboarding);
-  const hasSelectedCategories  = useSettingsStore((s) => s.hasSelectedCategories);
-  const onboardingStep         = useSettingsStore((s) => s.onboardingStep);
-  const setOnboardingStep      = useSettingsStore((s) => s.setOnboardingStep);
-  const completeOnboarding     = useSettingsStore((s) => s.completeOnboarding);
-
-  const dashboardTourSteps: TourStep[] = useMemo(() => [
-    {
-      targetRef: getTourRef(TOUR_KEYS.SETTINGS_BTN),
-      title: "¡Bienvenido a MyWallet!",
-      message: "Primero, configura tu ingreso mensual para tener control de tus finanzas.",
-      buttonLabel: "Ir a Ajustes",
-      onAction: () => {
-        setOnboardingStep(1);
-        router.push("/settings");
-      },
-    },
-    {
-      targetRef: getTourRef(TOUR_KEYS.MIC_FAB),
-      title: "Registro por voz",
-      message: "Registra gastos e ingresos con tu voz. Solo di algo como: \"Almuerzo treinta mil\".",
-      buttonLabel: "Entendido",
-      onAction: () => setOnboardingStep(4),
-    },
-    {
-      targetRef: getTourRef(TOUR_KEYS.PLUS_BTN),
-      title: "Registro manual",
-      message: "También puedes registrar tus movimientos manualmente con este botón.",
-      buttonLabel: "¡Empezar!",
-      onAction: () => completeOnboarding(),
-    },
-  ], []);
-
-  const dashboardTourVisible = hasSelectedCategories && !hasCompletedOnboarding && (onboardingStep === 0 || onboardingStep === 3 || onboardingStep === 4);
-  const dashboardTourIndex = onboardingStep === 0 ? 0 : onboardingStep === 3 ? 1 : 2;
-
-  const isNewPeriod = filteredTransactions.length === 0 && isCurrentPeriod && !isSearching;
+  // ── Derivados de estado ───────────────────────────────────────────────────
+  const isNewPeriod      = filteredTransactions.length === 0 && isCurrentPeriod && !isSearching;
   const newPeriodMessage = "Nuevo mes, ¡comienza ahora!";
 
+  // ── ListHeader ────────────────────────────────────────────────────────────
   const listHeader = (
     <>
-      {/* Gráfica — forma parte del scroll unificado con la lista */}
       {!isSearching && (
         <View style={styles.chartWrapper}>
           {isNewPeriod && (
@@ -572,23 +214,25 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {/* Cabecera de sección */}
       {displayedTransactions.length > 0 && (
         <View style={styles.dayHeader}>
           <Text style={styles.dayLabel}>
-            {isSearching ? "RESULTADOS"
+            {isSearching       ? "RESULTADOS"
               : typeFilter === "expense" ? "GASTOS"
               : typeFilter === "income"  ? "INGRESOS"
               : "RECIENTE"}
           </Text>
           <Text style={styles.dayLabelRight}>
-            {isSearching ? `${searchedTransactions.length} encontrados` : chipLabel.toUpperCase()}
+            {isSearching
+              ? `${searchedTransactions.length} encontrados`
+              : chipLabel.toUpperCase()}
           </Text>
         </View>
       )}
     </>
   );
 
+  // ── ListEmpty ─────────────────────────────────────────────────────────────
   const listEmpty = (
     <View style={styles.emptyState}>
       <Text style={styles.emptyEmoji}>{isSearching ? "🔍" : isNewPeriod ? "" : "💸"}</Text>
@@ -604,7 +248,7 @@ export default function DashboardScreen() {
       <Text style={styles.emptySubtitle}>
         {isSearching
           ? activeTags.length > 0
-            ? `No hay transacciones con ${activeTags.map(t => "#" + t).join(", ")}${activeQuery ? ` y "${activeQuery}"` : ""}`
+            ? `No hay transacciones con ${activeTags.map((t) => "#" + t).join(", ")}${searchQuery.trim() ? ` y "${searchQuery.trim()}"` : ""}`
             : `No se encontró nada para "${searchQuery}"`
           : isNewPeriod
             ? ""
@@ -625,7 +269,7 @@ export default function DashboardScreen() {
           ══════════════════════════════════════════════════════════════ */}
       <View style={styles.headerOuter}>
         <View style={styles.headerLeft}>
-          <Reanimated.View style={[styles.balanceSection, headerParallaxStyle]}>
+          <Reanimated.View style={[styles.balanceSection, headerParallaxStyle as object]}>
             <Text style={styles.balanceLabel}>
               {isSearching
                 ? `BÚSQUEDA  ·  ${searchedTransactions.length} resultado${searchedTransactions.length !== 1 ? "s" : ""}`
@@ -636,7 +280,7 @@ export default function DashboardScreen() {
               prefix="$"
               style={[styles.balanceAmount, netBalance < 0 && styles.balanceNegative]}
             />
-            <Reanimated.View style={[styles.pillsRow, pillsParallaxStyle]}>
+            <Reanimated.View style={[styles.pillsRow, pillsParallaxStyle as object]}>
               <TouchableOpacity
                 onPress={() => handlePillPress("expense")}
                 activeOpacity={0.75}
@@ -695,7 +339,6 @@ export default function DashboardScreen() {
           />
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-          {/* Badge de transacciones detectadas automáticamente */}
           <NotificationBadgeBtn />
           <View ref={getTourRef(TOUR_KEYS.SETTINGS_BTN)} collapsable={false}>
             <Pressable style={styles.settingsBtn} onPress={() => router.push("/settings")}>
@@ -762,11 +405,19 @@ export default function DashboardScreen() {
 
           {/* Chips de tags activos */}
           {activeTags.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={styles.chipsContent}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipsScroll}
+              contentContainerStyle={styles.chipsContent}
+            >
               {activeTags.map((tag) => (
                 <View key={tag} style={styles.tagChip}>
                   <Text style={styles.tagChipText}>#{tag}</Text>
-                  <TouchableOpacity onPress={() => removeTag(tag)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => removeTag(tag)}
+                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+                  >
                     <X size={12} color={theme.textSub} strokeWidth={2.5} />
                   </TouchableOpacity>
                 </View>
@@ -796,7 +447,10 @@ export default function DashboardScreen() {
       {/* Selector de mes/año */}
       <MonthPickerModal
         visible={monthPickerOpen}
-        selectedYear={periodFilter.type === "month" ? periodFilter.year : periodFilter.type === "year" ? periodFilter.year : null}
+        selectedYear={
+          periodFilter.type === "month" ? periodFilter.year :
+          periodFilter.type === "year"  ? periodFilter.year : null
+        }
         selectedMonth={periodFilter.type === "month" ? periodFilter.month : null}
         onApply={(year, month) => {
           if (year === null)       setPeriodFilter({ type: "all" });
@@ -807,78 +461,15 @@ export default function DashboardScreen() {
         onClose={() => setMonthPickerOpen(false)}
       />
 
-
-      {/* ── Modal de detalle de transacción ────────────────────────── */}
-      <Modal
+      {/* Modal de detalle de transacción */}
+      <TransactionDetailModal
         visible={detailTx !== null}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setDetailTx(null)}
-      >
-        <Pressable style={styles.detailOverlay} onPress={() => setDetailTx(null)}>
-          <Pressable style={styles.detailCard} onPress={() => {}}>
-            {detailTx && (() => {
-              const isExp = detailTx.amount >= 0;
-              const catName = resolveCategory(detailTx.category_emoji, userCategories, savingsGoals);
-              const pmName = paymentMethods.find((m) => m.id === detailTx.payment_method)?.name
-                ?? (detailTx.payment_method === "cash" ? "Efectivo"
-                  : detailTx.payment_method === "savings" ? "Ahorros"
-                  : detailTx.payment_method === "credit" ? "Tarjeta" : "Efectivo");
-              const desc = (detailTx.description || "").replace(/#\w+/g, "").trim();
-              let tags: string[] = [];
-              if (detailTx.tags && detailTx.tags.trim()) {
-                try { tags = JSON.parse(detailTx.tags); } catch { tags = []; }
-              }
-              return (
-                <>
-                  <Text style={styles.detailEmoji}>{detailTx.category_emoji}</Text>
-                  <Text style={[styles.detailAmount, { color: isExp ? theme.text : "#059669" }]}>
-                    {isExp ? "- " : "+ "}{formatDetailAmount(detailTx.amount)}
-                  </Text>
-                  <Text style={styles.detailCategory}>{catName.toUpperCase()}</Text>
-
-                  <View style={styles.detailDivider} />
-
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Tipo</Text>
-                    <Text style={styles.detailValue}>{isExp ? "Gasto" : "Ingreso"}</Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Cuenta</Text>
-                    <Text style={styles.detailValue}>{pmName}</Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Fecha</Text>
-                    <Text style={styles.detailValue}>{formatDetailDate(detailTx.date)}</Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Hora</Text>
-                    <Text style={styles.detailValue}>{formatDetailTime(detailTx.date)}</Text>
-                  </View>
-
-                  {desc.length > 0 && (
-                    <>
-                      <View style={styles.detailDivider} />
-                      <Text style={styles.detailDesc}>"{desc}"</Text>
-                    </>
-                  )}
-
-                  {tags.length > 0 && (
-                    <View style={styles.detailTags}>
-                      {tags.map((tag) => (
-                        <View key={tag} style={styles.detailTagPill}>
-                          <Text style={styles.detailTagText}>{tag}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </>
-              );
-            })()}
-          </Pressable>
-        </Pressable>
-      </Modal>
+        onClose={() => setDetailTx(null)}
+        transaction={detailTx}
+        userCategories={userCategories}
+        savingsGoals={savingsGoals}
+        paymentMethods={paymentMethods}
+      />
 
       {/* Guided Tour — usa Modal interno, siempre encima de todo */}
       <GuidedTour
@@ -889,362 +480,276 @@ export default function DashboardScreen() {
         visible={dashboardTourVisible}
         onSkip={completeOnboarding}
       />
-
     </SafeAreaView>
   );
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-function createStyles(t: AppTheme) { return StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: t.bg,
-  },
+function createStyles(t: AppTheme) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: t.bg,
+    },
 
-  // ── Header fijo ──────────────────────────────────────────────────────────
-  headerOuter: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    paddingHorizontal: 28,
-    paddingTop: 12,
-    paddingBottom: 16,
-  },
-  headerLeft: {
-    flexDirection: "column",
-    gap: 14,
-    flex: 1,
-  },
-  settingsBtn: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    // ── Header fijo ──────────────────────────────────────────────────────────
+    headerOuter: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      paddingHorizontal: 28,
+      paddingTop: 12,
+      paddingBottom: 16,
+    },
+    headerLeft: {
+      flexDirection: "column",
+      gap: 14,
+      flex: 1,
+    },
+    settingsBtn: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  // ── Balance ─────────────────────────────────────────────────────────────
-  balanceSection: {
-    gap: 6,
-  },
-  balanceLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: t.textTertiary,
-    letterSpacing: 2.0,
-    textTransform: "uppercase",
-  },
-  balanceAmount: {
-    fontSize: 38,
-    fontWeight: "800",
-    color: t.text,
-    letterSpacing: -1.5,
-    lineHeight: 44,
-  },
-  balanceNegative: {
-    color: "#DC2626",
-  },
+    // ── Balance ─────────────────────────────────────────────────────────────
+    balanceSection: {
+      gap: 6,
+    },
+    balanceLabel: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: t.textTertiary,
+      letterSpacing: 2.0,
+      textTransform: "uppercase",
+    },
+    balanceAmount: {
+      fontSize: 38,
+      fontWeight: "800",
+      color: t.text,
+      letterSpacing: -1.5,
+      lineHeight: 44,
+    },
+    balanceNegative: {
+      color: "#DC2626",
+    },
 
-  // ── Pills ───────────────────────────────────────────────────────────────
-  pillsRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  pillGasto: {
-    backgroundColor: t.pillNeutral,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-  },
-  pillGastoActive:     { backgroundColor: "#FFE4E6" },
-  pillGastoText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: t.text,
-    letterSpacing: 0.1,
-  },
-  pillGastoActiveText: { color: "#DC2626", fontWeight: "700" },
-  pillIngreso: {
-    backgroundColor: t.pillNeutral,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-  },
-  pillIngresoActive:     { backgroundColor: "#DCFCE7" },
-  pillIngresoText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: t.text,
-    letterSpacing: 0.1,
-  },
-  pillIngresoActiveText: { color: "#16A34A", fontWeight: "700" },
-  pillDimmed:            { opacity: 0.4 },
-  pillContent: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-  },
+    // ── Pills ───────────────────────────────────────────────────────────────
+    pillsRow: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    pillGasto: {
+      backgroundColor: t.pillNeutral,
+      borderRadius: 999,
+      paddingVertical: 6,
+      paddingHorizontal: 14,
+    },
+    pillGastoActive:     { backgroundColor: "#FFE4E6" },
+    pillGastoText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: t.text,
+      letterSpacing: 0.1,
+    },
+    pillGastoActiveText: { color: "#DC2626", fontWeight: "700" },
+    pillIngreso: {
+      backgroundColor: t.pillNeutral,
+      borderRadius: 999,
+      paddingVertical: 6,
+      paddingHorizontal: 14,
+    },
+    pillIngresoActive:     { backgroundColor: "#DCFCE7" },
+    pillIngresoText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: t.text,
+      letterSpacing: 0.1,
+    },
+    pillIngresoActiveText: { color: "#16A34A", fontWeight: "700" },
+    pillDimmed:            { opacity: 0.4 },
+    pillContent: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+    },
 
-  // ── Presupuesto ─────────────────────────────────────────────────────────
-  budgetBar: {
-    gap: 5,
-    width: "100%",
-    marginTop: 6,
-  },
-  budgetBarPct: {
-    fontSize: 11,
-    fontWeight: "500",
-    color: t.textSub,
-    letterSpacing: 0.1,
-  },
-  budgetTrack: {
-    height: 3,
-    backgroundColor: t.border,
-    borderRadius: 9999,
-    overflow: "hidden",
-  },
-  budgetFill: {
-    height: 3,
-    borderRadius: 9999,
-    backgroundColor: "#2D5BFF",
-  },
+    // ── Presupuesto ─────────────────────────────────────────────────────────
+    budgetBar: {
+      gap: 5,
+      width: "100%",
+      marginTop: 6,
+    },
+    budgetBarPct: {
+      fontSize: 11,
+      fontWeight: "500",
+      color: t.textSub,
+      letterSpacing: 0.1,
+    },
+    budgetTrack: {
+      height: 3,
+      backgroundColor: t.border,
+      borderRadius: 9999,
+      overflow: "hidden",
+    },
+    budgetFill: {
+      height: 3,
+      borderRadius: 9999,
+      backgroundColor: "#2D5BFF",
+    },
 
-  // ── Lista ───────────────────────────────────────────────────────────────
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingTop: 0,
-  },
-  chartWrapper: {
-    overflow: "hidden", // necesario para el colapso animado en Android
-  },
-  newPeriodOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 32,
-  },
-  newPeriodText: {
-    fontSize: 16,
-    fontWeight: "600" as const,
-    color: t.textSub,
-    textAlign: "center" as const,
-  },
-  newPeriodSub: {
-    fontSize: 13,
-    fontWeight: "400" as const,
-    color: t.textTertiary ?? t.textSub,
-    textAlign: "center" as const,
-    marginTop: 6,
-  },
-  txItem: {
-    paddingHorizontal: 28,
-  },
+    // ── Lista ───────────────────────────────────────────────────────────────
+    list: {
+      flex: 1,
+    },
+    listContent: {
+      paddingTop: 0,
+    },
+    chartWrapper: {
+      overflow: "hidden", // necesario para el colapso animado en Android
+    },
+    newPeriodOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 10,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 32,
+    },
+    newPeriodText: {
+      fontSize: 16,
+      fontWeight: "600" as const,
+      color: t.textSub,
+      textAlign: "center" as const,
+    },
+    newPeriodSub: {
+      fontSize: 13,
+      fontWeight: "400" as const,
+      color: t.textTertiary ?? t.textSub,
+      textAlign: "center" as const,
+      marginTop: 6,
+    },
+    txItem: {
+      paddingHorizontal: 28,
+    },
 
-  // ── Cabecera de sección ─────────────────────────────────────────────────
-  dayHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-    paddingHorizontal: 28,
-    paddingTop: 4,
-  },
-  dayLabel: {
-    fontSize: 12,
-    fontWeight: "900",
-    color: t.text,
-    letterSpacing: 2.4,
-    lineHeight: 18,
-  },
-  dayLabelRight: {
-    fontSize: 12,
-    fontWeight: "900",
-    color: t.text,
-    letterSpacing: 1,
-  },
+    // ── Cabecera de sección ─────────────────────────────────────────────────
+    dayHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 10,
+      paddingHorizontal: 28,
+      paddingTop: 4,
+    },
+    dayLabel: {
+      fontSize: 12,
+      fontWeight: "900",
+      color: t.text,
+      letterSpacing: 2.4,
+      lineHeight: 18,
+    },
+    dayLabelRight: {
+      fontSize: 12,
+      fontWeight: "900",
+      color: t.text,
+      letterSpacing: 1,
+    },
 
-  // ── Estado vacío ────────────────────────────────────────────────────────
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: 64,
-    paddingHorizontal: 28,
-  },
-  emptyEmoji:    { fontSize: 48, marginBottom: 14 },
-  emptyTitle:    { fontSize: 17, fontWeight: "700", color: t.textSub, marginBottom: 8 },
-  emptySubtitle: { fontSize: 14, color: t.textTertiary, textAlign: "center", lineHeight: 21 },
+    // ── Estado vacío ────────────────────────────────────────────────────────
+    emptyState: {
+      alignItems: "center",
+      paddingVertical: 64,
+      paddingHorizontal: 28,
+    },
+    emptyEmoji:    { fontSize: 48, marginBottom: 14 },
+    emptyTitle:    { fontSize: 17, fontWeight: "700", color: t.textSub, marginBottom: 8 },
+    emptySubtitle: { fontSize: 14, color: t.textTertiary, textAlign: "center", lineHeight: 21 },
 
-  // ── Barra de búsqueda ───────────────────────────────────────────────────
-  searchWrapper: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    zIndex: 90,
-  },
-  searchBarOverlay: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: t.surface,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  chipsScroll: {
-    flexGrow: 0,
-    flexShrink: 1,
-    maxWidth: "55%" as any,
-  },
-  chipsContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  tagChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: t.isDark ? "#1E3A5F" : "#EFF6FF",
-    borderRadius: 999,
-    paddingVertical: 5,
-    paddingLeft: 10,
-    paddingRight: 6,
-  },
-  tagChipText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: t.isDark ? "#93C5FD" : "#1D4ED8",
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: t.text,
-    paddingVertical: 0,
-  },
-  searchCancelBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    backgroundColor: t.inputBg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    // ── Barra de búsqueda ───────────────────────────────────────────────────
+    searchWrapper: {
+      position: "absolute",
+      left: 20,
+      right: 20,
+      zIndex: 90,
+    },
+    searchBarOverlay: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: t.surface,
+      borderRadius: 20,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.10,
+      shadowRadius: 16,
+      elevation: 10,
+    },
+    chipsScroll: {
+      flexGrow: 0,
+      flexShrink: 1,
+      maxWidth: "55%" as `${number}%`,
+    },
+    chipsContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    tagChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      backgroundColor: t.isDark ? "#1E3A5F" : "#EFF6FF",
+      borderRadius: 999,
+      paddingVertical: 5,
+      paddingLeft: 10,
+      paddingRight: 6,
+    },
+    tagChipText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: t.isDark ? "#93C5FD" : "#1D4ED8",
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 14,
+      color: t.text,
+      paddingVertical: 0,
+    },
+    searchCancelBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 999,
+      backgroundColor: t.inputBg,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  // ── Dropdown de sugerencias de tags ─────────────────────────────────────
-  tagDropdown: {
-    backgroundColor: t.surface,
-    borderRadius: 16,
-    marginBottom: 8,
-    paddingVertical: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  tagSuggestionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  tagSuggestionText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: t.text,
-  },
-
-  // ── Modal de detalle de transacción ────────────────────────────────────
-  detailOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 32,
-  },
-  detailCard: {
-    width: "100%",
-    maxWidth: 340,
-    backgroundColor: t.isDark ? t.surface : "#FFFFFF",
-    borderRadius: 24,
-    paddingVertical: 28,
-    paddingHorizontal: 24,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    elevation: 16,
-  },
-  detailEmoji: {
-    fontSize: 40,
-    lineHeight: 48,
-    marginBottom: 12,
-  },
-  detailAmount: {
-    fontSize: 32,
-    fontWeight: "800",
-    letterSpacing: -1,
-    marginBottom: 4,
-  },
-  detailCategory: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 2,
-    color: t.textSub,
-    marginBottom: 4,
-  },
-  detailDivider: {
-    width: "100%",
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: t.border,
-    marginVertical: 16,
-  },
-  detailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    paddingVertical: 6,
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: t.textSub,
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: t.text,
-  },
-  detailDesc: {
-    fontSize: 14,
-    fontStyle: "italic",
-    color: t.textSub,
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  detailTags: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginTop: 12,
-    justifyContent: "center",
-  },
-  detailTagPill: {
-    backgroundColor: t.inputBg,
-    borderRadius: 9999,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  detailTagText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: t.textSub,
-  },
-});}
+    // ── Dropdown de sugerencias de tags ─────────────────────────────────────
+    tagDropdown: {
+      backgroundColor: t.surface,
+      borderRadius: 16,
+      marginBottom: 8,
+      paddingVertical: 4,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    tagSuggestionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+    },
+    tagSuggestionText: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: t.text,
+    },
+  });
+}

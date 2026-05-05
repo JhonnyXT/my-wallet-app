@@ -129,7 +129,7 @@ export function HueColorPicker({
         {...panResponder.panHandlers}
       >
         <LinearGradient
-          colors={HUE_GRADIENT_COLORS as string[]}
+          colors={HUE_GRADIENT_COLORS as [string, string, ...string[]]}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={styles.bar}

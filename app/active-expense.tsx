@@ -71,8 +71,8 @@ const CATEGORY_ICONS: Record<string, { Icon: LucideIcon; color: string; bg: stri
 // ─── Info extra de cuentas ────────────────────────────────────────────────────
 const ACCOUNT_DETAILS: Record<AccountType, { Icon: LucideIcon; desc: string }> = {
   cash:    { Icon: Banknote,    desc: "Dinero disponible" },
-  savings: { Icon: Landmark,   desc: "**** 8842" },
-  credit:  { Icon: CreditCard, desc: "Visa Platinum" },
+  savings: { Icon: Landmark,   desc: "Cuenta de ahorros" },
+  credit:  { Icon: CreditCard, desc: "Tarjeta de crédito" },
 };
 
 // ─── Iconos de fecha y recurrencia ────────────────────────────────────────────

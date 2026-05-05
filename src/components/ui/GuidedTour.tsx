@@ -22,7 +22,7 @@ import {
 } from "react-native";
 
 export interface TourStep {
-  targetRef: React.RefObject<View>;
+  targetRef: React.RefObject<View | null>;
   title: string;
   message: string;
   buttonLabel: string;

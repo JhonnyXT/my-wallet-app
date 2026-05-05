@@ -1,9 +1,9 @@
 import { createRef, type RefObject } from "react";
 import { type View } from "react-native";
 
-const registry = new Map<string, RefObject<View>>();
+const registry = new Map<string, RefObject<View | null>>();
 
-export function getTourRef(key: string): RefObject<View> {
+export function getTourRef(key: string): RefObject<View | null> {
   if (!registry.has(key)) registry.set(key, createRef<View>());
   return registry.get(key)!;
 }

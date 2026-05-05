@@ -16,6 +16,11 @@ export const COLORS = {
 
 export const BUDGET_WARNING_THRESHOLD = 90;
 
+/**
+ * @deprecated Usar `categoryPresets.ts` + `userCategories` del store.
+ * Mapa de palabras clave → emoji para el fallback de `guessCategoryEmoji`.
+ * Mantener solo como fallback; no extender con nuevas categorías.
+ */
 export const CATEGORY_MAP: Record<string, string> = {
   // 🍔 Comida
   café: "🍔", coffee: "🍔", starbucks: "🍔",

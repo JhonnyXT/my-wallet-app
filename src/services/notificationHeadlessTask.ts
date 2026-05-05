@@ -74,7 +74,8 @@ export async function notificationHeadlessTask(taskData: { notification: string 
     // 5. Agregar a la cola de pendientes (acceso directo al store, sin hooks)
     useNotificationStore.getState().addPendingItem(parsed);
 
-  } catch {
-    // Silenciar errores en el headless task para no crashear el servicio
+  } catch (e) {
+    // Loguear en desarrollo para facilitar diagnóstico; silenciar en producción
+    if (__DEV__) console.error("[HeadlessTask] Error procesando notificación:", e);
   }
 }

@@ -6,6 +6,7 @@ export interface TransactionRow {
   description: string;
   category_emoji: string;
   date: string;
+  /** JSON serializado de string[] — usar JSON.parse para leer, JSON.stringify para escribir */
   tags: string;
   payment_method: string;
 }

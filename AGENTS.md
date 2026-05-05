@@ -176,7 +176,9 @@ my-wallet-app/
 
 - `package.json` `"main"` apunta a `index.js` (NO `expo-router/entry`) porque registra el HeadlessJS task para notificaciones bancarias.
 - `amount > 0` = gasto, `amount < 0` = ingreso (convención invertida vs lo usual).
-- `expo-sharing` está en dependencias pero NO se usa en código — se reemplazó por `Share` de react-native. No borrar porque `app.json` la tiene como plugin.
+- `expo-sharing` está en dependencias pero NO se usa en código — se reemplazó por `Share` de react-native. No borrar porque `app.json` la tiene como plugin (B9).
+- `expo-web-browser` y `expo-symbols` están en package.json pero sin imports directos; pueden ser requeridos transitivamente por Expo plugins — no eliminar sin auditoría de plugins (B13).
+- `tsconfig.json` usa `paths: "@/*": ["./*"]` que mapea toda la raíz del proyecto. Suficiente para el setup de Expo Router; no restringir a `src/` sin verificar que no quiebra importaciones de `app/`, `assets/` etc. (B8).
 - `useVoiceExpense.ts` en `src/features/voice/` está **roto y sin uso** — usa `useUIStore.openExpenseInput` que no existe. Es código muerto.
 - `ActionPills.tsx`, `CustomTabBar.tsx`, `AnimatedNumber.tsx` son componentes huérfanos (sin imports). `AnimatedNumber` está marcado como legado en las reglas UI.
 - `AUTO_DETECT_ENABLED_KEY` y `ALLOWED_BANKS_KEY` están duplicadas en `app/settings.tsx` y `src/services/notificationHeadlessTask.ts`.
@@ -193,7 +195,7 @@ my-wallet-app/
 - [ ] 3 componentes huérfanos: `ActionPills`, `CustomTabBar`, `AnimatedNumber`
 - [ ] Hook muerto: `src/features/voice/useVoiceExpense.ts`
 - [ ] Constantes AsyncStorage duplicadas (settings.tsx + notificationHeadlessTask.ts)
-- [ ] Dependencias posiblemente no usadas: `expo-web-browser`, `expo-sharing`, `expo-symbols`
+- [ ] Dependencias posiblemente no usadas: `expo-web-browser`, `expo-symbols` (ver nota B13 arriba)
 - [ ] Varios `as any` localizados (SpeechModule types, estilos porcentuales Reanimated)
 - [ ] APK release firmado con debug keystore
 - [ ] `catch {}` vacíos en db.ts (migraciones), headless task, voice-input

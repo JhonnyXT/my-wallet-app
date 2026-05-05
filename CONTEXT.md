@@ -64,7 +64,7 @@
 | **expo-sqlite** | ^55.0.10 | Base de datos local con WAL |
 | **NativeWind** | ^4.2.2 | Estilos Tailwind CSS para React Native |
 | **React Native Reanimated** | ^4.2.1 | Animaciones de alto rendimiento |
-| **expo-notifications** | ~0.29.x | Notificaciones locales del sistema (OS) |
+| **expo-notifications** | ~55.0.13 | Notificaciones locales del sistema (OS) |
 | **lucide-react-native** | ^0.576.0 | Iconografía (línea, 24px stroke) |
 | **expo-speech-recognition** | ^3.1.1 | Reconocimiento de voz local |
 | **expo-haptics** | ^55.0.8 | Feedback háptico |
@@ -1200,5 +1200,5 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 
 ---
 
-*Documento generado para MyWallet v1.4.0 — Marzo 2026*
+*Documento generado para MyWallet v1.5.0 — Mayo 2026*
 *Mantener actualizado ante cualquier cambio significativo en arquitectura, stores, DB o componentes.*

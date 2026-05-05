@@ -4,7 +4,7 @@ import { View, Text } from "react-native";
 export default function NotFoundScreen() {
   return (
     <>
-      <Stack.Screen options={{ title: "Oops!" }} />
+      <Stack.Screen options={{ title: "Pantalla no encontrada" }} />
       <View className="flex-1 items-center justify-center bg-pearl px-6">
         <Text className="text-4xl mb-3">🔍</Text>
         <Text className="text-xl font-semibold text-midnight mb-2">

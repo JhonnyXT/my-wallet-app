@@ -5,6 +5,7 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { formatCOP } from "@/src/utils/formatMoney";
 
 // Configura cómo se muestran las notificaciones cuando la app está en primer plano
 Notifications.setNotificationHandler({
@@ -12,6 +13,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -20,10 +23,6 @@ Notifications.setNotificationHandler({
 function currentMonth(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function formatCOP(amount: number): string {
-  return `$ ${Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
 // ─── Permisos ─────────────────────────────────────────────────────────────────

@@ -9,6 +9,8 @@
  * - Solo se procesa si el packageName está en la whitelist de bancos conocidos.
  */
 
+import { localISOString } from "@/src/db/db";
+
 // ─── Whitelist de apps bancarias colombianas ──────────────────────────────────
 
 export interface BankConfig {
@@ -315,7 +317,7 @@ export function parseNotification(
     rawTitle: title.substring(0, 100),    // limitado a 100 chars para no almacenar saldos largos
     rawText: text.substring(0, 200),      // limitado para privacidad
     confidence: result.confidence ?? "medium",
-    detectedAt: new Date().toISOString(),
+    detectedAt: localISOString(),
   };
 }
 

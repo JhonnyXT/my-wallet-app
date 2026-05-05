@@ -6,6 +6,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { UserCategory } from "@/src/constants/categoryPresets";
+import { localISOString } from "@/src/db/db";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -179,7 +180,7 @@ export const useSettingsStore = create<SettingsState>()(
         set((s) => ({
           savingsGoals: [
             ...s.savingsGoals,
-            { ...goal, id: Date.now().toString(), createdAt: new Date().toISOString() },
+            { ...goal, id: Date.now().toString(), createdAt: localISOString() },
           ],
         })),
 

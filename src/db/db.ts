@@ -37,7 +37,7 @@ export async function initDatabase(): Promise<void> {
 }
 
 /** Formato ISO local (sin conversión UTC) para evitar desfase de zona horaria */
-function localISOString(date = new Date()): string {
+export function localISOString(date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T` +
     `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.000`;
@@ -103,4 +103,45 @@ export async function getMonthlyTotal(): Promise<number> {
     [firstDay]
   );
   return result?.total ?? 0;
+}
+
+/**
+ * Inserta múltiples transacciones en una sola transacción SQLite atómica.
+ * Si cualquier inserción falla, se hace rollback completo (no queda estado parcial).
+ */
+export async function insertTransactionBatch(
+  items: Array<{
+    amount: number;
+    description: string;
+    categoryEmoji: string;
+    tags?: string[];
+    date?: Date;
+    paymentMethod?: string;
+  }>
+): Promise<TransactionRow[]> {
+  const db = await getNativeDatabase();
+  const inserted: TransactionRow[] = [];
+
+  await db.withTransactionAsync(async () => {
+    for (const item of items) {
+      const dateStr = localISOString(item.date ?? new Date());
+      const tagsStr = item.tags && item.tags.length > 0 ? JSON.stringify(item.tags) : "";
+      const method  = item.paymentMethod ?? "cash";
+      const result  = await db.runAsync(
+        `INSERT INTO transactions (amount, description, category_emoji, date, tags, payment_method) VALUES (?, ?, ?, ?, ?, ?)`,
+        [item.amount, item.description, item.categoryEmoji, dateStr, tagsStr, method]
+      );
+      inserted.push({
+        id: result.lastInsertRowId,
+        amount: item.amount,
+        description: item.description,
+        category_emoji: item.categoryEmoji,
+        date: dateStr,
+        tags: tagsStr,
+        payment_method: method,
+      });
+    }
+  });
+
+  return inserted;
 }

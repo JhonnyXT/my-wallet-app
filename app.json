@@ -67,7 +67,7 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": ""
+      "enabled": false
     },
     "owner": "jhonnyxt"
   }

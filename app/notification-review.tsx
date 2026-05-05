@@ -116,7 +116,7 @@ export default function NotificationReviewScreen() {
   const insets = useSafeAreaInsets();
   const ACCENT = "#135BEC";
 
-  const { pendingItems, removePendingItem, clearAll } = useNotificationStore();
+  const { pendingItems, clearAll } = useNotificationStore();
   const { addTransactionBatch } = useFinanceStore();
   const { addToast } = useToastStore();
 

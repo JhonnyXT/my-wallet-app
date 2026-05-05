@@ -157,7 +157,8 @@ export default function VoiceInputScreen() {
   const setFromVoice   = useExpenseStore((s) => s.setFromVoice);
   const userCategories = useSettingsStore((s) => s.userCategories);
 
-  const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const silenceTimer      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const processingTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Prominent Disclosure micrófono ───────────────────────────────────────
   const MIC_DISCLOSED_KEY = "mywallet-mic-disclosed";
@@ -179,6 +180,16 @@ export default function VoiceInputScreen() {
     }
   }, []);
 
+  // Limpiar el timer de procesamiento al desmontar
+  useEffect(() => {
+    return () => {
+      if (processingTimer.current) {
+        clearTimeout(processingTimer.current);
+        processingTimer.current = null;
+      }
+    };
+  }, []);
+
   const handleDone = useCallback(
     (text: string) => {
       clearSilenceTimer();
@@ -188,7 +199,8 @@ export default function VoiceInputScreen() {
       setFinalTranscript(trimmed);
       setStatus("processing");
 
-      setTimeout(async () => {
+      processingTimer.current = setTimeout(async () => {
+        processingTimer.current = null;
         const result = processMultiVoiceInput(trimmed, userCategories);
 
         if (!result.multiple) {

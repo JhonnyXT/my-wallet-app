@@ -3,6 +3,7 @@
  * Uses the same "mywallet.db" file as the rest of the app.
  */
 import * as SQLite from "expo-sqlite";
+import { localISOString } from "@/src/db/db";
 
 let _db: SQLite.SQLiteDatabase | null = null;
 
@@ -62,7 +63,7 @@ export async function createChatSession(
   title: string = "Nueva conversación"
 ): Promise<ChatSessionRow> {
   const db = await getDb();
-  const now = new Date().toISOString();
+  const now = localISOString();
   const result = await db.runAsync(
     `INSERT INTO chat_sessions (title, created_at, updated_at) VALUES (?, ?, ?)`,
     [title, now, now]
@@ -75,7 +76,7 @@ export async function updateSessionTitle(
   title: string
 ): Promise<void> {
   const db = await getDb();
-  const now = new Date().toISOString();
+  const now = localISOString();
   await db.runAsync(
     `UPDATE chat_sessions SET title = ?, updated_at = ? WHERE id = ?`,
     [title, now, id]
@@ -84,7 +85,7 @@ export async function updateSessionTitle(
 
 export async function touchSession(id: number): Promise<void> {
   const db = await getDb();
-  const now = new Date().toISOString();
+  const now = localISOString();
   await db.runAsync(
     `UPDATE chat_sessions SET updated_at = ? WHERE id = ?`,
     [now, id]
@@ -113,7 +114,7 @@ export async function addChatMessage(
   cardJson?: string
 ): Promise<ChatMessageRow> {
   const db = await getDb();
-  const now = new Date().toISOString();
+  const now = localISOString();
   const result = await db.runAsync(
     `INSERT INTO chat_messages (session_id, role, text, card_json, created_at) VALUES (?, ?, ?, ?, ?)`,
     [sessionId, role, text, cardJson ?? null, now]

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import {
   insertTransaction,
+  insertTransactionBatch,
   deleteTransaction as dbDeleteTransaction,
   getAllTransactions,
   type TransactionRow,
@@ -59,19 +60,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   addTransactionBatch: async (items) => {
-    // Escrituras secuenciales para evitar bloqueos concurrentes de SQLite
-    const inserted = [];
-    for (const item of items) {
-      const tx = await insertTransaction(
-        item.amount,
-        item.description,
-        item.categoryEmoji,
-        item.tags ?? [],
-        item.date,
-        item.paymentMethod ?? "cash",
-      );
-      inserted.push(tx);
-    }
+    // Transacción SQLite atómica: si falla cualquier inserción, se hace rollback completo
+    const inserted = await insertTransactionBatch(items);
     // Refresh en una sola operación para no disparar múltiples re-renders
     const all = await getAllTransactions();
     set({ transactions: all });

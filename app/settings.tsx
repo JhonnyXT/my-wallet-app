@@ -1029,8 +1029,12 @@ function AutoDetectSection() {
       const savedBanks   = await AsyncStorage.getItem(ALLOWED_BANKS_KEY);
       if (savedEnabled === "true") setEnabled(true);
       if (savedBanks) {
-        const parsed = JSON.parse(savedBanks);
-        if (Array.isArray(parsed)) setAllowedBanks(parsed);
+        try {
+          const parsed = JSON.parse(savedBanks);
+          if (Array.isArray(parsed)) setAllowedBanks(parsed);
+        } catch {
+          // Datos corruptos: ignorar y usar configuración por defecto
+        }
       }
     })();
     checkPermission();

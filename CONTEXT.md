@@ -60,7 +60,7 @@
 | **Expo** | SDK 55 | Plataforma de desarrollo (Managed Workflow) |
 | **Expo Router** | ~55.0.3 | Navegación file-based con Stack + Tabs |
 | **TypeScript** | ~5.9.2 | Tipado estricto (`strict: true`) |
-| **Zustand** | ^5.0.11 | Estado global (5 stores, 1 persistido) |
+| **Zustand** | ^5.0.11 | Estado global (7 stores, 2 persistidos) |
 | **expo-sqlite** | ^55.0.10 | Base de datos local con WAL |
 | **NativeWind** | ^4.2.2 | Estilos Tailwind CSS para React Native |
 | **React Native Reanimated** | ^4.2.1 | Animaciones de alto rendimiento |
@@ -141,10 +141,10 @@ my-wallet-app/
 │   ├── store/
 │   │   ├── useFinanceStore.ts       # Transacciones (Zustand + SQLite)
 │   │   ├── useExpenseStore.ts       # Formulario gasto/ingreso en curso
-│   │   ├── useNotificationStore.ts  # Cola en memoria de transacciones detectadas de notificaciones bancarias
+│   │   ├── useNotificationStore.ts  # Cola persistida (AsyncStorage) de transacciones detectadas de notificaciones bancarias
 │   │   ├── useSettingsStore.ts      # Config usuario (persist AsyncStorage) + flags de notificaciones
 │   │   ├── useToastStore.ts         # Cola global de toasts in-app (no persistido)
-│   │   ├── useUIStore.ts            # Estado de UI (búsqueda)
+│   │   ├── useUIStore.ts            # Estado de UI (búsqueda, overlay de entrada rápida NLP)
 │   │   └── useVoiceStore.ts         # Estado de reconocimiento de voz
 │   │
 │   ├── theme/
@@ -180,7 +180,7 @@ my-wallet-app/
 │  Solo orquesta: lee stores, llama utils, renderiza UI    │
 ├─────────────────────────────────────────────────────────┤
 │  src/store/ (Estado Global — Zustand)                    │
-│  5 stores independientes, 1 con persist(AsyncStorage)    │
+│  7 stores independientes, 2 con persist(AsyncStorage)    │
 ├─────────────────────────────────────────────────────────┤
 │  src/db/ (Persistencia — SQLite)                         │
 │  Capa de datos pura, sin lógica de negocio               │
@@ -322,6 +322,7 @@ El presupuesto es siempre mensual. No existen helpers de período — los montos
 **Persistencia:** `zustand/middleware/persist` con `createJSONStorage(() => AsyncStorage)`, key `"mywallet-settings"`. Los campos `hasCompletedOnboarding` y `onboardingStep` también se persisten.
 
 ### useUIStore (no persistido)
+Estado de UI global: búsqueda (searchOpen, searchQuery, activeTags) y overlay de entrada rápida NLP (isExpenseInputOpen, prefillText). Acciones: openExpenseInput(prefill?), closeExpenseInput(), setSearchOpen(), closeSearch().
 ```typescript
 {
   searchOpen: boolean
@@ -378,7 +379,7 @@ reset(): void  // limpia todo incluyendo pendingBatch y pendingManualItem
 ```
 **Patrón de pendingManualItem:** cuando `active-expense` se abre con el param `?from=batch-review`, al confirmar la transacción en lugar de guardar en DB llama `setPendingManualItem(...)` y hace `router.back()`. `voice-batch-review` lo recoge con `useFocusEffect` al recuperar el foco, lo agrega como tarjeta y llama `clearPendingManualItem()`.
 
-### useNotificationStore (no persistido — solo en memoria)
+### useNotificationStore (persistido con AsyncStorage — clave: "notification-pending-queue")
 ```typescript
 {
   pendingItems: PendingNotificationItem[]  // cola de transacciones detectadas desde notificaciones bancarias
@@ -569,7 +570,7 @@ Parseo simple para el campo de texto del formulario:
 | `index.js` | Entrypoint: registra el HeadlessJS task `RNAndroidNotificationListenerHeadlessJsName` |
 | `src/services/notificationHeadlessTask.ts` | Función async que procesa cada notificación en background |
 | `src/utils/notificationParser.ts` | Motor de extracción: whitelist de bancos, regex por banco, filtros de ruido |
-| `src/store/useNotificationStore.ts` | Cola en memoria de transacciones pendientes de confirmación |
+| `src/store/useNotificationStore.ts` | Cola persistida (AsyncStorage) de transacciones pendientes de confirmación |
 | `app/notification-review.tsx` | Pantalla de revisión antes de guardar |
 | `app/settings.tsx` → `AutoDetectSection` | UI de configuración: toggle + permisos + selector de bancos |
 
@@ -1059,15 +1060,15 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 | `ActionPills.tsx` | Componente separado no importado; pills están inline en `index.tsx` |
 | `BudgetBar.tsx` | Componente separado no importado; barra de presupuesto está inline en `index.tsx` |
 | `wallet.tsx` | Pantalla placeholder sin funcionalidad |
-| `useVoiceExpense.ts` | Depende de `openExpenseInput` que no existe en `useUIStore` |
-| `FloatingInput.tsx` | `isExpenseInputOpen` no existe en el store → componente nunca activo |
+| `useVoiceExpense.ts` | Depende de `openExpenseInput` de `useUIStore` (ahora implementado; pendiente conectar flujo completo) |
+| `FloatingInput.tsx` | Overlay de entrada rápida NLP; `useUIStore` ya expone `isExpenseInputOpen` — funcional |
 | `chat.tsx` | Pantalla de asistente financiero; ya no se navega a ella desde el FloatingDock |
 | `chatDb.ts` | Base de datos de sesiones/mensajes del chat; sin uso activo |
 | `useLocalNLP.ts` | NLP local para consultas del chat; sin uso activo |
 
 ### Limitaciones funcionales (por diseño)
 - **Edición de transacciones:** No existe. Solo se puede eliminar y recrear. Decisión de diseño intencional — simplifica la UX.
-- **Búsqueda por voz:** El flujo directo voz → FloatingInput está desconectado.
+- **Búsqueda por voz:** El flujo directo voz → FloatingInput está parcialmente conectado; `useUIStore` expone `openExpenseInput` pero falta conectar el trigger desde el FloatingDock.
 - **Sincronización metas-transacciones:** Si el usuario elimina una transacción de abono desde el Dashboard, el `savedAmount` de la meta NO se actualiza automáticamente (son independientes). Aceptable para la v1.
 
 ### Sistema de notificaciones

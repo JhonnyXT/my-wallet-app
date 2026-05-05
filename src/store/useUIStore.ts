@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 interface UIState {
+  // ─── Búsqueda global ────────────────────────────────────────────────────────
   searchOpen: boolean;
   searchQuery: string;
   activeTags: string[];
@@ -9,6 +10,12 @@ interface UIState {
   addTag: (tag: string) => void;
   removeTag: (tag: string) => void;
   closeSearch: () => void;
+
+  // ─── Overlay de entrada rápida NLP (FloatingInputOverlay) ──────────────────
+  isExpenseInputOpen: boolean;
+  prefillText: string;
+  openExpenseInput: (prefill?: string) => void;
+  closeExpenseInput: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -26,4 +33,9 @@ export const useUIStore = create<UIState>((set) => ({
   removeTag: (tag) =>
     set((s) => ({ activeTags: s.activeTags.filter((t) => t !== tag) })),
   closeSearch: () => set({ searchOpen: false, searchQuery: "", activeTags: [] }),
+
+  isExpenseInputOpen: false,
+  prefillText: "",
+  openExpenseInput: (prefill = "") => set({ isExpenseInputOpen: true, prefillText: prefill }),
+  closeExpenseInput: () => set({ isExpenseInputOpen: false, prefillText: "" }),
 }));

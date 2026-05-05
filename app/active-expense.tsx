@@ -317,10 +317,11 @@ export default function ActiveExpenseScreen() {
   const addTx   = useFinanceStore((s) => s.addTransaction);
   const theme   = useTheme();
   const { from } = useLocalSearchParams<{ from?: string }>();
-  const fromBatchReview = from === "batch-review";
+  const fromBatchReview     = from === "batch-review";
+  const fromNotificationEdit = from === "notification-edit";
   const setPendingManualItem = useVoiceStore((s) => s.setPendingManualItem);
-  // Si venimos de voice-batch-review, solo volvemos atrás al guardar (no cerramos todo)
-  const navigateAfterSave = () => fromBatchReview ? router.back() : router.dismissAll();
+  // Si venimos de voice-batch-review o notification-edit, solo volvemos atrás al guardar
+  const navigateAfterSave = () => (fromBatchReview || fromNotificationEdit) ? router.back() : router.dismissAll();
   const st     = useMemo(() => buildS(theme), [theme]);
 
   const paymentMethods    = useSettingsStore((s) => s.paymentMethods);
@@ -418,8 +419,8 @@ export default function ActiveExpenseScreen() {
     if (store.amount <= 0) return;
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // ── Modo batch-review: no guardar en DB, devolver a la pantalla de revisión ──
-    if (fromBatchReview) {
+    // ── Modo batch-review / notification-edit: no guardar en DB, devolver a la pantalla de revisión ──
+    if (fromBatchReview || fromNotificationEdit) {
       const catName = userCategories.find((c) => c.emoji === store.categoryEmoji)?.name
         ?? store.categoryEmoji;
       setPendingManualItem({

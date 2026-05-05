@@ -41,12 +41,16 @@ export default function RootLayout() {
 
   useEffect(() => {
     async function bootstrap() {
-      await initDatabase();
-      await loadTransactions();
-      await SplashScreen.hideAsync();
-      // Limpiar notificaciones de presupuesto de meses anteriores
-      useSettingsStore.getState().clearExpiredBudgetNotifications();
-      setAppReady(true);
+      try {
+        await initDatabase();
+        await loadTransactions();
+        useSettingsStore.getState().clearExpiredBudgetNotifications();
+      } catch (e) {
+        console.error("[bootstrap] Error al inicializar la app:", e);
+      } finally {
+        await SplashScreen.hideAsync();
+        setAppReady(true);
+      }
     }
     bootstrap();
   // eslint-disable-next-line react-hooks/exhaustive-deps

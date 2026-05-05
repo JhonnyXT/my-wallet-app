@@ -324,7 +324,7 @@ export default function ChatScreen() {
       role: row.role,
       text: row.text,
       card: row.card_json
-        ? (JSON.parse(row.card_json) as WeeklySummaryCard)
+        ? (() => { try { return JSON.parse(row.card_json) as WeeklySummaryCard; } catch { return undefined; } })()
         : undefined,
     }));
     setActiveSessionId(sessionId);

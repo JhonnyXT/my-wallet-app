@@ -41,8 +41,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
   loadTransactions: async () => {
     set({ isLoading: true });
-    const transactions = await getAllTransactions();
-    set({ transactions, isLoading: false });
+    try {
+      const transactions = await getAllTransactions();
+      set({ transactions });
+    } catch (e) {
+      console.error("[useFinanceStore] Error al cargar transacciones:", e);
+    } finally {
+      set({ isLoading: false });
+    }
   },
 
   addTransaction: async (amount, description, categoryEmoji, tags = [], date?, paymentMethod = "cash") => {

@@ -1,9 +1,14 @@
 /**
  * useNotificationStore — cola de transacciones detectadas automáticamente
- * desde notificaciones bancarias. No se persiste en AsyncStorage:
- * las notificaciones pendientes solo viven en memoria mientras la app está abierta.
+ * desde notificaciones bancarias.
+ *
+ * Se persiste en AsyncStorage para sobrevivir cold starts: cuando HeadlessJS
+ * detecta una transacción en background y el usuario abre la app desde cero,
+ * los items pendientes siguen disponibles en la pantalla de revisión.
  */
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ParsedTransaction } from "@/src/utils/notificationParser";
 
 export interface PendingNotificationItem extends ParsedTransaction {
@@ -39,21 +44,31 @@ function isDuplicate(existing: PendingNotificationItem[], incoming: ParsedTransa
   });
 }
 
-export const useNotificationStore = create<NotificationState>((set, get) => ({
-  pendingItems: [],
+export const useNotificationStore = create<NotificationState>()(
+  persist(
+    (set, get) => ({
+      pendingItems: [],
 
-  addPendingItem: (item) => {
-    const current = get().pendingItems;
-    if (isDuplicate(current, item)) return;
-    const newItem: PendingNotificationItem = {
-      ...item,
-      id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    };
-    set({ pendingItems: [newItem, ...current] });
-  },
+      addPendingItem: (item) => {
+        const current = get().pendingItems;
+        if (isDuplicate(current, item)) return;
+        const newItem: PendingNotificationItem = {
+          ...item,
+          id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        };
+        set({ pendingItems: [newItem, ...current] });
+      },
 
-  removePendingItem: (id) =>
-    set((s) => ({ pendingItems: s.pendingItems.filter((i) => i.id !== id) })),
+      removePendingItem: (id) =>
+        set((s) => ({ pendingItems: s.pendingItems.filter((i) => i.id !== id) })),
 
-  clearAll: () => set({ pendingItems: [] }),
-}));
+      clearAll: () => set({ pendingItems: [] }),
+    }),
+    {
+      name: "notification-pending-queue",
+      storage: createJSONStorage(() => AsyncStorage),
+      // Solo persiste los items pendientes; no hace falta versionar el estado de UI
+      partialize: (state) => ({ pendingItems: state.pendingItems }),
+    }
+  )
+);

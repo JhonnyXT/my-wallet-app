@@ -188,14 +188,29 @@ my-wallet-app/
 │  src/features/ (Lógica de dominio)                       │
 │  NLP local, integración de voz                           │
 ├─────────────────────────────────────────────────────────┤
+│  src/hooks/ (Hooks de dominio para pantallas)            │
+│  useDashboardScroll, useDashboardSearch,                 │
+│  useDashboardTotals, useDashboardTour,                   │
+│  useTransactionFilters                                   │
+├─────────────────────────────────────────────────────────┤
 │  src/components/ui/ (Componentes reutilizables)          │
 │  Agnósticos a la pantalla, reciben props                 │
+├─────────────────────────────────────────────────────────┤
+│  src/components/chat/ (Componentes del chat)             │
+│  BoldText, WeeklySummaryCard, ChatMessageBubble,         │
+│  ChatHistoryDrawer, chatConstants                        │
+├─────────────────────────────────────────────────────────┤
+│  src/components/dashboard/ (Componentes del dashboard)   │
+│  NotificationBadgeBtn, TransactionDetailModal            │
 ├─────────────────────────────────────────────────────────┤
 │  src/utils/ (Utilidades puras)                           │
 │  Formateo, parseo, sin side effects                      │
 ├─────────────────────────────────────────────────────────┤
+│  src/types/ (Tipos compartidos entre features)           │
+│  chat.ts                                                 │
+├─────────────────────────────────────────────────────────┤
 │  src/constants/ + src/theme/ (Configuración estática)    │
-│  Colores, categorías, layout, tokens de tema             │
+│  Colores, categorías, banks.ts, layout, tokens de tema   │
 └─────────────────────────────────────────────────────────┘
 ```
 

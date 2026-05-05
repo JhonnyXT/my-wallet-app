@@ -58,7 +58,7 @@ No hay ESLint/Prettier configurado. Deuda técnica documentada.
 | Estilos | NativeWind (Tailwind) + StyleSheet.create | ^4.2.2 |
 | Componentes UI | Propios (`src/components/ui/`) + lucide-react-native | ^0.576.0 |
 | Routing | Expo Router (file-based, Stack + Tabs) | ~55.0.3 |
-| Estado | Zustand (7 stores, 1 persistido con AsyncStorage) | ^5.0.11 |
+| Estado | Zustand (7 stores, 2 persistidos con AsyncStorage) | ^5.0.11 |
 | HTTP/Fetch | N/A (100% offline) | — |
 | Base de datos | expo-sqlite (WAL mode) | ^55.0.10 |
 | ORM | Sin ORM (SQL directo con placeholders) | — |
@@ -95,14 +95,18 @@ my-wallet-app/
 │
 ├── src/
 │   ├── components/ui/                # 17 componentes reutilizables
-│   ├── constants/                    # categoryPresets, layout, theme (legacy)
+│   ├── components/chat/              # BoldText, WeeklySummaryCard, ChatMessageBubble, ChatHistoryDrawer, chatConstants
+│   ├── components/dashboard/         # NotificationBadgeBtn, TransactionDetailModal
+│   ├── constants/                    # categoryPresets, layout, theme (legacy), banks.ts
 │   ├── context/ThemeContext.tsx       # Provider de tema light/dark
-│   ├── db/                           # SQLite: db.ts (CRUD), queries.ts (agregados), chatDb.ts
-│   ├── features/                     # voice/useVoiceExpense.ts, chat/useLocalNLP.ts
+│   ├── db/                           # SQLite: db.ts (CRUD+indexes), queries.ts (agregados), chatDb.ts
+│   ├── features/                     # voice/useVoiceExpense.ts (muerto), chat/useLocalNLP.ts
+│   ├── hooks/                        # useDashboardScroll, useDashboardSearch, useDashboardTotals, useDashboardTour, useTransactionFilters
 │   ├── services/                     # notificationService.ts, notificationHeadlessTask.ts
-│   ├── store/                        # 7 stores Zustand
+│   ├── store/                        # 7 stores Zustand (useSettingsStore + useNotificationStore persistidos)
 │   ├── theme/index.ts                # Tokens AppTheme: light + dark
-│   └── utils/                        # formatMoney, nlp, voiceParser, notificationParser, colorUtils, tourRefs
+│   ├── types/                        # chat.ts
+│   └── utils/                        # formatMoney, nlp, voiceParser, notificationParser, colorUtils, tourRefs, chatHelpers, periodFilter, transactionFormatters
 │
 ├── index.js                          # Entrypoint: registra HeadlessJS task + delega a expo-router/entry
 ├── android/                          # Proyecto Android nativo (Gradle, manifest, Kotlin)
@@ -136,7 +140,7 @@ my-wallet-app/
 | `useExpenseStore` | No | Formulario gasto/ingreso activo |
 | `useSettingsStore` | AsyncStorage | Config: categorías, presupuesto, metas, métodos pago, dark mode, onboarding |
 | `useVoiceStore` | No | Estado voz: transcript, pendingBatch, pendingManualItem |
-| `useNotificationStore` | No (memoria) | Cola transacciones detectadas desde notificaciones bancarias |
+| `useNotificationStore` | AsyncStorage | Cola transacciones detectadas desde notificaciones bancarias |
 | `useToastStore` | No | Cola global toasts in-app (máx 3) |
 | `useUIStore` | No | Búsqueda: query, tags activos |
 
@@ -184,7 +188,7 @@ my-wallet-app/
 - `AUTO_DETECT_ENABLED_KEY` y `ALLOWED_BANKS_KEY` están duplicadas en `app/settings.tsx` y `src/services/notificationHeadlessTask.ts`.
 - Configuración de detección automática usa `AsyncStorage` directamente (no `useSettingsStore`) para acceso desde HeadlessJS sin React.
 - `reset()` en `useVoiceStore` debe llamarse ANTES de `setPendingBatch()` — si se invierte el orden, el batch se pierde.
-- El APK de release usa `signingConfig signingConfigs.debug` (debug keystore) — para producción real hay que generar keystore propio.
+- El APK de release usa `signingConfigs.release` con keystore externo (`keystore.properties`). Para builds de producción real, crear el keystore con `keytool` y rellenar `keystore.properties` (ver `keystore.properties.template`).
 
 ---
 
@@ -197,8 +201,6 @@ my-wallet-app/
 - [ ] Constantes AsyncStorage duplicadas (settings.tsx + notificationHeadlessTask.ts)
 - [ ] Dependencias posiblemente no usadas: `expo-web-browser`, `expo-symbols` (ver nota B13 arriba)
 - [ ] Varios `as any` localizados (SpeechModule types, estilos porcentuales Reanimated)
-- [ ] APK release firmado con debug keystore
-- [ ] `catch {}` vacíos en db.ts (migraciones), headless task, voice-input
 
 ---
 
@@ -237,7 +239,7 @@ my-wallet-app/
 
 | Comando | Descripción |
 |---------|-------------|
-| `/arrancar` | Instala deps y lanza dev server completo |
+| `/arrancar` | Build APK release + instalación por ADB en dispositivo conectado |
 | `/revisar` | Validación técnica completa (lint + wallet-validator) |
 | `/commit` | Commit inteligente con validación previa |
 | `/nuevo-componente` | Scaffold componente UI Stitch |

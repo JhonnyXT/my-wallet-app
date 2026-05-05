@@ -393,13 +393,13 @@ MyWallet puede detectar transacciones directamente desde las notificaciones de t
 5. Vuelve a la app — el toggle quedará activo
 
 **¿Qué bancos son compatibles?**
-Bancolombia, Nequi, Davivienda, DaviPlata, BBVA, Banco de Occidente, Banco Popular, AV Villas, Nubank, Lulo Bank, Scotiabank, Colpatria, Rappi Pay, Tpaga, Ding, Banco Bogotá, Itaú.
+Bancolombia, Nequi, Davivienda, DaviPlata, BBVA, Banco de Occidente, Banco Popular, AV Villas, Nubank, Lulo Bank, Scotiabank Colpatria, Rappi Pay, Tpaga, Banco de Bogotá, Itaú.
 
 Puedes elegir **solo algunos bancos** tocando la opción "Bancos activos". Si no seleccionas ninguno, se usarán todos.
 
 **¿Cómo funciona la revisión?**
 Cuando se detecta una transacción, aparece un **badge rojo 🔔** sobre el ícono de configuración en el Dashboard. Tócalo para abrir la pantalla de revisión:
-- Cada transacción muestra el banco, la descripción, el monto y un **indicador de confianza** (punto verde = alta, naranja = revisar, rojo = verificar)
+- Cada transacción muestra el banco, la descripción, el monto
 - Puedes **editar** la transacción (monto, descripción, categoría, tipo)
 - Puedes **eliminar** una transacción deslizando hacia la izquierda
 - Cuando todo está listo, toca **"GUARDAR TODOS"**
@@ -605,4 +605,4 @@ Una vez al mes:
 
 ---
 
-*Documentación generada para MyWallet v1.4.0*
+*Documentación generada para MyWallet v1.5.0*

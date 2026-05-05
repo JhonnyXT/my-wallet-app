@@ -368,6 +368,11 @@ function findAmountSpans(text: string): Array<{ start: number; end: number }> {
  * Divide el texto en segmentos, uno por transacción detectada.
  * Busca conjunciones ("y", "también", "además", "luego") entre los montos
  * consecutivos para determinar el punto de corte.
+ *
+ * INVARIANTE: `normalize()` preserva la longitud de los strings en español
+ * (la descomposición NFD + eliminación de diacríticos produce siempre 1 char por char
+ * original para el rango Latin/Extended-Latin). Los índices de `findAmountSpans`
+ * calculados sobre el texto normalizado son válidos para cortar el texto original.
  */
 function splitIntoSegments(text: string): string[] {
   const spans = findAmountSpans(text);

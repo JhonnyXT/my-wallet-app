@@ -216,7 +216,7 @@ export default function NotificationReviewScreen() {
 
       router.back();
     } catch (e) {
-      addToast({ level: "error", icon: "❌", title: "Error al guardar. Intenta de nuevo.", duration: 5000 });
+      addToast({ level: "danger", icon: "❌", title: "Error al guardar. Intenta de nuevo.", duration: 5000 });
     }
   }, [items, addTransactionBatch, clearAll, addToast]);
 

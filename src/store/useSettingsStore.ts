@@ -1,90 +1,44 @@
 /**
  * useSettingsStore — preferencias de usuario persistidas en AsyncStorage.
- * Ningún dato financiero sensible (sin números de cuenta/tarjeta).
+ *
+ * Organizado en slices por dominio (patrón Zustand):
+ *   - categoriesSlice:     categorías del usuario + onboarding
+ *   - budgetSlice:         presupuesto mensual y por categoría
+ *   - paymentsSlice:       métodos de pago
+ *   - goalsSlice:          metas de ahorro
+ *   - prefsSlice:          preferencias visuales (tema, nombre)
+ *   - notificationsSlice:  configuración de notificaciones del sistema
+ *
+ * La API pública es idéntica a la versión anterior: todos los importadores
+ * existentes funcionan sin cambios.
  */
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { UserCategory } from "@/src/constants/categoryPresets";
-import { localISOString } from "@/src/db/db";
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+import { createCategoriesSlice, type CategoriesSlice } from "./slices/categoriesSlice";
+import { createBudgetSlice,     type BudgetSlice     } from "./slices/budgetSlice";
+import { createPaymentsSlice,   type PaymentsSlice, type PaymentMethod, type PaymentMethodType } from "./slices/paymentsSlice";
+import { createGoalsSlice,      type GoalsSlice,      type SavingsGoal  } from "./slices/goalsSlice";
+import { createPrefsSlice,      type PrefsSlice,      type DarkModeOption } from "./slices/prefsSlice";
+import { createNotificationsSlice, type NotificationsSlice } from "./slices/notificationsSlice";
 
-export type DarkModeOption = "system" | "light" | "dark";
-export type PaymentMethodType = "cash" | "debit" | "savings";
+// ─── Re-exportar tipos públicos (sin cambios para los importadores) ────────────
 
-export interface SavingsGoal {
-  id: string;
-  name: string;
-  emoji: string;
-  targetAmount: number;
-  savedAmount: number;
-  createdAt: string;
-}
+export type { DarkModeOption, PaymentMethodType, PaymentMethod, SavingsGoal };
 
-export interface PaymentMethod {
-  id: string;
-  name: string;
-  type: PaymentMethodType;
-}
+// ─── Tipo combinado del store ─────────────────────────────────────────────────
 
-export interface SettingsState {
-  // Personalización
-  userName: string;
+export type SettingsState =
+  CategoriesSlice &
+  BudgetSlice     &
+  PaymentsSlice   &
+  GoalsSlice      &
+  PrefsSlice      &
+  NotificationsSlice;
 
-  // Categorías dinámicas del usuario
-  userCategories: UserCategory[];
-  hasSelectedCategories: boolean;
-
-  // Presupuesto (siempre mensual)
-  monthlyBudget: number;        // 0 = no configurado
-  budgetByCategory: Record<string, number>; // emoji → monto límite mensual
-
-  // Métodos de pago
-  paymentMethods: PaymentMethod[];
-
-  // Metas de ahorro
-  savingsGoals: SavingsGoal[];
-
-  // Apariencia
-  darkMode: DarkModeOption;
-
-  // Onboarding
-  hasCompletedOnboarding: boolean;
-  onboardingStep: number;
-
-  // Notificaciones del sistema
-  notificationsEnabled: boolean;
-  budgetNotifiedMonth: Record<string, string>; // emoji → "YYYY-MM" (último mes notificado)
-  goalNotifiedIds: string[];                   // IDs de metas ya notificadas como cumplidas
-
-  // Acciones
-  setUserName: (name: string) => void;
-  setUserCategories: (cats: UserCategory[]) => void;
-  addUserCategory: (cat: UserCategory) => void;
-  removeUserCategory: (id: string) => void;
-  updateUserCategory: (id: string, partial: Partial<UserCategory>) => void;
-  completeCategories: () => void;
-  setMonthlyBudget: (amount: number) => void;
-  setBudgetForCategory: (emoji: string, amount: number) => void;
-  removeBudgetForCategory: (emoji: string) => void;
-  setPaymentMethods: (methods: PaymentMethod[]) => void;
-  addPaymentMethod: (method: PaymentMethod) => void;
-  updatePaymentMethod: (id: string, name: string, type: PaymentMethodType) => void;
-  removePaymentMethod: (id: string) => void;
-  setDarkMode: (mode: DarkModeOption) => void;
-  addSavingsGoal: (goal: Omit<SavingsGoal, "id" | "createdAt">) => void;
-  updateSavingsGoal: (id: string, saved: number) => void;
-  removeSavingsGoal: (id: string) => void;
-  setOnboardingStep: (step: number) => void;
-  completeOnboarding: () => void;
-  setNotificationsEnabled: (enabled: boolean) => void;
-  markBudgetNotified: (emoji: string, month: string) => void;
-  markGoalNotified: (goalId: string) => void;
-  clearExpiredBudgetNotifications: () => void;
-}
-
-// ─── Helpers de categorías ────────────────────────────────────────────────────
+// ─── Helpers de categorías (misma API pública) ────────────────────────────────
 
 export function getUserExpenseCategories(cats: UserCategory[]): UserCategory[] {
   return cats.filter((c) => c.type === "expense");
@@ -98,128 +52,17 @@ export function getCategoryByEmoji(cats: UserCategory[], emoji: string): UserCat
   return cats.find((c) => c.emoji === emoji);
 }
 
-// ─── Helpers derivados ───────────────────────────────────────────────────────
-// (presupuesto siempre mensual — sin divisiones)
-
-// ─── Valores por defecto ──────────────────────────────────────────────────────
-
-const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
-  { id: "cash",    name: "Efectivo", type: "cash"    },
-  { id: "savings", name: "Ahorros",  type: "savings" },
-  { id: "credit",  name: "Tarjeta",  type: "debit"   },
-];
-
-// ─── Store ────────────────────────────────────────────────────────────────────
+// ─── Store combinado ──────────────────────────────────────────────────────────
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set, get) => ({
-      userName:          "",
-      userCategories:    [],
-      hasSelectedCategories: false,
-      monthlyBudget:     0,
-      budgetByCategory:  {},
-      paymentMethods:    DEFAULT_PAYMENT_METHODS,
-      savingsGoals:      [],
-      darkMode:          "system",
-      hasCompletedOnboarding: false,
-      onboardingStep:         0,
-      notificationsEnabled:   false,
-      budgetNotifiedMonth:    {},
-      goalNotifiedIds:        [],
-
-      setUserName:     (name)   => set({ userName: name }),
-
-      setUserCategories: (cats) => set({ userCategories: cats }),
-      addUserCategory: (cat) =>
-        set((s) => ({ userCategories: [...s.userCategories, cat] })),
-      removeUserCategory: (id) =>
-        set((s) => ({ userCategories: s.userCategories.filter((c) => c.id !== id) })),
-      updateUserCategory: (id, partial) =>
-        set((s) => ({
-          userCategories: s.userCategories.map((c) =>
-            c.id === id ? { ...c, ...partial } : c
-          ),
-        })),
-      completeCategories: () => set({ hasSelectedCategories: true }),
-
-      setMonthlyBudget:(amount) => set({ monthlyBudget: Math.max(0, amount) }),
-
-      setBudgetForCategory: (emoji, amount) =>
-        set((s) => ({
-          budgetByCategory: { ...s.budgetByCategory, [emoji]: Math.max(0, amount) },
-        })),
-
-      removeBudgetForCategory: (emoji) =>
-        set((s) => {
-          const next = { ...s.budgetByCategory };
-          delete next[emoji];
-          return { budgetByCategory: next };
-        }),
-
-      setPaymentMethods: (methods) => set({ paymentMethods: methods }),
-
-      addPaymentMethod: (method) =>
-        set((s) => ({ paymentMethods: [...s.paymentMethods, method] })),
-
-      updatePaymentMethod: (id, name, type) =>
-        set((s) => ({
-          paymentMethods: s.paymentMethods.map((m) =>
-            m.id === id ? { ...m, name, type } : m
-          ),
-        })),
-
-      removePaymentMethod: (id) =>
-        set((s) => ({
-          paymentMethods: s.paymentMethods.filter((m) => m.id !== id),
-        })),
-
-      setDarkMode: (mode) => set({ darkMode: mode }),
-
-      addSavingsGoal: (goal) =>
-        set((s) => ({
-          savingsGoals: [
-            ...s.savingsGoals,
-            { ...goal, id: Date.now().toString(), createdAt: localISOString() },
-          ],
-        })),
-
-      updateSavingsGoal: (id, saved) =>
-        set((s) => ({
-          savingsGoals: s.savingsGoals.map((g) =>
-            g.id === id ? { ...g, savedAmount: Math.max(0, saved) } : g
-          ),
-        })),
-
-      removeSavingsGoal: (id) =>
-        set((s) => ({
-          savingsGoals: s.savingsGoals.filter((g) => g.id !== id),
-        })),
-
-      setOnboardingStep: (step) => set({ onboardingStep: step }),
-      completeOnboarding: () => set({ hasCompletedOnboarding: true, onboardingStep: 5 }),
-
-      setNotificationsEnabled: (enabled) => set({ notificationsEnabled: enabled }),
-
-      markBudgetNotified: (emoji, month) =>
-        set((s) => ({
-          budgetNotifiedMonth: { ...s.budgetNotifiedMonth, [emoji]: month },
-        })),
-
-      markGoalNotified: (goalId) =>
-        set((s) => ({ goalNotifiedIds: [...s.goalNotifiedIds, goalId] })),
-
-      clearExpiredBudgetNotifications: () => {
-        const now = new Date();
-        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-        set((s) => {
-          const cleaned: Record<string, string> = {};
-          for (const [emoji, month] of Object.entries(s.budgetNotifiedMonth)) {
-            if (month === currentMonth) cleaned[emoji] = month;
-          }
-          return { budgetNotifiedMonth: cleaned };
-        });
-      },
+    (...a) => ({
+      ...createCategoriesSlice(...a),
+      ...createBudgetSlice(...a),
+      ...createPaymentsSlice(...a),
+      ...createGoalsSlice(...a),
+      ...createPrefsSlice(...a),
+      ...createNotificationsSlice(...a),
     }),
     {
       name:    "mywallet-settings",

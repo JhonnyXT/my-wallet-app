@@ -13,14 +13,14 @@ import {
 import Reanimated from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Settings, Search, X, Hash } from "lucide-react-native";
+import { Settings, Search, X, Hash, ArrowDown, ArrowUp } from "lucide-react-native";
 import { router } from "expo-router";
 import { scrollBottomPadding, DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import type { TransactionRow } from "@/src/db/db";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
-import { useToastStore } from "@/src/store/useToastStore";
+
 import { FilterChips } from "@/src/components/ui/FilterChips";
 import { CategoryChart } from "@/src/components/ui/CategoryChart";
 import { TransactionItem } from "@/src/components/ui/TransactionItem";
@@ -60,12 +60,13 @@ export default function DashboardScreen() {
   const setExpenseCategory = useExpenseStore((s) => s.setCategory);
   const paymentMethods    = useSettingsStore((s) => s.paymentMethods);
   const savingsGoals      = useSettingsStore((s) => s.savingsGoals);
-  const addToast          = useToastStore((s) => s.addToast);
-
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   // ── Detalle de transacción (long-press) ──────────────────────────────────
   const [detailTx, setDetailTx] = useState<TransactionRow | null>(null);
+
+  // ── IDs de metas ya descartadas en esta sesión (toast) ───────────────────
+  const [dismissedGoalIds, setDismissedGoalIds] = useState<Set<string>>(new Set());
 
   // ── Filtros de período y tipo ────────────────────────────────────────────
   const {
@@ -134,6 +135,14 @@ export default function DashboardScreen() {
     chartAnimKey,
   } = useDashboardScroll(typeFilter, periodFilter);
 
+  // ── Meta alcanzada (primera no descartada) ───────────────────────────────
+  const achievedGoal = useMemo(
+    () => savingsGoals.find(
+      (g) => g.targetAmount > 0 && g.savedAmount >= g.targetAmount && !dismissedGoalIds.has(g.id)
+    ) ?? null,
+    [savingsGoals, dismissedGoalIds],
+  );
+
   // ── Tour de onboarding ───────────────────────────────────────────────────
   const {
     dashboardTourSteps,
@@ -158,18 +167,7 @@ export default function DashboardScreen() {
     const tx = transactions.find((t) => t.id === id);
     await deleteTransaction(id);
     if (!tx) return;
-
-    const tags = (() => { try { return JSON.parse(tx.tags || "[]"); } catch { return []; } })();
-    addToast({
-      level: "info",
-      icon: tx.category_emoji,
-      title: "Transacción eliminada",
-      actionLabel: "Deshacer",
-      duration: 6000,
-      onAction: () =>
-        addTransaction(tx.amount, tx.description, tx.category_emoji, tags, new Date(tx.date), tx.payment_method ?? "cash"),
-    });
-  }, [transactions, deleteTransaction, addTransaction, addToast]);
+  }, [transactions, deleteTransaction]);
 
   const renderItem = useCallback(({ item, index }: { item: TxRow; index: number }) => (
     <View style={styles.txItem}>
@@ -198,7 +196,7 @@ export default function DashboardScreen() {
               <Text style={styles.newPeriodSub}>Registra tu primer movimiento con + o el micrófono</Text>
             </View>
           )}
-          <View style={[isNewPeriod ? { opacity: 0.18 } : undefined, { paddingBottom: 16 }]}>
+          <View style={[isNewPeriod ? { opacity: 0.18 } : undefined, { paddingTop: 8, paddingBottom: 16 }]}>
             <CategoryChart
               stats={activeStats}
               allEmojis={allEmojis}
@@ -268,7 +266,33 @@ export default function DashboardScreen() {
           HEADER FIJO — siempre visible
           ══════════════════════════════════════════════════════════════ */}
       <View style={styles.headerOuter}>
+        {/* Íconos: posición absoluta para no afectar el centrado del contenido */}
+        <View style={styles.headerActions}>
+          <NotificationBadgeBtn />
+          <View ref={getTourRef(TOUR_KEYS.SETTINGS_BTN)} collapsable={false}>
+            <Pressable style={styles.settingsBtn} onPress={() => router.push("/settings")}>
+              <Settings size={22} color={theme.text} strokeWidth={1.6} />
+            </Pressable>
+          </View>
+        </View>
+
         <View style={styles.headerLeft}>
+          {/* ── Toast: meta alcanzada ──────────────────────────────────── */}
+          {achievedGoal && (
+            <View style={styles.goalToast}>
+              <Text style={styles.goalToastEmoji}>{achievedGoal.emoji}</Text>
+              <Text style={styles.goalToastText} numberOfLines={1}>
+                ¡Meta &ldquo;{achievedGoal.name}&rdquo; alcanzada!
+              </Text>
+              <TouchableOpacity
+                onPress={() => setDismissedGoalIds((prev) => new Set([...prev, achievedGoal.id]))}
+                hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              >
+                <X size={14} color="#92400E" strokeWidth={2.5} />
+              </TouchableOpacity>
+            </View>
+          )}
+
           <Reanimated.View style={[styles.balanceSection, headerParallaxStyle as object]}>
             <Text style={styles.balanceLabel}>
               {isSearching
@@ -280,46 +304,56 @@ export default function DashboardScreen() {
               prefix="$"
               style={[styles.balanceAmount, netBalance < 0 && styles.balanceNegative]}
             />
+
+            {/* ── Banner: categoría excedida — eliminado; se usa notificación push ── */}
+
             <Reanimated.View style={[styles.pillsRow, pillsParallaxStyle as object]}>
+              {/* Gasto activo cuando typeFilter !== "income" */}
               <TouchableOpacity
                 onPress={() => handlePillPress("expense")}
                 activeOpacity={0.75}
                 style={[
-                  styles.pillGasto,
-                  typeFilter === "expense" && styles.pillGastoActive,
-                  typeFilter === "income"  && styles.pillDimmed,
+                  styles.pill,
+                  typeFilter !== "income" ? styles.pillExpenseActive : styles.pillInactive,
                 ]}
               >
-                <View style={styles.pillContent}>
-                  <Text style={[styles.pillGastoText, typeFilter === "expense" && styles.pillGastoActiveText]}>
-                    {"↓ "}
-                  </Text>
-                  <RollingNumber
-                    value={expenseTotal}
-                    prefix="$"
-                    style={[styles.pillGastoText, typeFilter === "expense" && styles.pillGastoActiveText]}
-                  />
-                </View>
+                <ArrowDown
+                  size={13}
+                  strokeWidth={2.8}
+                  color={typeFilter !== "income" ? "#E53E3E" : "#9CA3AF"}
+                />
+                <RollingNumber
+                  value={expenseTotal}
+                  prefix="$"
+                  style={[
+                    styles.pillText,
+                    typeFilter !== "income" ? styles.pillExpenseText : styles.pillInactiveText,
+                  ]}
+                />
               </TouchableOpacity>
+
+              {/* Ingreso activo solo cuando typeFilter === "income" */}
               <TouchableOpacity
                 onPress={() => handlePillPress("income")}
                 activeOpacity={0.75}
                 style={[
-                  styles.pillIngreso,
-                  typeFilter === "income"  && styles.pillIngresoActive,
-                  typeFilter === "expense" && styles.pillDimmed,
+                  styles.pill,
+                  typeFilter === "income" ? styles.pillIncomeActive : styles.pillInactive,
                 ]}
               >
-                <View style={styles.pillContent}>
-                  <Text style={[styles.pillIngresoText, typeFilter === "income" && styles.pillIngresoActiveText]}>
-                    {"↑ "}
-                  </Text>
-                  <RollingNumber
-                    value={incomeTotal}
-                    prefix="$"
-                    style={[styles.pillIngresoText, typeFilter === "income" && styles.pillIngresoActiveText]}
-                  />
-                </View>
+                <ArrowUp
+                  size={13}
+                  strokeWidth={2.8}
+                  color={typeFilter === "income" ? "#16A34A" : "#9CA3AF"}
+                />
+                <RollingNumber
+                  value={incomeTotal}
+                  prefix="$"
+                  style={[
+                    styles.pillText,
+                    typeFilter === "income" ? styles.pillIncomeText : styles.pillInactiveText,
+                  ]}
+                />
               </TouchableOpacity>
             </Reanimated.View>
             {monthlyBudget > 0 && !isSearching && typeFilter === null && isCurrentPeriod && (
@@ -337,14 +371,6 @@ export default function DashboardScreen() {
             onPeriodChange={(label) => setPeriodFilter({ type: "quick", label })}
             onOpenMonthPicker={() => setMonthPickerOpen(true)}
           />
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-          <NotificationBadgeBtn />
-          <View ref={getTourRef(TOUR_KEYS.SETTINGS_BTN)} collapsable={false}>
-            <Pressable style={styles.settingsBtn} onPress={() => router.push("/settings")}>
-              <Settings size={22} color={theme.text} strokeWidth={1.6} />
-            </Pressable>
-          </View>
         </View>
       </View>
 
@@ -499,17 +525,25 @@ function createStyles(t: AppTheme) {
 
     // ── Header fijo ──────────────────────────────────────────────────────────
     headerOuter: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
+      position: "relative",
       paddingHorizontal: 28,
-      paddingTop: 12,
-      paddingBottom: 16,
+      paddingTop: 64,
+      paddingBottom: 20,
+    },
+    // Íconos flotantes — absolutos para no romper el centrado del contenido
+    headerActions: {
+      position: "absolute",
+      top: 14,
+      right: 20,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      zIndex: 10,
     },
     headerLeft: {
       flexDirection: "column",
-      gap: 14,
-      flex: 1,
+      gap: 10,
+      alignItems: "center",
     },
     settingsBtn: {
       width: 40,
@@ -520,7 +554,8 @@ function createStyles(t: AppTheme) {
 
     // ── Balance ─────────────────────────────────────────────────────────────
     balanceSection: {
-      gap: 6,
+      gap: 8,
+      alignItems: "center",
     },
     balanceLabel: {
       fontSize: 11,
@@ -528,13 +563,15 @@ function createStyles(t: AppTheme) {
       color: t.textTertiary,
       letterSpacing: 2.0,
       textTransform: "uppercase",
+      textAlign: "center",
     },
     balanceAmount: {
-      fontSize: 38,
+      fontSize: 56,
       fontWeight: "800",
       color: t.text,
-      letterSpacing: -1.5,
-      lineHeight: 44,
+      letterSpacing: -2.5,
+      lineHeight: 64,
+      textAlign: "center",
     },
     balanceNegative: {
       color: "#DC2626",
@@ -545,62 +582,99 @@ function createStyles(t: AppTheme) {
       flexDirection: "row",
       gap: 8,
     },
-    pillGasto: {
-      backgroundColor: t.pillNeutral,
+    // Base compartida
+    pill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
       borderRadius: 999,
-      paddingVertical: 6,
+      paddingVertical: 7,
       paddingHorizontal: 14,
     },
-    pillGastoActive:     { backgroundColor: "#FFE4E6" },
-    pillGastoText: {
+    pillText: {
       fontSize: 13,
-      fontWeight: "600",
-      color: t.text,
+      fontWeight: "700",
       letterSpacing: 0.1,
     },
-    pillGastoActiveText: { color: "#DC2626", fontWeight: "700" },
-    pillIngreso: {
-      backgroundColor: t.pillNeutral,
-      borderRadius: 999,
-      paddingVertical: 6,
-      paddingHorizontal: 14,
-    },
-    pillIngresoActive:     { backgroundColor: "#DCFCE7" },
-    pillIngresoText: {
-      fontSize: 13,
-      fontWeight: "600",
-      color: t.text,
-      letterSpacing: 0.1,
-    },
-    pillIngresoActiveText: { color: "#16A34A", fontWeight: "700" },
-    pillDimmed:            { opacity: 0.4 },
+    // Activo — gasto
+    pillExpenseActive: { backgroundColor: "#FEE2E2" },  // rojo claro (no rosa)
+    pillExpenseText:   { color: "#E53E3E" },             // rojo medio, no demasiado intenso
+    // Activo — ingreso
+    pillIncomeActive:  { backgroundColor: "#DCFCE7" },  // verde claro
+    pillIncomeText:    { color: "#16A34A" },             // verde medio
+    // Inactivo — gris neutro
+    pillInactive:     { backgroundColor: t.pillNeutral ?? "#F1F5F9" },
+    pillInactiveText: { color: "#9CA3AF", fontWeight: "600" as const },
     pillContent: {
       flexDirection: "row" as const,
       alignItems: "center" as const,
     },
 
-    // ── Presupuesto ─────────────────────────────────────────────────────────
+    // ── Presupuesto mensual ──────────────────────────────────────────────────
     budgetBar: {
       gap: 5,
-      width: "100%",
-      marginTop: 6,
+      alignSelf: "stretch",
+      marginTop: 4,
     },
     budgetBarPct: {
       fontSize: 11,
       fontWeight: "500",
       color: t.textSub,
       letterSpacing: 0.1,
+      textAlign: "center",
     },
     budgetTrack: {
-      height: 3,
+      height: 4,
       backgroundColor: t.border,
       borderRadius: 9999,
       overflow: "hidden",
     },
     budgetFill: {
-      height: 3,
+      height: 4,
       borderRadius: 9999,
       backgroundColor: "#2D5BFF",
+    },
+
+    // ── Toast: meta alcanzada ────────────────────────────────────────────────
+    goalToast: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "#FEF3C7",
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      alignSelf: "flex-start",
+      maxWidth: "100%",
+    },
+    goalToastEmoji: {
+      fontSize: 14,
+      lineHeight: 18,
+    },
+    goalToastText: {
+      flex: 1,
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#92400E",
+      letterSpacing: 0.1,
+    },
+
+    // ── Banner: categoría de presupuesto excedido ────────────────────────────
+    exceededBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: "#FEF3C7",
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      alignSelf: "flex-start",
+    },
+    exceededBannerText: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: "#92400E",
+      letterSpacing: 0.5,
     },
 
     // ── Lista ───────────────────────────────────────────────────────────────

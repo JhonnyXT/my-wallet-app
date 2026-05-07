@@ -319,7 +319,7 @@ interface ActiveExpense {
   hasCompletedOnboarding: boolean   // true tras completar o saltar el Guided Tour
   onboardingStep: number            // paso actual del tour (0-4)
   notificationsEnabled: boolean     // si el usuario concedió permiso de notificaciones OS
-  budgetNotifiedMonth: Record<string, string>  // emoji → "YYYY-MM" — anti-duplicación notif. presupuesto
+  budgetNotifiedMonth: Record<string, string>  // "emoji:threshold"|"emoji:overspent" → "YYYY-MM" — 2 niveles de notif. por cat./mes
   goalNotifiedIds: string[]         // IDs de metas ya notificadas — anti-duplicación
 }
 
@@ -601,8 +601,12 @@ parseNotification(packageName, title, text) — extrae monto, tipo, descripción
     ↓ [retorna null si: no es transacción, OTP, publicidad, no hay monto]
 useNotificationStore.addPendingItem(parsed) — agrega a la cola (dedup <2 min)
     ↓
-Dashboard: badge 🔔 rojo con contador aparece sobre el botón de configuración
-    ↓ [usuario toca el badge]
+notifyBankTransaction(amount, description, bankName, isExpense)
+    → Push notification del sistema: "-$140.000 detectado — Nubank · Toca para revisar"
+    → data: { screen: "notification-review" } para deep link
+    ↓ [usuario toca la notificación push]
+_layout.tsx addNotificationResponseReceivedListener → router.push("/notification-review")
+    ↓  [o bien: usuario toca el badge 🔔 en el dashboard]
 app/notification-review.tsx — lista de transacciones para revisar/editar/descartar
     ↓ [usuario confirma]
 addTransactionBatch() → se guardan en SQLite

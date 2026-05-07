@@ -136,9 +136,14 @@ try { await db.execAsync(`ALTER TABLE transactions ADD COLUMN nueva_col TYPE NOT
 
 Y actualizar `TransactionRow` en el mismo archivo.
 
-### Verificación
+### Verificación rápida
 1. La pantalla usa `useTheme()` + `buildStyles()` + `useMemo`.
 2. Registrada en `app/_layout.tsx` con `fullScreenModal`.
 3. Textos visibles en español.
 4. Sin colores hardcodeados (excepto constantes de acción).
 5. Imports usan `@/` desde raíz.
+
+### Paso 5 — Validación final de convenciones
+Leer y ejecutar las instrucciones de `.agents/skills/wallet-validator/SKILL.md`
+sobre los archivos creados o modificados en los pasos anteriores.
+Reportar el resultado con la puntuación (X/12 checks pasados).

@@ -136,6 +136,176 @@ function SubMenuCard({
 
 // ─── Wrapper modal pantalla completa ─────────────────────────────────────────
 
+/** Sección de Alertas de Presupuesto con toggle + slider custom */
+function BudgetAlertSection({
+  enabled,
+  threshold,
+  onToggle,
+  onThresholdChange,
+}: {
+  enabled: boolean;
+  threshold: number;
+  onToggle: (v: boolean) => void;
+  onThresholdChange: (v: number) => void;
+}) {
+  const theme   = useTheme();
+  const THUMB   = 22;
+  const pct     = Math.min(100, Math.max(0, threshold));
+
+  const trackWRef                     = useRef(0);
+  const [trackWState, setTrackWState] = useState(0);
+  const [liveValue,   setLiveValue]   = useState(pct);
+  const offset                        = useRef(new Animated.Value(pct / 100)).current;
+  const trackPageX                    = useRef(0);
+
+  // Sincronizar cuando threshold cambia desde el store
+  useEffect(() => {
+    setLiveValue(pct);
+    offset.setValue(pct / 100);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pct]);
+
+  const usableW = Math.max(0, trackWState - THUMB);
+
+  /** gs.moveX - trackPageX.current = X relativa al track, siempre fiable */
+  const toNorm = (absX: number) =>
+    Math.min(1, Math.max(0,
+      (absX - trackPageX.current - THUMB / 2) / Math.max(1, trackWRef.current - THUMB),
+    ));
+
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder:        () => true,
+      onStartShouldSetPanResponderCapture: () => true,
+      // Solo capturar si el movimiento es más horizontal que vertical (evita bloquear el scroll)
+      onMoveShouldSetPanResponder:        (_, gs) => Math.abs(gs.dx) > Math.abs(gs.dy),
+      onMoveShouldSetPanResponderCapture: (_, gs) => Math.abs(gs.dx) > Math.abs(gs.dy),
+
+      onPanResponderGrant: (e) => {
+        // Guardar el borde izquierdo del track en coordenadas de pantalla
+        trackPageX.current = e.nativeEvent.pageX - e.nativeEvent.locationX;
+        const norm = toNorm(e.nativeEvent.pageX);
+        offset.setValue(norm);
+        setLiveValue(Math.round(norm * 100));
+      },
+      onPanResponderMove: (_, gs) => {
+        // gs.moveX: posición absoluta del dedo en pantalla — no salta entre vistas hijas
+        const norm = toNorm(gs.moveX);
+        offset.setValue(norm);
+        setLiveValue(Math.round(norm * 100));
+      },
+      onPanResponderRelease: (_, gs) => {
+        const norm     = toNorm(gs.moveX);
+        const finalPct = Math.round(norm * 100);
+        offset.setValue(norm);
+        setLiveValue(finalPct);
+        onThresholdChange(finalPct);
+      },
+    }),
+  ).current;
+
+  return (
+    <View style={{ marginBottom: 8 }}>
+      <View style={[bAS.card, { backgroundColor: theme.surface }]}>
+
+        {/* ── Toggle ─────────────────────────────────────────────────── */}
+        <View style={bAS.row}>
+          <View style={bAS.rowLeft}>
+            <Text style={bAS.bell}>🔔</Text>
+            <Text style={[bAS.label, { color: theme.text }]}>Alertas de presupuesto</Text>
+          </View>
+          <Switch
+            value={enabled}
+            onValueChange={onToggle}
+            trackColor={{ false: theme.inputBg, true: "#EF4444" }}
+            thumbColor="#FFFFFF"
+          />
+        </View>
+
+        {/* ── Slider — solo cuando activo ────────────────────────────── */}
+        {enabled && (
+          <>
+            <View style={[bAS.sep, { backgroundColor: theme.border }]} />
+
+            <View style={bAS.sliderRow}>
+              <Text style={[bAS.sliderLabel, { color: theme.textSub }]}>Umbral de alerta</Text>
+              <Text style={[bAS.sliderPct, { color: theme.text }]}>{liveValue}%</Text>
+            </View>
+
+            <View
+              {...pan.panHandlers}
+              style={bAS.trackOuter}
+              onLayout={(e) => {
+                trackWRef.current = e.nativeEvent.layout.width;
+                setTrackWState(e.nativeEvent.layout.width);
+              }}
+            >
+              <View style={[bAS.trackBg, { backgroundColor: theme.inputBg }]} />
+
+              {trackWState > 0 && (
+                <Animated.View
+                  style={[bAS.trackFill, {
+                    backgroundColor: "#EF4444",
+                    width: offset.interpolate({
+                      inputRange:  [0, 1],
+                      outputRange: [THUMB / 2, usableW + THUMB / 2],
+                      extrapolate: "clamp",
+                    }),
+                  }]}
+                />
+              )}
+
+              {trackWState > 0 && (
+                <Animated.View
+                  style={[bAS.thumb, {
+                    width: THUMB, height: THUMB, borderRadius: THUMB / 2,
+                    backgroundColor: "#FFFFFF",
+                    elevation: 4,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.22,
+                    shadowRadius: 3,
+                    transform: [{
+                      translateX: offset.interpolate({
+                        inputRange:  [0, 1],
+                        outputRange: [0, usableW],
+                        extrapolate: "clamp",
+                      }),
+                    }],
+                  }]}
+                />
+              )}
+            </View>
+
+            <Text style={[bAS.hint, { color: theme.textSub }]}>
+              {liveValue > 0
+                ? `Te avisaré cuando alcances el ${liveValue}% del presupuesto de cada categoría.`
+                : "Desliza para elegir el porcentaje de alerta. Se recomienda 80%."}
+            </Text>
+          </>
+        )}
+      </View>
+    </View>
+  );
+}
+
+const bAS = StyleSheet.create({
+  card:        { borderRadius: 16, padding: 16, marginBottom: 4 },
+  row:         { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  rowLeft:     { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
+  bell:        { fontSize: 18 },
+  label:       { fontSize: 15, fontWeight: "600" },
+  sep:         { height: 1, marginVertical: 14 },
+  sliderRow:   { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
+  sliderLabel: { fontSize: 13 },
+  sliderPct:   { fontSize: 14, fontWeight: "700" },
+  trackOuter:  { height: 26, justifyContent: "center", marginBottom: 10, position: "relative" },
+  trackBg:     { height: 4, borderRadius: 2, position: "absolute", left: 0, right: 0 },
+  trackFill:   { height: 4, borderRadius: 2, position: "absolute", left: 0 },
+  thumb:       { position: "absolute" },
+  hint:        { fontSize: 12, marginTop: 2, lineHeight: 17 },
+});
+
 function FullScreenModal({
   visible,
   title,
@@ -1254,12 +1424,40 @@ export default function SettingsScreen() {
   const budgetByCategory    = useSettingsStore((s) => s.budgetByCategory);
   const userCategories      = useSettingsStore((s) => s.userCategories);
 
-  const setMonthlyBudget        = useSettingsStore((s) => s.setMonthlyBudget);
-  const setDarkMode             = useSettingsStore((s) => s.setDarkMode);
-  const setBudgetForCategory    = useSettingsStore((s) => s.setBudgetForCategory);
-  const removeBudgetForCategory = useSettingsStore((s) => s.removeBudgetForCategory);
-  const notificationsEnabled    = useSettingsStore((s) => s.notificationsEnabled);
-  const addToast                = useToastStore((s) => s.addToast);
+  const setMonthlyBudget          = useSettingsStore((s) => s.setMonthlyBudget);
+  const setDarkMode               = useSettingsStore((s) => s.setDarkMode);
+  const setBudgetForCategory      = useSettingsStore((s) => s.setBudgetForCategory);
+  const removeBudgetForCategory   = useSettingsStore((s) => s.removeBudgetForCategory);
+  const notificationsEnabled      = useSettingsStore((s) => s.notificationsEnabled);
+  const setNotificationsEnabled   = useSettingsStore((s) => s.setNotificationsEnabled);
+  const budgetAlertsEnabled       = useSettingsStore((s) => s.budgetAlertsEnabled);
+  const budgetAlertThreshold      = useSettingsStore((s) => s.budgetAlertThreshold);
+  const setBudgetAlertsEnabled    = useSettingsStore((s) => s.setBudgetAlertsEnabled);
+  const setBudgetAlertThreshold   = useSettingsStore((s) => s.setBudgetAlertThreshold);
+  const addToast                  = useToastStore((s) => s.addToast);
+
+  // Handler: al activar alertas de presupuesto, validar permiso de notificaciones
+  const handleBudgetAlertToggle = useCallback(async (value: boolean) => {
+    if (!value) {
+      setBudgetAlertsEnabled(false);
+      return;
+    }
+    // Solicitar permisos si aún no los tiene (abre ajustes del sistema si fue denegado)
+    const granted = await requestNotificationPermissions();
+    if (!granted) {
+      addToast({
+        level: "warning",
+        title: "Activa las notificaciones",
+        message: "Ve a Ajustes del sistema y activa los permisos de notificación para MyWallet.",
+        icon: "🔔",
+        duration: 5000,
+      });
+      return;
+    }
+    // Garantizar que el flag global esté en sincronía con el permiso real
+    setNotificationsEnabled(true);
+    setBudgetAlertsEnabled(true);
+  }, [setBudgetAlertsEnabled, setNotificationsEnabled, addToast]);
 
   // Modals state
   const [budgetModal,        setBudgetModal]        = useState(false);
@@ -1597,9 +1795,16 @@ export default function SettingsScreen() {
       {/* ── Modal pantalla completa: Presupuesto por categoría ───────── */}
       <FullScreenModal
         visible={showCatBudgetModal}
-        title="Presupuesto por categoría"
+        title="Presupuestos"
         onClose={() => setShowCatBudgetModal(false)}
       >
+        {/* Sección: Alertas de presupuesto */}
+        <BudgetAlertSection
+          enabled={budgetAlertsEnabled}
+          threshold={budgetAlertThreshold}
+          onToggle={handleBudgetAlertToggle}
+          onThresholdChange={setBudgetAlertThreshold}
+        />
         {userCategories.filter(c => c.type === "expense").length > 0 ? (
           <View style={s.card}>
             {userCategories.filter(c => c.type === "expense").map((cat, i, arr) => {

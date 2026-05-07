@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useColorScheme } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import * as Notifications from "expo-notifications";
 import { initDatabase } from "@/src/db/db";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
@@ -39,11 +40,41 @@ export default function RootLayout() {
   const [appReady, setAppReady]       = useState(false);
   const [splashDone, setSplashDone]   = useState(false);
 
+  // ─── Deep link desde notificación push ───────────────────────────────────
+  // Ref para evitar re-registro en re-renders
+  const notifListenerRef = useRef<Notifications.Subscription | null>(null);
+
+  useEffect(() => {
+    // Tap en notificación mientras la app estaba cerrada/en background
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response?.notification.request.content.data?.screen === "notification-review") {
+        router.push("/notification-review");
+      }
+    });
+
+    // Tap en notificación con la app en foreground o background
+    notifListenerRef.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      if (response.notification.request.content.data?.screen === "notification-review") {
+        router.push("/notification-review");
+      }
+    });
+
+    return () => {
+      if (notifListenerRef.current) {
+        Notifications.removeNotificationSubscription(notifListenerRef.current);
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     async function bootstrap() {
       try {
         await initDatabase();
         await loadTransactions();
+        // Importación dinámica para evitar dependencia circular con notificationService
+        const { initNotifications } = await import("@/src/services/notificationService");
+        await initNotifications();
         useSettingsStore.getState().clearExpiredBudgetNotifications();
       } catch (e) {
         console.error("[bootstrap] Error al inicializar la app:", e);

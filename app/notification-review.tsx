@@ -160,7 +160,7 @@ export default function NotificationReviewScreen() {
       } else {
         // Flujo añadir manual: agregar como nuevo item a la cola de revisión
         const newItem: ReviewItem = {
-          id: `manual-${Date.now()}`,
+          id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           amount:        pendingManualItem.amount,
           description:   pendingManualItem.description,
           isExpense:     pendingManualItem.isExpense,

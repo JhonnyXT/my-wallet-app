@@ -130,10 +130,8 @@ Checklist:
 | `toLocaleString is not a function` | RN no soporta todos los locales | Usar regex de formatMoney.ts |
 | HeadlessJS no detecta | `main` en package.json incorrecto | Debe ser `"index.js"`, no `"expo-router/entry"` |
 
-### Verificación
-Tras resolver el bug, ejecutar mentalmente la validación de `wallet-validator`:
-- Moneda COP con regex ✓
-- Fechas con localISOString ✓
-- Offline (sin fetch) ✓
-- Tema dinámico ✓
-- Imports con @/ ✓
+### Verificación final
+Tras resolver el bug, leer y ejecutar las instrucciones de
+`.agents/skills/wallet-validator/SKILL.md` sobre los archivos modificados
+para confirmar que el fix no introdujo violaciones de convenciones.
+Reportar el resultado con la puntuación (X/12 checks pasados).

@@ -21,7 +21,7 @@ import { useExpenseStore, DateOption, AccountType } from "@/src/store/useExpense
 import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
-import { useToastStore } from "@/src/store/useToastStore";
+
 import { checkAndNotifyBudget } from "@/src/services/notificationService";
 import { NewCategoryModal } from "@/app/category-onboarding";
 import type { UserCategory } from "@/src/constants/categoryPresets";
@@ -329,7 +329,6 @@ export default function ActiveExpenseScreen() {
   const addUserCategory   = useSettingsStore((s) => s.addUserCategory);
   const budgetByCategory  = useSettingsStore((s) => s.budgetByCategory);
   const transactions      = useFinanceStore((s) => s.transactions);
-  const addToast          = useToastStore((s) => s.addToast);
 
   const expenseCatOptions = useMemo(() =>
     userCategories.filter(c => c.type === "expense").map(c => ({ key: c.emoji, label: c.name, colorBg: c.colorBg, colorAccent: c.colorAccent })),
@@ -454,12 +453,6 @@ export default function ActiveExpenseScreen() {
       store.account,
     );
 
-    addToast({
-      level: "success",
-      icon: savedEmoji,
-      title: savedIsExp ? `Gasto registrado` : `Ingreso registrado`,
-    });
-
     if (savedIsExp) {
       const budget = budgetByCategory[savedEmoji];
       if (budget && budget > 0) {
@@ -469,17 +462,8 @@ export default function ActiveExpenseScreen() {
           .filter((t) => t.amount > 0 && t.category_emoji === savedEmoji && t.date.startsWith(thisMonth))
           .reduce((acc, t) => acc + t.amount, 0) + savedAmount;
 
-        const ratio = monthlySpent / budget;
         const catName = userCategories.find((c) => c.emoji === savedEmoji)?.name ?? savedEmoji;
-
-        if (ratio >= 1.0) {
-          addToast({ level: "danger", icon: savedEmoji, title: `Presupuesto superado: ${catName}` });
-          checkAndNotifyBudget(savedEmoji, catName, monthlySpent, budget);
-        } else if (ratio >= 0.8) {
-          const pct = Math.round(ratio * 100);
-          addToast({ level: "warning", icon: savedEmoji, title: `Presupuesto al ${pct}%: ${catName}` });
-          checkAndNotifyBudget(savedEmoji, catName, monthlySpent, budget);
-        }
+        checkAndNotifyBudget(savedEmoji, catName, monthlySpent, budget);
       }
     }
 

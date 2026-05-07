@@ -66,7 +66,7 @@ No hay ESLint/Prettier configurado. Deuda técnica documentada.
 | Testing | No configurado | — |
 | Package manager | npm | — |
 | CI/CD | GitHub Actions (EAS Build/Update, workflow_dispatch) | — |
-| Notificaciones push | react-native-android-notification-listener (HeadlessJS) | ^5.0.1 |
+| Notificaciones push | react-native-android-notification-listener (HeadlessJS) + expo-notifications (canales locales) | ^5.0.1 |
 
 ---
 
@@ -187,6 +187,9 @@ my-wallet-app/
 - `ActionPills.tsx`, `CustomTabBar.tsx`, `AnimatedNumber.tsx` son componentes huérfanos (sin imports). `AnimatedNumber` está marcado como legado en las reglas UI.
 - `AUTO_DETECT_ENABLED_KEY` y `ALLOWED_BANKS_KEY` están duplicadas en `app/settings.tsx` y `src/services/notificationHeadlessTask.ts`.
 - Configuración de detección automática usa `AsyncStorage` directamente (no `useSettingsStore`) para acceso desde HeadlessJS sin React.
+- `notificationService.ts` tiene 3 canales Android (API 26+): `budget-alerts`, `goal-alerts`, `bank-transactions`. Llamar `initNotifications()` en el bootstrap de `_layout.tsx` garantiza que existan antes de cualquier notificación.
+- `budgetNotifiedMonth` usa claves compuestas `"emoji:threshold"` / `"emoji:overspent"` para permitir 2 notificaciones por categoría por mes (al cruzar el umbral y al superar el 100%).
+- Deep link desde notificación push: `data: { screen: "notification-review" }` → listener en `_layout.tsx` con `addNotificationResponseReceivedListener` y `getLastNotificationResponseAsync` (para app cerrada).
 - `reset()` en `useVoiceStore` debe llamarse ANTES de `setPendingBatch()` — si se invierte el orden, el batch se pierde.
 - El APK de release usa `signingConfigs.release` con keystore externo (`keystore.properties`). Para builds de producción real, crear el keystore con `keytool` y rellenar `keystore.properties` (ver `keystore.properties.template`).
 

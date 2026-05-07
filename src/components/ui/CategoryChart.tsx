@@ -142,9 +142,14 @@ function getCategoryDisplayName(
   goals?: { emoji: string; name: string }[],
 ): string {
   const raw = getCategoryName(emoji, userCats);
-  if (raw === emoji && goals) {
-    const goalMatch = goals.find((g) => g.emoji === emoji);
-    if (goalMatch) return goalMatch.name.charAt(0).toUpperCase() + goalMatch.name.slice(1).toLowerCase();
+  if (raw === emoji) {
+    // getCategoryName no encontró un nombre → buscar en metas primero
+    if (goals) {
+      const goalMatch = goals.find((g) => g.emoji === emoji);
+      if (goalMatch) return goalMatch.name.charAt(0).toUpperCase() + goalMatch.name.slice(1).toLowerCase();
+    }
+    // Fallback genérico para evitar mostrar el emoji como nombre
+    return "General";
   }
   return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
 }
@@ -835,9 +840,17 @@ export function CategoryChart({
               displayPct = Math.round(ratio * 100);
             } else if (budgetAmt && budgetAmt > 0) {
               ratio      = stat.total / budgetAmt;
-              fillH      = Math.min(Math.round(stat.total  * scale), MAX_BAR_H);
+              // Mínimo de MIN_FILL_H cuando hay gasto real, para que los labels siempre quepan dentro del fill
+              fillH      = stat.total > 0
+                ? Math.max(Math.min(Math.round(stat.total * scale), MAX_BAR_H), MIN_FILL_H)
+                : Math.min(Math.round(stat.total * scale), MAX_BAR_H);
               // MIN_GHOST_H garantiza que el ghost siempre sea visible aunque el presupuesto sea muy pequeño
               ghostH     = Math.max(Math.min(Math.round(budgetAmt * scale), MAX_BAR_H), MIN_GHOST_H);
+              // Si no está excedido, el ghost debe ser siempre >= fill para respetar la jerarquía visual
+              if (ratio < 1.0) ghostH = Math.max(ghostH, fillH);
+              // Si está excedido (ratio >= 1): el ghost muestra el nivel real de presupuesto
+              // DENTRO del fill rojo, proporcional al ratio → borde punteado a fillH/ratio
+              if (ratio >= 1.0) ghostH = Math.max(Math.round(fillH / ratio), MIN_GHOST_H);
               displayPct = Math.round(ratio * 100);
             } else {
               // Sin presupuesto: barra neutra al 40% de la altura máxima

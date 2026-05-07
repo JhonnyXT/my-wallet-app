@@ -131,10 +131,15 @@ import AnimatedRN, { FadeInDown } from "react-native-reanimated";
 </AnimatedRN.View>
 ```
 
-### Verificación
+### Verificación rápida
 1. Archivo en `src/components/ui/NombreComponente.tsx` (PascalCase).
 2. Named export: `export function NombreComponente`.
 3. Props tipadas con interface `NombreComponenteProps`.
 4. `useTheme()` + `createStyles()` + `useMemo` para dark mode.
 5. Montos formateados con regex, NO `toLocaleString()`.
 6. Iconos con `lucide-react-native`, colores del tema.
+
+### Paso 5 — Validación final de convenciones
+Leer y ejecutar las instrucciones de `.agents/skills/wallet-validator/SKILL.md`
+sobre los archivos creados o modificados en los pasos anteriores.
+Reportar el resultado con la puntuación (X/12 checks pasados).

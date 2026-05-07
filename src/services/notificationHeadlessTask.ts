@@ -13,6 +13,7 @@
  */
 import { parseNotification, BANK_PACKAGE_NAMES } from "@/src/utils/notificationParser";
 import { useNotificationStore } from "@/src/store/useNotificationStore";
+import { notifyBankTransaction } from "@/src/services/notificationService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const AUTO_DETECT_ENABLED_KEY = "mywallet-auto-detect-enabled";
@@ -73,6 +74,9 @@ export async function notificationHeadlessTask(taskData: { notification: string 
 
     // 5. Agregar a la cola de pendientes (acceso directo al store, sin hooks)
     useNotificationStore.getState().addPendingItem(parsed);
+
+    // 6. Notificación push al usuario para que sepa que hay una transacción pendiente
+    await notifyBankTransaction(parsed.amount, parsed.description, parsed.bankName, parsed.isExpense);
 
   } catch (e) {
     // Loguear en desarrollo para facilitar diagnóstico; silenciar en producción

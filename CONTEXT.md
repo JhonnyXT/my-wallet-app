@@ -141,7 +141,7 @@ my-wallet-app/
 │   │   ├── useExpenseStore.ts       # Formulario gasto/ingreso en curso
 │   │   ├── useNotificationStore.ts  # Cola persistida (AsyncStorage) de transacciones detectadas de notificaciones bancarias
 │   │   ├── useSettingsStore.ts      # Config usuario (persist AsyncStorage) + flags de notificaciones
-│   │   ├── useUIStore.ts            # Estado de UI (búsqueda, overlay de entrada rápida NLP)
+│   │   ├── useUIStore.ts            # Estado de UI (búsqueda, filtro por categoría, overlay NLP)
 │   │   └── useVoiceStore.ts         # Estado de reconocimiento de voz
 │   │
 │   ├── theme/
@@ -334,13 +334,18 @@ El presupuesto es siempre mensual. No existen helpers de período — los montos
 **Persistencia:** `zustand/middleware/persist` con `createJSONStorage(() => AsyncStorage)`, key `"mywallet-settings"`. Los campos `hasCompletedOnboarding` y `onboardingStep` también se persisten.
 
 ### useUIStore (no persistido)
-Estado de UI global: búsqueda (searchOpen, searchQuery, activeTags) y overlay de entrada rápida NLP (isExpenseInputOpen, prefillText). Acciones: openExpenseInput(prefill?), closeExpenseInput(), setSearchOpen(), closeSearch().
+Estado de UI global: búsqueda (searchOpen, searchQuery, activeTags), filtro por categoría desde el chart (categoryFilter) y overlay de entrada rápida NLP (isExpenseInputOpen, prefillText). Acciones principales: setSearchOpen(), closeSearch(), setCategoryFilter(filter), clearCategoryFilter(), openExpenseInput(prefill?), closeExpenseInput().
 ```typescript
 {
   searchOpen: boolean
   searchQuery: string
+  activeTags: string[]
+  categoryFilter: { emoji: string; name: string } | null  // tap corto en columna del chart lo activa
+  isExpenseInputOpen: boolean
+  prefillText: string
 }
 ```
+> Cuando `categoryFilter` está activo, el Dashboard oculta la gráfica y muestra solo las transacciones de esa categoría con un chip informativo. Se limpia con back físico o pull-down (`PanResponder` custom, ver sección Dashboard).
 
 ### PeriodFilter (tipo local del Dashboard)
 ```typescript
@@ -682,24 +687,26 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 
 ### CategoryChart
 - Gráfica de barras verticales con scroll horizontal
-- **Modo gastos:** porcentaje según presupuesto (o 50% fijo), colores de alerta (base/ámbar/rojo)
+- **Modo gastos:** porcentaje según presupuesto, colores de alerta (base/rojo)
 - **Modo ingresos** (prop `isIncomeMode`): barras verdes proporcionales al mayor ingreso de categoría; sin presupuesto ni "Editar presupuesto" en popup
-- Ghost tracks para categorías vacías (gris con borde punteado)
-- **3 estados visuales de barra:**
-  - Normal: color `accent` de la categoría con `opacity: 0.68`, sin ghost visible
-  - Warning (≥60% del presupuesto): color ámbar, ghost visible con borde punteado
-  - Overspent (>100%): color rojo `#EF4444`, ghost visible por debajo del fill
+- **Lógica visual de la barra (sin/con presupuesto):**
+  - **Sin presupuesto:** fill gris neutro adaptable al tema (`NEUTRAL_FILL`) con `opacity: 1`, altura proporcional al gasto. Sin ghost border.
+  - **Con presupuesto:** fill con color `accent` de la categoría (`opacity: 0.68`) + ghost border siempre visible que indica el límite del presupuesto.
+  - **Overspent (>100%):** fill rojo `#EF4444`. El `ghostH` se ajusta para que la línea fantasma siga marcando exactamente la frontera del presupuesto dentro de la barra excedida.
+- **Orden de las columnas:** primero categorías **con presupuesto** (incluso si gasto=0, para que se vea su ghost), luego categorías **con gasto sin presupuesto**, y por último las **vacías** (solo en modo gastos).
+- **Etiquetas dentro del fill (vertical):** emoji + monto + %. El % se renderiza **solo si hay presupuesto y `pct ≥ 40%`** — debajo de ese umbral chocaría con el monto y el emoji.
 - **Animación scroll-driven (Reanimated):** `scrollY` pasado desde el Dashboard anima las barras al hacer scroll
   - Cada `AnimatedBar` recibe `scrollY: SharedValue<number>` y usa `interpolate` para comprimir `fillH` desde el valor real hasta `MIN_FILL_H` (52px)
   - Las etiquetas verticales (emoji + monto + %) hacen crossfade a un layout horizontal compacto (emoji | monto) cuando las barras se comprimen
   - El ghost hace fade-out coordinado con la compresión
   - Barras ya compactas (`fillH ≤ MIN_FILL_H`) muestran etiqueta horizontal desde el inicio
-- **Tap corto en columna:** badge animado (fade + slide up) con emoji + nombre de la categoría, se auto-descarta en 1.6s
-- **Long-press popup:** etiqueta superior dinámica — muestra `"AGREGAR\nPRESUPUESTO"` si `budgetByCategory[emoji]` es undefined o 0, y `"EDITAR\nPRESUPUESTO"` si tiene un valor configurado. Fila inferior siempre disponible: `"NUEVA\nTRANSACCIÓN"`. En modo ingresos solo aparece `"NUEVA\nTRANSACCIÓN"` (sin fila de presupuesto).
+- **Tap corto en columna → filtro por categoría:** llama `onCategoryTap?.(emoji, name)`. El Dashboard lo conecta a `useUIStore.setCategoryFilter`, oculta la gráfica y muestra solo las transacciones de esa categoría con un chip informativo. Se limpia con back físico o con pull-down sin spinner.
+- **Long-press popup (~380ms):** etiqueta superior dinámica — muestra `"AGREGAR\nPRESUPUESTO"` si `budgetByCategory[emoji]` es undefined o 0, y `"EDITAR\nPRESUPUESTO"` si tiene un valor configurado. Fila inferior siempre disponible: `"NUEVA\nTRANSACCIÓN"`. En modo ingresos solo aparece `"NUEVA\nTRANSACCIÓN"`.
+- **Race condition long-press / tap:** `consumedRef` evita que `onTouchEnd` dispare el filtro (tap) después de que `onPanResponderRelease` consumió un long-press. Se setea en true en cualquier handler de release que detecta `activeRef === true`, y se resetea en `onTouchStart`.
 - **Reordenamiento animado:** `LayoutAnimation.configureNext()` se activa cuando cambian las stats, proporcionando una transición suave al reordenar columnas
 - Lee `userCategories` del store para colores y nombres dinámicos
-- `containerRef` + `measure()` para calcular posición absoluta del badge en pantalla
-- **Constantes clave:** `BAR_W=68`, `MAX_BAR_H=280`, `MIN_FILL_H=52`, `MIN_GHOST_H=44`, `COMPRESS_END=140`, `CHART_H=304`, `CHART_COMPACT_H=76`
+- `containerRef` + `measure()` para calcular posición absoluta del popup de long-press
+- **Constantes clave:** `BAR_W=68`, `MAX_BAR_H=280`, `MIN_FILL_H=52`, `MIN_GHOST_H=44`, `COMPRESS_END=140`, `CHART_H=304`, `CHART_COMPACT_H=76`, `PCT_MIN_RATIO=0.40`
 
 ### FloatingDock
 - Dock inferior que reemplaza la tab bar nativa
@@ -726,7 +733,7 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 ### FilterChips
 - **Un solo chip** de período: 6 períodos fijos: Hoy, Esta semana, Esta quincena, Este mes, Este año, Todo + "📅 Elegir mes específico..." al fondo del sheet
 - Props: `period`, `periodLabel?` (label dinámico, ej: "Abr 2025"), `onPeriodChange`, `onOpenMonthPicker?`
-- El chip de categoría fue eliminado — simplifica la UI del Dashboard; el filtrado por categoría se hace desde la gráfica o la búsqueda
+- El chip de categoría fue eliminado del `FilterChips` — el filtrado por categoría se activa con tap corto en una columna del `CategoryChart` (ver `useUIStore.categoryFilter`) o desde la búsqueda
 - Abre un único Modal bottom-sheet al tocar
 
 ### MonthPickerModal
@@ -808,9 +815,14 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Presupuesto solo visible si `isCurrentPeriod === true`
 - **Estado "período vacío":** cuando `filteredTransactions.length === 0` y es el período actual, muestra barras fantasma (opacity 0.18) con mensaje centrado: "Nuevo mes, ¡comienza ahora!". Si es un período pasado sin datos: "Sin registros en este período"
 - **Modal de detalle de transacción:** al hacer **tap** en un item de la lista se abre un modal centrado estilo Stitch con: emoji, monto, categoría, tipo (Gasto/Ingreso), cuenta (método de pago), fecha, hora (formato 12h), descripción y tags. Si el item tiene el swipe abierto, el tap cierra el swipe primero
+- **Filtro por categoría desde la gráfica:** un tap corto en una columna del `CategoryChart` activa `setCategoryFilter({ emoji, name })`. Mientras el filtro está activo:
+  - Se oculta la gráfica (`!categoryFilter` condiciona el render).
+  - La cabecera de la lista cambia a `categoryFilter.name.toUpperCase()` con un chip informativo (sin botón ×).
+  - `displayedTransactions` filtra por `tx.category === emoji` (`useDashboardSearch` prioriza `categoryFilter` sobre tags y `typeFilter`).
+  - Limpieza con: (1) `BackHandler` físico — `useEffect` registra/desregistra el listener cuando `categoryFilter` cambia; (2) **pull-down sin spinner** — `PanResponder` de captura aplicado en un `View` envoltorio del `Reanimated.FlatList`. La lectura de "estoy en el tope" usa `useAnimatedReaction(() => scrollY.value <= 4, ..., runOnJS)` para sincronizar un ref JS sin overhead por frame. Si `dy > 80` al soltar, vibra y limpia el filtro. NO se usa `RefreshControl` (mostraría un spinner que sugiere "recargar contenido", lo cual confunde).
 - Barra de búsqueda: `keyboardExtraAnim` sube la barra sobre el teclado al abrirse
 - **Guided Tour:** integración con `GuidedTour` (5 pasos, solo primera vez). Refs de targets registrados en `tourRefs.ts`. El flujo alterna entre Dashboard y Settings. Persistido con `hasCompletedOnboarding` + `onboardingStep`
-- **Eliminado:** chip de categoría, estilos de metas de ahorro, ScrollView+map
+- **Eliminado:** chip de categoría, estilos de metas de ahorro, ScrollView+map, banner in-app de presupuesto excedido (reemplazado por notificación push), todo el sistema de toasts.
 
 ### Active Expense (`app/active-expense.tsx`)
 - Título dinámico: "Nuevo Gasto" / "Nuevo Ingreso"

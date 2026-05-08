@@ -209,7 +209,7 @@ my-wallet-app/
 | `useSettingsStore` | AsyncStorage | Config: categorías, presupuesto, metas, métodos pago, dark mode, onboarding |
 | `useVoiceStore` | No | Estado voz: transcript, pendingBatch, pendingManualItem |
 | `useNotificationStore` | AsyncStorage | Cola transacciones detectadas desde notificaciones bancarias |
-| `useUIStore` | No | Búsqueda: query, tags activos |
+| `useUIStore` | No | Búsqueda (query, tags), filtro por categoría desde el chart, overlay de entrada rápida NLP |
 
 ---
 
@@ -234,7 +234,7 @@ my-wallet-app/
 | Componentes UI | PascalCase | `CategoryChart.tsx` |
 | Stores | camelCase con `use` | `useFinanceStore.ts` |
 | Utilidades | camelCase | `formatMoney.ts` |
-| Constantes | UPPER_SNAKE | `MAX_TOASTS`, `DEFAULTS` |
+| Constantes | UPPER_SNAKE | `BAR_W`, `MAX_BAR_H`, `DEFAULTS` |
 | Estilos | `buildStyles(t: AppTheme)` + `useMemo` | — |
 | Imports | `@/` desde raíz, orden: React/RN → Expo → Terceros → Locales | — |
 | UI texto | Español | — |
@@ -257,6 +257,9 @@ my-wallet-app/
 - `notificationService.ts` tiene 3 canales Android (API 26+): `budget-alerts`, `goal-alerts`, `bank-transactions`. Llamar `initNotifications()` en el bootstrap de `_layout.tsx` garantiza que existan antes de cualquier notificación.
 - `budgetNotifiedMonth` usa claves compuestas `"emoji:threshold"` / `"emoji:overspent"` para permitir 2 notificaciones por categoría por mes (al cruzar el umbral y al superar el 100%).
 - Deep link desde notificación push: `data: { screen: "notification-review" }` → listener en `_layout.tsx` con `addNotificationResponseReceivedListener` y `getLastNotificationResponseAsync` (para app cerrada).
+- Filtro por categoría: tap corto en columna del `CategoryChart` activa `useUIStore.setCategoryFilter`. Se limpia con back físico (`BackHandler`) o con un gesto de pull-down implementado a mano vía `PanResponder` (NO `RefreshControl`, para no mostrar spinner de recarga).
+- Long-press en `CategoryChart` usa un `consumedRef` para evitar que `onTouchEnd` dispare el tap (filtro) después de que `onPanResponderRelease` ya consumió el gesto. Esta race condition existía en versiones previas y debe preservarse el flag al modificar el componente.
+- No usar toasts in-app: el sistema de toasts (`useToastStore`, `ToastContainer`, `ToastBanner`) fue eliminado. Errores críticos usan `Alert.alert`; eventos importantes (presupuesto, transacción detectada, meta cumplida) usan notificaciones push del sistema.
 - `reset()` en `useVoiceStore` debe llamarse ANTES de `setPendingBatch()` — si se invierte el orden, el batch se pierde.
 - El APK de release usa `signingConfigs.release` con keystore externo (`keystore.properties`). Para builds de producción real, crear el keystore con `keytool` y rellenar `keystore.properties` (ver `keystore.properties.template`).
 

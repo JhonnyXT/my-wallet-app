@@ -245,10 +245,9 @@ Esta pantalla aparece automáticamente cuando el input de voz contiene ≥ 2 tra
 
 **Guardar todo:**
 1. El footer muestra: `"N registros · Total $ X"`
-2. Toca **✓ Guardar todo** — se guardan todas las tarjetas a la vez
-3. Aparece un banner: `"N transacciones guardadas"` con botón **"Deshacer"**
-4. Tienes **8 segundos** para tocar **"Deshacer"** y eliminar el lote completo
-5. Vuelves al Dashboard
+2. Toca **✓ Guardar todo** — se guardan todas las tarjetas a la vez en un solo paso
+3. Vuelves al Dashboard al terminar
+4. Si necesitas eliminar alguna transacción guardada por error, usa el swipe izquierdo en la lista del Dashboard
 
 > 💡 Si mencionas varias cosas del mismo tipo (todos gastos o todos ingresos), no necesitas repetir "gasté" en cada una — la app hereda el tipo de la primera frase.
 
@@ -290,16 +289,25 @@ La gráfica de barras verticales es el centro visual del Dashboard. Muestra cóm
 - Cada barra muestra el porcentaje del total de ingresos del período
 
 ### Categorías sin movimientos (ghost bars)
-- Aparecen como columnas grises con borde punteado
+- Aparecen como columnas con el emoji en gris claro y un guion `—` en lugar de monto
 - Recuerdan que esa categoría existe aunque no tengas movimientos en ella
 
-### Toca una columna — Badge de nombre
-- Un **toque corto** en cualquier columna muestra un pequeño badge flotante sobre la columna con el emoji y nombre de la categoría
-- El badge desaparece automáticamente después de 1.6 segundos
-- Útil para identificar categorías cuando el ícono no es suficientemente claro
+### Orden de las columnas
+1. Primero, las categorías **con presupuesto configurado** (con su línea fantasma del límite)
+2. Luego, las categorías **con gasto pero sin presupuesto** (en gris neutro adaptable al tema)
+3. Por último, las **vacías** (solo en modo gastos)
+
+### Toca una columna — Filtrar por categoría *(nuevo)*
+- Un **toque corto** en cualquier columna **filtra la lista** para mostrar solo las transacciones de esa categoría:
+  - La gráfica se oculta para dar más espacio a la lista
+  - Aparece un chip arriba con el emoji y el nombre de la categoría activa
+  - La cabecera de sección cambia al nombre de la categoría
+- **Para limpiar el filtro y volver a la vista normal:**
+  - Toca el botón **Atrás** del dispositivo, o
+  - **Desliza la lista hacia abajo** desde el tope (sin spinner — el filtro se quita al soltar)
 
 ### Scroll horizontal
-Desliza horizontalmente para ver todas las categorías. Las que tienen movimientos aparecen primero.
+Desliza horizontalmente para ver todas las categorías.
 
 ### Long-press en una columna (función avanzada)
 1. **Mantén presionada** una columna por ~0.4 segundos
@@ -309,6 +317,7 @@ Desliza horizontalmente para ver todas las categorías. Las que tienen movimient
    - **Monto restante o total** → información del centro
    - **↓ Nueva transacción** → desliza hacia abajo para crear una transacción en esa categoría
 3. Al soltar el dedo con una opción seleccionada, se ejecuta la acción
+4. Si sueltas sin elegir nada, el popup se cierra y **no** se aplica el filtro de categoría
 
 **Editar presupuesto inline:**
 - Se abre un mini-modal directamente en la pantalla
@@ -380,6 +389,17 @@ Gestiona tus metas desde la sección "Metas de ahorro":
 ### Apariencia
 - **Modo oscuro:** Sistema (sigue el tema del dispositivo) / Claro / Oscuro
 - El modo oscuro se aplica en **todas las pantallas** de la app: Dashboard, Nuevo Gasto/Ingreso, Historial, Configuración y todos los modales
+
+### Alertas de presupuesto *(nuevo)*
+
+Configura cuándo y cómo recibir notificaciones push relacionadas con tus presupuestos por categoría:
+
+1. **Toggle "Alertas de presupuesto"** — Activa o desactiva todas las alertas push de presupuesto.
+   - Al activarlo por primera vez, el sistema pedirá permiso de notificaciones. Si rechazas, abre la configuración del sistema automáticamente para que actives el permiso manualmente.
+2. **Slider de porcentaje** — Define el umbral de aviso. Por defecto, recibes la primera alerta al **80%** del presupuesto de una categoría. Puedes ajustarlo de **50% a 100%** según prefieras.
+3. **Segunda alerta automática** — Si superas el 100% del presupuesto, recibes una segunda notificación independiente para tomar acción inmediata.
+
+> 💡 Si solo quieres saber cuándo te pasas (y no antes), pon el slider en 100%. Solo recibirás la notificación de "presupuesto superado".
 
 ### Detección automática *(nuevo en v1.5.0)*
 
@@ -460,42 +480,24 @@ Cada categoría tiene palabras clave que el NLP detecta automáticamente. Las ca
 
 ## 9. Sistema de Notificaciones
 
-MyWallet cuenta con dos capas de notificación para mantenerte informado sin interrumpirte.
+MyWallet usa **exclusivamente notificaciones del sistema (push)** para los eventos importantes. No verás avisos efímeros dentro de la app — la pantalla principal queda limpia y sin interrupciones.
 
-### Notificaciones del sistema (fuera de la app)
+### Tipos de notificaciones push
 
-Estas son alertas que aparecen en la barra de notificaciones de tu teléfono, incluso cuando la app está en segundo plano.
+| Evento | Cuándo |
+|--------|--------|
+| **Alerta de presupuesto** | Cuando alcanzas el porcentaje configurado de gasto en una categoría (default 80%) |
+| **Presupuesto superado** | Cuando superas el 100% del presupuesto de una categoría — segunda notificación tras la del umbral |
+| **Meta de ahorro cumplida** | Cuando el monto acumulado de una meta llega al objetivo |
+| **Transacción detectada** | Cuando MyWallet identifica una transacción en una notificación bancaria. Al tocarla, te lleva directo a la pantalla de revisión |
 
-**¿Qué las activa?**
-- **Presupuesto superado:** cuando el total gastado en una categoría supera el límite mensual configurado
-- **Meta de ahorro cumplida:** cuando el monto acumulado de una meta llega al objetivo
+### Permisos
+La primera vez que actives "Alertas de presupuesto" o "Detección automática", el sistema te pedirá permiso para mostrar notificaciones. Si rechazas con "No volver a preguntar", la app abre la configuración del sistema para que lo actives manualmente.
 
-**¿Cómo se activan los permisos?**
-La primera vez que configures un presupuesto para una categoría, la app te preguntará si deseas activar las notificaciones del sistema. Puedes aceptar o rechazar — si rechazas, solo recibirás los avisos dentro de la app.
+> ℹ️ Cada alerta de presupuesto se muestra **una vez por categoría por mes** para el umbral, y **una vez por categoría por mes** para el rebase del 100%. No recibirás notificaciones repetidas.
 
-> ℹ️ Cada alerta se muestra **una sola vez por mes** (presupuesto) o **una sola vez** (meta cumplida). No recibirás notificaciones repetidas.
-
-### Avisos dentro de la app (banners in-app)
-
-Son banners que aparecen en la parte superior de la pantalla mientras usas la app. Se descartan automáticamente en **3.5 segundos** o puedes cerrarlos manualmente.
-
-**Cómo cerrar un banner:**
-- Toca la **× a la derecha** para cerrar inmediatamente
-- **Desliza el banner hacia arriba** — se va con una animación suave
-
-**Tipos de banner:**
-
-| Tipo | Ejemplo | Fondo |
-|------|---------|-------|
-| Éxito ✅ | "Gasto registrado" · "Categoría creada" | Blanco (neutro) |
-| Info 💬 | "Transacción eliminada" · "Datos exportados" | Blanco (neutro) |
-| Advertencia ⚠️ | "Presupuesto al 85%: Transporte" | Ámbar suave |
-| Alerta 🚨 | "Presupuesto superado: Comida" | Rojo suave |
-
-**Banner "Deshacer" (eliminación de transacción):**
-- Al eliminar una transacción con swipe-to-delete aparece un banner con el botón **"Deshacer"**
-- Tienes **6 segundos** para tocar "Deshacer" y recuperar la transacción
-- Pasado ese tiempo, la eliminación es definitiva
+### Errores críticos
+Cuando hay un error que requiere tu atención (por ejemplo, no se pudo guardar un lote de transacciones), aparece un **diálogo nativo** del sistema con título y botón **OK**. Estos errores son raros y se registran para diagnóstico.
 
 ---
 
@@ -519,8 +521,8 @@ No. MyWallet no tiene edición de transacciones por diseño — simplifica la ex
 ### La barra de mi categoría siempre está al 50%, ¿es un error?
 No. Cuando no tienes un presupuesto configurado para esa categoría, la barra se muestra al 50% de forma neutra (solo indica que tienes gastos en ella). Para que la barra sea informativa y muestre el % real consumido, configura un límite en **Configuración → Presupuesto por categoría** (toca la tarjeta para abrir el modal de configuración).
 
-### ¿Cómo sé el nombre de una categoría en la gráfica?
-Toca (tap corto) sobre cualquier columna de la gráfica. Aparecerá un pequeño badge sobre la columna con el emoji y el nombre de la categoría. Desaparece automáticamente en 1-2 segundos.
+### ¿Cómo veo solo las transacciones de una categoría?
+Toca (tap corto) sobre cualquier columna de la gráfica. La gráfica se ocultará y la lista mostrará solo los movimientos de esa categoría, con un chip arriba indicando cuál está activa. Para volver a la vista normal, toca el botón **Atrás** del dispositivo o **desliza la lista hacia abajo** desde el tope.
 
 ### ¿Cómo veo los gastos de un mes anterior (por ejemplo, enero)?
 Toca el chip de período (ej: "Este mes") → al fondo de la lista toca **"📅 Elegir mes específico..."** → selecciona el año y luego el mes → toca **✓ Aplicar**. Toda la pantalla (balance, gráfica y lista) se actualiza para mostrar solo ese período.
@@ -587,20 +589,21 @@ Una vez al mes:
 | **Tag** | Etiqueta personalizada para organizar transacciones (ej: `#viaje`, `#trabajo`) |
 | **Presupuesto por categoría** | Límite de gasto mensual para una categoría específica. Activa alertas en la gráfica |
 | **Ghost bar** | Barra de categoría sin gastos. Aparece gris para recordarte que existe esa categoría |
-| **Long-press** | Mantener presionado ~0.4 segundos para activar acciones avanzadas. En la gráfica de categorías activa el popup de opciones |
+| **Long-press** | Mantener presionado ~0.4 segundos para activar acciones avanzadas. En la gráfica de categorías activa el popup de "Editar/Agregar presupuesto" + "Nueva transacción" |
 | **Tap detalle** | Toque corto en un registro de la lista para abrir el detalle completo (categoría, monto, cuenta, fecha, hora, descripción) |
 | **Swipe-to-delete** | Deslizar un item hacia la izquierda para revelar el botón de eliminar (transacciones y metas de ahorro) |
-| **Badge de categoría** | Pequeño globo flotante con emoji + nombre que aparece al tocar una columna de la gráfica |
+| **Filtro por categoría** | Tap corto en una columna del CategoryChart filtra la lista a solo esa categoría. Se limpia con el botón Atrás del dispositivo o con un pull-down (deslizar la lista hacia abajo desde el tope) |
+| **Pull-down para limpiar filtro** | Gesto de deslizar la lista hacia abajo desde su posición inicial. NO recarga datos (no muestra spinner) — solo limpia el filtro de categoría activo |
+| **Ghost bar** | Línea fantasma punteada que aparece detrás del fill de una columna **con presupuesto** marcando el límite. Si te pasas del 100%, sigue indicando exactamente dónde estaba el presupuesto dentro de la barra excedida |
 | **Selector de mes/año** | Modal con grid de meses que permite filtrar el Dashboard a un período específico |
 | **Diálogo de confirmación** | Ventana emergente minimalista con icono, título y botones (reemplaza las alertas nativas del sistema) |
 | **Estado draft** | Cambios pendientes en el selector de mes que solo se aplican al confirmar con "Aplicar" |
 | **Detalle de transacción** | Tarjeta modal que aparece al hacer tap en un registro, mostrando información completa (categoría, monto, tipo, cuenta, fecha, hora, descripción, tags) |
 | **Guided Tour / Onboarding** | Tour guiado de 5 pasos que aparece la primera vez que abres la app. Te muestra cómo configurar tu ingreso y registrar transacciones |
-|| **Banner in-app** | Aviso temporal en la parte superior de la pantalla. Se cierra solo (3.5s), con × o arrastrando hacia arriba |
-|| **Notificación del sistema** | Alerta en la barra de notificaciones del teléfono (fuera de la app) para eventos críticos: presupuesto superado o meta cumplida |
-|| **Deshacer** | Botón en el banner de eliminación o de lote de voz. Tienes 6 s (eliminación) u 8 s (lote de voz) para recuperar lo eliminado |
+|| **Notificación del sistema (push)** | Alerta en la barra de notificaciones del teléfono. MyWallet la usa para: alertas de presupuesto (umbral configurable + 100%), metas de ahorro cumplidas y transacciones bancarias detectadas (con deep link a la pantalla de revisión) |
+|| **Alertas de presupuesto** | Configuración en Ajustes con toggle on/off y slider de porcentaje (50–100%, default 80%) que define cuándo se dispara la primera notificación push de presupuesto por categoría |
 || **Multi-transacción por voz** | Cuando dices varios montos en un mismo input de voz, la app los detecta y navega a la pantalla "Revisar registros" donde puedes editar, eliminar o agregar más antes de guardar el lote |
-|| **Revisar registros** | Pantalla de revisión del lote multi-voz. Tarjetas editables por swipe/edición, botón "Guardar todo" y opción "Añadir registro manual" que lleva al formulario y regresa sin guardar aún en DB |
+|| **Revisar registros** | Pantalla de revisión del lote multi-voz o de transacciones detectadas. Tarjetas editables por swipe/edición, botón "Guardar todo" y opción "Añadir registro manual" que lleva al formulario y regresa sin guardar aún en DB |
 || **CSV** | Formato de exportación de datos (Comma-Separated Values). Abre en Excel o Google Sheets como tabla con todas tus transacciones |
 
 ---

@@ -80,6 +80,16 @@ onStartShouldSetPanResponder: () => false  // FlatList recibe toques primero
 onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy)
 ```
 
+### CategoryChart — gestos coexistentes (tap / long-press / pull-down)
+
+`CategoryChart` combina tres gestos en sus columnas y otro en su contenedor de lista:
+
+1. **Tap corto** (`onCategoryTap?(emoji, name)`): activa filtro por categoría en `useUIStore.setCategoryFilter`. El Dashboard oculta la gráfica y muestra solo esas transacciones.
+2. **Long-press ~380 ms** (`onLongPress` + `onSelectionChange` + `onRelease`): abre popup con "Editar/Agregar presupuesto" + "Nueva transacción". Drag vertical selecciona; soltar ejecuta.
+3. **Pull-down sin spinner** (sólo cuando `categoryFilter` activo): `PanResponder` de captura en `View` envoltorio del `Reanimated.FlatList`. Sincroniza el estado "estoy en el tope" con `useAnimatedReaction(() => scrollY.value <= 4, ..., runOnJS)`. NO usar `RefreshControl` aquí — su spinner sugiere "recargar contenido", lo cual confunde.
+
+**Race condition crítica del long-press:** un `consumedRef` evita que `onTouchEnd` dispare el tap (filtro) después de que `onPanResponderRelease` ya consumió un long-press. Se setea en `true` en cualquier release que detecta `activeRef === true`, y se resetea en `onTouchStart`. **No eliminar este flag** al refactorizar.
+
 ## Valores monetarios animados (Dashboard)
 
 Usar `RollingNumber` (`@/src/components/ui/RollingNumber.tsx`) para todos los valores numéricos.

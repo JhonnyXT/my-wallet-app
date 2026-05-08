@@ -192,13 +192,13 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | ID | Historia | Estado |
 |----|---------|--------|
-| HU 7.1 | Como usuario, quiero recibir una notificación en mi teléfono cuando supero el presupuesto de una categoría, incluso si la app está en segundo plano | ✅ |
+| HU 7.1 | Como usuario, quiero recibir una notificación en mi teléfono cuando alcanzo el umbral configurado del presupuesto de una categoría (default 80%), incluso si la app está en segundo plano | ✅ |
 | HU 7.2 | Como usuario, quiero recibir una notificación cuando completo una meta de ahorro | ✅ |
 | HU 7.3 | Como usuario, quiero que la app me pida permiso de notificaciones antes de activarlas, no de forma intrusiva al abrir la app | ✅ |
-| HU 7.4 | Como usuario, quiero ver un aviso dentro de la app cuando registro un gasto, elimino una transacción u ocurre cualquier acción relevante | ✅ |
-| HU 7.5 | Como usuario, quiero poder deshacer la eliminación de una transacción desde el aviso que aparece en pantalla | ✅ |
-| HU 7.6 | Como usuario, quiero que los avisos dentro de la app desaparezcan solos después de unos segundos si no los cierro | ✅ |
-| HU 7.7 | Como usuario, quiero poder cerrar un aviso dentro de la app tocando × o arrastrándolo hacia arriba | ✅ |
+| HU 7.4 | Como usuario, quiero recibir una notificación push cuando se detecta una transacción bancaria nueva, y al tocarla la app me lleve a la pantalla de revisión de transacciones pendientes | ✅ |
+| HU 7.5 | Como usuario, quiero poder activar/desactivar las alertas de presupuesto y configurar el umbral de alerta (porcentaje) en Ajustes | ✅ |
+| HU 7.6 | Como usuario, quiero recibir una segunda notificación si supero el 100% del presupuesto (después de la del umbral) para tomar acción inmediata | ✅ |
+| HU 7.7 | Como usuario, no quiero que la app me sature con avisos efímeros dentro de la pantalla — los eventos relevantes vienen como notificaciones del sistema; los errores críticos usan un diálogo nativo (`Alert.alert`) | ✅ |
 
 ### Épica 6: Funcionalidades Avanzadas
 
@@ -207,7 +207,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 6.1 | Como usuario, quiero definir metas de ahorro, abonarles y eliminarlas con swipe-to-delete en Ajustes | ✅ |
 | HU 6.2 | Como usuario, quiero que el presupuesto sea siempre mensual para un control financiero claro y simple | ✅ |
 | HU 6.3 | Como usuario, quiero ver un desglose de mis ingresos por categoría en la gráfica | ✅ |
-| HU 6.4 | Como usuario, quiero que al tocar una columna de la gráfica se muestre el nombre de la categoría | ✅ |
+| HU 6.4 | Como usuario, quiero filtrar la lista por una categoría específica tocando su columna en la gráfica, y limpiar el filtro con el botón atrás del dispositivo o deslizando hacia abajo | ✅ |
 | HU 6.5 | Como usuario, quiero que al registrar un ingreso el selector de categoría muestre solo categorías de ingreso | ✅ |
 | HU 6.9 | Como usuario, quiero crear una categoría nueva directamente desde el selector de categoría al registrar una transacción, sin salir del formulario | ✅ |
 | HU 6.10 | Como usuario, quiero elegir cualquier color al crear o editar una categoría usando un slider continuo de tono | ✅ |

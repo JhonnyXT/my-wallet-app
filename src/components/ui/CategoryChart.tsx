@@ -48,6 +48,8 @@ interface CategoryChartProps {
   totalExpenses: number;
   budgetByCategory?: Record<string, number>;
   onNewTransaction?: (emoji: string, categoryName: string) => void;
+  /** Tap corto en una categoría — el dashboard activa el filtro por esa categoría */
+  onCategoryTap?: (emoji: string, categoryName: string) => void;
   alertColors?: boolean;
   isIncomeMode?: boolean; // barras verdes proporcionales, sin presupuesto ni editar
   animationKey?: string;  // cambia para re-disparar entrada escalonada de barras
@@ -80,6 +82,7 @@ const MIN_GHOST_H = 44;  // mínimo para que el ghost siempre sea visible
 const RADIUS     = 14;
 export const CHART_H = MAX_BAR_H + 24; // espacio extra para labels y padding
 const MIN_FILL_H   = 52;  // altura mínima comprimida del fill (cabe layout horizontal)
+const PCT_MIN_RATIO = 0.40; // umbral mínimo (40%) para mostrar el % dentro del fill
 export const COMPRESS_END  = 140; // px de scroll donde los fills quedan totalmente comprimidos
 export const CHART_COMPACT_H = MIN_FILL_H + 24; // altura compacta del chart wrapper (76px)
 const POPUP_W    = 170;
@@ -114,10 +117,10 @@ function getBarVisual(
   userCats?: import("@/src/constants/categoryPresets").UserCategory[],
 ): BarVisual {
   const { accent } = getCategoryColor(emoji, userCats);
-  // Usa accent (color real de la categoría) — la opacidad se aplica en el fill View
-  if (ratio >= 1.0) return { fillColor: "#EF4444", hasBorder: true  };
-  if (ratio >= 0.60) return { fillColor: accent,   hasBorder: true  };
-  return                       { fillColor: accent,   hasBorder: false };
+  // Cuando hay presupuesto, el ghost bar siempre se muestra (incluso al <60%)
+  // para que el usuario vea visualmente el límite. Color rojo solo si supera el 100%.
+  if (ratio >= 1.0) return { fillColor: "#EF4444", hasBorder: true };
+  return                       { fillColor: accent,   hasBorder: true };
 }
 
 function fmtAmount(n: number): string {
@@ -371,7 +374,7 @@ function CategoryPopup({ popup }: { popup: PopupState }) {
 
 // ─── Barra con datos + PanResponder ──────────────────────────────────────────
 function AnimatedBar({
-  stat, fillH, ghostH, pct, hasBudget, fillColor, hasBorder,
+  stat, fillH, ghostH, pct, hasBudget, fillColor, fillOpacity, hasBorder,
   delay, onLongPress, onSelectionChange, onRelease, onTap, animationKey, scrollY,
 }: {
   stat: CategoryStat;
@@ -380,6 +383,7 @@ function AnimatedBar({
   pct: number;
   hasBudget: boolean;
   fillColor: string;
+  fillOpacity: number;
   hasBorder: boolean;
   delay: number;
   animationKey?: string;
@@ -460,6 +464,9 @@ function AnimatedBar({
   const selRef      = useRef<"up" | "down" | null>(null);
   const touchX0Ref  = useRef(0);
   const touchY0Ref  = useRef(0);
+  // Flag para evitar que el `onTouchEnd` dispare un tap inmediatamente después
+  // de que el long-press haya consumido el gesto (PanResponder ya reseteó activeRef)
+  const consumedRef = useRef(false);
 
   // PanResponder solo actúa DESPUÉS de que el long-press se haya activado.
   // El timer se inicia en onTouchStart del View (sin reclamar el responder),
@@ -484,6 +491,7 @@ function AnimatedBar({
       onPanResponderRelease: () => {
         clearTimeout(timerRef.current);
         if (activeRef.current) {
+          consumedRef.current = true;
           onReleaseRef.current(selRef.current);
         }
         activeRef.current = false;
@@ -493,6 +501,7 @@ function AnimatedBar({
       onPanResponderTerminate: () => {
         clearTimeout(timerRef.current);
         if (activeRef.current) {
+          consumedRef.current = true;
           onReleaseRef.current(null);
         }
         activeRef.current = false;
@@ -507,24 +516,23 @@ function AnimatedBar({
   return (
     <View style={styles.column}>
 
-      {/* 1. Fill: crece desde abajo hasta fillH. opacity:0.68 da el tono suave sin perder el color */}
-      <ReAnimated.View style={[styles.fill, fillHeightStyle, { backgroundColor: fillColor, opacity: 0.68 }]} />
+      {/* 1. Fill: crece desde abajo hasta fillH. fillOpacity 0.68 con color, 1.0 con gris neutro */}
+      <ReAnimated.View style={[styles.fill, fillHeightStyle, { backgroundColor: fillColor, opacity: fillOpacity }]} />
 
       {/* 2. Ghost border — se desvanece al comprimir (no hay espacio en modo compacto) */}
       {hasBorder && ghostH > 0 && (
         <ReAnimated.View style={[styles.ghostBorder, { height: ghostH, borderColor }, ghostFadeStyle]} />
       )}
 
-      {/* 3a. Labels verticales (emoji + monto + %) — desaparecen cuando la barra se comprime */}
+      {/* 3a. Labels verticales (emoji + monto + % dentro del fill) — desaparecen al comprimir */}
       <ReAnimated.View style={[styles.labelsInner, verticalOpacityStyle]}>
         <Text style={styles.emojiText}>{stat.emoji}</Text>
         <Text style={[styles.amtText, { color: labelColor }]}>
           {fmtAmount(stat.total)}
         </Text>
-        {hasBudget && !(fillH > ghostH && ghostH > 0)
-          ? <Text style={[styles.pctText, { color: labelColor }]}>{pct}%</Text>
-          : null
-        }
+        {hasBudget && pct >= PCT_MIN_RATIO * 100 && (
+          <Text style={[styles.pctText, { color: labelColor }]}>{pct}%</Text>
+        )}
       </ReAnimated.View>
 
       {/* 3b. Labels horizontales (emoji izq | monto der) — aparecen al comprimir */}
@@ -540,6 +548,7 @@ function AnimatedBar({
         onTouchStart={(e) => {
           touchX0Ref.current = e.nativeEvent.pageX;
           touchY0Ref.current = e.nativeEvent.pageY;
+          consumedRef.current = false;
           timerRef.current = setTimeout(() => {
             activeRef.current = true;
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -556,9 +565,11 @@ function AnimatedBar({
         onTouchEnd={(e) => {
           clearTimeout(timerRef.current);
           if (activeRef.current) {
+            // Long-press estaba activo y aún no fue consumido por PanResponder
+            consumedRef.current = true;
             onReleaseRef.current(selRef.current);
-          } else {
-            // Tap corto: mostrar nombre de categoría
+          } else if (!consumedRef.current) {
+            // Tap corto SOLO si el gesto no fue ya consumido por un long-press
             const dx = Math.abs(e.nativeEvent.pageX - touchX0Ref.current);
             const dy = Math.abs(e.nativeEvent.pageY - touchY0Ref.current);
             if (dx < 10 && dy < 10) onTapRef.current?.(e.nativeEvent.pageX);
@@ -568,7 +579,10 @@ function AnimatedBar({
         }}
         onTouchCancel={() => {
           clearTimeout(timerRef.current);
-          if (activeRef.current) onReleaseRef.current(null);
+          if (activeRef.current) {
+            consumedRef.current = true;
+            onReleaseRef.current(null);
+          }
           activeRef.current = false;
           selRef.current    = null;
         }}
@@ -600,11 +614,14 @@ function GhostBar({
   useEffect(() => { onReleaseRef.current         = onRelease;         }, [onRelease]);
   useEffect(() => { onTapRef.current             = onTap;             }, [onTap]);
 
-  const timerRef  = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const activeRef = useRef(false);
-  const selRef    = useRef<"up" | "down" | null>(null);
-  const touchX0Ref = useRef(0);
-  const touchY0Ref = useRef(0);
+  const timerRef    = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const activeRef   = useRef(false);
+  const selRef      = useRef<"up" | "down" | null>(null);
+  const touchX0Ref  = useRef(0);
+  const touchY0Ref  = useRef(0);
+  // Flag para evitar que `onTouchEnd` dispare un tap después de que el long-press
+  // ya consumió el gesto (PanResponder reseteó activeRef antes de que llegue onTouchEnd)
+  const consumedRef = useRef(false);
 
   const pan = useRef(
     PanResponder.create({
@@ -623,13 +640,19 @@ function GhostBar({
       },
       onPanResponderRelease: () => {
         clearTimeout(timerRef.current);
-        if (activeRef.current) onReleaseRef.current(selRef.current);
+        if (activeRef.current) {
+          consumedRef.current = true;
+          onReleaseRef.current(selRef.current);
+        }
         activeRef.current = false;
         selRef.current    = null;
       },
       onPanResponderTerminate: () => {
         clearTimeout(timerRef.current);
-        if (activeRef.current) onReleaseRef.current(null);
+        if (activeRef.current) {
+          consumedRef.current = true;
+          onReleaseRef.current(null);
+        }
         activeRef.current = false;
         selRef.current    = null;
       },
@@ -650,6 +673,7 @@ function GhostBar({
         onTouchStart={(e) => {
           touchX0Ref.current = e.nativeEvent.pageX;
           touchY0Ref.current = e.nativeEvent.pageY;
+          consumedRef.current = false;
           timerRef.current = setTimeout(() => {
             activeRef.current = true;
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -666,8 +690,9 @@ function GhostBar({
         onTouchEnd={(e) => {
           clearTimeout(timerRef.current);
           if (activeRef.current) {
+            consumedRef.current = true;
             onReleaseRef.current(selRef.current);
-          } else {
+          } else if (!consumedRef.current) {
             const dx = Math.abs(e.nativeEvent.pageX - touchX0Ref.current);
             const dy = Math.abs(e.nativeEvent.pageY - touchY0Ref.current);
             if (dx < 10 && dy < 10) onTapRef.current?.(e.nativeEvent.pageX);
@@ -677,7 +702,10 @@ function GhostBar({
         }}
         onTouchCancel={() => {
           clearTimeout(timerRef.current);
-          if (activeRef.current) onReleaseRef.current(null);
+          if (activeRef.current) {
+            consumedRef.current = true;
+            onReleaseRef.current(null);
+          }
           activeRef.current = false;
           selRef.current    = null;
         }}
@@ -691,32 +719,27 @@ function GhostBar({
 // ─── Chart principal ─────────────────────────────────────────────────────────
 const SCREEN_W = Dimensions.get("window").width;
 
-interface NameBadge {
-  emoji: string;
-  name: string;
-  /** posición x del centro de la columna relativa al ScrollView */
-  colX: number;
-}
-
 export function CategoryChart({
   stats,
   allEmojis,
   totalExpenses,
   budgetByCategory = {},
   onNewTransaction,
+  onCategoryTap,
   alertColors = true,
   isIncomeMode = false,
   animationKey,
   scrollY,
 }: CategoryChartProps) {
+  const { isDark }     = useTheme();
   const userCategories = useSettingsStore((s) => s.userCategories);
   const savingsGoals   = useSettingsStore((s) => s.savingsGoals);
   const [popup,      setPopup]      = useState<PopupState | null>(null);
   const [budgetEdit, setBudgetEdit] = useState<BudgetEditState | null>(null);
-  const [nameBadge,  setNameBadge]  = useState<NameBadge | null>(null);
-  const nameBadgeAnim = useRef(new Animated.Value(0)).current;
-  const nameBadgeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const prevStatsKey = useRef("");
+
+  // Color gris adaptable a tema para barras sin presupuesto
+  const NEUTRAL_FILL = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)";
 
   useEffect(() => {
     const key = stats.map(s => `${s.emoji}:${s.total}`).join(",");
@@ -726,18 +749,6 @@ export function CategoryChart({
     prevStatsKey.current = key;
   }, [stats]);
 
-  function showNameBadge(badge: NameBadge) {
-    clearTimeout(nameBadgeTimer.current);
-    setNameBadge(badge);
-    nameBadgeAnim.setValue(0);
-    Animated.timing(nameBadgeAnim, { toValue: 1, duration: 160, useNativeDriver: true }).start();
-    nameBadgeTimer.current = setTimeout(() => {
-      Animated.timing(nameBadgeAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(
-        () => setNameBadge(null)
-      );
-    }, 1600);
-  }
-
   // Ref para acceder al popup dentro de los callbacks del PanResponder
   const popupRef = useRef<PopupState | null>(null);
   useEffect(() => { popupRef.current = popup; }, [popup]);
@@ -746,25 +757,42 @@ export function CategoryChart({
   const containerRef  = useRef<View>(null);
   const [chartOrigin, setChartOrigin] = useState({ x: 0, y: 0 });
 
-  // Máximo ingreso por categoría — base para calcular proporciones en modo ingreso
   // ─── Escala proporcional ──────────────────────────────────────────────────
-  // Cada ghost height = budget * scale, cada fill height = spent * scale
-  // El máximo budget define la escala → la categoría con mayor presupuesto llena MAX_BAR_H
+  // La escala se calcula sobre el mayor valor entre presupuestos y gastos,
+  // de modo que las barras grises (sin presupuesto) y las coloreadas (con presupuesto)
+  // mantengan una relación visual coherente.
   const maxIncomeStat = isIncomeMode && stats.length > 0
     ? Math.max(...stats.map(s => s.total))
     : 1;
 
+  const maxSpent  = stats.length > 0 ? Math.max(...stats.map(s => s.total)) : 0;
+  const maxBudgetValue = Math.max(
+    ...Object.values(budgetByCategory ?? {}).filter(v => v > 0),
+    0,
+  );
+
   const maxBudget = isIncomeMode
     ? maxIncomeStat
-    : Math.max(...Object.values(budgetByCategory ?? {}).filter(v => v > 0), 1);
+    : Math.max(maxBudgetValue, maxSpent, 1);
 
   const scale = MAX_BAR_H / maxBudget;
 
+  // ─── Orden: 1) categorías CON presupuesto, 2) con gasto sin presupuesto, 3) vacías ───
   const withDataSet = new Set(stats.map(s => s.emoji));
-  const ordered = [
-    ...stats.map(s => s.emoji),
-    ...allEmojis.filter(e => !withDataSet.has(e)),
-  ];
+  const ordered = isIncomeMode
+    ? [
+        ...stats.map(s => s.emoji),
+        ...allEmojis.filter(e => !withDataSet.has(e)),
+      ]
+    : (() => {
+        const withBudget    = stats.filter(s => (budgetByCategory[s.emoji] ?? 0) > 0).map(s => s.emoji);
+        const withoutBudget = stats.filter(s => (budgetByCategory[s.emoji] ?? 0) <= 0).map(s => s.emoji);
+        return [
+          ...withBudget,
+          ...withoutBudget,
+          ...allEmojis.filter(e => !withDataSet.has(e)),
+        ];
+      })();
 
   let delay = 0;
 
@@ -801,13 +829,10 @@ export function CategoryChart({
           onNewTransaction?.(emoji, name);
         }
       },
-      onTap: (tapPageX: number) => {
+      onTap: () => {
+        // Tap corto → activar filtro por categoría en el dashboard
         const name = getCategoryDisplayName(emoji, userCategories, savingsGoals);
-        // Medir el origen del contenedor para convertir coordenada absoluta → relativa
-        containerRef.current?.measure((_x, _y, _w, _h, pageX) => {
-          const localX = tapPageX - pageX;
-          showNameBadge({ emoji, name, colX: localX });
-        });
+        onCategoryTap?.(emoji, name);
       },
     };
   }
@@ -853,8 +878,10 @@ export function CategoryChart({
               if (ratio >= 1.0) ghostH = Math.max(Math.round(fillH / ratio), MIN_GHOST_H);
               displayPct = Math.round(ratio * 100);
             } else {
-              // Sin presupuesto: barra neutra al 40% de la altura máxima
-              fillH      = Math.round(MAX_BAR_H * 0.4);
+              // Sin presupuesto: barra GRIS proporcional al gasto real
+              fillH      = stat.total > 0
+                ? Math.max(Math.min(Math.round(stat.total * scale), MAX_BAR_H), MIN_FILL_H)
+                : 0;
               ghostH     = 0;
               displayPct = 0;
             }
@@ -866,12 +893,15 @@ export function CategoryChart({
             } else if (alertColors && budgetAmt && budgetAmt > 0) {
               visual = getBarVisual(emoji, ratio, userCategories);
             } else {
-              const { accent } = getCategoryColor(emoji, userCategories);
-              visual = { fillColor: accent, hasBorder: false };
+              // Sin presupuesto: gris adaptable a tema (sin ghost border)
+              visual = { fillColor: NEUTRAL_FILL, hasBorder: false };
             }
 
             const d = delay;
             delay += 80;
+            // Opacidad del fill: 1.0 cuando es gris neutro (sin presupuesto), 0.68 con color
+            const isNeutral   = !isIncomeMode && !(budgetAmt && budgetAmt > 0);
+            const fillOpacity = isNeutral ? 1 : 0.68;
             return (
               <AnimatedBar
                 key={emoji}
@@ -881,6 +911,7 @@ export function CategoryChart({
                 pct={displayPct}
                 hasBudget={isIncomeMode || !!(budgetAmt && budgetAmt > 0)}
                 fillColor={visual.fillColor}
+                fillOpacity={fillOpacity}
                 hasBorder={visual.hasBorder}
                 delay={d}
                 animationKey={animationKey}
@@ -898,25 +929,6 @@ export function CategoryChart({
           );
         })}
       </ScrollView>
-
-      {/* ── Badge de nombre de categoría — aparece al tocar la columna ── */}
-      {nameBadge && (
-        <Animated.View
-          style={[
-            nameBadgeStyle.badge,
-            {
-              // Centrar el badge sobre el punto tocado; clampear para no salirse del contenedor
-              left: Math.max(4, Math.min(nameBadge.colX - 52, SCREEN_W - 136)),
-              opacity: nameBadgeAnim,
-              transform: [{ translateY: nameBadgeAnim.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }],
-            },
-          ]}
-          pointerEvents="none"
-        >
-          <Text style={nameBadgeStyle.emoji}>{nameBadge.emoji}</Text>
-          <Text style={nameBadgeStyle.label}>{nameBadge.name}</Text>
-        </Animated.View>
-      )}
 
       {/* ── Overlay oscuro + popup — se abre como Modal sobre toda la pantalla ── */}
       <Modal
@@ -1057,6 +1069,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 13,
     includeFontPadding: false,
+    opacity: 0.75,
   },
   ghostDash: {
     fontSize: 11,
@@ -1147,39 +1160,6 @@ const popupStyles = StyleSheet.create({
     color: "#0F172A",
     letterSpacing: -0.3,
     flexShrink: 1,
-  },
-});
-
-// ─── Estilos del badge de nombre de categoría ────────────────────────────────
-const nameBadgeStyle = StyleSheet.create({
-  badge: {
-    position: "absolute",
-    top: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 9999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.07)",
-    zIndex: 20,
-  },
-  emoji: {
-    fontSize: 14,
-    lineHeight: 18,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#0F172A",
-    letterSpacing: 0.2,
   },
 });
 

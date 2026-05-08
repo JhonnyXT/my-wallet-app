@@ -35,6 +35,9 @@ export interface UseDashboardSearchReturn {
   activeTags:   string[];
   removeTag:    (tag: string) => void;
   closeSearch:  () => void;
+  // Filtro por categoría (tap corto en columna del chart)
+  categoryFilter:        { emoji: string; name: string } | null;
+  clearCategoryFilter:   () => void;
 }
 
 interface UseDashboardSearchParams {
@@ -48,13 +51,15 @@ export function useDashboardSearch({
   typeFilteredTransactions,
   baseSearchBottom,
 }: UseDashboardSearchParams): UseDashboardSearchReturn {
-  const searchOpen     = useUIStore((s) => s.searchOpen);
-  const searchQuery    = useUIStore((s) => s.searchQuery);
-  const setSearchQuery = useUIStore((s) => s.setSearchQuery);
-  const activeTags     = useUIStore((s) => s.activeTags);
-  const addTag         = useUIStore((s) => s.addTag);
-  const removeTag      = useUIStore((s) => s.removeTag);
-  const closeSearch    = useUIStore((s) => s.closeSearch);
+  const searchOpen          = useUIStore((s) => s.searchOpen);
+  const searchQuery         = useUIStore((s) => s.searchQuery);
+  const setSearchQuery      = useUIStore((s) => s.setSearchQuery);
+  const activeTags          = useUIStore((s) => s.activeTags);
+  const addTag              = useUIStore((s) => s.addTag);
+  const removeTag           = useUIStore((s) => s.removeTag);
+  const closeSearch         = useUIStore((s) => s.closeSearch);
+  const categoryFilter      = useUIStore((s) => s.categoryFilter);
+  const clearCategoryFilter = useUIStore((s) => s.clearCategoryFilter);
 
   const searchInputRef = useRef<TextInput>(null);
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
@@ -158,8 +163,18 @@ export function useDashboardSearch({
     return results;
   }, [typeFilteredTransactions, activeQuery, activeTags, isTypingTag]);
 
-  const isSearching          = searchOpen && hasActiveSearch;
-  const displayedTransactions = isSearching ? searchedTransactions : typeFilteredTransactions;
+  const isSearching = searchOpen && hasActiveSearch;
+
+  // Lista mostrada: prioridad búsqueda → filtro de categoría → tipo/período
+  const displayedTransactions = useMemo(() => {
+    if (isSearching) return searchedTransactions;
+    if (categoryFilter) {
+      return typeFilteredTransactions.filter(
+        (tx) => tx.category_emoji === categoryFilter.emoji
+      );
+    }
+    return typeFilteredTransactions;
+  }, [isSearching, searchedTransactions, categoryFilter, typeFilteredTransactions]);
 
   return {
     searchInputRef,
@@ -182,5 +197,7 @@ export function useDashboardSearch({
     activeTags,
     removeTag,
     closeSearch,
+    categoryFilter,
+    clearCategoryFilter,
   };
 }

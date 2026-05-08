@@ -10,7 +10,6 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { checkAndNotifyGoalCompleted, requestNotificationPermissions } from "@/src/services/notificationService";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore, type PaymentMethod, type PaymentMethodType, type SavingsGoal } from "@/src/store/useSettingsStore";
-import { useToastStore } from "@/src/store/useToastStore";
 import type { AppTheme } from "@/src/theme";
 import { hexToHue, hueToColors } from "@/src/utils/colorUtils";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
@@ -746,7 +745,6 @@ function AbonarMetaModal({
   const theme             = useTheme();
   const updateSavingsGoal = useSettingsStore((st) => st.updateSavingsGoal);
   const addTransaction    = useFinanceStore((st) => st.addTransaction);
-  const addToast          = useToastStore((st) => st.addToast);
 
   const [abonoDisplay, setAbonoDisplay] = useState("");
 
@@ -770,10 +768,7 @@ function AbonarMetaModal({
     const newSaved = goal.savedAmount + abono;
     updateSavingsGoal(goal.id, newSaved);
 
-    addToast({ level: "success", icon: goal.emoji, title: `Abono registrado: ${goal.name}` });
-
     if (newSaved >= goal.targetAmount) {
-      addToast({ level: "success", icon: "🎉", title: `¡Meta "${goal.name}" alcanzada!` });
       checkAndNotifyGoalCompleted(goal.id, goal.emoji, goal.name, goal.targetAmount);
     }
 
@@ -1434,7 +1429,6 @@ export default function SettingsScreen() {
   const budgetAlertThreshold      = useSettingsStore((s) => s.budgetAlertThreshold);
   const setBudgetAlertsEnabled    = useSettingsStore((s) => s.setBudgetAlertsEnabled);
   const setBudgetAlertThreshold   = useSettingsStore((s) => s.setBudgetAlertThreshold);
-  const addToast                  = useToastStore((s) => s.addToast);
 
   // Handler: al activar alertas de presupuesto, validar permiso de notificaciones
   const handleBudgetAlertToggle = useCallback(async (value: boolean) => {
@@ -1442,22 +1436,12 @@ export default function SettingsScreen() {
       setBudgetAlertsEnabled(false);
       return;
     }
-    // Solicitar permisos si aún no los tiene (abre ajustes del sistema si fue denegado)
+    // requestNotificationPermissions abre ajustes del sistema si fueron denegados
     const granted = await requestNotificationPermissions();
-    if (!granted) {
-      addToast({
-        level: "warning",
-        title: "Activa las notificaciones",
-        message: "Ve a Ajustes del sistema y activa los permisos de notificación para MyWallet.",
-        icon: "🔔",
-        duration: 5000,
-      });
-      return;
-    }
-    // Garantizar que el flag global esté en sincronía con el permiso real
+    if (!granted) return;
     setNotificationsEnabled(true);
     setBudgetAlertsEnabled(true);
-  }, [setBudgetAlertsEnabled, setNotificationsEnabled, addToast]);
+  }, [setBudgetAlertsEnabled, setNotificationsEnabled]);
 
   // Modals state
   const [budgetModal,        setBudgetModal]        = useState(false);
@@ -1528,15 +1512,10 @@ export default function SettingsScreen() {
 
       const csv = header + rows;
 
-      const result = await Share.share(
+      await Share.share(
         { title: "MyWallet — Exportar transacciones", message: csv },
         { dialogTitle: "Exportar transacciones" },
       );
-
-      // Solo mostrar toast si el usuario no canceló
-      if (result.action !== Share.dismissedAction) {
-        addToast({ level: "info", icon: "📤", title: "Datos exportados correctamente" });
-      }
     } catch {
       setExportErrorDialog(true);
     }
@@ -1552,7 +1531,6 @@ export default function SettingsScreen() {
     const { clearTransactions } = await import("@/src/db/db");
     await clearTransactions();
     useFinanceStore.getState().loadTransactions();
-    addToast({ level: "info", icon: "🗑️", title: "Historial de transacciones borrado" });
   }
 
   const incomeSubtitle = monthlyBudget <= 0 ? "Sin configurar" : formatCOP(monthlyBudget);

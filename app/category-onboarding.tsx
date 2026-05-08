@@ -23,7 +23,6 @@ import { useRouter } from "expo-router";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
-import { useToastStore } from "@/src/store/useToastStore";
 import {
   EXPENSE_PRESETS,
   INCOME_PRESETS,
@@ -43,7 +42,6 @@ export default function CategoryOnboarding() {
   const st = useMemo(() => buildStyles(theme), [theme]);
 
   const { setUserCategories, completeCategories, userCategories, hasSelectedCategories } = useSettingsStore();
-  const addToast  = useToastStore((s) => s.addToast);
   const isEditing = hasSelectedCategories;
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
@@ -86,8 +84,7 @@ export default function CategoryOnboarding() {
     setCustomCats(prev => [...prev, cat]);
     setSelectedIds(prev => new Set(prev).add(cat.id));
     setModalVisible(false);
-    addToast({ level: "success", icon: cat.emoji, title: `Categoría "${cat.name}" creada` });
-  }, [addToast]);
+  }, []);
 
   const renderGrid = (cats: UserCategory[], type: "expense" | "income") => {
     const rows: UserCategory[][] = [];

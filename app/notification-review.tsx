@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   FlatList,
   Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
@@ -21,7 +22,6 @@ import * as Haptics from "expo-haptics";
 import { useNotificationStore, type PendingNotificationItem } from "@/src/store/useNotificationStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
-import { useToastStore } from "@/src/store/useToastStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -118,7 +118,6 @@ export default function NotificationReviewScreen() {
 
   const { pendingItems, clearAll } = useNotificationStore();
   const { addTransactionBatch } = useFinanceStore();
-  const { addToast } = useToastStore();
 
   const [items, setItems] = useState<ReviewItem[]>(() => pendingItems.map(pendingToReview));
 
@@ -202,23 +201,11 @@ export default function NotificationReviewScreen() {
     try {
       await addTransactionBatch(batch);
       clearAll();
-
-      const expenseCount = items.filter((i) => i.isExpense).length;
-      const incomeCount = items.length - expenseCount;
-
-      addToast({
-        level: "success",
-        icon: "✅",
-        title: `${items.length} registro${items.length !== 1 ? "s" : ""} guardado${items.length !== 1 ? "s" : ""}` +
-          (incomeCount > 0 ? ` · ${incomeCount} ingreso${incomeCount !== 1 ? "s" : ""}` : ""),
-        duration: 8000,
-      });
-
       router.back();
-    } catch (e) {
-      addToast({ level: "danger", icon: "❌", title: "Error al guardar. Intenta de nuevo.", duration: 5000 });
+    } catch {
+      Alert.alert("Error", "No se pudieron guardar las transacciones. Intenta de nuevo.");
     }
-  }, [items, addTransactionBatch, clearAll, addToast]);
+  }, [items, addTransactionBatch, clearAll]);
 
   // Total absoluto para el footer
   const grandTotal = useMemo(() =>

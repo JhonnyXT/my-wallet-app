@@ -20,6 +20,7 @@ import {
   Platform,
   Pressable,
   TouchableWithoutFeedback,
+  Alert,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -29,7 +30,6 @@ import * as Haptics from "expo-haptics";
 import { useVoiceStore, type PendingTransaction, type ManualAddItem } from "@/src/store/useVoiceStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
-import { useToastStore } from "@/src/store/useToastStore";
 import { useTheme } from "@/src/context/ThemeContext";
 import { getCategoryColor, getCategoryName } from "@/src/constants/theme";
 import { formatMoneyInput, formatMoneyDisplay } from "@/src/utils/formatMoney";
@@ -396,9 +396,7 @@ export default function VoiceBatchReview() {
 
   const { pendingBatch, clearPendingBatch, pendingManualItem, clearPendingManualItem } = useVoiceStore();
   const addTransactionBatch = useFinanceStore((s) => s.addTransactionBatch);
-  const deleteTransaction   = useFinanceStore((s) => s.deleteTransaction);
   const userCategories      = useSettingsStore((s) => s.userCategories);
-  const addToast            = useToastStore((s) => s.addToast);
 
   const [items, setItems]       = useState<ReviewItem[]>([]);
   const [editItem, setEditItem] = useState<ReviewItem | null>(null);
@@ -481,21 +479,11 @@ export default function VoiceBatchReview() {
         paymentMethod: item.paymentMethod,
       }));
 
-      const savedIds = await addTransactionBatch(batch);
+      await addTransactionBatch(batch);
       clearPendingBatch();
-
-      addToast({
-        level: "success",
-        icon: "🎙️",
-        title: `${items.length} transacciones guardadas`,
-        actionLabel: "Deshacer",
-        duration: 8000,
-        onAction: () => savedIds.forEach((id) => deleteTransaction(id)),
-      });
-
       router.dismissAll();
     } catch {
-      addToast({ level: "danger", icon: "⚠️", title: "Error al guardar, intenta de nuevo" });
+      Alert.alert("Error", "No se pudieron guardar las transacciones. Intenta de nuevo.");
     } finally {
       setSaving(false);
     }

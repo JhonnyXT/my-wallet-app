@@ -9,7 +9,6 @@ import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { ThemeProvider } from "@/src/context/ThemeContext";
 import { AnimatedSplash } from "@/src/components/ui/AnimatedSplash";
-import { ToastContainer } from "@/src/components/ui/ToastContainer";
 import { light, dark } from "@/src/theme";
 
 import "../global.css";
@@ -152,7 +151,6 @@ export default function RootLayout() {
       {appReady && !splashDone && (
         <AnimatedSplash onFinish={() => setSplashDone(true)} />
       )}
-      <ToastContainer />
     </ThemeProvider>
   );
 }

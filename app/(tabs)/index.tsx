@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,8 +9,10 @@ import {
   Pressable,
   StatusBar,
   TouchableOpacity,
+  BackHandler,
+  PanResponder,
 } from "react-native";
-import Reanimated from "react-native-reanimated";
+import Reanimated, { useAnimatedReaction, runOnJS } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Settings, Search, X, Hash, ArrowDown, ArrowUp } from "lucide-react-native";
@@ -20,6 +22,7 @@ import { useFinanceStore } from "@/src/store/useFinanceStore";
 import type { TransactionRow } from "@/src/db/db";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
+import { useUIStore } from "@/src/store/useUIStore";
 
 import { FilterChips } from "@/src/components/ui/FilterChips";
 import { CategoryChart } from "@/src/components/ui/CategoryChart";
@@ -65,9 +68,6 @@ export default function DashboardScreen() {
   // ── Detalle de transacción (long-press) ──────────────────────────────────
   const [detailTx, setDetailTx] = useState<TransactionRow | null>(null);
 
-  // ── IDs de metas ya descartadas en esta sesión (toast) ───────────────────
-  const [dismissedGoalIds, setDismissedGoalIds] = useState<Set<string>>(new Set());
-
   // ── Filtros de período y tipo ────────────────────────────────────────────
   const {
     periodFilter,
@@ -104,6 +104,8 @@ export default function DashboardScreen() {
     activeTags,
     removeTag,
     closeSearch,
+    categoryFilter,
+    clearCategoryFilter,
   } = useDashboardSearch({ transactions, typeFilteredTransactions, baseSearchBottom });
 
   // ── Totales y estadísticas ───────────────────────────────────────────────
@@ -135,14 +137,6 @@ export default function DashboardScreen() {
     chartAnimKey,
   } = useDashboardScroll(typeFilter, periodFilter);
 
-  // ── Meta alcanzada (primera no descartada) ───────────────────────────────
-  const achievedGoal = useMemo(
-    () => savingsGoals.find(
-      (g) => g.targetAmount > 0 && g.savedAmount >= g.targetAmount && !dismissedGoalIds.has(g.id)
-    ) ?? null,
-    [savingsGoals, dismissedGoalIds],
-  );
-
   // ── Tour de onboarding ───────────────────────────────────────────────────
   const {
     dashboardTourSteps,
@@ -151,6 +145,59 @@ export default function DashboardScreen() {
     onboardingStep,
     completeOnboarding,
   } = useDashboardTour();
+
+  // ── Filtro por categoría (tap corto en columna del chart) ───────────────
+  const setCategoryFilter = useUIStore((s) => s.setCategoryFilter);
+
+  const handleCategoryTap = useCallback((emoji: string, name: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCategoryFilter({ emoji, name });
+  }, [setCategoryFilter]);
+
+  // Botón atrás del dispositivo: cierra primero el filtro de categoría
+  useEffect(() => {
+    if (!categoryFilter) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      clearCategoryFilter();
+      return true;
+    });
+    return () => sub.remove();
+  }, [categoryFilter, clearCategoryFilter]);
+
+  // ── Pull-down sin spinner para limpiar el filtro de categoría ───────────
+  // Refleja en JS si el FlatList está en el tope (solo cambia al cruzar el umbral,
+  // sin disparar runOnJS en cada frame).
+  const atTopRef = useRef(true);
+  const setAtTop = useCallback((v: boolean) => { atTopRef.current = v; }, []);
+  useAnimatedReaction(
+    () => scrollY.value <= 4,
+    (atTop, prev) => {
+      "worklet";
+      if (atTop !== prev) runOnJS(setAtTop)(atTop);
+    },
+    [scrollY],
+  );
+
+  // PanResponder en capa de captura: solo intercepta cuando hay filtro activo,
+  // estamos en el tope del scroll y el gesto es claramente vertical descendente.
+  // Si suelta tras arrastrar > 80 px, limpia el filtro. No muestra ningún spinner.
+  const pullDownPan = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponderCapture: () => false,
+    onMoveShouldSetPanResponderCapture: (_, gs) =>
+      !!categoryFilter
+      && atTopRef.current
+      && gs.dy > 14
+      && gs.dy > Math.abs(gs.dx) * 1.2,
+    onPanResponderGrant: () => {
+      Haptics.selectionAsync();
+    },
+    onPanResponderRelease: (_, gs) => {
+      if (gs.dy > 80) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        clearCategoryFilter();
+      }
+    },
+  }), [categoryFilter, clearCategoryFilter]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   function handleNewTransactionFromChart(emoji: string, categoryName: string) {
@@ -188,7 +235,18 @@ export default function DashboardScreen() {
   // ── ListHeader ────────────────────────────────────────────────────────────
   const listHeader = (
     <>
-      {!isSearching && (
+      {/* Chip de filtro de categoría activo (informativo, sin botón de cierre) */}
+      {categoryFilter && (
+        <View style={styles.catFilterRow}>
+          <View style={styles.catFilterChip}>
+            <Text style={styles.catFilterEmoji}>{categoryFilter.emoji}</Text>
+            <Text style={styles.catFilterText}>{categoryFilter.name}</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Chart: oculto durante búsqueda o filtro de categoría */}
+      {!isSearching && !categoryFilter && (
         <View style={styles.chartWrapper}>
           {isNewPeriod && (
             <View style={styles.newPeriodOverlay}>
@@ -203,6 +261,7 @@ export default function DashboardScreen() {
               totalExpenses={activeTotalForChart}
               budgetByCategory={activeBudget}
               onNewTransaction={handleNewTransactionFromChart}
+              onCategoryTap={handleCategoryTap}
               alertColors={typeFilter !== "income"}
               isIncomeMode={typeFilter === "income"}
               animationKey={chartAnimKey}
@@ -216,6 +275,7 @@ export default function DashboardScreen() {
         <View style={styles.dayHeader}>
           <Text style={styles.dayLabel}>
             {isSearching       ? "RESULTADOS"
+              : categoryFilter  ? categoryFilter.name.toUpperCase()
               : typeFilter === "expense" ? "GASTOS"
               : typeFilter === "income"  ? "INGRESOS"
               : "RECIENTE"}
@@ -223,7 +283,9 @@ export default function DashboardScreen() {
           <Text style={styles.dayLabelRight}>
             {isSearching
               ? `${searchedTransactions.length} encontrados`
-              : chipLabel.toUpperCase()}
+              : categoryFilter
+                ? `${displayedTransactions.length} ${displayedTransactions.length === 1 ? "registro" : "registros"}`
+                : chipLabel.toUpperCase()}
           </Text>
         </View>
       )}
@@ -277,21 +339,6 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.headerLeft}>
-          {/* ── Toast: meta alcanzada ──────────────────────────────────── */}
-          {achievedGoal && (
-            <View style={styles.goalToast}>
-              <Text style={styles.goalToastEmoji}>{achievedGoal.emoji}</Text>
-              <Text style={styles.goalToastText} numberOfLines={1}>
-                ¡Meta &ldquo;{achievedGoal.name}&rdquo; alcanzada!
-              </Text>
-              <TouchableOpacity
-                onPress={() => setDismissedGoalIds((prev) => new Set([...prev, achievedGoal.id]))}
-                hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-              >
-                <X size={14} color="#92400E" strokeWidth={2.5} />
-              </TouchableOpacity>
-            </View>
-          )}
 
           <Reanimated.View style={[styles.balanceSection, headerParallaxStyle as object]}>
             <Text style={styles.balanceLabel}>
@@ -377,26 +424,28 @@ export default function DashboardScreen() {
       {/* ══════════════════════════════════════════════════════════════
           LISTA — gráfica + transacciones en un solo scroll unificado
           ══════════════════════════════════════════════════════════════ */}
-      <Reanimated.FlatList
-        data={displayedTransactions}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
-        ListHeaderComponent={listHeader}
-        ListEmptyComponent={listEmpty}
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-        keyboardShouldPersistTaps="handled"
-        onScroll={scrollHandler}
-        initialNumToRender={15}
-        maxToRenderPerBatch={10}
-        windowSize={7}
-        removeClippedSubviews
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: scrollBottomPadding(insets.bottom) },
-        ]}
-        style={styles.list}
-      />
+      <View style={styles.list} {...pullDownPan.panHandlers}>
+        <Reanimated.FlatList
+          data={displayedTransactions}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          keyboardShouldPersistTaps="handled"
+          onScroll={scrollHandler}
+          initialNumToRender={15}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: scrollBottomPadding(insets.bottom) },
+          ]}
+          style={styles.list}
+        />
+      </View>
 
       {/* ══════════════════════════════════════════════════════════════
           BARRA DE BÚSQUEDA — flotante encima del dock
@@ -635,48 +684,6 @@ function createStyles(t: AppTheme) {
       backgroundColor: "#2D5BFF",
     },
 
-    // ── Toast: meta alcanzada ────────────────────────────────────────────────
-    goalToast: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      backgroundColor: "#FEF3C7",
-      borderRadius: 12,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      alignSelf: "flex-start",
-      maxWidth: "100%",
-    },
-    goalToastEmoji: {
-      fontSize: 14,
-      lineHeight: 18,
-    },
-    goalToastText: {
-      flex: 1,
-      fontSize: 12,
-      fontWeight: "700",
-      color: "#92400E",
-      letterSpacing: 0.1,
-    },
-
-    // ── Banner: categoría de presupuesto excedido ────────────────────────────
-    exceededBanner: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      backgroundColor: "#FEF3C7",
-      borderRadius: 8,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      alignSelf: "flex-start",
-    },
-    exceededBannerText: {
-      fontSize: 11,
-      fontWeight: "700",
-      color: "#92400E",
-      letterSpacing: 0.5,
-    },
-
     // ── Lista ───────────────────────────────────────────────────────────────
     list: {
       flex: 1,
@@ -709,6 +716,36 @@ function createStyles(t: AppTheme) {
     },
     txItem: {
       paddingHorizontal: 28,
+    },
+
+    // ── Chip de filtro de categoría activa ──────────────────────────────────
+    catFilterRow: {
+      flexDirection: "row",
+      paddingHorizontal: 28,
+      paddingTop: 8,
+      paddingBottom: 4,
+    },
+    catFilterChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: t.surface,
+      borderRadius: 9999,
+      paddingLeft: 12,
+      paddingRight: 10,
+      paddingVertical: 6,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    catFilterEmoji: {
+      fontSize: 14,
+      lineHeight: 18,
+    },
+    catFilterText: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: t.text,
+      letterSpacing: 0.1,
     },
 
     // ── Cabecera de sección ─────────────────────────────────────────────────

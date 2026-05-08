@@ -11,6 +11,11 @@ interface UIState {
   removeTag: (tag: string) => void;
   closeSearch: () => void;
 
+  // ─── Filtro por categoría (tap corto en columna del chart) ────────────────
+  categoryFilter: { emoji: string; name: string } | null;
+  setCategoryFilter: (filter: { emoji: string; name: string } | null) => void;
+  clearCategoryFilter: () => void;
+
   // ─── Overlay de entrada rápida NLP (FloatingInputOverlay) ──────────────────
   isExpenseInputOpen: boolean;
   prefillText: string;
@@ -33,6 +38,10 @@ export const useUIStore = create<UIState>((set) => ({
   removeTag: (tag) =>
     set((s) => ({ activeTags: s.activeTags.filter((t) => t !== tag) })),
   closeSearch: () => set({ searchOpen: false, searchQuery: "", activeTags: [] }),
+
+  categoryFilter: null,
+  setCategoryFilter: (filter) => set({ categoryFilter: filter }),
+  clearCategoryFilter: () => set({ categoryFilter: null }),
 
   isExpenseInputOpen: false,
   prefillText: "",

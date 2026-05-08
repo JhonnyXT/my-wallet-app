@@ -48,6 +48,74 @@ No hay ESLint/Prettier configurado. Deuda técnica documentada.
 
 ---
 
+## Onboarding del sistema de agentes IA
+
+Este repositorio incluye un **sistema completo de agentes de IA** (compatible con Cursor, Claude Code y otros). Cualquier colaborador que clone el proyecto puede activar todo el contexto, las skills y los comandos personalizados con dos pasos:
+
+### 1. Skills públicas — restaurar desde `skills-lock.json`
+
+Las skills custom del proyecto están versionadas dentro de `.agents/skills/`. Las skills **públicas** (de terceros) no se versionan; se reinstalan desde el lockfile que sí está versionado:
+
+```bash
+npx skills install
+```
+
+Esto lee `skills-lock.json` (raíz del proyecto) y descarga las 6 skills públicas:
+`systematic-debugging`, `react-native`, `expo-react-native-typescript`, `expo-react-native-performance`, `finishing-a-development-branch`, `test-driven-development`.
+
+> Si tu CLI no soporta `install` desde lockfile, usa `npx skills add <fuente>/<skill>` para cada entry de `skills-lock.json`.
+
+### 2. Cursor IDE — detección automática
+
+Cursor detecta automáticamente al abrir el repositorio:
+- `.cursor/rules/*.mdc` — se cargan según los `globs` de cada regla.
+- `.cursor/commands/*.md` — se invocan escribiendo `/<nombre>` en el chat.
+- `.cursor/agents/*.md` — disponibles como subagents (cuadro "Task" del agente).
+- `AGENTS.md` — leído por el agente como guía maestra del repositorio.
+
+No requiere configuración adicional. Solo asegúrate de tener Cursor actualizado.
+
+### 3. Comandos slash más usados
+
+| Comando | Cuándo usarlo |
+|---------|---------------|
+| `/arrancar` | Build APK release + instala vía ADB (full deploy) |
+| `/dev` | Build debug + hot reload (desarrollo iterativo) |
+| `/build-apk` | Solo construye APK release sin instalar |
+| `/revisar` | Validación pre-commit con `wallet-validator` |
+| `/commit` | Commit inteligente con validación + actualización de docs |
+| `/nuevo-componente` | Scaffold componente UI Stitch |
+| `/nueva-pantalla` | Scaffold pantalla modal con registro |
+| `/nuevo-feature` | Scaffold feature completo (pantalla + store + DB + componente) |
+
+### 4. Subagentes disponibles
+
+| Agente | Modo | Cuándo invocarlo |
+|--------|------|------------------|
+| `revisor-ui` | Solo lectura | Antes de mergear UI: audita tema, accesibilidad, consistencia visual |
+| `auditor-deuda` | Solo lectura | Periódicamente: detecta código muerto, duplicaciones, deuda técnica |
+| `generador-docs` | Lectura + escritura `.md` | Después de cambios estructurales: regenera AGENTS.md / CONTEXT.md |
+
+### 5. Estructura del sistema (resumen)
+
+```
+.cursor/
+  rules/      → 4 reglas con globs (siempre activas o por archivo)
+  commands/   → 8 slash commands
+  agents/     → 3 subagentes especializados
+.agents/
+  skills/     → 4 skills custom + 6 públicas (vía skills-lock.json)
+AGENTS.md            → Este archivo (guía maestra)
+CONTEXT.md           → Contexto técnico exhaustivo (~1100 líneas)
+DOCUMENTATION.md     → Manual de usuario final
+PRODUCT_REQUIREMENTS.md → Historias de usuario y requisitos
+skills-lock.json     → Lockfile reproducible de skills públicas
+```
+
+> El detalle completo de cada archivo está en [Mapa de archivos de agentes](#mapa-de-archivos-de-agentes) al final.
+
+---
+
 ## Stack técnico
 
 | Capa | Tecnología | Versión |
@@ -141,7 +209,6 @@ my-wallet-app/
 | `useSettingsStore` | AsyncStorage | Config: categorías, presupuesto, metas, métodos pago, dark mode, onboarding |
 | `useVoiceStore` | No | Estado voz: transcript, pendingBatch, pendingManualItem |
 | `useNotificationStore` | AsyncStorage | Cola transacciones detectadas desde notificaciones bancarias |
-| `useToastStore` | No | Cola global toasts in-app (máx 3) |
 | `useUIStore` | No | Búsqueda: query, tags activos |
 
 ---

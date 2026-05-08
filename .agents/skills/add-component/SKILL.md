@@ -4,8 +4,8 @@ description: |
   Crea un nuevo componente UI reutilizable para MyWallet siguiendo el Stitch Design
   System con tema dinámico light/dark, NativeWind o StyleSheet, y TypeScript estricto.
   Usar cuando el usuario pida "nuevo componente", "crear widget", "componente UI",
-  "crear card" o "agregar componente visual". Basado en TransactionItem.tsx,
-  CategoryChart.tsx y ToastBanner.tsx como referencia real del proyecto.
+  "crear card" o "agregar componente visual". Basado en TransactionItem.tsx y
+  CategoryChart.tsx como referencia real del proyecto.
 license: MIT
 metadata:
   project: my-wallet-app

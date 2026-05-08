@@ -70,7 +70,7 @@ Referencia: `@/app/active-expense.tsx`, `@/app/voice-input.tsx`
 |------|----------|---------|
 | Entrada de items | Reanimated `FadeInDown` | Listas de transacciones |
 | Layout transitions | Reanimated `LayoutAnimation` | Reordenar charts |
-| Swipe gestures | `Animated` de RN + PanResponder | TransactionItem, ToastBanner |
+| Swipe gestures | `Animated` de RN + PanResponder | TransactionItem |
 | Feedback táctil | `expo-haptics` | Guardar, seleccionar |
 
 ### Swipe pattern (PanResponder)

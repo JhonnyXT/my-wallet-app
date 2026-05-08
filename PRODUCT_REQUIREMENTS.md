@@ -59,7 +59,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Auto-stop | Se detiene tras 2s de silencio | ✅ Implementado |
 | Transición (single) | 1s de delay → abre formulario con datos pre-llenados | ✅ Implementado |
 | **Multi-transacción por voz** | `processMultiVoiceInput` detecta ≥2 montos (dígitos o palabras: "treinta mil", "quince mil"); `setPendingBatch` + `router.replace("/voice-batch-review")` → pantalla de revisión | ✅ Implementado |
-| **Pantalla "Revisar registros"** (`voice-batch-review`) | FlatList de tarjetas editables (swipe-left elimina, ✏️ abre EditItemSheet). "Añadir registro manual" → `active-expense?from=batch-review` → registro vuelve como tarjeta sin guardar en DB. Footer: resumen + "Guardar todo" → `addTransactionBatch` + toast "Deshacer" (8 s) → Dashboard | ✅ Implementado |
+| **Pantalla "Revisar registros"** (`voice-batch-review`) | FlatList de tarjetas editables (swipe-left elimina, ✏️ abre EditItemSheet). "Añadir registro manual" → `active-expense?from=batch-review` → registro vuelve como tarjeta sin guardar en DB. Footer: resumen + "Guardar todo" → `addTransactionBatch` → Dashboard. Errores con `Alert.alert` nativo | ✅ Implementado |
 
 ### 2.4 Configuración (Modal)
 
@@ -85,19 +85,9 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Anti-duplicación metas | `goalNotifiedIds: string[]` en `useSettingsStore` — una sola notificación por meta | ✅ Implementado |
 | Limpieza automática | `clearExpiredBudgetNotifications()` se ejecuta en el bootstrap de la app (`app/_layout.tsx`) para limpiar flags de meses anteriores | ✅ Implementado |
 
-#### Capa 2 — Banners in-app (`useToastStore` + `ToastBanner` + `ToastContainer`)
+#### Capa 2 — Banners in-app
 
-| Sección | Descripción | Estado |
-|---------|-------------|--------|
-| Store | `src/store/useToastStore.ts` — cola LIFO, máx. 3 toasts, `addToast` / `removeToast` | ✅ Implementado |
-| Componente banner | `src/components/ui/ToastBanner.tsx` — icono izquierdo + título + botón acción opcional + × | ✅ Implementado |
-| Diseño | Fondo blanco/surface neutro para success/info; fondo tintado sólido para warning/danger. Sin valores monetarios | ✅ Implementado |
-| Icono izquierdo | `toast.icon` (emoji custom) o default según `level`: ✅/💬/⚠️/🚨. Contenedor redondeado 38×38 con fondo coloreado por nivel | ✅ Implementado |
-| Auto-dismiss | 3500 ms por defecto; 6000 ms para "Deshacer" (time-sensitive) | ✅ Implementado |
-| Dismiss manual — botón | × alineado al borde derecho | ✅ Implementado |
-| Dismiss manual — swipe | `PanResponder`: arrastar > 40px arriba → `translateY -100` + `opacity 0` (220ms) → `removeToast`; si no supera umbral → spring de vuelta | ✅ Implementado |
-| Contenedor global | `src/components/ui/ToastContainer.tsx` — `position: absolute`, `left/right: 12`, `top: safeArea + 8`. Montado en `app/_layout.tsx` | ✅ Implementado |
-| Eventos disparadores | Gasto/ingreso guardado, categoría creada, presupuesto superado (danger), presupuesto al 80%+ (warning), meta cumplida (success), abono registrado, exportar datos, borrar historial, eliminar transacción + Deshacer | ✅ Implementado |
+**Eliminado.** El sistema de toasts in-app (`useToastStore`, `ToastBanner`, `ToastContainer`) fue retirado. Los eventos relevantes se notifican exclusivamente vía push notifications del sistema (Capa 1). Errores críticos usan `Alert.alert` nativo y confirmaciones destructivas usan `ConfirmDialog`.
 
 ### 2.8 Guided Tour / Onboarding (primera vez)
 
@@ -331,8 +321,8 @@ Las categorías se pueden crear desde **tres contextos**:
 | Categorías | Emojis nativos del sistema en círculos suaves |
 | Espacio negativo | Padding lateral 24px, gaps generosos entre secciones |
 | Modales | Slide desde abajo, fondo semi-transparente oscuro |
-| Diálogos de confirmación | `ConfirmDialog` custom con icono + variante + animación spring (reemplaza `Alert.alert` nativo) |
-| Banners in-app | \ToastBanner\: icono izquierdo coloreado por nivel + título. Fondo neutro para success/info, tintado sólido para warning/danger |
+| Diálogos de confirmación | `ConfirmDialog` custom con icono + variante + animación spring (reemplaza `Alert.alert` nativo) para acciones destructivas/sensibles |
+| Notificaciones | Push del sistema (`expo-notifications`) para eventos clave (presupuesto, metas, transacciones detectadas). No se usan banners in-app |
 
 ### Micro-interacciones
 | Interacción | Efecto |
@@ -346,8 +336,6 @@ Las categorías se pueden crear desde **tres contextos**:
 | Colapso de gráfica | Al hacer scroll, la gráfica colapsa suavemente (opacity + maxHeight) |
 | Diálogo de confirmación | Spring scale + fade-in con variante visual (danger/warning/info) |
 | Spotlight onboarding | GuidedTour: fade-in overlay oscuro con cutout circular + spring scale tooltip entre pasos |
-| Toast entrada | \FadeInDown.springify()\ al aparecer; \FadeOutUp.duration(200)\ al salir |
-| Toast swipe-up | \PanResponder\ + \Animated.timing\ translateY −90 + opacity 0 (220ms); spring de vuelta si no supera umbral |
 | Reordenamiento de gráfica | `LayoutAnimation` suave al cambiar el orden de categorías por monto |
 | Números animados | `AnimatedNumber` interpola Balance neto, Gastos e Ingresos al cambiar valores |
 | Long-press detalle | Modal fade con tarjeta centrada, haptic feedback al activar (500ms) |

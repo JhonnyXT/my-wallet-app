@@ -36,6 +36,10 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# archivo temporal generado por el flujo de /commit (PowerShell: Set-Content + git commit -F)
+.commit_msg.txt
+commit-msg.txt
+
 # generated native folders
 /ios
 /android

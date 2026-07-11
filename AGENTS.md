@@ -75,6 +75,15 @@ Cursor detecta automáticamente al abrir el repositorio:
 
 No requiere configuración adicional. Solo asegúrate de tener Cursor actualizado.
 
+### 2b. Claude Code — detección automática
+
+Claude Code carga `CLAUDE.md` (raíz) automáticamente, que a su vez importa este mismo `AGENTS.md` completo. Además:
+- `.claude/agents/*.md` — subagentes (`revisor-ui`, `auditor-deuda`, `generador-docs`), con `tools` explícitos.
+- `.claude/commands/*.md` — slash commands, adaptados de `.cursor/commands/` (sin PowerShell, con rutas portables vía `$ANDROID_HOME`).
+- `.agents/skills/*/SKILL.md` — las mismas skills que usa Cursor; Claude Code las lee del mismo lugar, no están duplicadas.
+
+Las reglas `.cursor/rules/*.mdc` no se auto-cargan por `globs` en Claude Code (esa activación condicional es específica de Cursor) — se leen bajo demanda según la tabla en `CLAUDE.md`.
+
 ### 3. Comandos slash más usados
 
 | Comando | Cuándo usarlo |
@@ -126,7 +135,7 @@ skills-lock.json     → Lockfile reproducible de skills públicas
 | Estilos | NativeWind (Tailwind) + StyleSheet.create | ^4.2.2 |
 | Componentes UI | Propios (`src/components/ui/`) + lucide-react-native | ^0.576.0 |
 | Routing | Expo Router (file-based, Stack + Tabs) | ~55.0.3 |
-| Estado | Zustand (7 stores, 2 persistidos con AsyncStorage) | ^5.0.11 |
+| Estado | Zustand (6 stores, 2 persistidos con AsyncStorage) | ^5.0.11 |
 | HTTP/Fetch | N/A (100% offline) | — |
 | Base de datos | expo-sqlite (WAL mode) | ^55.0.10 |
 | ORM | Sin ORM (SQL directo con placeholders) | — |
@@ -168,7 +177,7 @@ my-wallet-app/
 │   ├── constants/                    # categoryPresets, layout, theme (legacy), banks.ts
 │   ├── context/ThemeContext.tsx       # Provider de tema light/dark
 │   ├── db/                           # SQLite: db.ts (CRUD+indexes), queries.ts (agregados), chatDb.ts
-│   ├── features/                     # voice/useVoiceExpense.ts (muerto), chat/useLocalNLP.ts
+│   ├── features/                     # chat/useLocalNLP.ts
 │   ├── hooks/                        # useDashboardScroll, useDashboardSearch, useDashboardTotals, useDashboardTour, useTransactionFilters
 │   ├── services/                     # notificationService.ts, notificationHeadlessTask.ts
 │   ├── store/                        # 7 stores Zustand (useSettingsStore + useNotificationStore persistidos)
@@ -250,13 +259,14 @@ my-wallet-app/
 - `expo-sharing` está en dependencias pero NO se usa en código — se reemplazó por `Share` de react-native. No borrar porque `app.json` la tiene como plugin (B9).
 - `expo-web-browser` y `expo-symbols` están en package.json pero sin imports directos; pueden ser requeridos transitivamente por Expo plugins — no eliminar sin auditoría de plugins (B13).
 - `tsconfig.json` usa `paths: "@/*": ["./*"]` que mapea toda la raíz del proyecto. Suficiente para el setup de Expo Router; no restringir a `src/` sin verificar que no quiebra importaciones de `app/`, `assets/` etc. (B8).
-- `useVoiceExpense.ts` en `src/features/voice/` está **roto y sin uso** — usa `useUIStore.openExpenseInput` que no existe. Es código muerto.
-- `ActionPills.tsx`, `CustomTabBar.tsx`, `AnimatedNumber.tsx` son componentes huérfanos (sin imports). `AnimatedNumber` está marcado como legado en las reglas UI.
-- `AUTO_DETECT_ENABLED_KEY` y `ALLOWED_BANKS_KEY` están duplicadas en `app/settings.tsx` y `src/services/notificationHeadlessTask.ts`.
+- ~~`useVoiceExpense.ts` en `src/features/voice/` está roto y sin uso~~ — **resuelto**: eliminado (sin importadores, usaba `useUIStore.openExpenseInput` inexistente).
+- ~~`ActionPills.tsx`, `CustomTabBar.tsx`, `AnimatedNumber.tsx` son componentes huérfanos~~ — **resuelto**: eliminados (verificado sin imports externos antes de borrar).
+- ~~`AUTO_DETECT_ENABLED_KEY` y `ALLOWED_BANKS_KEY` duplicadas~~ — **resuelto**: consolidadas en `src/constants/banks.ts`, importadas desde `app/settings.tsx` y `src/services/notificationHeadlessTask.ts`.
 - Configuración de detección automática usa `AsyncStorage` directamente (no `useSettingsStore`) para acceso desde HeadlessJS sin React.
 - `notificationService.ts` tiene 3 canales Android (API 26+): `budget-alerts`, `goal-alerts`, `bank-transactions`. Llamar `initNotifications()` en el bootstrap de `_layout.tsx` garantiza que existan antes de cualquier notificación.
 - `budgetNotifiedMonth` usa claves compuestas `"emoji:threshold"` / `"emoji:overspent"` para permitir 2 notificaciones por categoría por mes (al cruzar el umbral y al superar el 100%).
 - Deep link desde notificación push: `data: { screen: "notification-review" }` → listener en `_layout.tsx` con `addNotificationResponseReceivedListener` y `getLastNotificationResponseAsync` (para app cerrada).
+- **`Notifications.removeNotificationSubscription()` ya NO existe en `expo-notifications` (SDK 55)** — la API cambió: `addNotificationResponseReceivedListener()` devuelve un objeto `Subscription` con método propio `.remove()`. Usar `subscription.remove()` en el cleanup del `useEffect`, no la función estática antigua. Detectado por `tsc --noEmit` tras instalar dependencias (`app/_layout.tsx`), corregido en 2026-07-11.
 - Filtro por categoría: tap corto en columna del `CategoryChart` activa `useUIStore.setCategoryFilter`. Se limpia con back físico (`BackHandler`) o con un gesto de pull-down implementado a mano vía `PanResponder` (NO `RefreshControl`, para no mostrar spinner de recarga).
 - Long-press en `CategoryChart` usa un `consumedRef` para evitar que `onTouchEnd` dispare el tap (filtro) después de que `onPanResponderRelease` ya consumió el gesto. Esta race condition existía en versiones previas y debe preservarse el flag al modificar el componente.
 - No usar toasts in-app: el sistema de toasts (`useToastStore`, `ToastContainer`, `ToastBanner`) fue eliminado. Errores críticos usan `Alert.alert`; eventos importantes (presupuesto, transacción detectada, meta cumplida) usan notificaciones push del sistema.
@@ -267,13 +277,14 @@ my-wallet-app/
 
 ## Deuda técnica documentada
 
-- [ ] Sin framework de testing (ni Jest ni Vitest)
+- [ ] Sin framework de testing (ni Jest ni Vitest) — pendiente, próxima iteración
 - [ ] Sin ESLint ni Prettier configurados
-- [ ] 3 componentes huérfanos: `ActionPills`, `CustomTabBar`, `AnimatedNumber`
-- [ ] Hook muerto: `src/features/voice/useVoiceExpense.ts`
-- [ ] Constantes AsyncStorage duplicadas (settings.tsx + notificationHeadlessTask.ts)
+- [x] ~~3 componentes huérfanos: `ActionPills`, `CustomTabBar`, `AnimatedNumber`~~ — eliminados
+- [x] ~~Hook muerto: `src/features/voice/useVoiceExpense.ts`~~ — eliminado
+- [x] ~~Constantes AsyncStorage duplicadas (settings.tsx + notificationHeadlessTask.ts)~~ — consolidadas en `src/constants/banks.ts`
 - [ ] Dependencias posiblemente no usadas: `expo-web-browser`, `expo-symbols` (ver nota B13 arriba)
 - [ ] Varios `as any` localizados (SpeechModule types, estilos porcentuales Reanimated)
+- [x] ~~`.commit_msg.txt` reaparecía tracked en el repo (residuo del flujo `/commit` en PowerShell)~~ — eliminado del tracking y agregado a `.gitignore`
 
 ---
 
@@ -327,3 +338,14 @@ my-wallet-app/
 | `revisor-ui` | Solo lectura | Audita consistencia visual, dark mode, accesibilidad |
 | `auditor-deuda` | Solo lectura | Identifica deuda técnica, código muerto, duplicaciones |
 | `generador-docs` | Lectura + escritura .md | Actualiza AGENTS.md, CONTEXT.md, DOCUMENTATION.md |
+
+### Equivalente para Claude Code
+
+| Ruta | Qué es | Relación con lo de Cursor |
+|------|--------|---------------------------|
+| `CLAUDE.md` (raíz) | Punto de entrada que Claude Code auto-carga | Importa este mismo `AGENTS.md` con `@AGENTS.md` |
+| `.claude/agents/*.md` | Subagentes (mismos 3 roles) | Adaptados de `.cursor/agents/`, con `tools:` explícitos (`Read, Grep, Glob` para los de solo lectura) |
+| `.claude/commands/*.md` | Slash commands (mismos 8) | Adaptados de `.cursor/commands/`, sin PowerShell/rutas de usuario hardcodeadas — usan `$ANDROID_HOME` y bash |
+| `.agents/skills/*/SKILL.md` | Skills custom | Compartidas tal cual, sin duplicar — ya estaban en formato compatible |
+
+Mantener ambos sistemas (`.cursor/` y `.claude/`) sincronizados manualmente: un cambio de convención en uno debe reflejarse en el otro.

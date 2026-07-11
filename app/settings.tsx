@@ -5,6 +5,7 @@
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { GuidedTour, type TourStep } from "@/src/components/ui/GuidedTour";
 import { HueColorPicker } from "@/src/components/ui/HueColorPicker";
+import { AUTO_DETECT_ENABLED_KEY, ALLOWED_BANKS_KEY } from "@/src/constants/banks";
 import { CURATED_EMOJIS, type UserCategory } from "@/src/constants/categoryPresets";
 import { useTheme } from "@/src/context/ThemeContext";
 import { checkAndNotifyGoalCompleted, requestNotificationPermissions } from "@/src/services/notificationService";
@@ -1169,10 +1170,6 @@ function SavingsGoalsSection() {
     </>
   );
 }
-
-// ─── Claves de AsyncStorage para detección automática ────────────────────────
-const AUTO_DETECT_ENABLED_KEY = "mywallet-auto-detect-enabled";
-const ALLOWED_BANKS_KEY       = "mywallet-auto-detect-banks";
 
 // ─── Sección: Detección automática de transacciones ──────────────────────────
 

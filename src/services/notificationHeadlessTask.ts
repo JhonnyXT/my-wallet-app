@@ -14,10 +14,8 @@
 import { parseNotification, BANK_PACKAGE_NAMES } from "@/src/utils/notificationParser";
 import { useNotificationStore } from "@/src/store/useNotificationStore";
 import { notifyBankTransaction } from "@/src/services/notificationService";
+import { AUTO_DETECT_ENABLED_KEY, ALLOWED_BANKS_KEY } from "@/src/constants/banks";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const AUTO_DETECT_ENABLED_KEY = "mywallet-auto-detect-enabled";
-const ALLOWED_BANKS_KEY       = "mywallet-auto-detect-banks";
 
 interface RawNotification {
   app: string;

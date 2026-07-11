@@ -27,3 +27,11 @@ export const KNOWN_BANKS: BankConfig[] = [
 ];
 
 export const BANK_PACKAGE_NAMES = new Set(KNOWN_BANKS.map((b) => b.packageName));
+
+/**
+ * Claves de AsyncStorage para la detección automática de transacciones bancarias.
+ * Compartidas entre app/settings.tsx (UI) y notificationHeadlessTask.ts (proceso headless
+ * sin contexto React, que las lee directamente de AsyncStorage).
+ */
+export const AUTO_DETECT_ENABLED_KEY = "mywallet-auto-detect-enabled";
+export const ALLOWED_BANKS_KEY = "mywallet-auto-detect-banks";

@@ -59,9 +59,7 @@ export default function RootLayout() {
     });
 
     return () => {
-      if (notifListenerRef.current) {
-        Notifications.removeNotificationSubscription(notifListenerRef.current);
-      }
+      notifListenerRef.current?.remove();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

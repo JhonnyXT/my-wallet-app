@@ -188,22 +188,32 @@ export async function checkAndNotifyGoalCompleted(
  * Dispara una notificación push cuando el HeadlessTask detecta una transacción.
  * Al tocar la notificación el sistema abre la app con la URL mywalletapp://notification-review.
  * Se puede llamar desde HeadlessJS (sin React) porque solo usa la API nativa.
+ *
+ * El texto se ajusta según `confidence` (viene de `parseNotification`): con
+ * confianza `high` se afirma como un hecho ("detectado"); con `medium`/`low`
+ * se redacta como algo a confirmar ("posible") para no sonar más seguro de lo
+ * que el parser realmente está. En ambos casos el item queda en la cola de
+ * `notification-review` y nunca se guarda en el historial sin que el usuario
+ * lo confirme ahí.
  */
 export async function notifyBankTransaction(
   amount: number,
   description: string,
   bankName: string,
   isExpense: boolean,
+  confidence: "high" | "medium" | "low" = "high",
 ): Promise<void> {
   try {
     await ensureChannels();
 
     const sign   = isExpense ? "-" : "+";
     const amtStr = `$${Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
-    const title  = `${sign}${amtStr} detectado — ${bankName}`;
-    const body   = description
-      ? `${description} · Toca para revisar`
-      : "Toca para revisar la transacción pendiente";
+    const title  = confidence === "high"
+      ? `${sign}${amtStr} detectado — ${bankName}`
+      : `¿${sign}${amtStr} en ${bankName}?`;
+    const body   = confidence === "high"
+      ? (description ? `${description} · Toca para revisar` : "Toca para revisar la transacción pendiente")
+      : (description ? `Posible ${description} · Confirma en la app` : "No estamos seguros — confirma en la app");
 
     await Notifications.scheduleNotificationAsync({
       content: {

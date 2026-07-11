@@ -73,8 +73,9 @@ export async function notificationHeadlessTask(taskData: { notification: string 
     // 5. Agregar a la cola de pendientes (acceso directo al store, sin hooks)
     useNotificationStore.getState().addPendingItem(parsed);
 
-    // 6. Notificación push al usuario para que sepa que hay una transacción pendiente
-    await notifyBankTransaction(parsed.amount, parsed.description, parsed.bankName, parsed.isExpense);
+    // 6. Notificación push al usuario para que sepa que hay una transacción pendiente.
+    //    El wording se ajusta según parsed.confidence (ver notifyBankTransaction).
+    await notifyBankTransaction(parsed.amount, parsed.description, parsed.bankName, parsed.isExpense, parsed.confidence);
 
   } catch (e) {
     // Loguear en desarrollo para facilitar diagnóstico; silenciar en producción

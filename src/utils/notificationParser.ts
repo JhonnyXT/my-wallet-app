@@ -72,10 +72,10 @@ function extractAmount(text: string): number | null {
 function extractIsExpense(text: string): { isExpense: boolean; confidence: "high" | "medium" } {
   const n = text.toLowerCase();
 
-  // Palabras explícitas de gasto
+  // Palabras explícitas de gasto (formas confirmadas/completadas, no invitaciones a pagar)
   const expenseKeywords = [
-    "compra", "compró", "débito", "debito", "debitado", "debitada", "pago", "pagó",
-    "pagaste", "retiro", "retiró", "cargo", "cargado", "cobro", "cobrado",
+    "compra", "compró", "débito", "debito", "debitado", "debitada", "pagó",
+    "pagado", "pagada", "pagaste", "retiro", "retiró", "cargo", "cargado", "cobro", "cobrado",
     "transacción débito", "transaccion debito", "enviaste", "enviaron a",
     "transferencia enviada", "salida",
   ];
@@ -269,6 +269,20 @@ export function parseNotification(
     /tienes.{0,20}nuevo.{0,20}(mensaje|notificaci)/i, // Mensajes
     /actualiza.{0,20}app/i,             // Actualización de app
     /descuento|promo|oferta|cashback/i, // Publicidad
+    // Recordatorios / invitaciones a pagar una factura — NO son transacciones
+    // confirmadas todavía (ej. Nu: "Tienes un pago por $X. Completa tu pago...").
+    // Genérico para todos los bancos, no solo Nu.
+    /tienes\s+un\s+pago\s+(pendiente|por)/i,
+    /completa\s+tu\s+pago/i,
+    /finaliza\s+tu\s+(pago|compra)/i,
+    /contin[uú]a\s+tu\s+(pago|compra)/i,
+    /realiza\s+tu\s+pago/i,
+    /pago\s+pendiente/i,
+    /no\s+has\s+(completado|finalizado|terminado)/i,
+    /recuerda\s+(completar|pagar|tu\s+pago|tu\s+factura)/i,
+    /factura\s+(pendiente|por\s+vencer)/i,
+    /vence\s+(hoy|mañana|pronto)/i,
+    /paga\s+(f[aá]cil|ahora|tu\s+factura)/i,
   ];
 
   if (NOISE_PATTERNS.some((p) => p.test(combined))) return null;

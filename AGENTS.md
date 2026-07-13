@@ -111,7 +111,7 @@ Las reglas `.cursor/rules/*.mdc` no se auto-cargan por `globs` en Claude Code (e
 ```
 .cursor/
   rules/      → 4 reglas con globs (siempre activas o por archivo)
-  commands/   → 8 slash commands
+  commands/   → 9 slash commands
   agents/     → 3 subagentes especializados
 .agents/
   skills/     → 4 skills custom + 6 públicas (vía skills-lock.json)
@@ -353,7 +353,7 @@ my-wallet-app/
 |------|--------|---------------------------|
 | `CLAUDE.md` (raíz) | Punto de entrada que Claude Code auto-carga | Importa este mismo `AGENTS.md` con `@AGENTS.md` |
 | `.claude/agents/*.md` | Subagentes (mismos 3 roles) | Adaptados de `.cursor/agents/`, con `tools:` explícitos (`Read, Grep, Glob` para los de solo lectura) |
-| `.claude/commands/*.md` | Slash commands (mismos 8) | Adaptados de `.cursor/commands/`, sin PowerShell/rutas de usuario hardcodeadas — usan `$ANDROID_HOME` y bash |
+| `.claude/commands/*.md` | Slash commands (mismos 9) | Adaptados de `.cursor/commands/`, sin PowerShell/rutas de usuario hardcodeadas — usan `$ANDROID_HOME` y bash |
 | `.agents/skills/*/SKILL.md` | Skills custom | Compartidas tal cual, sin duplicar — ya estaban en formato compatible |
 
 Mantener ambos sistemas (`.cursor/` y `.claude/`) sincronizados manualmente: un cambio de convención en uno debe reflejarse en el otro.

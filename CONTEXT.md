@@ -644,6 +644,14 @@ addTransactionBatch() → se guardan en SQLite
 
 `app/settings.tsx` → `AutoDetectSection` muestra, cuando la detección está activa, una tarjeta con botón "Abrir ajustes de batería" que deep-linkea a la pantalla nativa de info de la app (`Linking.openSettings()`) para que el usuario excluya MyWallet de la optimización — sin pedir el permiso especial `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, que Play Store escrutina mucho.
 
+### Config plugin: `plugins/withAllowBackupDisabled.js`
+
+`react-native-android-notification-listener` declara `android:allowBackup="false"` en su propio `AndroidManifest.xml` (para que Android no incluya el contenido de notificaciones bancarias en el auto-backup a Google Drive), pero el manifest base generado por el template de Expo/RN trae `allowBackup="true"` por defecto — esto rompe el manifest merger de Gradle (`Attribute application@allowBackup value=(true) ... is also present at [:react-native-android-notification-listener] AndroidManifest.xml value=(false)`).
+
+Como `android/` está en `.gitignore` (se regenera con `expo prebuild`), un fix manual sobre el manifest se perdería en el próximo prebuild. Se resolvió con un config plugin local, `plugins/withAllowBackupDisabled.js` (usa `withAndroidManifest` de `@expo/config-plugins`), registrado como último plugin en `app.json → plugins`. Fuerza `allowBackup="false"` explícitamente (no `"true"`, que sería la otra forma de resolver el conflicto) porque es la opción más segura para una app que procesa texto de notificaciones bancarias, consistente con la regla de no almacenar datos bancarios sensibles.
+
+Este bug estaba latente sin detectar porque nadie había corrido `expo prebuild -p android` + build real en este repo antes (detectado y corregido 2026-07-13).
+
 ### Entrypoint: `index.js`
 El archivo `package.json` apunta `"main": "index.js"` (en lugar del default `expo-router/entry`). El `index.js` registra el HeadlessJS task **antes** de inicializar Expo Router, garantizando que el task esté disponible desde el inicio:
 ```javascript

@@ -39,6 +39,7 @@ import {
     Animated,
     AppState,
     KeyboardAvoidingView,
+    Linking,
     Modal,
     PanResponder,
     Pressable,
@@ -1310,6 +1311,25 @@ function AutoDetectSection() {
         </View>
       )}
 
+      {/* Info card: aviso de optimización de batería (Samsung y otros fabricantes
+          matan procesos en background agresivamente, incluso el listener de
+          notificaciones) */}
+      {enabled && (
+        <View style={[autoS.infoCard, { backgroundColor: "#F59E0B0D", borderColor: "#F59E0B30" }]}>
+          <Text style={[autoS.infoTitle, { color: "#B45309" }]}>🔋 Evita que el sistema detenga la detección</Text>
+          <Text style={[autoS.infoText, { color: theme.textSub }]}>
+            Algunos fabricantes (Samsung, Xiaomi, Huawei...) detienen apps en segundo plano para ahorrar batería, lo que puede interrumpir la detección automática. Desactiva la optimización de batería para MyWallet en los ajustes del sistema.
+          </Text>
+          <TouchableOpacity
+            style={[autoS.batteryBtn, { borderColor: "#F59E0B" }]}
+            onPress={() => Linking.openSettings()}
+            activeOpacity={0.7}
+          >
+            <Text style={[autoS.batteryBtnText, { color: "#B45309" }]}>Abrir ajustes de batería</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Diálogo de permiso */}
       <Modal visible={showPermDialog} transparent animationType="fade" onRequestClose={() => setShowPermDialog(false)}>
         <Pressable style={s.modalOverlay} onPress={() => setShowPermDialog(false)}>
@@ -1318,10 +1338,10 @@ function AutoDetectSection() {
             <Text style={[s.modalTitle, { textAlign: "center" }]}>Acceso a notificaciones</Text>
             <Text style={{ fontSize: 14, color: theme.textSub, lineHeight: 21, textAlign: "center" }}>
               MyWallet leerá notificaciones de tus apps bancarias para detectar transacciones automáticamente.{"\n\n"}
-              {"✅ Solo apps bancarias que tú elijas\n"}
-              {"✅ Procesamiento 100% en tu dispositivo\n"}
-              {"✅ Ningún dato sale de tu teléfono\n"}
-              {"❌ No accede a mensajes, fotos ni otras apps\n\n"}
+              {"· Solo apps bancarias que tú elijas\n"}
+              {"· Procesamiento 100% en tu dispositivo\n"}
+              {"· Ningún dato sale de tu teléfono\n"}
+              {"· No accede a mensajes, fotos ni otras apps\n\n"}
               Se abrirá la configuración del sistema. Busca "MyWallet" y activa el acceso.
             </Text>
             <View style={s.modalBtns}>
@@ -1393,6 +1413,15 @@ const autoS = StyleSheet.create({
   },
   infoTitle: { fontSize: 13, fontWeight: "700", marginBottom: 4 },
   infoText:  { fontSize: 12, lineHeight: 18 },
+  batteryBtn: {
+    marginTop: 8,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  batteryBtnText: { fontSize: 12, fontWeight: "700" },
   bankRow: {
     flexDirection: "row", alignItems: "center", gap: 14,
     paddingHorizontal: 20, paddingVertical: 14,

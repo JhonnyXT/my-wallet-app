@@ -214,7 +214,7 @@ my-wallet-app/
 │   ├── features/                     # chat/useLocalNLP.ts
 │   ├── hooks/                        # useDashboardScroll, useDashboardSearch, useDashboardTotals, useDashboardTour, useTransactionFilters
 │   ├── services/                     # notificationService.ts, notificationHeadlessTask.ts
-│   ├── store/                        # 7 stores Zustand (useSettingsStore + useNotificationStore persistidos)
+│   ├── store/                        # 6 stores Zustand (useSettingsStore + useNotificationStore persistidos)
 │   ├── theme/index.ts                # Tokens AppTheme: light + dark
 │   ├── types/                        # chat.ts
 │   └── utils/                        # formatMoney, nlp, voiceParser, notificationParser, colorUtils, tourRefs, chatHelpers, periodFilter, transactionFormatters
@@ -325,8 +325,8 @@ my-wallet-app/
 - Long-press en `CategoryChart` usa un `consumedRef` para evitar que `onTouchEnd` dispare el tap (filtro) después de que `onPanResponderRelease` ya consumió el gesto. Esta race condition existía en versiones previas y debe preservarse el flag al modificar el componente.
 - No usar toasts in-app: el sistema de toasts (`useToastStore`, `ToastContainer`, `ToastBanner`) fue eliminado. Errores críticos usan `Alert.alert`; eventos importantes (presupuesto, transacción detectada, meta cumplida) usan notificaciones push del sistema.
 - `reset()` en `useVoiceStore` debe llamarse ANTES de `setPendingBatch()` — si se invierte el orden, el batch se pierde.
-- El APK de release usa `signingConfigs.release` con keystore externo (`keystore.properties`). Para builds de producción real, crear el keystore con `keytool` y rellenar `keystore.properties` (ver `keystore.properties.template`).
 - El link de descarga de `docs/index.html` (landing en GitHub Pages) apunta a un asset fijo de un GitHub Release, no a "la última versión" — ver sección [Landing page y GitHub Pages](#landing-page-y-github-pages-docs) para el proceso manual que hay que repetir en cada release nueva.
+- **Si `adb devices`/`adb install` falla con `protocol fault (couldn't read status): Connection reset by peer`** al correr `/arrancar`, `/dev` o `/build-apk` en este entorno de desarrollo: no es un problema del proyecto, es que el sandbox mata el daemon de `adb` antes del handshake. El SDK ya está instalado en `~/Android/Sdk`; el workaround (levantar el servidor en primer plano en la misma invocación de shell) está documentado directamente en esos 3 archivos de `.claude/commands/`. Esto NO aplica a `.cursor/commands/` (esos comandos son PowerShell/Windows, para el entorno real del usuario, no para este sandbox).
 
 ---
 

@@ -4,6 +4,15 @@ description: Compila el APK release de MyWallet y lo instala en el dispositivo v
 
 # /build-apk — Build e Instalación de APK
 
+> **En este entorno de desarrollo específico** ya hay un SDK instalado en `~/Android/Sdk` (platform-tools, build-tools 36.0.0, platform android-36) — solo `export ANDROID_HOME="$HOME/Android/Sdk"`, no reinstalar. Si `adb devices`/`adb install` falla con `protocol fault (couldn't read status): Connection reset by peer`, el sandbox mató el daemon de `adb` antes del handshake. Workaround: levantar el servidor en primer plano dentro de la MISMA invocación de shell que el resto de comandos `adb`:
+> ```bash
+> export ANDROID_HOME="$HOME/Android/Sdk"
+> ADB="$ANDROID_HOME/platform-tools/adb"
+> nohup "$ADB" nodaemon server -a > /tmp/adb-server.log 2>&1 &
+> sleep 2
+> "$ADB" devices -l
+> ```
+
 ## Instrucciones
 
 ### Paso 1 — Build release

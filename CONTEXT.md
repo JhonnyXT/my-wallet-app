@@ -60,7 +60,7 @@
 | **Expo** | SDK 55 | Plataforma de desarrollo (Managed Workflow) |
 | **Expo Router** | ~55.0.3 | Navegación file-based con Stack + Tabs |
 | **TypeScript** | ~5.9.2 | Tipado estricto (`strict: true`) |
-| **Zustand** | ^5.0.11 | Estado global (7 stores, 2 persistidos) |
+| **Zustand** | ^5.0.11 | Estado global (6 stores, 2 persistidos) |
 | **expo-sqlite** | ^55.0.10 | Base de datos local con WAL |
 | **NativeWind** | ^4.2.2 | Estilos Tailwind CSS para React Native |
 | **React Native Reanimated** | ^4.2.1 | Animaciones de alto rendimiento |
@@ -102,17 +102,14 @@ my-wallet-app/
 │
 ├── src/                          # Lógica y componentes
 │   ├── components/ui/            # Componentes reutilizables
-│   │   ├── ActionPills.tsx       # Pills Gastos/Ingresos
 │   │   ├── BudgetBar.tsx         # Barra de progreso presupuesto
 │   │   ├── CategoryChart.tsx     # Gráfica de categorías (barras + animaciones scroll)
 │   │   ├── ConfirmDialog.tsx     # Diálogo de confirmación reutilizable (danger/warning/info)
-│   │   ├── CustomTabBar.tsx      # Tab bar custom (NO se usa)
 │   │   ├── GuidedTour.tsx        # Overlay de onboarding paso a paso con spotlight
 │   │   ├── FilterChips.tsx       # Chip de período + "Elegir mes específico"
 │   │   ├── FloatingDock.tsx      # Dock flotante + FAB micrófono
 │   │   ├── FloatingInput.tsx     # Overlay input/búsqueda flotante
 │   │   ├── MonthPickerModal.tsx  # Selector de mes/año con montos
-│   │   ├── AnimatedNumber.tsx    # Interpolación visual de montos (legacy, no usado en Dashboard)
 │   │   ├── HueColorPicker.tsx    # Slider continuo de tono (PanResponder + LinearGradient) para categorías
 │   │   ├── RollingNumber.tsx     # Odómetro por dígito (Reanimated) — usado en Dashboard
 │   │   └── TransactionItem.tsx   # Item transacción + swipe-delete + tap-to-detail
@@ -130,7 +127,7 @@ my-wallet-app/
 │   │   └── queries.ts            # Consultas agregadas (totales, stats)
 │   │
 │   ├── features/
-│   │   └── voice/useVoiceExpense.ts # Hook expo-speech-recognition
+│   │   └── chat/useLocalNLP.ts   # Hook de NLP local para el chat experimental
 │   │
 │   ├── services/
 │   │   ├── notificationService.ts       # Notificaciones OS locales (expo-notifications): permisos, budget, metas
@@ -178,7 +175,7 @@ my-wallet-app/
 │  Solo orquesta: lee stores, llama utils, renderiza UI    │
 ├─────────────────────────────────────────────────────────┤
 │  src/store/ (Estado Global — Zustand)                    │
-│  7 stores independientes, 2 con persist(AsyncStorage)    │
+│  6 stores independientes, 2 con persist(AsyncStorage)    │
 ├─────────────────────────────────────────────────────────┤
 │  src/db/ (Persistencia — SQLite)                         │
 │  Capa de datos pura, sin lógica de negocio               │
@@ -779,12 +776,6 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Props: `visible`, `variant`, `title`, `message`, `confirmLabel`, `cancelLabel`, `onConfirm`, `onCancel`
 - Usado en: `settings.tsx` (limpiar datos, eliminar método de pago, error de exportación, mínimo un método)
 
-### AnimatedNumber
-- Componente que interpola visualmente entre valores numéricos con `Animated.timing`
-- Props: `value`, `prefix` (default `"$ "`), `style`, `duration` (default 450ms), `formatFn`
-- Usa `setNativeProps` para actualizaciones de alto rendimiento sin re-renders
-- **Legado** — reemplazado en el Dashboard por `RollingNumber`. Conservado por si se usa en otras pantallas
-
 ### RollingNumber
 - **Odómetro por dígito** estilo cuentakilómetros de carro: cada posición tiene su propia columna de 10 dígitos (0–9) apilados verticalmente con `overflow: hidden`
 - Cuando el valor cambia, cada columna anima su `translateY` con `withTiming(Easing.out(Easing.cubic))` en el UI thread (60fps, Reanimated)
@@ -812,13 +803,6 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Se vuelve roja al superar 90%
 - Solo visible si `monthlyBudget > 0`
 - Usa `monthlyBudget` directamente (presupuesto siempre mensual)
-
-### ActionPills
-- Pills "↓ Gastos" / "↑ Ingresos" para filtrar la vista
-- Sin selección = todos los movimientos
-- Gastos: fondo rojo suave al seleccionar
-- Ingresos: fondo verde suave al seleccionar
-- Re-tap desactiva el filtro
 
 ---
 
@@ -893,8 +877,9 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - **Detección automática** *(nuevo en v1.5.0)*: sección con componente `AutoDetectSection`:
   - Toggle para activar/desactivar la captura de notificaciones bancarias
   - Al activar sin permiso: muestra diálogo explicativo centrado → abre ajustes del sistema con `RNAndroidNotificationListener.requestPermission()`
-  - Selector de bancos: lista todos los 17 bancos de la whitelist; si no se selecciona ninguno, usa todos
+  - Selector de bancos: lista todos los 15 bancos de la whitelist; si no se selecciona ninguno, usa todos
   - Card informativa de privacidad (azul tenue): explica que solo se extrae monto y comercio
+  - Card de optimización de batería (ámbar, visible solo con la detección activa): botón "Abrir ajustes de batería" — ver sección 9b
   - Configuración persiste en `AsyncStorage` con claves `mywallet-auto-detect-enabled` y `mywallet-auto-detect-banks`
 - Sistema: exportar CSV, limpiar datos
 - **Exportar CSV:** usa `Share` de `react-native`. No usa `expo-sharing` ni `expo-file-system`.
@@ -977,7 +962,7 @@ formatMoneyInput(text: string): string
 | Tipo | Convención | Ejemplo |
 |------|-----------|---------|
 | Componentes | PascalCase | `CategoryChart.tsx` |
-| Hooks | camelCase con `use` | `useVoiceExpense.ts` |
+| Hooks | camelCase con `use` | `useLocalNLP.ts` |
 | Stores | camelCase con `use` | `useFinanceStore.ts` |
 | Utils | camelCase | `formatMoney.ts` |
 | Constantes | UPPER_SNAKE_CASE | `CATEGORY_MAP`, `DOCK_HEIGHT` |
@@ -1096,13 +1081,13 @@ clonar/editar el HTML.
 ## 18. Problemas Conocidos y Deuda Técnica
 
 ### Código inactivo
+> `CustomTabBar.tsx`, `ActionPills.tsx` y `AnimatedNumber.tsx` (huérfanos) y `useVoiceExpense.ts`
+> (hook roto) fueron **eliminados del repo** — ver AGENTS.md, sección "Deuda técnica documentada".
+
 | Archivo | Problema |
 |---------|---------|
-| `CustomTabBar.tsx` | Definido pero nunca utilizado (tabs usan `tabBar={() => null}`) |
-| `ActionPills.tsx` | Componente separado no importado; pills están inline en `index.tsx` |
 | `BudgetBar.tsx` | Componente separado no importado; barra de presupuesto está inline en `index.tsx` |
 | `wallet.tsx` | Pantalla placeholder sin funcionalidad |
-| `useVoiceExpense.ts` | Depende de `openExpenseInput` de `useUIStore` (ahora implementado; pendiente conectar flujo completo) |
 | `FloatingInput.tsx` | Overlay de entrada rápida NLP; `useUIStore` ya expone `isExpenseInputOpen` — funcional |
 | `chat.tsx` | Pantalla de asistente financiero; ya no se navega a ella desde el FloatingDock |
 | `chatDb.ts` | Base de datos de sesiones/mensajes del chat; sin uso activo |

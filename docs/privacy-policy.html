@@ -28,17 +28,24 @@
       -webkit-font-smoothing:antialiased;
     }
     a{color:inherit}
+    html,body{overflow-x:hidden;max-width:100%}
     .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
 
     /* ── Nav (compartido con la landing) ─────────────────────────────── */
     nav{position:sticky;top:0;z-index:10;background:color-mix(in srgb, var(--bg) 88%, transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
-    nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
-    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;text-decoration:none}
+    nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;height:64px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;text-decoration:none;flex-shrink:0}
     .brand img{width:28px;height:28px;border-radius:8px}
-    .nav-links{display:flex;gap:28px;font-size:14px;color:var(--text-sub)}
-    .nav-links a{text-decoration:none;transition:color .15s}
+    .nav-links{display:flex;gap:28px;font-size:14px;color:var(--text-sub);flex-shrink:0}
+    .nav-links a{text-decoration:none;transition:color .15s;white-space:nowrap}
     .nav-links a:hover{color:var(--text)}
-    .nav-cta{background:var(--accent);color:#fff;padding:9px 18px;border-radius:999px;font-size:14px;font-weight:600;text-decoration:none;transition:opacity .15s}
+    .nav-cta{background:var(--accent);color:#fff;padding:9px 18px;border-radius:999px;font-size:14px;font-weight:600;text-decoration:none;transition:opacity .15s;white-space:nowrap;flex-shrink:0}
+    @media(max-width:760px){
+      .nav-links{display:none}
+      .wrap{padding:0 16px}
+      .nav-cta{padding:8px 14px;font-size:13px}
+      .brand{font-size:15px}
+    }
     .nav-cta:hover{opacity:.9}
 
     /* ── Header de la página ──────────────────────────────────────────── */
@@ -79,7 +86,8 @@
     .never-box .row:last-child{border-bottom:none}
     .never-box .row .ic{color:var(--red);font-weight:800;flex-shrink:0}
 
-    table{width:100%;border-collapse:collapse;font-size:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+    .table-scroll{overflow-x:auto;border-radius:var(--radius)}
+    table{width:100%;min-width:520px;border-collapse:collapse;font-size:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
     th{background:var(--surface-2);color:var(--text);font-weight:700;padding:12px 16px;text-align:left;border-bottom:1px solid var(--border)}
     td{padding:12px 16px;border-bottom:1px solid var(--border);color:var(--text-sub)}
     tr:last-child td{border-bottom:none}
@@ -228,16 +236,18 @@
 
   <section class="doc-section" id="datos">
     <h2>4. Resumen de datos (Data Safety)</h2>
-    <table>
-      <thead><tr><th>Tipo de dato</th><th>¿Se recopila?</th><th>¿Se comparte?</th><th>Uso</th></tr></thead>
-      <tbody>
-        <tr><td>Historial financiero</td><td>Solo local</td><td class="ok">No</td><td>Funcionalidad principal</td></tr>
-        <tr><td>Audio / Voz</td><td>No se almacena</td><td class="ok">No</td><td>Transcripción efímera</td></tr>
-        <tr><td>Contenido de notificaciones</td><td>Parcial local*</td><td class="ok">No</td><td>Detección transacciones</td></tr>
-        <tr><td>Identificadores de dispositivo</td><td class="ok">No</td><td class="ok">No</td><td>—</td></tr>
-        <tr><td>Ubicación</td><td class="ok">No</td><td class="ok">No</td><td>—</td></tr>
-      </tbody>
-    </table>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Tipo de dato</th><th>¿Se recopila?</th><th>¿Se comparte?</th><th>Uso</th></tr></thead>
+        <tbody>
+          <tr><td>Historial financiero</td><td>Solo local</td><td class="ok">No</td><td>Funcionalidad principal</td></tr>
+          <tr><td>Audio / Voz</td><td>No se almacena</td><td class="ok">No</td><td>Transcripción efímera</td></tr>
+          <tr><td>Contenido de notificaciones</td><td>Parcial local*</td><td class="ok">No</td><td>Detección transacciones</td></tr>
+          <tr><td>Identificadores de dispositivo</td><td class="ok">No</td><td class="ok">No</td><td>—</td></tr>
+          <tr><td>Ubicación</td><td class="ok">No</td><td class="ok">No</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
     <p class="table-note">* Solo se guarda el monto y descripción extraídos, no el texto completo de la notificación.</p>
   </section>
 

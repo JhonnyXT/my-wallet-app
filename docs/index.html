@@ -33,18 +33,25 @@
       -webkit-font-smoothing:antialiased;
     }
     a{color:inherit}
+    html,body{overflow-x:hidden;max-width:100%}
     .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
 
     /* ── Nav ─────────────────────────────────────────────────────────── */
     nav{position:sticky;top:0;z-index:10;background:color-mix(in srgb, var(--bg) 88%, transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
-    nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
-    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;text-decoration:none}
+    nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;height:64px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;text-decoration:none;flex-shrink:0}
     .brand img{width:28px;height:28px;border-radius:8px}
-    .nav-links{display:flex;gap:28px;font-size:14px;color:var(--text-sub)}
-    .nav-links a{text-decoration:none;transition:color .15s}
+    .nav-links{display:flex;gap:28px;font-size:14px;color:var(--text-sub);flex-shrink:0}
+    .nav-links a{text-decoration:none;transition:color .15s;white-space:nowrap}
     .nav-links a:hover{color:var(--text)}
-    .nav-cta{background:var(--accent);color:#fff;padding:9px 18px;border-radius:999px;font-size:14px;font-weight:600;text-decoration:none;transition:opacity .15s;cursor:pointer}
+    .nav-cta{background:var(--accent);color:#fff;padding:9px 18px;border-radius:999px;font-size:14px;font-weight:600;text-decoration:none;transition:opacity .15s;cursor:pointer;white-space:nowrap;flex-shrink:0}
     .nav-cta:hover{opacity:.9}
+    @media(max-width:760px){
+      .nav-links{display:none}
+      .wrap{padding:0 16px}
+      .nav-cta{padding:8px 14px;font-size:13px}
+      .brand{font-size:15px}
+    }
 
     /* ── Hero ────────────────────────────────────────────────────────── */
     header.hero{padding:88px 0 64px;display:flex;flex-direction:column;align-items:center;text-align:center}

@@ -1,165 +1,267 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Politica de Privacidad - MyWallet</title>
+  <title>MyWallet — Control financiero personal, 100% offline</title>
+  <meta name="description" content="MyWallet es tu app de control financiero personal para Android. Registra gastos e ingresos por voz o texto, detecta transacciones bancarias automáticamente y mantén todos tus datos 100% locales, sin nube ni suscripciones." />
+  <link rel="icon" href="./favicon.png" />
+  <meta property="og:title" content="MyWallet — Control financiero personal, 100% offline" />
+  <meta property="og:description" content="Registra gastos e ingresos en segundos, por voz o texto. Todos tus datos financieros viven solo en tu teléfono." />
+  <meta property="og:image" content="./icon.png" />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#e6edf3;--text-sub:#8b949e;--accent:#135BEC;--accent-light:#1f6feb;--green:#3fb950;--red:#f85149}
-    body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.7;padding:0 16px 80px}
-    header{background:var(--surface);border-bottom:1px solid var(--border);padding:32px 24px;text-align:center;margin:0 -16px 40px}
-    header .logo{font-size:40px;margin-bottom:8px}
-    header h1{font-size:26px;font-weight:700;color:var(--text);margin-bottom:6px}
-    header .meta{font-size:13px;color:var(--text-sub)}
-    .container{max-width:720px;margin:0 auto}
-    h2{font-size:20px;font-weight:700;color:var(--text);margin:40px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
-    h3{font-size:16px;font-weight:600;color:var(--accent-light);margin:24px 0 8px}
-    p{color:var(--text-sub);margin-bottom:12px}
-    .summary-box{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:20px 24px;margin:24px 0}
-    .summary-box p{margin:0;color:var(--text);font-size:15px}
-    .check-list{list-style:none;margin:12px 0;padding:0}
-    .check-list li{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;color:var(--text-sub);font-size:15px}
-    .check-list li .icon{font-size:16px;flex-shrink:0;margin-top:2px}
-    .permission-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
-    .permission-card .perm-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-    .permission-card .perm-icon{width:40px;height:40px;background:#21262d;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
-    .permission-card .perm-title{font-size:16px;font-weight:700;color:var(--text)}
-    .permission-card .perm-name{font-size:12px;color:var(--text-sub);font-family:monospace}
-    .never-list{background:#160d0d;border:1px solid #3d1111;border-radius:8px;padding:16px 20px;margin:12px 0;list-style:none}
-    .never-list li{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;color:#f85149;font-size:15px}
-    .never-list li:last-child{margin-bottom:0}
-    table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
-    th{background:var(--surface);color:var(--text);font-weight:600;padding:10px 14px;text-align:left;border:1px solid var(--border)}
-    td{padding:10px 14px;border:1px solid var(--border);color:var(--text-sub)}
-    td.yes{color:var(--green);font-weight:600}
-    td.no{color:var(--red);font-weight:600}
-    .contact-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin:16px 0;text-align:center}
-    .contact-card a{color:var(--accent-light);text-decoration:none;font-weight:600}
-    .contact-card a:hover{text-decoration:underline}
-    footer{text-align:center;color:var(--text-sub);font-size:13px;margin-top:60px;padding-top:24px;border-top:1px solid var(--border)}
-    @media(prefers-color-scheme:light){:root{--bg:#f6f8fa;--surface:#ffffff;--border:#d0d7de;--text:#1f2328;--text-sub:#656d76}.never-list{background:#fff5f5;border-color:#ffd7d5}.never-list li{color:#cf222e}}
+    :root{
+      --bg:#0d1117;--surface:#161b22;--surface-2:#1c2129;--border:#30363d;
+      --text:#e6edf3;--text-sub:#8b949e;
+      --accent:#135BEC;--accent-light:#4B82EF;
+      --green:#22C55E;--red:#EF4444;
+      --radius:16px;
+    }
+    @media(prefers-color-scheme:light){
+      :root{--bg:#F2F2F4;--surface:#FFFFFF;--surface-2:#F8FAFC;--border:#E2E8F0;--text:#0F172A;--text-sub:#64748B}
+    }
+    html{scroll-behavior:smooth}
+    body{
+      background:var(--bg);color:var(--text);
+      font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      font-size:16px;line-height:1.6;
+      -webkit-font-smoothing:antialiased;
+    }
+    a{color:inherit}
+    .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+    /* ── Nav ─────────────────────────────────────────────────────────── */
+    nav{position:sticky;top:0;z-index:10;background:color-mix(in srgb, var(--bg) 88%, transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+    nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;text-decoration:none}
+    .brand img{width:28px;height:28px;border-radius:8px}
+    .nav-links{display:flex;gap:28px;font-size:14px;color:var(--text-sub)}
+    .nav-links a{text-decoration:none;transition:color .15s}
+    .nav-links a:hover{color:var(--text)}
+    .nav-cta{background:var(--accent);color:#fff;padding:9px 18px;border-radius:999px;font-size:14px;font-weight:600;text-decoration:none;transition:opacity .15s;cursor:pointer}
+    .nav-cta:hover{opacity:.9}
+
+    /* ── Hero ────────────────────────────────────────────────────────── */
+    header.hero{padding:88px 0 64px;display:flex;flex-direction:column;align-items:center;text-align:center}
+    .badge{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:7px 16px;font-size:13px;color:var(--text-sub);margin-bottom:28px}
+    .badge .dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+    header.hero .icon-wrap{display:flex;align-items:center;justify-content:center;width:96px;height:96px;margin:0 auto 24px}
+    header.hero .icon{display:block;width:96px;height:96px;border-radius:24px;box-shadow:0 0 0 1px rgba(255,255,255,.06), 0 16px 40px rgba(19,91,236,.35)}
+    h1{font-size:clamp(32px,5.5vw,56px);font-weight:800;letter-spacing:-.02em;line-height:1.08;max-width:760px;margin:0 auto 20px}
+    h1 .accent-text{color:var(--accent-light)}
+    .subtitle{font-size:clamp(16px,2vw,19px);color:var(--text-sub);max-width:560px;margin:0 auto 36px}
+    .cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:20px}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:14px 26px;border-radius:12px;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;transition:transform .15s,opacity .15s;border:1px solid transparent}
+    .btn:hover{transform:translateY(-1px)}
+    .btn-primary{background:var(--accent);color:#fff}
+    .btn-primary:hover{opacity:.92}
+    .btn-secondary{background:var(--surface);border-color:var(--border);color:var(--text)}
+    .hero-note{font-size:13px;color:var(--text-sub)}
+
+    /* ── Trust strip ─────────────────────────────────────────────────── */
+    .trust-strip{border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--surface);padding:20px 0}
+    .trust-strip .wrap{display:flex;flex-wrap:wrap;gap:28px;justify-content:center;font-size:13px;color:var(--text-sub)}
+    .trust-strip .item{display:flex;align-items:center;gap:8px}
+    .trust-strip .item .ic{font-size:16px}
+
+    /* ── Sections ─────────────────────────────────────────────────────── */
+    section{padding:88px 0}
+    .section-head{text-align:center;max-width:600px;margin:0 auto 52px}
+    .eyebrow{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-light);margin-bottom:12px}
+    h2{font-size:clamp(26px,3.5vw,38px);font-weight:800;letter-spacing:-.01em;margin-bottom:12px}
+    .section-head p{color:var(--text-sub);font-size:16px}
+
+    /* ── Feature grid ─────────────────────────────────────────────────── */
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+    @media(max-width:860px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:560px){.grid{grid-template-columns:1fr}}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:26px;transition:border-color .2s,transform .2s}
+    .card:hover{border-color:var(--accent-light);transform:translateY(-2px)}
+    .card .icon-box{width:44px;height:44px;border-radius:12px;background:color-mix(in srgb, var(--accent) 14%, transparent);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:16px}
+    .card h3{font-size:16px;font-weight:700;margin-bottom:8px}
+    .card p{font-size:14px;color:var(--text-sub);line-height:1.55}
+
+    /* ── Privacy panel ────────────────────────────────────────────────── */
+    .privacy-panel{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:48px;display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:center}
+    @media(max-width:760px){.privacy-panel{grid-template-columns:1fr;padding:32px}}
+    .privacy-panel h2{margin-bottom:16px}
+    .privacy-panel p{color:var(--text-sub);margin-bottom:20px}
+    .check-list{list-style:none}
+    .check-list li{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;font-size:14px;color:var(--text-sub)}
+    .check-list li .ic{color:var(--green);flex-shrink:0;font-weight:700}
+    .never-box{background:var(--surface-2);border:1px solid var(--border);border-radius:14px;padding:20px}
+    .never-box .row{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-sub);padding:8px 0;border-bottom:1px solid var(--border)}
+    .never-box .row:last-child{border-bottom:none}
+    .never-box .row .ic{color:var(--red);font-weight:700}
+
+    /* ── Bank strip ───────────────────────────────────────────────────── */
+    .bank-strip{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:36px}
+    .bank-pill{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:8px 16px;font-size:13px;color:var(--text-sub)}
+
+    /* ── CTA band ─────────────────────────────────────────────────────── */
+    .cta-band{background:linear-gradient(135deg, var(--accent), var(--accent-light));border-radius:28px;padding:64px 40px;text-align:center;color:#fff}
+    .cta-band h2{color:#fff;margin-bottom:12px}
+    .cta-band p{color:rgba(255,255,255,.85);max-width:480px;margin:0 auto 32px;font-size:16px}
+    .cta-band .btn-primary{background:#fff;color:var(--accent)}
+    .cta-band .btn-secondary{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff}
+
+    /* ── Footer ───────────────────────────────────────────────────────── */
+    footer{border-top:1px solid var(--border);padding:40px 0;text-align:center}
+    footer p{font-size:13px;color:var(--text-sub);margin-bottom:6px}
+    footer a{text-decoration:none;color:var(--accent-light)}
+    footer a:hover{text-decoration:underline}
   </style>
 </head>
 <body>
-<header>
-  <div class="logo">&#x1F4B3;</div>
-  <h1>Politica de Privacidad</h1>
-  <p class="meta">MyWallet &middot; Version 1.5.0 &middot; Ultima actualizacion: abril 2026</p>
+
+<nav>
+  <div class="wrap">
+    <a href="./" class="brand"><img src="./icon.png" alt="MyWallet" />MyWallet</a>
+    <div class="nav-links">
+      <a href="#features">Funciones</a>
+      <a href="#privacidad">Privacidad</a>
+      <a href="./privacy-policy.html">Política de privacidad</a>
+    </div>
+    <a href="https://github.com/JhonnyXT/my-wallet-app/releases/download/v1.5.0/app-release.apk" class="nav-cta">Descargar APK</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="badge"><span class="dot"></span> 100% offline · sin nube · sin suscripciones</span>
+    <div class="icon-wrap"><img class="icon" src="./icon.png" alt="Logo de MyWallet" /></div>
+    <h1>Controla tu dinero <span class="accent-text">sin fricción</span>, sin que salga de tu teléfono</h1>
+    <p class="subtitle">Registra gastos e ingresos por voz o texto en segundos. MyWallet detecta tus transacciones bancarias automáticamente y guarda todo localmente — nunca en un servidor.</p>
+    <div class="cta-row">
+      <a href="https://github.com/JhonnyXT/my-wallet-app/releases/download/v1.5.0/app-release.apk" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        Descargar APK
+      </a>
+      <a href="#features" class="btn btn-secondary">Ver funciones</a>
+    </div>
+    <p class="hero-note">Android 8.0+ · v1.5.0 · Código abierto · Hecho en Colombia 🇨🇴</p>
+  </div>
 </header>
-<div class="container">
-  <div class="summary-box">
-    <p><strong>MyWallet es una aplicacion 100% local.</strong> Todos tus datos financieros se almacenan unicamente en tu dispositivo. No existe ningun servidor, ninguna nube propia ni sincronizacion externa. Tus datos nunca salen de tu telefono.</p>
-  </div>
-  <h2>1. Informacion que MyWallet procesa</h2>
-  <p>MyWallet procesa la siguiente informacion <strong>exclusivamente en tu dispositivo</strong>, en la base de datos local de la app:</p>
-  <ul class="check-list">
-    <li><span class="icon">&#x1F4B0;</span> Montos de transacciones (gastos e ingresos)</li>
-    <li><span class="icon">&#x1F4DD;</span> Descripciones y comercios</li>
-    <li><span class="icon">&#x1F3F7;&#xFE0F;</span> Categorias y etiquetas</li>
-    <li><span class="icon">&#x1F4C5;</span> Fechas y horas de las transacciones</li>
-    <li><span class="icon">&#x1F4B3;</span> Metodos de pago seleccionados</li>
-    <li><span class="icon">&#x1F3AF;</span> Metas de ahorro y presupuestos</li>
-    <li><span class="icon">&#x2699;&#xFE0F;</span> Preferencias de configuracion (tema, categorias personalizadas)</li>
-  </ul>
-  <h2>2. Permisos sensibles</h2>
-  <p>MyWallet solicita los siguientes permisos del sistema. Cada uno se usa exclusivamente para la funcion descrita:</p>
-  <div class="permission-card">
-    <div class="perm-header">
-      <div class="perm-icon">&#x1F514;</div>
-      <div>
-        <div class="perm-title">Acceso a Notificaciones</div>
-        <div class="perm-name">NotificationListenerService</div>
-      </div>
-    </div>
-    <p><strong>Para que se usa:</strong> Leer notificaciones de apps bancarias instaladas en tu dispositivo para detectar transacciones automaticamente (ej. "Pago de $50.000 en Bancolombia").</p>
-    <ul class="check-list">
-      <li><span class="icon">&#x2705;</span> Solo procesa notificaciones de apps bancarias que tu eliges</li>
-      <li><span class="icon">&#x2705;</span> El procesamiento ocurre 100% en tu dispositivo</li>
-      <li><span class="icon">&#x2705;</span> Solo se extrae el monto y la descripcion de la transaccion</li>
-      <li><span class="icon">&#x2705;</span> No se almacena el texto completo de la notificacion</li>
-      <li><span class="icon">&#x274C;</span> No accede a notificaciones de mensajeria, redes sociales ni otras apps</li>
-      <li><span class="icon">&#x274C;</span> Ningun dato de las notificaciones sale de tu dispositivo</li>
-    </ul>
-    <p>Este permiso es <strong>opcional</strong>. Puedes usar MyWallet completamente sin activarlo, registrando transacciones manualmente o por voz.</p>
-  </div>
-  <div class="permission-card">
-    <div class="perm-header">
-      <div class="perm-icon">&#x1F399;&#xFE0F;</div>
-      <div>
-        <div class="perm-title">Microfono</div>
-        <div class="perm-name">RECORD_AUDIO</div>
-      </div>
-    </div>
-    <p><strong>Para que se usa:</strong> Transcribir en tiempo real lo que dices para registrar un gasto por voz (ej. "McDonald's 25 mil ayer").</p>
-    <ul class="check-list">
-      <li><span class="icon">&#x2705;</span> Solo se activa cuando tu inicias la funcion de voz</li>
-      <li><span class="icon">&#x2705;</span> La transcripcion usa el motor de reconocimiento de voz de Android</li>
-      <li><span class="icon">&#x2705;</span> El audio se procesa en tiempo real y de forma efimera</li>
-      <li><span class="icon">&#x274C;</span> MyWallet no graba ni almacena audio en ningun formato</li>
-      <li><span class="icon">&#x274C;</span> Ningun audio sale de tu dispositivo</li>
-    </ul>
-    <p>Este permiso es <strong>opcional</strong>. Puedes registrar todos tus gastos escribiendo manualmente.</p>
-  </div>
-  <div class="permission-card">
-    <div class="perm-header">
-      <div class="perm-icon">&#x1F4C1;</div>
-      <div>
-        <div class="perm-title">Almacenamiento</div>
-        <div class="perm-name">READ/WRITE_EXTERNAL_STORAGE (Android &le;12)</div>
-      </div>
-    </div>
-    <p><strong>Para que se usa:</strong> Guardar el archivo CSV cuando el usuario exporta su historial de transacciones manualmente desde Configuracion.</p>
-    <ul class="check-list">
-      <li><span class="icon">&#x2705;</span> Solo se usa cuando tu inicias la exportacion</li>
-      <li><span class="icon">&#x2705;</span> El archivo CSV se guarda en tu carpeta de Descargas</li>
-      <li><span class="icon">&#x274C;</span> MyWallet no accede a tus fotos, documentos ni otros archivos</li>
-    </ul>
-  </div>
-  <h2>3. Lo que NUNCA ocurre en MyWallet</h2>
-  <ul class="never-list">
-    <li><span class="icon">&#x274C;</span> Transmision de datos a servidores externos</li>
-    <li><span class="icon">&#x274C;</span> Sincronizacion con la nube (nuestra o de terceros)</li>
-    <li><span class="icon">&#x274C;</span> Recopilacion de analiticas de uso o comportamiento</li>
-    <li><span class="icon">&#x274C;</span> Publicidad personalizada ni seguimiento publicitario</li>
-    <li><span class="icon">&#x274C;</span> Venta, alquiler o comparticion de datos con terceros</li>
-    <li><span class="icon">&#x274C;</span> Acceso a contactos, camara, ubicacion GPS ni SMS</li>
-  </ul>
-  <h2>4. Resumen de datos (Data Safety)</h2>
-  <table>
-    <thead><tr><th>Tipo de dato</th><th>Se recopila?</th><th>Se comparte?</th><th>Uso</th></tr></thead>
-    <tbody>
-      <tr><td>Historial financiero</td><td class="no">Solo local</td><td class="no">No</td><td>Funcionalidad principal</td></tr>
-      <tr><td>Audio / Voz</td><td class="no">No se almacena</td><td class="no">No</td><td>Transcripcion efimera</td></tr>
-      <tr><td>Contenido de notificaciones</td><td class="no">Parcial local*</td><td class="no">No</td><td>Deteccion transacciones</td></tr>
-      <tr><td>Identificadores de dispositivo</td><td class="no">No</td><td class="no">No</td><td>-</td></tr>
-      <tr><td>Ubicacion</td><td class="no">No</td><td class="no">No</td><td>-</td></tr>
-    </tbody>
-  </table>
-  <p style="font-size:13px">* Solo se guarda el monto y descripcion extraidos, no el texto completo de la notificacion.</p>
-  <h2>5. Almacenamiento y backup</h2>
-  <p>La base de datos de MyWallet (<code>mywallet.db</code>) esta <strong>excluida explicitamente</strong> del sistema de Auto-Backup de Android. Esto significa que tus datos financieros <strong>no se suben a Google Drive</strong> ni a ningun otro servicio de respaldo automatico.</p>
-  <p>Si desinstalasla app, todos tus datos seran eliminados permanentemente del dispositivo. Puedes exportar un respaldo manual en formato CSV desde <strong>Configuracion &rarr; Exportar datos</strong> antes de desinstalar.</p>
-  <h2>6. Retencion y eliminacion de datos</h2>
-  <ul class="check-list">
-    <li><span class="icon">&#x1F5D1;&#xFE0F;</span> <strong>Borrar todo:</strong> Configuracion &rarr; Borrar historial de transacciones</li>
-    <li><span class="icon">&#x1F4E4;</span> <strong>Exportar:</strong> Configuracion &rarr; Exportar datos (CSV)</li>
-    <li><span class="icon">&#x1F4F2;</span> <strong>Desinstalar:</strong> Elimina todos los datos permanentemente</li>
-  </ul>
-  <h2>7. Menores de edad</h2>
-  <p>MyWallet no esta dirigida a menores de 13 años. No recopilamos intencionalmente informacion de menores.</p>
-  <h2>8. Cambios a esta politica</h2>
-  <p>Si realizamos cambios materiales a esta Politica de Privacidad, actualizaremos la fecha de ultima actualizacion y notificaremos a los usuarios a traves de la app cuando sea apropiado.</p>
-  <h2>9. Contacto</h2>
-  <div class="contact-card">
-    <p style="font-size:15px;color:var(--text);margin-bottom:8px"><strong>Desarrollador de MyWallet</strong></p>
-    <p style="margin-bottom:4px">Email: <a href="mailto:jonathanblandon101@gmail.com">jonathanblandon101@gmail.com</a></p>
-    <p style="font-size:13px;color:var(--text-sub)">Respondemos solicitudes de privacidad en un plazo maximo de 30 dias habiles.</p>
+
+<div class="trust-strip">
+  <div class="wrap">
+    <span class="item"><span class="ic">🔒</span> Datos 100% locales</span>
+    <span class="item"><span class="ic">🚫</span> Cero servidores propios</span>
+    <span class="item"><span class="ic">🎙️</span> Registro por voz</span>
+    <span class="item"><span class="ic">🏦</span> 15 bancos compatibles</span>
+    <span class="item"><span class="ic">🌗</span> Modo claro y oscuro</span>
   </div>
 </div>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Funciones</div>
+      <h2>Todo lo que necesitas, nada de lo que sobra</h2>
+      <p>Minimalismo funcional: registrar un movimiento toma menos de 3 segundos.</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="icon-box">🎙️</div>
+        <h3>Registro por voz</h3>
+        <p>Di "McDonald's 25 mil ayer" y MyWallet transcribe, interpreta y registra el gasto por ti — la voz nunca se graba ni se almacena.</p>
+      </div>
+      <div class="card">
+        <div class="icon-box">🏦</div>
+        <h3>Detección bancaria automática</h3>
+        <p>Lee las notificaciones de tus apps bancarias (Bancolombia, Nequi, Davivienda, Nu y más) y te propone la transacción para que la confirmes con un toque.</p>
+      </div>
+      <div class="card">
+        <div class="icon-box">🏷️</div>
+        <h3>Categorías dinámicas</h3>
+        <p>Elige entre 24 presets o crea las tuyas con emoji y color propio. Cada categoría es tuya, no un catálogo fijo.</p>
+      </div>
+      <div class="card">
+        <div class="icon-box">📊</div>
+        <h3>Gráfica de categorías</h3>
+        <p>Visualiza en qué se te va el dinero con una gráfica de barras interactiva — toca una columna para filtrar tus transacciones al instante.</p>
+      </div>
+      <div class="card">
+        <div class="icon-box">🎯</div>
+        <h3>Presupuestos y metas</h3>
+        <p>Define un presupuesto mensual y metas de ahorro. Recibe una alerta cuando estés por superarlo, no después.</p>
+      </div>
+      <div class="card">
+        <div class="icon-box">🌗</div>
+        <h3>Tema claro y oscuro</h3>
+        <p>Sigue el tema de tu sistema o elígelo manualmente. Diseño Stitch, limpio y consistente en ambos modos.</p>
+      </div>
+    </div>
+    <div class="bank-strip">
+      <span class="bank-pill">Bancolombia</span>
+      <span class="bank-pill">Nequi</span>
+      <span class="bank-pill">Davivienda</span>
+      <span class="bank-pill">DaviPlata</span>
+      <span class="bank-pill">BBVA</span>
+      <span class="bank-pill">Nu</span>
+      <span class="bank-pill">Lulo Bank</span>
+      <span class="bank-pill">Scotiabank Colpatria</span>
+      <span class="bank-pill">Bco. de Bogotá</span>
+      <span class="bank-pill">Itaú</span>
+      <span class="bank-pill">+5 más</span>
+    </div>
+  </div>
+</section>
+
+<section id="privacidad">
+  <div class="wrap">
+    <div class="privacy-panel">
+      <div>
+        <div class="eyebrow">Privacidad primero</div>
+        <h2>Tus datos financieros nunca salen de tu teléfono</h2>
+        <p>MyWallet no tiene backend. No hay cuenta, no hay login, no hay servidor que pueda filtrar tu información — porque simplemente no existe.</p>
+        <ul class="check-list">
+          <li><span class="ic">✓</span> Base de datos SQLite local, excluida del auto-backup de Android</li>
+          <li><span class="ic">✓</span> Detección bancaria: solo monto y comercio, nunca saldos ni números de tarjeta</li>
+          <li><span class="ic">✓</span> El audio de voz se procesa en tiempo real y no se guarda</li>
+          <li><span class="ic">✓</span> Código abierto — puedes revisar exactamente qué hace</li>
+        </ul>
+        <a href="./privacy-policy.html" class="btn btn-secondary">Leer política de privacidad completa</a>
+      </div>
+      <div class="never-box">
+        <div class="row"><span class="ic">✕</span> Transmisión de datos a servidores externos</div>
+        <div class="row"><span class="ic">✕</span> Sincronización con la nube</div>
+        <div class="row"><span class="ic">✕</span> Analíticas de uso o comportamiento</div>
+        <div class="row"><span class="ic">✕</span> Publicidad o seguimiento publicitario</div>
+        <div class="row"><span class="ic">✕</span> Venta o comparticion de datos con terceros</div>
+        <div class="row"><span class="ic">✕</span> Acceso a contactos, cámara o ubicación GPS</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="cta-band">
+      <h2>Empieza a controlar tu dinero hoy</h2>
+      <p>Instala MyWallet en tu Android y registra tu primer movimiento en menos de un minuto.</p>
+      <div class="cta-row">
+        <a href="https://github.com/JhonnyXT/my-wallet-app/releases/download/v1.5.0/app-release.apk" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          Descargar APK
+        </a>
+        <a href="./privacy-policy.html" class="btn btn-secondary">Política de privacidad</a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <footer>
-  <p>MyWallet v1.5.0 &middot; Desarrollado en Colombia &#x1F1E8;&#x1F1F4;</p>
-  <p style="margin-top:6px">Esta politica fue actualizada por ultima vez en <strong>abril 2026</strong>.</p>
+  <div class="wrap">
+    <p>MyWallet · Aplicación personal de control financiero para Android</p>
+    <p><a href="https://github.com/JhonnyXT/my-wallet-app">GitHub</a> · <a href="./privacy-policy.html">Privacidad</a> · Hecho en Colombia 🇨🇴</p>
+  </div>
 </footer>
+
 </body>
 </html>

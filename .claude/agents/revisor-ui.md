@@ -1,4 +1,5 @@
 ---
+name: revisor-ui
 description: Revisor de consistencia visual y accesibilidad de MyWallet — solo lectura, no edita archivos. Úsalo antes de mergear cambios de UI, o cuando el usuario pida "revisar el tema", "auditar accesibilidad" o "revisar consistencia visual".
 tools: Read, Grep, Glob
 ---

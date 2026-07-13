@@ -84,6 +84,35 @@ Claude Code carga `CLAUDE.md` (raíz) automáticamente, que a su vez importa est
 
 Las reglas `.cursor/rules/*.mdc` no se auto-cargan por `globs` en Claude Code (esa activación condicional es específica de Cursor) — se leen bajo demanda según la tabla en `CLAUDE.md`.
 
+### 2c. Spec-Driven Development (`/sdd`)
+
+Para features complejas que ameriten spec formal antes de implementar (no reemplaza el flujo directo
+para cambios simples — ver criterios en la tabla de abajo). Implementado como slash commands propios
+(mismo patrón que usa el monorepo `wms/` de la organización), no con la herramienta externa spec-kit:
+sin CLI ni dependencia externa que mantener, un archivo `.md` por comando, versionado igual que el
+resto de `.claude/commands/` y `.cursor/commands/`.
+
+- `/sdd <objetivo>` — genera el spec completo en `specs/<slug-feature>/`: `requirements.md`,
+  `brownfield-impact.md`, `design.md`, `tasks.md`, `test-plan.md`.
+- `/sdd-clarify <feature>` — opcional, resuelve ambigüedades (`[NEEDS CLARIFICATION]`) antes de
+  implementar. Tomado de la idea de `/speckit-clarify` de spec-kit.
+- `/sdd-analyze <feature>` — opcional, revisa consistencia cruzada entre los 5 artefactos (requisitos
+  sin tarea/prueba, impacto no declarado, violaciones a las Reglas inmutables) antes de implementar.
+  Tomado de la idea de `/speckit-analyze` de spec-kit.
+- `/sdd-build <feature>` — implementa desde el spec, tarea por tarea.
+- `/sdd-test <feature>` — genera y ejecuta pruebas desde `test-plan.md`.
+
+Flujo típico: `/sdd` → (`/sdd-clarify` si quedó algo ambiguo) → (`/sdd-analyze` si se quiere una
+revisión de consistencia) → `/sdd-build` → `/sdd-test`.
+
+**`specs/` está en `.gitignore`** (mismo criterio que `wms-inventarios-ms`): son documentos de trabajo
+locales, no se suben al repo. Si se quiere compartir una spec puntual con otra persona/máquina, hay
+que hacerlo por fuera de git (copiar el archivo, pegar en un canal, etc.) — no hay historial
+compartido de specs vía git en este proyecto.
+
+No hay un `constitution.md` separado: la gobernanza para SDD ya vive en las "Reglas inmutables" de
+este archivo (sección más abajo) — los comandos `/sdd-*` la referencian directamente.
+
 ### 3. Comandos slash más usados
 
 | Comando | Cuándo usarlo |
@@ -97,6 +126,9 @@ Las reglas `.cursor/rules/*.mdc` no se auto-cargan por `globs` en Claude Code (e
 | `/nuevo-componente` | Scaffold componente UI Stitch |
 | `/nueva-pantalla` | Scaffold pantalla modal con registro |
 | `/nuevo-feature` | Scaffold feature completo (pantalla + store + DB + componente) |
+| `/sdd` | Genera spec formal (requirements/brownfield-impact/design/tasks/test-plan) para features grandes |
+| `/sdd-build` | Implementa desde un spec ya generado |
+| `/sdd-test` | Genera/ejecuta pruebas desde el test-plan de un spec |
 
 ### 4. Subagentes disponibles
 
@@ -111,10 +143,11 @@ Las reglas `.cursor/rules/*.mdc` no se auto-cargan por `globs` en Claude Code (e
 ```
 .cursor/
   rules/      → 4 reglas con globs (siempre activas o por archivo)
-  commands/   → 9 slash commands
+  commands/   → 14 slash commands (9 propios + /sdd, /sdd-clarify, /sdd-analyze, /sdd-build, /sdd-test)
   agents/     → 3 subagentes especializados
 .agents/
   skills/     → 4 skills custom + 6 públicas (vía skills-lock.json)
+specs/               → Specs por feature generadas con /sdd (requirements.md, design.md, tasks.md, test-plan.md, brownfield-impact.md) — en .gitignore, no se versiona
 AGENTS.md            → Este archivo (guía maestra)
 CONTEXT.md           → Contexto técnico exhaustivo (~1100 líneas)
 DOCUMENTATION.md     → Manual de usuario final
@@ -292,6 +325,7 @@ my-wallet-app/
 - [ ] Dependencias posiblemente no usadas: `expo-web-browser`, `expo-symbols` (ver nota B13 arriba)
 - [ ] Varios `as any` localizados (SpeechModule types, estilos porcentuales Reanimated)
 - [x] ~~`.commit_msg.txt` reaparecía tracked en el repo (residuo del flujo `/commit` en PowerShell)~~ — eliminado del tracking y agregado a `.gitignore`
+- [ ] **Sin keystore de producción**: `android/app/build.gradle` firma el build type `release` con `signingConfigs.debug` (`debug.keystore`, alias `androiddebugkey`) porque no existe una keystore de producción real ni `keystore.properties` en el repo (correcto que no esté versionado, pero tampoco existe localmente). Un APK "release" firmado con clave de debug dispara bloqueos de Google Play Protect ("App blocked to protect your device") al instalarlo manualmente en el dispositivo — confirmado 2026-07-13. Pendiente: generar una keystore de producción real con `keytool` (el usuario debe generarla/resguardarla, no es algo para automatizar sin su decisión explícita) y conectarla al build vía un config plugin (mismo patrón que `plugins/withAllowBackupDisabled.js`, ya que `android/app/build.gradle` se pierde en cada `expo prebuild`). Mientras tanto: instalar con `adb install -r` evita el bloqueo de Play Protect (no pasa por el Instalador de Paquetes del sistema).
 
 ---
 
@@ -357,3 +391,21 @@ my-wallet-app/
 | `.agents/skills/*/SKILL.md` | Skills custom | Compartidas tal cual, sin duplicar — ya estaban en formato compatible |
 
 Mantener ambos sistemas (`.cursor/` y `.claude/`) sincronizados manualmente: un cambio de convención en uno debe reflejarse en el otro.
+
+### Spec-Driven Development (`.claude/commands/sdd*.md`, `.cursor/commands/sdd*.md`, `specs/`)
+
+| Ruta | Qué es |
+|------|--------|
+| `.claude/commands/sdd.md` / `.cursor/commands/sdd.md` | Genera el spec completo de una feature |
+| `.claude/commands/sdd-clarify.md` / `.cursor/commands/sdd-clarify.md` | Resuelve ambigüedades antes de implementar (opcional) |
+| `.claude/commands/sdd-analyze.md` / `.cursor/commands/sdd-analyze.md` | Consistencia cruzada entre artefactos antes de implementar (opcional) |
+| `.claude/commands/sdd-build.md` / `.cursor/commands/sdd-build.md` | Implementa desde el spec |
+| `.claude/commands/sdd-test.md` / `.cursor/commands/sdd-test.md` | Genera/ejecuta pruebas desde el test-plan |
+| `specs/<slug-feature>/` | Artefactos por feature: `requirements.md`, `brownfield-impact.md`, `design.md`, `tasks.md`, `test-plan.md` (en `.gitignore`, no versionado) |
+
+Mismo patrón que `wms/wms-inventarios-ms` (comandos propios en vez de la herramienta externa spec-kit),
+adaptado a frontend React Native/Expo en vez de Clean/Hexagonal Architecture de backend. Se probó
+instalar [spec-kit](https://github.com/github/spec-kit) primero, pero se descartó: dependía de un CLI
+externo (`uv` + `specify-cli`) y usaba el mecanismo de Agent Skills de Claude Code, que no recarga en
+caliente dentro de una sesión ya abierta — los comandos `.claude/commands/*.md` (mecanismo clásico,
+igual al que ya usan `/commit`, `/revisar`, etc.) no tienen ese problema.

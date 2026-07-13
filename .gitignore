@@ -44,6 +44,9 @@ commit-msg.txt
 /ios
 /android
 
+# SDD specs — documentos de trabajo locales, no se suben al repo
+specs/
+
 # Skills públicas del catálogo (reinstalar con: npx skills add según skills-lock.json)
 .agents/skills/systematic-debugging/
 .agents/skills/react-native/

@@ -26,6 +26,10 @@ Formato AgentSkills estándar, compartido con Cursor — no duplicado en `.claud
 
 Skills públicas de terceros (restaurar con `npx skills install`, leen `skills-lock.json`): `systematic-debugging`, `react-native`, `expo-react-native-typescript`, `expo-react-native-performance`, `finishing-a-development-branch`, `test-driven-development`.
 
+## Spec-Driven Development (`.claude/commands/sdd*.md`)
+
+Para features grandes/complejas, usar el flujo: `/sdd` → (`/sdd-clarify` opcional) → (`/sdd-analyze` opcional) → `/sdd-build` → `/sdd-test` (ver detalle en `AGENTS.md` sección "2c. Spec-Driven Development (`/sdd`)"). No hay `constitution.md` separado: la gobernanza son las "Reglas inmutables" de `AGENTS.md`, que los comandos referencian directamente. `specs/` está en `.gitignore` — no se versiona. No usar para cambios puntuales o triviales — para eso siguen sirviendo los comandos normales (`/nuevo-componente`, `/nueva-pantalla`, etc.).
+
 ## Subagentes (`.claude/agents/`)
 
 | Agente | Modo | Cuándo invocarlo |
@@ -47,6 +51,11 @@ Skills públicas de terceros (restaurar con `npx skills install`, leen `skills-l
 | `/dev` | Servidor Metro con hot reload |
 | `/build-apk` | Build release + instalación por ADB |
 | `/arrancar` | Build release + instalación por ADB (alias de `/build-apk`) |
+| `/sdd` | Genera spec formal para una feature grande (requirements/brownfield-impact/design/tasks/test-plan) |
+| `/sdd-clarify` | Resuelve ambigüedades de un spec existente antes de implementar (opcional) |
+| `/sdd-analyze` | Revisa consistencia cruzada entre los artefactos de un spec antes de implementar (opcional) |
+| `/sdd-build` | Implementa código desde un spec ya generado |
+| `/sdd-test` | Genera/ejecuta pruebas desde el test-plan de un spec |
 
 ## Reglas de git de este repo
 

@@ -151,7 +151,7 @@ my-wallet-app/
 │       ├── colorUtils.ts           # hueToColors, hslToHex, hexToHsl, hexToHue — conversiones HSL↔Hex
 │       ├── formatMoney.ts          # formatMoneyInput, formatMoneyDisplay, formatCOP
 │       ├── nlp.ts                  # parseExpenseInput (texto rápido)
-│       ├── notificationParser.ts   # Parser de notificaciones bancarias: whitelist 17 bancos, regex por banco, score de confianza
+│       ├── notificationParser/     # Parser de notificaciones bancarias (carpeta, un módulo por responsabilidad — ver sección 9b)
 │       ├── tourRefs.ts             # Registro global de refs para el GuidedTour (getTourRef, TOUR_KEYS)
 │       └── voiceParser.ts          # Parseo de transcripción de voz
 │
@@ -570,7 +570,7 @@ Parseo simple para el campo de texto del formulario:
 |---------|-----|
 | `index.js` | Entrypoint: registra el HeadlessJS task `RNAndroidNotificationListenerHeadlessJsName` |
 | `src/services/notificationHeadlessTask.ts` | Función async que procesa cada notificación en background |
-| `src/utils/notificationParser.ts` | Motor de extracción: whitelist de bancos, regex por banco, filtros de ruido |
+| `src/utils/notificationParser/` | Motor de extracción (carpeta, un módulo por responsabilidad — ver diseño abajo) |
 | `src/store/useNotificationStore.ts` | Cola persistida (AsyncStorage) de transacciones pendientes de confirmación |
 | `app/notification-review.tsx` | Pantalla de revisión antes de guardar |
 | `app/settings.tsx` → `AutoDetectSection` | UI de configuración: toggle + permisos + selector de bancos |
@@ -583,8 +583,13 @@ NotificationListenerService (nativo Android)
     ↓
 HeadlessJS Task (notificationHeadlessTask.ts) — corre en background, incluso con la app cerrada
     ↓ [verifica: detección activa en AsyncStorage + banco en whitelist]
-parseNotification(packageName, title, text) — extrae monto, tipo, descripción
-    ↓ [retorna null si: no es transacción, OTP, publicidad, no hay monto]
+parseNotification(packageName, title, text)
+    ↓ classifyIntent() clasifica ANTES de intentar extraer nada:
+      otp / security_alert / payment_reminder / marketing / app_update / possible_transaction
+    ↓ [retorna null si no es "possible_transaction" — incluye recordatorios de
+      pago pendiente tipo "Tienes un pago por $X. Completa tu pago..." que NO
+      son transacciones confirmadas, aunque mencionen un monto]
+    ↓ extrae monto, tipo (gasto/ingreso) y descripción
 useNotificationStore.addPendingItem(parsed) — agrega a la cola (dedup <2 min)
     ↓
 notifyBankTransaction(amount, description, bankName, isExpense)
@@ -598,23 +603,27 @@ app/notification-review.tsx — lista de transacciones para revisar/editar/desca
 addTransactionBatch() → se guardan en SQLite
 ```
 
-### notificationParser.ts — Diseño
-- **Whitelist de 17 bancos colombianos**: Bancolombia, Nequi, Davivienda, DaviPlata, BBVA, Bco. Occidente, Bco. Popular, AV Villas, Nubank, Lulo Bank, Scotiabank, Colpatria, Rappi Pay, Tpaga, Ding, Bco. Bogotá, Itaú
-- **Filtros de ruido** (retornan `null`): OTPs (`ingresa el código`), tokens, alertas de seguridad, bloqueos de cuenta, publicidad, actualizaciones de app
-- **Extracción de monto**: 4 patrones de mayor a menor especificidad: `$1.234.567`, `$45000`, `45.000`, `45000`
-- **Extracción de tipo** (gasto/ingreso): keywords explícitas (`compra`, `débito`, `recibiste`, `consignación`, etc.) → confidence `"high"`. Si no hay keyword: heurística → gasto, confidence `"medium"`
-- **Patrones específicos por banco**:
+### src/utils/notificationParser/ — Diseño (carpeta, un módulo por responsabilidad)
+- **Whitelist de 15 bancos colombianos** (`src/constants/banks.ts`): Bancolombia, Nequi, Davivienda, DaviPlata, BBVA, Bco. Occidente, Bco. Popular, AV Villas, Nu, Lulo Bank, Scotiabank Colpatria, Rappi, Tpaga, Bco. Bogotá, Itaú
+- **`intentClassifier.ts`** — clasifica la intención de la notificación ANTES de intentar extraer nada, en 5 categorías nombradas y priorizadas: `otp`, `security_alert`, `payment_reminder`, `marketing`, `app_update`. Si no matchea ninguna, se asume `possible_transaction` y se continúa. La categoría `payment_reminder` existe específicamente para filtrar recordatorios de pago pendiente (ej. Nu: "Tienes un pago por $X. Completa tu pago...") que mencionan un monto pero NO son transacciones confirmadas — antes se colaban como gasto real.
+- **`amountExtractor.ts`** — 6 patrones de mayor a menor especificidad: `$200.000,00`, `$1.234.567`, `$45000`, `200.000,00`, `45.000`, `45000`
+- **`directionClassifier.ts`** — gasto vs ingreso: keywords explícitas ya confirmadas (`compra`, `pagó`, `pagaste`, `recibiste`, `consignación`, etc. — NO la palabra suelta "pago", ambigua) → confidence `"high"`. Si no hay keyword: heurística → gasto, confidence `"medium"`
+- **`descriptionExtractor.ts`** — limpia el texto a una descripción legible
+- **`bankPatterns.ts`** — un patrón por banco:
   - **Bancolombia**: regex `\ben\s+([comercio]{2,40})` para el nombre del comercio
-  - **Nequi**: detecta `en [comercio]` y `de [persona]` (para transferencias)
+  - **Nequi / Nu**: detecta `en [comercio]` y `de [persona]` (para transferencias)
   - **Davivienda**: detecta `comercio: [nombre]`
   - **Resto**: patrón genérico `GENERIC_PATTERN`
-- **Score de confianza**: `"high"` (keyword explícita + patrón específico) / `"medium"` (heurística) / `"low"` (solo monto detectado)
+- **`parseNotification.ts`** — orquesta el pipeline completo, es la API pública (`@/src/utils/notificationParser` resuelve a `index.ts`, que re-exporta esto)
+- **`fixtures.ts`** — 9 casos reales/sintéticos con resultado esperado, listos para envolverse en tests cuando se configure Jest/Vitest
+- **Score de confianza**: `"high"` (keyword explícita) / `"medium"` (heurística, incluye siempre `GENERIC_PATTERN`) / `"low"`
 - **Privacidad**: `rawTitle` limitado a 100 chars, `rawText` a 200 chars. Saldos, números de tarjeta y datos personales son descartados.
+- **Confidence-aware push**: `notifyBankTransaction()` (`notificationService.ts`) redacta el título distinto según `confidence` — `"detectado"` (asertivo) solo con `high`; a confirmar con `medium`/`low`. El item siempre requiere confirmación manual en `notification-review.tsx` antes de guardarse en SQLite.
 
-### Configuración en AndroidManifest.xml
+### Configuración en AndroidManifest.xml (verificado contra el manifest fusionado real, 2026-07-13)
 ```xml
 <service
-  android:name="com.leandrosimoes.reactnativeandroidnotificationlistener.RNAndroidNotificationListenerService"
+  android:name="com.lesimoes.androidnotificationlistener.RNAndroidNotificationListener"
   android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
   android:exported="true">
   <intent-filter>
@@ -627,7 +636,13 @@ addTransactionBatch() → se guardan en SQLite
 - Android **requiere** que el usuario habilite manualmente el acceso en **Ajustes → Aplicaciones → Acceso a notificaciones**
 - La app abre esa pantalla con `RNAndroidNotificationListener.requestPermission()`
 - Si el permiso no está activo, el HeadlessJS task no recibirá notificaciones (Android lo bloquea a nivel OS)
+- **Reinstalar la app revoca este permiso** — es comportamiento estándar de Android para permisos especiales, no un bug. Hay que volver a concederlo manualmente tras cada reinstalación.
 - La configuración persiste en AsyncStorage, no en `useSettingsStore` (para acceso desde HeadlessJS sin React)
+
+### Confiabilidad en background: optimización de batería del fabricante
+`RNAndroidNotificationListener` es un `NotificationListenerService` estándar, pero fabricantes como Samsung (OneUI), Xiaomi (MIUI) y Huawei (EMUI) matan procesos en background agresivamente para ahorrar batería — esto puede afectar la detección incluso siendo un servicio del sistema, porque Android debe re-crear el proceso completo (evaluando todo `index.js` + `expo-router/entry`) para atender la siguiente notificación, y el `HeadlessJsTaskService` de la librería tiene un timeout fijo de 15s (no configurable desde JS) que un cold-start lento puede agotar.
+
+`app/settings.tsx` → `AutoDetectSection` muestra, cuando la detección está activa, una tarjeta con botón "Abrir ajustes de batería" que deep-linkea a la pantalla nativa de info de la app (`Linking.openSettings()`) para que el usuario excluya MyWallet de la optimización — sin pedir el permiso especial `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, que Play Store escrutina mucho.
 
 ### Entrypoint: `index.js`
 El archivo `package.json` apunta `"main": "index.js"` (en lugar del default `expo-router/entry`). El `index.js` registra el HeadlessJS task **antes** de inicializar Expo Router, garantizando que el task esté disponible desde el inicio:

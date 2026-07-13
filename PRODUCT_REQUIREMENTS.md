@@ -228,6 +228,8 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 8.6 | Como usuario, quiero que la app me avise visualmente (badge rojo) cuando hay transacciones bancarias detectadas esperando revisión | ✅ |
 | HU 8.7 | Como usuario, quiero elegir qué bancos quiero que la app monitoree, para no recibir transacciones de cuentas que no me interesan | ✅ |
 | HU 8.8 | Como usuario, quiero que la detección de notificaciones respete mi privacidad: solo el monto y el comercio, nunca saldos ni números de tarjeta | ✅ |
+| HU 8.9 | Como usuario, quiero que la app NO detecte como transacción real un recordatorio de pago pendiente de factura ("Tienes un pago por $X. Completa tu pago...") que todavía no he confirmado | ✅ |
+| HU 8.10 | Como usuario, quiero que la app me explique cómo evitar que el sistema operativo detenga la detección en background (optimización de batería del fabricante), con acceso directo a esos ajustes | ✅ |
 
 ---
 

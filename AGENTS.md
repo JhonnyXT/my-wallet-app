@@ -93,6 +93,7 @@ Las reglas `.cursor/rules/*.mdc` no se auto-cargan por `globs` en Claude Code (e
 | `/build-apk` | Solo construye APK release sin instalar |
 | `/revisar` | Validación pre-commit con `wallet-validator` |
 | `/commit` | Commit inteligente con validación + actualización de docs |
+| `/push` | Sincroniza los 4 documentos del proyecto contra el rango completo de commits a subir, antes de hacer `git push` |
 | `/nuevo-componente` | Scaffold componente UI Stitch |
 | `/nueva-pantalla` | Scaffold pantalla modal con registro |
 | `/nuevo-feature` | Scaffold feature completo (pantalla + store + DB + componente) |
@@ -332,6 +333,7 @@ my-wallet-app/
 | `/arrancar` | Build APK release + instalación por ADB en dispositivo conectado |
 | `/revisar` | Validación técnica completa (lint + wallet-validator) |
 | `/commit` | Commit inteligente con validación previa |
+| `/push` | Sincroniza documentación (los 4 archivos) contra el rango completo a subir, luego `git push` |
 | `/nuevo-componente` | Scaffold componente UI Stitch |
 | `/nueva-pantalla` | Scaffold pantalla modal con registro |
 | `/nuevo-feature` | Scaffold módulo completo (pantalla + store + DB + componente) |

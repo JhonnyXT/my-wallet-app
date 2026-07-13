@@ -39,6 +39,7 @@ Skills públicas de terceros (restaurar con `npx skills install`, leen `skills-l
 | Comando | Para qué |
 |---|---|
 | `/commit` | Commit guiado: valida convenciones, revisa docs desactualizadas, propone mensaje conventional commit. Nunca hace push. |
+| `/push` | Sincroniza AGENTS.md/CONTEXT.md/DOCUMENTATION.md/PRODUCT_REQUIREMENTS.md contra el rango completo de commits a subir (vía `generador-docs`) y solo entonces hace `git push`. Última verificación antes de que el código sea definitivo — usar esto en vez de `git push` directo. |
 | `/revisar` | wallet-validator + greps de violaciones + `tsc --noEmit` |
 | `/nuevo-componente` | Scaffold componente UI Stitch |
 | `/nueva-pantalla` | Scaffold pantalla modal con registro en `_layout.tsx` |

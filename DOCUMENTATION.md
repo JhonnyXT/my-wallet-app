@@ -427,6 +427,11 @@ Cuando se detecta una transacción, aparece un **badge rojo 🔔** sobre el íco
 **¿Qué datos se procesan?**
 Solo el monto y el nombre del comercio. Nunca se lee el saldo disponible, números de tarjeta ni datos personales. Todo el procesamiento ocurre localmente en tu dispositivo.
 
+**Si la detección deja de funcionar en background**
+Con la detección activa, verás una tarjeta con el botón **"Abrir ajustes de batería"**. Algunos fabricantes (Samsung, Xiaomi, Huawei...) detienen apps en segundo plano para ahorrar batería, lo que puede interrumpir la detección aunque el permiso siga activo. Tócalo y, en Ajustes → Batería, elige "Sin restricciones" para MyWallet.
+
+> ⚠️ Si reinstalas la app (por ejemplo al actualizar manualmente el APK), Android revoca automáticamente el acceso a notificaciones — es normal, solo repite los pasos de activación de arriba.
+
 ### Sistema
 | Opción | Qué hace |
 |--------|---------|

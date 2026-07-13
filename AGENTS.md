@@ -221,10 +221,24 @@ my-wallet-app/
 │
 ├── index.js                          # Entrypoint: registra HeadlessJS task + delega a expo-router/entry
 ├── android/                          # Proyecto Android nativo (Gradle, manifest, Kotlin)
+├── docs/                             # Sitio estático servido por GitHub Pages (landing pública + política de privacidad)
 ├── CONTEXT.md                        # Ventana de contexto técnico completo (~1100 líneas)
 ├── DOCUMENTATION.md                  # Guía de usuario
 └── PRODUCT_REQUIREMENTS.md           # Historias de usuario y requisitos
 ```
+
+---
+
+## Landing page y GitHub Pages (`docs/`)
+
+- `docs/` es el sitio estático servido por **GitHub Pages** para este repo — configurado a nivel de repositorio (rama `master`, carpeta `/docs`), confirmado vía `gh api repos/JhonnyXT/my-wallet-app/pages`. Público en **https://jhonnyxt.github.io/my-wallet-app/**. Esta configuración ya existía antes de documentarse aquí (probablemente para cumplir el requisito de política de privacidad de Play Store).
+- Contenido:
+  - `docs/index.html` — landing pública de MyWallet (hero, features, CTA de descarga del APK).
+  - `docs/privacy-policy.html` — política de privacidad (antes vivía dentro de `index.html`, se separó a su propio archivo).
+  - `docs/icon.png`, `docs/favicon.png` — assets del sitio.
+- **Relación con Play Store**: `docs/privacy-policy.html` existe para cumplir el requisito de Google Play Console de tener una URL pública de política de privacidad — es un artefacto de *compliance*, no parte de la app en sí (por eso no se documenta en `DOCUMENTATION.md`/`PRODUCT_REQUIREMENTS.md`, que cubren la app, no el sitio de marketing).
+- **Proceso manual de release del APK (sin automatizar)**: el botón "Descargar APK" de `docs/index.html` apunta a un asset fijo de un GitHub Release (ej. `https://github.com/JhonnyXT/my-wallet-app/releases/download/v1.5.0/app-release.apk`), no a "la última versión" dinámicamente. Al sacar una versión nueva de la app hay que, manualmente: (1) publicar un GitHub Release nuevo con el APK compilado (`gh release create vX.Y.Z <ruta-al-apk> ...`) y (2) actualizar el link de descarga en `docs/index.html` para que apunte al asset nuevo. Si se omite el paso 2, la landing sigue ofreciendo una versión vieja del APK sin que nada lo avise — no hay CI que sincronice esto.
+- La landing se diseñó con ayuda de la skill/plugin `ui-ux-pro-max`, instalada a nivel de usuario de Claude Code (no es parte de este repo ni de `.agents/skills/` — no requiere instalación local para clonar/editar el HTML).
 
 ---
 
@@ -312,6 +326,7 @@ my-wallet-app/
 - No usar toasts in-app: el sistema de toasts (`useToastStore`, `ToastContainer`, `ToastBanner`) fue eliminado. Errores críticos usan `Alert.alert`; eventos importantes (presupuesto, transacción detectada, meta cumplida) usan notificaciones push del sistema.
 - `reset()` en `useVoiceStore` debe llamarse ANTES de `setPendingBatch()` — si se invierte el orden, el batch se pierde.
 - El APK de release usa `signingConfigs.release` con keystore externo (`keystore.properties`). Para builds de producción real, crear el keystore con `keytool` y rellenar `keystore.properties` (ver `keystore.properties.template`).
+- El link de descarga de `docs/index.html` (landing en GitHub Pages) apunta a un asset fijo de un GitHub Release, no a "la última versión" — ver sección [Landing page y GitHub Pages](#landing-page-y-github-pages-docs) para el proceso manual que hay que repetir en cada release nueva.
 
 ---
 

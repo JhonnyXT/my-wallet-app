@@ -157,6 +157,7 @@ my-wallet-app/
 │
 ├── index.js                      # Entrypoint: registra HeadlessJS task + delega a expo-router/entry
 ├── assets/images/                # Iconos, splash, favicon
+├── docs/                         # Sitio estático GitHub Pages: index.html (landing), privacy-policy.html, icon.png, favicon.png
 ├── .github/workflows/            # CI: eas-build.yml, eas-update.yml
 ├── DOCUMENTATION.md              # Guía de usuario
 ├── PRODUCT_REQUIREMENTS.md       # MVP: visión, historias, estilo
@@ -1060,6 +1061,36 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 - `JAVA_HOME` — JDK 17 para builds locales
 - `ANDROID_HOME` — Android SDK
 
+### Landing page y política de privacidad (GitHub Pages, `docs/`)
+
+Además del build de la app, el repo sirve un sitio estático público vía **GitHub Pages**, configurado
+a nivel de repositorio (rama `master`, carpeta `/docs`) — no es parte del pipeline de EAS ni de la app
+en sí. Público en **https://jhonnyxt.github.io/my-wallet-app/**.
+
+| Archivo | Contenido |
+|---------|-----------|
+| `docs/index.html` | Landing pública: hero, features, CTA "Descargar APK" |
+| `docs/privacy-policy.html` | Política de privacidad (antes vivía dentro de `index.html`, se separó a su propio archivo) |
+| `docs/icon.png`, `docs/favicon.png` | Assets del sitio |
+
+**Motivo de existencia:** Google Play Console exige una URL pública de política de privacidad para
+publicar la app en la Play Store — `docs/privacy-policy.html` cumple ese requisito de compliance. No
+está pensado como manual de usuario ni documentación del producto (eso es `DOCUMENTATION.md`).
+
+**Proceso manual al lanzar una versión nueva (sin automatizar):** el botón "Descargar APK" de
+`docs/index.html` apunta a un asset fijo de un GitHub Release (ej.
+`https://github.com/JhonnyXT/my-wallet-app/releases/download/v1.5.0/app-release.apk`), no a "la última
+versión" de forma dinámica. Al sacar una versión nueva hay que, manualmente:
+1. Publicar un GitHub Release nuevo con el APK compilado: `gh release create vX.Y.Z <ruta-al-apk> ...`
+2. Actualizar el link de descarga en `docs/index.html` para que apunte al asset nuevo.
+
+Si se omite el paso 2, la landing sigue ofreciendo una versión vieja del APK sin que nada lo avise —
+no hay CI/workflow que sincronice esto. Queda como deuda de proceso (ver sección 18).
+
+La landing se diseñó con ayuda de la skill/plugin `ui-ux-pro-max`, instalada a nivel de usuario de
+Claude Code — no es parte de este repo ni de `.agents/skills/`, no requiere instalación local para
+clonar/editar el HTML.
+
 ---
 
 ## 18. Problemas Conocidos y Deuda Técnica
@@ -1091,6 +1122,12 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 - `BlurView` no funciona consistentemente en emuladores Android
 - `Appearance.setColorScheme(null)` causa crash en Android — fue removido
 - `PanResponder` puede interferir con scroll horizontal si no se configura correctamente
+
+### Proceso manual sin automatizar: link de descarga de la landing (`docs/index.html`)
+El botón "Descargar APK" de la landing pública (GitHub Pages) apunta a un asset fijo de un GitHub
+Release puntual (ver sección 17, subsección "Landing page y política de privacidad"). No hay CI que
+actualice este link cuando sale una versión nueva de la app — es un paso manual que hay que recordar
+en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún aviso.
 
 ### Configuración de teclado (Android)
 - `app.json` usa `softwareKeyboardLayoutMode: "resize"` para evitar que el teclado cubra contenido

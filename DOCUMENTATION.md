@@ -411,6 +411,9 @@ MyWallet puede detectar transacciones directamente desde las notificaciones de t
 3. Aparecerá un diálogo explicativo — toca **"Abrir ajustes"**
 4. En los ajustes del sistema, busca **"MyWallet"** y activa el acceso a notificaciones
 5. Vuelve a la app — el toggle quedará activo
+6. Si es la primera vez que la app pide notificaciones (y no las activaste antes desde "Alertas de presupuesto"), el sistema también pedirá el permiso normal de notificaciones — acéptalo para que te avise por push cada vez que detecte una transacción
+
+> ℹ️ El acceso a notificaciones (paso 4) y el permiso de notificaciones push (paso 6) son dos permisos distintos de Android: el primero permite que la app *lea* las notificaciones bancarias; el segundo permite que la app *te avise* con un push cuando detecta una transacción. Si solo activas el primero, las transacciones detectadas seguirán apareciendo en la pantalla de revisión, pero no recibirás el aviso push.
 
 **¿Qué bancos son compatibles?**
 Bancolombia, Nequi, Davivienda, DaviPlata, BBVA, Banco de Occidente, Banco Popular, AV Villas, Nubank, Lulo Bank, Scotiabank Colpatria, Rappi Pay, Tpaga, Banco de Bogotá, Itaú.

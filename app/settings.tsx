@@ -1241,6 +1241,13 @@ function AutoDetectSection() {
       setShowPermDialog(true);
       return;
     }
+    if (value) {
+      // La detección solo lee notificaciones (permiso de listener, ya validado arriba);
+      // mostrar la transacción como push requiere además el permiso normal de
+      // notificaciones de la app. requestNotificationPermissions() no vuelve a pedirlo
+      // si ya fue concedido antes (por esta misma sección o por Alertas de presupuesto).
+      await requestNotificationPermissions();
+    }
     setEnabled(value);
     await AsyncStorage.setItem(AUTO_DETECT_ENABLED_KEY, value ? "true" : "false");
   }, [hasPermission]);

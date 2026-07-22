@@ -61,7 +61,7 @@ npx skills install
 ```
 
 Esto lee `skills-lock.json` (raíz del proyecto) y descarga las 6 skills públicas:
-`systematic-debugging`, `react-native`, `expo-react-native-typescript`, `expo-react-native-performance`, `finishing-a-development-branch`, `test-driven-development`, `apple-design`, `verification-before-completion`, `writing-skills`, `react-native-best-practices`.
+`systematic-debugging`, `react-native`, `expo-react-native-typescript`, `expo-react-native-performance`, `finishing-a-development-branch`, `test-driven-development`, `apple-design`, `verification-before-completion`, `writing-skills`, `react-native-best-practices`, `upgrading-react-native`.
 
 > Si tu CLI no soporta `install` desde lockfile, usa `npx skills add <fuente>/<skill>` para cada entry de `skills-lock.json`.
 
@@ -384,6 +384,7 @@ my-wallet-app/
 | `verification-before-completion` | obra/superpowers | Exige correr y confirmar comandos de verificación antes de declarar algo "listo"/"corregido" — complementa `/revisar` |
 | `writing-skills` | obra/superpowers | Guía para crear/editar skills nuevas siguiendo buenas prácticas, útil al extender `.agents/skills/` propias |
 | `react-native-best-practices` | callstackincubator/agent-skills | Optimización de rendimiento RN: FPS/re-renders, tamaño de bundle, TTI, memoria, alineación de librerías nativas a 16kb en Android — workflow de profiling medir→optimizar→re-medir |
+| `upgrading-react-native` | callstackincubator/agent-skills | Sube versión de React Native/Expo SDK: diffs de `rn-diff-purge`, cambios de `package.json`, config nativa, breaking changes |
 
 ### Commands (`.cursor/commands/`)
 

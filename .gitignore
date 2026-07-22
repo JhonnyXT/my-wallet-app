@@ -58,6 +58,7 @@ specs/
 .agents/skills/verification-before-completion/
 .agents/skills/writing-skills/
 .agents/skills/react-native-best-practices/
+.agents/skills/upgrading-react-native/
 
 # Symlink que crea `npx skills add` hacia .agents/skills/ (no duplica contenido, solo el link)
 .claude/skills/

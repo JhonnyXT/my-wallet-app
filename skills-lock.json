@@ -43,6 +43,12 @@
       "sourceType": "github",
       "computedHash": "126f1ebf6ccd414f42544f6e83d8cc5adb089e1108eaffb7c400701e37eecd9f"
     },
+    "upgrading-react-native": {
+      "source": "callstackincubator/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/upgrading-react-native/SKILL.md",
+      "computedHash": "a8a0b9ce54dceb45233c3244dfe9aafc43f3cb9f4dad8c466f4091fe4065cdc9"
+    },
     "verification-before-completion": {
       "source": "obra/superpowers",
       "sourceType": "github",

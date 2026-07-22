@@ -24,7 +24,7 @@ Formato AgentSkills estándar, compartido con Cursor — no duplicado en `.claud
 - `debug-react-native` — debugging por capas (SQLite → Zustand → Router → UI → Build → HeadlessJS)
 - `wallet-validator` — 12 checks de validación antes de commit
 
-Skills públicas de terceros (restaurar con `npx skills install`, leen `skills-lock.json`): `systematic-debugging`, `react-native`, `expo-react-native-typescript`, `expo-react-native-performance`, `finishing-a-development-branch`, `test-driven-development`, `apple-design`, `verification-before-completion`, `writing-skills`, `react-native-best-practices`.
+Skills públicas de terceros (restaurar con `npx skills install`, leen `skills-lock.json`): `systematic-debugging`, `react-native`, `expo-react-native-typescript`, `expo-react-native-performance`, `finishing-a-development-branch`, `test-driven-development`, `apple-design`, `verification-before-completion`, `writing-skills`, `react-native-best-practices`, `upgrading-react-native`.
 
 ## Spec-Driven Development (`.claude/commands/sdd*.md`)
 

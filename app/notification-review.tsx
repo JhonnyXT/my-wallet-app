@@ -103,6 +103,8 @@ function ReviewCard({
         onPress={() => onEdit(item)}
         hitSlop={10}
         activeOpacity={0.6}
+        accessibilityLabel="Editar transacción"
+        accessibilityRole="button"
       >
         <Pencil size={14} color={theme.textSub} />
       </TouchableOpacity>
@@ -113,6 +115,8 @@ function ReviewCard({
         onPress={() => onDelete(item.id)}
         hitSlop={10}
         activeOpacity={0.6}
+        accessibilityLabel="Eliminar transacción"
+        accessibilityRole="button"
       >
         <Trash2 size={14} color="#EF4444" />
       </TouchableOpacity>
@@ -268,7 +272,7 @@ export default function NotificationReviewScreen() {
         <View style={s.headerText}>
           <Text style={[s.headerTitle, { color: theme.text }]}>Revisar registros</Text>
           <Text style={[s.headerSub, { color: theme.textSub }]}>
-            {items.length} transaccion{items.length !== 1 ? "es" : ""} detectada{items.length !== 1 ? "s" : ""}
+            {items.length} transacci{items.length !== 1 ? "ones" : "ón"} detectada{items.length !== 1 ? "s" : ""}
           </Text>
         </View>
       </View>
@@ -296,7 +300,7 @@ export default function NotificationReviewScreen() {
               activeOpacity={0.7}
             >
               <Plus size={16} color={ACCENT} />
-              <Text style={[s.addManualText, { color: ACCENT }]}>Anadir registro manual</Text>
+              <Text style={[s.addManualText, { color: ACCENT }]}>Añadir registro manual</Text>
             </TouchableOpacity>
           </View>
         }

@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   quoteChar: {
     fontSize: 26,
     fontWeight: "800",
-    color: "rgba(255,255,255,0.35)",
+    color: "rgba(255,255,255,0.45)",
     lineHeight: 34,
   },
 
@@ -663,14 +663,14 @@ const styles = StyleSheet.create({
   transcriptPlaceholder: {
     fontSize: 18,
     fontWeight: "400",
-    color: "rgba(255,255,255,0.25)",
+    color: "rgba(255,255,255,0.45)",
     textAlign: "center",
     lineHeight: 28,
   },
   statusText: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#64748B",
+    color: "#94A3B8",
     textAlign: "center",
     letterSpacing: 0.2,
   },

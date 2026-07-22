@@ -150,7 +150,7 @@ function BudgetAlertSection({
   onThresholdChange: (v: number) => void;
 }) {
   const theme   = useTheme();
-  const THUMB   = 22;
+  const THUMB   = 28;
   const pct     = Math.min(100, Math.max(0, threshold));
 
   const trackWRef                     = useRef(0);
@@ -1833,7 +1833,7 @@ export default function SettingsScreen() {
                     <View style={s.rowText}>
                       <Text style={s.rowLabel}>{cat.name}</Text>
                       {current ? (
-                        <Text style={[s.rowSub, { color: "#059669" }]}>
+                        <Text style={[s.rowSub, { color: theme.isDark ? "#22C55E" : "#15803D" }]}>
                           Límite: {formatCOP(current)}
                         </Text>
                       ) : (
@@ -1843,7 +1843,7 @@ export default function SettingsScreen() {
                     {current ? (
                       <TouchableOpacity
                         onPress={() => removeBudgetForCategory(cat.emoji)}
-                        hitSlop={10}
+                        hitSlop={14}
                         style={{ padding: 4 }}
                       >
                         <X size={14} color="#DC2626" strokeWidth={2.5} />

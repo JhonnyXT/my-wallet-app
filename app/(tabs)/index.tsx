@@ -367,7 +367,7 @@ export default function DashboardScreen() {
                 <ArrowDown
                   size={13}
                   strokeWidth={2.8}
-                  color={typeFilter !== "income" ? "#E53E3E" : "#9CA3AF"}
+                  color={typeFilter !== "income" ? "#E53E3E" : theme.textSub}
                 />
                 <RollingNumber
                   value={expenseTotal}
@@ -391,7 +391,7 @@ export default function DashboardScreen() {
                 <ArrowUp
                   size={13}
                   strokeWidth={2.8}
-                  color={typeFilter === "income" ? "#16A34A" : "#9CA3AF"}
+                  color={typeFilter === "income" ? "#16A34A" : theme.textSub}
                 />
                 <RollingNumber
                   value={incomeTotal}
@@ -609,7 +609,7 @@ function createStyles(t: AppTheme) {
     balanceLabel: {
       fontSize: 11,
       fontWeight: "700",
-      color: t.textTertiary,
+      color: t.textSub,
       letterSpacing: 2.0,
       textTransform: "uppercase",
       textAlign: "center",
@@ -653,7 +653,7 @@ function createStyles(t: AppTheme) {
     pillIncomeText:    { color: "#16A34A" },             // verde medio
     // Inactivo — gris neutro
     pillInactive:     { backgroundColor: t.pillNeutral ?? "#F1F5F9" },
-    pillInactiveText: { color: "#9CA3AF", fontWeight: "600" as const },
+    pillInactiveText: { color: t.textSub, fontWeight: "600" as const },
     pillContent: {
       flexDirection: "row" as const,
       alignItems: "center" as const,
@@ -779,7 +779,7 @@ function createStyles(t: AppTheme) {
     },
     emptyEmoji:    { fontSize: 48, marginBottom: 14 },
     emptyTitle:    { fontSize: 17, fontWeight: "700", color: t.textSub, marginBottom: 8 },
-    emptySubtitle: { fontSize: 14, color: t.textTertiary, textAlign: "center", lineHeight: 21 },
+    emptySubtitle: { fontSize: 14, color: t.textSub, textAlign: "center", lineHeight: 21 },
 
     // ── Barra de búsqueda ───────────────────────────────────────────────────
     searchWrapper: {

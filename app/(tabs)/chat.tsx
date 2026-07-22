@@ -38,6 +38,7 @@ import type { ChatMessage } from "@/src/types/chat";
 import type { WeeklySummaryCard } from "@/src/features/chat/useLocalNLP";
 import { ChatMessageBubble } from "@/src/components/chat/ChatMessageBubble";
 import { ChatHistoryDrawer } from "@/src/components/chat/ChatHistoryDrawer";
+import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import {
   DRAWER_W,
   BLUE_CHAT,
@@ -158,6 +159,7 @@ export default function ChatScreen() {
   const [showHistory, setShowHistory] = useState(false);
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renameText, setRenameText] = useState("");
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
   const isAtBottomRef = useRef(true);
@@ -243,10 +245,19 @@ export default function ChatScreen() {
   }
 
   // ── Eliminar sesión ───────────────────────────────────────────────────────
-  async function handleDelete(sessionId: number) {
-    await deleteChatSession(sessionId);
-    if (activeSessionId === sessionId) resetChat();
+  // Pide confirmación, igual que el resto de acciones destructivas del proyecto
+  // (borrar historial de transacciones, eliminar método de pago en Ajustes) —
+  // perder una conversación completa es igual de irreversible que esas.
+  function handleDelete(sessionId: number) {
+    setPendingDeleteId(sessionId);
+  }
+
+  async function confirmDelete() {
+    if (pendingDeleteId == null) return;
+    await deleteChatSession(pendingDeleteId);
+    if (activeSessionId === pendingDeleteId) resetChat();
     await loadSessions();
+    setPendingDeleteId(null);
   }
 
   // ── Enviar mensaje ────────────────────────────────────────────────────────
@@ -346,6 +357,8 @@ export default function ChatScreen() {
           onPress={() => router.navigate("/")}
           style={({ pressed }) => [s.headerBtn, pressed && { opacity: 0.55 }]}
           hitSlop={12}
+          accessibilityLabel="Volver"
+          accessibilityRole="button"
         >
           <ChevronLeft size={22} color={theme.text} strokeWidth={2.5} />
         </Pressable>
@@ -362,6 +375,8 @@ export default function ChatScreen() {
           }}
           style={({ pressed }) => [s.headerBtn, pressed && { opacity: 0.55 }]}
           hitSlop={12}
+          accessibilityLabel="Ver historial de conversaciones"
+          accessibilityRole="button"
         >
           <AlignJustify size={20} color={theme.text} strokeWidth={2} />
         </Pressable>
@@ -435,6 +450,9 @@ export default function ChatScreen() {
             <Pressable
               onPress={() => sendMessage(input)}
               disabled={!input.trim() || isThinking}
+              hitSlop={8}
+              accessibilityLabel="Enviar mensaje"
+              accessibilityRole="button"
               style={({ pressed }) => [
                 s.sendBtn,
                 (!input.trim() || isThinking) && s.sendBtnDisabled,
@@ -474,6 +492,16 @@ export default function ChatScreen() {
         }}
         onRenameTextChange={setRenameText}
         onCommitRename={commitRename}
+      />
+
+      <ConfirmDialog
+        visible={pendingDeleteId != null}
+        variant="danger"
+        title="¿Eliminar conversación?"
+        message="Se perderá todo el historial de esta conversación. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDeleteId(null)}
       />
     </SafeAreaView>
   );

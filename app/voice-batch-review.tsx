@@ -32,7 +32,7 @@ import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useTheme } from "@/src/context/ThemeContext";
 import { getCategoryColor, getCategoryName } from "@/src/constants/theme";
-import { formatMoneyInput, formatMoneyDisplay } from "@/src/utils/formatMoney";
+import { formatMoneyDisplay } from "@/src/utils/formatMoney";
 import type { AppTheme } from "@/src/theme";
 
 // ─── Tipos locales ────────────────────────────────────────────────────────────
@@ -156,7 +156,11 @@ function EditItemSheet({
 
   useEffect(() => {
     if (visible && item) {
-      setAmountStr(formatMoneyDisplay(item.amount));
+      // Dígitos crudos, sin puntos de miles: si reformateáramos en cada tecla
+      // (como antes con formatMoneyInput en onChangeText), el TextInput
+      // controlado saltaría el cursor al final en Android al insertar/quitar
+      // un dígito en medio del monto — mismo bug ya corregido en active-expense.tsx.
+      setAmountStr(item.amount > 0 ? String(Math.round(item.amount)) : "");
       setDesc(item.description);
       setIsExpense(item.isExpense);
       setCatEmoji(item.categoryEmoji);
@@ -218,7 +222,7 @@ function EditItemSheet({
             <TextInput
               style={[editS.input, { color: theme.text }]}
               value={amountStr}
-              onChangeText={(v) => setAmountStr(formatMoneyInput(v))}
+              onChangeText={(v) => setAmountStr(v.replace(/\D/g, ""))}
               keyboardType="numeric"
               placeholder="0"
               placeholderTextColor={theme.textSub}

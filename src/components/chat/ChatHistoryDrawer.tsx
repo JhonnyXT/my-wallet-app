@@ -221,7 +221,7 @@ export function ChatHistoryDrawer({
         {/* Cabecera del panel */}
         <View style={d.panelHeader}>
           <Text style={d.panelTitle}>HISTORIAL</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={12}>
+          <TouchableOpacity onPress={onClose} hitSlop={12} accessibilityLabel="Cerrar historial" accessibilityRole="button">
             <X size={20} color={theme.text} strokeWidth={2} />
           </TouchableOpacity>
         </View>
@@ -294,8 +294,10 @@ export function ChatHistoryDrawer({
 
                   <TouchableOpacity
                     onPress={() => onDelete(session.id)}
-                    hitSlop={8}
+                    hitSlop={12}
                     style={d.deleteBtn}
+                    accessibilityLabel="Eliminar conversación"
+                    accessibilityRole="button"
                   >
                     <Trash2 size={14} color={theme.textSub} strokeWidth={1.8} />
                   </TouchableOpacity>

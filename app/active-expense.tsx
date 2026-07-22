@@ -357,7 +357,10 @@ export default function ActiveExpenseScreen() {
   }
 
   const isExpense  = store.isExpense;
-  const accent     = isExpense ? RED   : GREEN;
+  // GREEN (#22C55E) da solo 2.04:1 de contraste sobre el fondo claro — muy por debajo
+  // del mínimo de accesibilidad. En modo claro se usa un verde más oscuro solo para
+  // texto/monto; en oscuro el GREEN original ya tiene contraste de sobra (8.31:1).
+  const accent     = isExpense ? RED : (theme.isDark ? GREEN : "#15803D");
   const accentBg   = isExpense ? "#FEF2F2" : "#F0FDF4";
   const accentText = isExpense ? "#B91C1C" : "#15803D";
   const title      = isExpense ? "Nuevo Gasto" : "Nuevo Ingreso";
@@ -517,7 +520,13 @@ export default function ActiveExpenseScreen() {
 
       {/* ── HEADER ────────────────────────────────────────────────────────── */}
       <View style={[st.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity onPress={handleClose} hitSlop={12} style={st.headerSideBtn}>
+        <TouchableOpacity
+          onPress={handleClose}
+          hitSlop={12}
+          style={st.headerSideBtn}
+          accessibilityLabel="Cerrar"
+          accessibilityRole="button"
+        >
           <X size={20} color={theme.textSub} strokeWidth={2} />
         </TouchableOpacity>
 
@@ -526,7 +535,10 @@ export default function ActiveExpenseScreen() {
         <TouchableOpacity
           onPress={handleConfirm}
           disabled={store.amount <= 0}
+          hitSlop={8}
           style={[st.confirmBtn, store.amount <= 0 && st.confirmBtnOff]}
+          accessibilityLabel="Confirmar"
+          accessibilityRole="button"
         >
           <Check size={18} color="#FFFFFF" strokeWidth={2.5} />
         </TouchableOpacity>
@@ -615,7 +627,9 @@ export default function ActiveExpenseScreen() {
           <TouchableOpacity
             onPress={() => noteRef.current?.focus()}
             style={st.editIcon}
-            hitSlop={12}
+            hitSlop={14}
+            accessibilityLabel="Editar descripción"
+            accessibilityRole="button"
           >
             <Edit3 size={16} color={theme.textTertiary} strokeWidth={1.8} />
           </TouchableOpacity>
@@ -763,7 +777,7 @@ function buildS(t: AppTheme) {
       borderColor: t.isDark ? t.border : "transparent",
     },
     selFieldName: {
-      fontSize: 9, fontWeight: "700", color: t.textTertiary,
+      fontSize: 11, fontWeight: "700", color: t.textSub,
       textAlign: "center", letterSpacing: 0.8, textTransform: "uppercase",
     },
     selValue: { fontSize: 12, fontWeight: "700", color: t.text, textAlign: "center", letterSpacing: -0.2 },

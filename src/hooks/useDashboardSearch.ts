@@ -6,6 +6,7 @@ import type { TransactionRow } from "@/src/db/db";
 import { useUIStore } from "@/src/store/useUIStore";
 import { EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
 import { extractTagsFromTx, normalize } from "@/src/utils/transactionFormatters";
+import { fuzzyIncludes } from "@/src/utils/fuzzyMatch";
 
 export interface UseDashboardSearchReturn {
   // Ref de input
@@ -156,7 +157,7 @@ export function useDashboardSearch({
       results = results.filter((tx) => {
         const desc    = normalize(tx.description ?? "");
         const catName = normalize(EMOJI_TO_CATEGORY_NAME[tx.category_emoji] ?? "");
-        return desc.includes(q) || catName.includes(q);
+        return fuzzyIncludes(desc, q) || fuzzyIncludes(catName, q);
       });
     }
 

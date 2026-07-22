@@ -424,7 +424,7 @@ Puedes elegir **solo algunos bancos** tocando la opción "Bancos activos". Si no
 Cuando se detecta una transacción, aparece un **badge rojo 🔔** sobre el ícono de configuración en el Dashboard. Tócalo para abrir la pantalla de revisión:
 - Cada transacción muestra el banco, la descripción, el monto
 - Puedes **editar** la transacción (monto, descripción, categoría, tipo)
-- Puedes **eliminar** una transacción deslizando hacia la izquierda
+- Puedes **eliminar** una transacción con el ícono de papelera 🗑️ junto al de editar
 - Cuando todo está listo, toca **"GUARDAR TODOS"**
 
 **¿Qué datos se procesan?**

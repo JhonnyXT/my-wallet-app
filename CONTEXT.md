@@ -533,6 +533,15 @@ type AppTheme = {
 **Extracción de categoría:**
 - Consulta primero `userCategories` (categorías dinámicas del usuario), luego `CATEGORY_MAP` legacy como fallback
 
+**Fuzzy matching (`src/utils/fuzzyMatch.ts`)**: tanto `extractCategory`/`extractIsExpense`
+(`voiceParser.ts`) como `guessCategoryEmoji` (`theme.ts`, usado por `nlp.ts`) reemplazaron su
+`.includes(kw)` exacto por `fuzzyIncludes(haystack, kw)` — mismo match exacto como camino
+rápido, pero con tolerancia a typos (distancia de Levenshtein) para keywords de una sola
+palabra de 5+ caracteres (ej. "almuerso" → matchea "almuerzo"). Palabras cortas (<5 chars) y
+keywords multi-palabra solo matchean exacto, para no generar falsos positivos. 100% offline,
+sin dependencias — se evaluó meter IA/LLM para esto y se descartó por romper la regla de
+offline-first (ver discusión completa archivada fuera del repo, sesión 2026-07-22).
+
 **Post-procesamiento:**
 - `normalizeMoneyText(text)`: convierte `$40,000` → `$40.000` en el texto
 - `replaceAmountInNote(text, amount)`: convierte `"cinco millones 400 mil"` → `"$5.400.000"` en la nota. Además asegura un espacio antes de `$` cuando está precedido por una letra (corrige "gasté$500.000" → "gasté $500.000")
@@ -606,12 +615,8 @@ addTransactionBatch() → se guardan en SQLite
 - **`intentClassifier.ts`** — clasifica la intención de la notificación ANTES de intentar extraer nada, en 5 categorías nombradas y priorizadas: `otp`, `security_alert`, `payment_reminder`, `marketing`, `app_update`. Si no matchea ninguna, se asume `possible_transaction` y se continúa. La categoría `payment_reminder` existe específicamente para filtrar recordatorios de pago pendiente (ej. Nu: "Tienes un pago por $X. Completa tu pago...") que mencionan un monto pero NO son transacciones confirmadas — antes se colaban como gasto real.
 - **`amountExtractor.ts`** — 6 patrones de mayor a menor especificidad: `$200.000,00`, `$1.234.567`, `$45000`, `200.000,00`, `45.000`, `45000`
 - **`directionClassifier.ts`** — gasto vs ingreso: keywords explícitas ya confirmadas (`compra`, `pagó`, `pagaste`, `recibiste`, `consignación`, etc. — NO la palabra suelta "pago", ambigua) → confidence `"high"`. Si no hay keyword: heurística → gasto, confidence `"medium"`
-- **`descriptionExtractor.ts`** — limpia el texto a una descripción legible
-- **`bankPatterns.ts`** — un patrón por banco:
-  - **Bancolombia**: regex `\ben\s+([comercio]{2,40})` para el nombre del comercio
-  - **Nequi / Nu**: detecta `en [comercio]` y `de [persona]` (para transferencias)
-  - **Davivienda**: detecta `comercio: [nombre]`
-  - **Resto**: patrón genérico `GENERIC_PATTERN`
+- **`descriptionExtractor.ts`** — limpia el texto de la notificación (monto, saldo, fechas, frases fijas del banco) y devuelve la oración completa restante — no un fragmento tipo keyword
+- **`bankPatterns.ts`** — un patrón por banco (Bancolombia, Nequi, Davivienda/DaviPlata, Nu, y `GENERIC_PATTERN` para el resto), cada uno valida que el texto aplique (`matches`) y extrae monto/dirección con sus reglas propias, pero **todos** usan `extractDescription()` para el campo `description` — antes cada patrón capturaba con una regex angosta solo el nombre del comercio/contraparte (ej. "RAPPI CO." en vez de "Compra en RAPPI CO."); se simplificó para mostrar la descripción completa y limpia en `notification-review.tsx`, dejando la edición manual (botón ✏️) para cuando el usuario quiera acortarla
 - **`parseNotification.ts`** — orquesta el pipeline completo, es la API pública (`@/src/utils/notificationParser` resuelve a `index.ts`, que re-exporta esto)
 - **`fixtures.ts`** — 9 casos reales/sintéticos con resultado esperado, listos para envolverse en tests cuando se configure Jest/Vitest
 - **Score de confianza**: `"high"` (keyword explícita) / `"medium"` (heurística, incluye siempre `GENERIC_PATTERN`) / `"low"`
@@ -890,9 +895,10 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Pantalla fullscreen modal para revisar transacciones detectadas automáticamente desde notificaciones bancarias
 - Diseño basado en la pantalla "Review Transactions (Light)" de Stitch
 - **Header:** flecha azul (ChevronLeft) + "Revisar registros" (bold 20px) + subtítulo "N transacciones detectadas"
-- **FlatList** de `ReviewCard`s: icono de categoría en círculo + descripción + fila de metadatos (nombre categoría + badge tipo `↓ Gasto` rojo / `↑ Ingreso` verde) + monto + botón ✏️
+- **FlatList** de `ReviewCard`s: icono de categoría en círculo + descripción + fila de metadatos (nombre categoría + badge tipo `↓ Gasto` rojo / `↑ Ingreso` verde) + monto + botón ✏️ + botón 🗑️
 - **Footer de la lista:** sección "¿Falta algo?" + "+ Añadir registro manual" (azul, abre `active-expense`)
-- **Botón ✏️** → `EditItemSheet`: toggle gasto/ingreso, monto, descripción, categoría
+- **Botón ✏️** → navega a `active-expense.tsx?from=notification-edit` (reutiliza el formulario completo, no un sheet propio — a diferencia de `voice-batch-review.tsx`, que sí tiene su propio `EditItemSheet` inline)
+- **Botón 🗑️** → `handleDeleteItem(id)`: quita el item de la lista local y llama `removePendingItem(id)` del store — sin diálogo de confirmación
 - **Footer sticky:** `"N REGISTROS · TOTAL $ X"` (letras espaciadas) + botón pill azul "Guardar todo"
 - **Estado vacío:** icono 🔕, mensaje explicativo, botón "Entendido"
 - Al guardar: `addTransactionBatch(items)` (con `date: new Date()`) + `clearAll()` (store) + `router.back()`. En caso de error, `Alert.alert` nativo

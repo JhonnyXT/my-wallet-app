@@ -26,8 +26,12 @@ import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { useTheme } from "@/src/context/ThemeContext";
 import { formatMoneyDisplay } from "@/src/utils/formatMoney";
+import { guessCategoryEmoji } from "@/src/constants/theme";
+import { resolveCategory } from "@/src/utils/transactionFormatters";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import type { AppTheme } from "@/src/theme";
+import type { UserCategory } from "@/src/constants/categoryPresets";
+import type { SavingsGoal } from "@/src/store/useSettingsStore";
 
 // ─── Tipo local para items editables ─────────────────────────────────────────
 
@@ -43,15 +47,24 @@ type ReviewItem = {
   confidence: "high" | "medium" | "low";
 };
 
-function pendingToReview(item: PendingNotificationItem): ReviewItem {
+function pendingToReview(
+  item: PendingNotificationItem,
+  userCategories: UserCategory[],
+  savingsGoals: SavingsGoal[]
+): ReviewItem {
+  const description   = item.description || item.bankName;
+  const categoryEmoji = guessCategoryEmoji(description, userCategories);
   return {
     id: item.id,
     amount: item.amount,
-    description: item.description || item.bankName,
-    categoryEmoji: "💳",
-    categoryName: "Tarjeta",
+    description,
+    categoryEmoji,
+    categoryName: resolveCategory(categoryEmoji, userCategories, savingsGoals),
     isExpense: item.isExpense,
-    paymentMethod: "debit",
+    // Detectada desde una notificación bancaria: nunca es efectivo — "credit"
+    // (id por defecto de "Tarjeta") es el fallback más cercano a la realidad;
+    // el usuario puede corregirlo a "Ahorros" u otro método con el botón ✏️.
+    paymentMethod: "credit",
     bankName: item.bankName,
     confidence: item.confidence,
   };
@@ -134,14 +147,20 @@ export default function NotificationReviewScreen() {
 
   const { pendingItems, clearAll, removePendingItem } = useNotificationStore();
   const { addTransactionBatch } = useFinanceStore();
+  const userCategories = useSettingsStore((s) => s.userCategories);
+  const savingsGoals   = useSettingsStore((s) => s.savingsGoals);
 
-  const [items, setItems] = useState<ReviewItem[]>(() => pendingItems.map(pendingToReview));
+  const [items, setItems] = useState<ReviewItem[]>(() =>
+    pendingItems.map((p) => pendingToReview(p, userCategories, savingsGoals))
+  );
 
   useEffect(() => {
     const newIds = new Set(items.map((i) => i.id));
-    const newOnes = pendingItems.filter((p) => !newIds.has(p.id)).map(pendingToReview);
+    const newOnes = pendingItems
+      .filter((p) => !newIds.has(p.id))
+      .map((p) => pendingToReview(p, userCategories, savingsGoals));
     if (newOnes.length > 0) setItems((prev) => [...newOnes, ...prev]);
-  }, [pendingItems]);
+  }, [pendingItems, userCategories, savingsGoals]);
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 

@@ -60,7 +60,7 @@ Las skills custom del proyecto están versionadas dentro de `.agents/skills/`. L
 npx skills install
 ```
 
-Esto lee `skills-lock.json` (raíz del proyecto) y descarga las 6 skills públicas:
+Esto lee `skills-lock.json` (raíz del proyecto) y descarga las 11 skills públicas:
 `systematic-debugging`, `react-native`, `expo-react-native-typescript`, `expo-react-native-performance`, `finishing-a-development-branch`, `test-driven-development`, `apple-design`, `verification-before-completion`, `writing-skills`, `react-native-best-practices`, `upgrading-react-native`.
 
 > Si tu CLI no soporta `install` desde lockfile, usa `npx skills add <fuente>/<skill>` para cada entry de `skills-lock.json`.
@@ -146,7 +146,7 @@ este archivo (sección más abajo) — los comandos `/sdd-*` la referencian dire
   commands/   → 14 slash commands (9 propios + /sdd, /sdd-clarify, /sdd-analyze, /sdd-build, /sdd-test)
   agents/     → 3 subagentes especializados
 .agents/
-  skills/     → 4 skills custom + 6 públicas (vía skills-lock.json)
+  skills/     → 4 skills custom + 11 públicas (vía skills-lock.json)
 specs/               → Specs por feature generadas con /sdd (requirements.md, design.md, tasks.md, test-plan.md, brownfield-impact.md) — en .gitignore, no se versiona
 AGENTS.md            → Este archivo (guía maestra)
 CONTEXT.md           → Contexto técnico exhaustivo (~1100 líneas)
@@ -217,7 +217,7 @@ my-wallet-app/
 │   ├── store/                        # 6 stores Zustand (useSettingsStore + useNotificationStore persistidos)
 │   ├── theme/index.ts                # Tokens AppTheme: light + dark
 │   ├── types/                        # chat.ts
-│   └── utils/                        # formatMoney, nlp, voiceParser, notificationParser, colorUtils, tourRefs, chatHelpers, periodFilter, transactionFormatters
+│   └── utils/                        # formatMoney, nlp, voiceParser, notificationParser, colorUtils, tourRefs, chatHelpers, periodFilter, transactionFormatters, fuzzyMatch
 │
 ├── index.js                          # Entrypoint: registra HeadlessJS task + delega a expo-router/entry
 ├── android/                          # Proyecto Android nativo (Gradle, manifest, Kotlin)

@@ -2,7 +2,7 @@
 
 > **Propósito:** Este documento es la referencia técnica completa del proyecto. Cualquier desarrollador, IA o colaborador que lea este archivo tendrá TODO el contexto necesario para desarrollar, modificar o extender la aplicación sin perder consistencia.
 >
-> **Última actualización:** Marzo 2026 | **Versión:** 1.5.0
+> **Última actualización:** 2026-07-22 | **Versión:** 1.5.0
 
 ---
 
@@ -147,6 +147,7 @@ my-wallet-app/
 │   └── utils/
 │       ├── colorUtils.ts           # hueToColors, hslToHex, hexToHsl, hexToHue — conversiones HSL↔Hex
 │       ├── formatMoney.ts          # formatMoneyInput, formatMoneyDisplay, formatCOP
+│       ├── fuzzyMatch.ts           # levenshtein, fuzzyIncludes — tolerancia a typos en NLP de voz/texto
 │       ├── nlp.ts                  # parseExpenseInput (texto rápido)
 │       ├── notificationParser/     # Parser de notificaciones bancarias (carpeta, un módulo por responsabilidad — ver sección 9b)
 │       ├── tourRefs.ts             # Registro global de refs para el GuidedTour (getTourRef, TOUR_KEYS)
@@ -846,11 +847,13 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Tags sugeridos + custom
 - Botón ✓ para guardar (vibración + navegar atrás)
 - `adjustsFontSizeToFit` como fallback para montos enormes
-- **Param `?from=batch-review`:** cuando la pantalla es abierta desde `voice-batch-review`, el flujo de guardar cambia:
+- **Param `?from=batch-review` / `?from=notification-edit`:** cuando la pantalla es abierta desde `voice-batch-review` o desde el botón ✏️ de `notification-review`, el flujo de guardar cambia (mismo tratamiento para ambos origenes, vía `fromBatchReview || fromNotificationEdit`):
   - Lee `from` con `useLocalSearchParams<{ from?: string }>()`
   - Al confirmar ✓: en lugar de `addTransaction` + `router.dismissAll()`, llama `setPendingManualItem({...})` + `store.reset()` + `router.back()`
-  - Esto devuelve los datos al store sin guardar en DB; `voice-batch-review` los recoge con `useFocusEffect` y los agrega a la lista de revisión
-  - Al cerrar ✗ también usa `router.back()` (no `router.dismissAll()`) para preservar `voice-batch-review` en la pila
+  - Esto devuelve los datos al store sin guardar en DB; `voice-batch-review`/`notification-review` los recoge con `useFocusEffect` y los agrega/actualiza en la lista de revisión
+  - Al cerrar ✗ también usa `router.back()` (no `router.dismissAll()`) para preservar la pantalla de revisión en la pila
+  - **Fix de bug (este rango):** el `useEffect` que reparsea `store.note` en tiempo real (NLP reactivo) ahora retorna temprano cuando `fromBatchReview || fromNotificationEdit` es `true` — antes, editar la descripción de un item ya estructurado (viniendo de `notification-review`) disparaba el parser de texto libre y podía sobreescribir el monto real ya extraído por `notificationParser` con uno mal interpretado del texto
+- **Edición del monto (UX):** tocar el monto activa `amountEditing` y muestra un `TextInput` con dígitos crudos sin puntos de miles (`amountDisplay`, filtrado con `.replace(/\D/g, "")` en cada tecla) — insertar puntos de miles en cada cambio reformatearía el string completo y el cursor saltaría al final en Android, impidiendo editar un dígito en medio del monto. Los puntos de miles reaparecen al perder el foco (`handleAmountBlur`), cuando el monto vuelve a mostrarse como texto estático con `fmtCOP()`
 
 ### Voice Input (`app/voice-input.tsx`)
 - Orb animado que indica estado de escucha

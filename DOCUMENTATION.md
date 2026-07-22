@@ -133,7 +133,7 @@ Cuando no hay movimientos en el período seleccionado:
 
 **Campo de monto:**
 - Toca el número grande para editarlo directamente
-- Se formatea automáticamente con puntos de miles: `20000` → `20.000`
+- Mientras escribes ves solo los dígitos (sin puntos), para que puedas corregir un número en medio del monto sin que el cursor salte; al salir del campo se formatea con puntos de miles: `20000` → `20.000`
 - El tamaño del número **se reduce automáticamente** cuando el monto es muy grande (millones), para que siempre sea visible en pantalla
 - Usa el teclado numérico
 
@@ -425,7 +425,7 @@ Cuando se detecta una transacción, aparece un **badge rojo 🔔** sobre el íco
 - Cada transacción muestra el banco, la descripción, el monto
 - Puedes **editar** la transacción (monto, descripción, categoría, tipo)
 - Puedes **eliminar** una transacción con el ícono de papelera 🗑️ junto al de editar
-- Cuando todo está listo, toca **"GUARDAR TODOS"**
+- Cuando todo está listo, toca **"Guardar todo"**
 
 **¿Qué datos se procesan?**
 Solo el monto y el nombre del comercio. Nunca se lee el saldo disponible, números de tarjeta ni datos personales. Todo el procesamiento ocurre localmente en tu dispositivo.

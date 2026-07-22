@@ -46,7 +46,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Selectores rápidos | Fecha (Hoy/Calendario), Categoría (grid dinámico + ítem "Nueva" para crear inline), Cuenta (método de pago guardado en transacción) | ✅ Implementado |
 | Tags | Sugeridos (#viaje, #trabajo, etc.) + custom | ✅ Implementado |
 | Guardar | Botón ✓ + vibración háptica + regresa al Dashboard | ✅ Implementado |
-| Auto-formato | Puntos de miles automáticos mientras se escribe | ✅ Implementado |
+| Auto-formato | Mientras se edita el monto se muestran dígitos crudos sin puntos de miles (evita que el cursor salte al final en Android); los puntos de miles se agregan automáticamente al salir del campo | ✅ Implementado |
 
 ### 2.3 Entrada por Voz (Modal)
 
@@ -223,13 +223,26 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 8.1 | Como usuario, quiero que la app detecte automáticamente transacciones desde las notificaciones de mis apps bancarias (Bancolombia, Nequi, Davivienda y más) para no tener que registrarlas manualmente | ✅ |
 | HU 8.2 | Como usuario, quiero revisar y editar cada transacción detectada antes de confirmar que se guarde, para evitar errores | ✅ |
 | HU 8.3 | Como usuario, quiero ver un indicador de confianza (alto/medio/bajo) en cada transacción detectada, para saber cuáles necesitan más atención | ✅ |
-| HU 8.4 | Como usuario, quiero eliminar individualmente una transacción detectada que no quiero guardar, deslizando la tarjeta hacia la izquierda | ✅ |
-| HU 8.5 | Como usuario, quiero descartar todas las transacciones detectadas de una sola vez si no quiero guardar ninguna | ✅ |
+| HU 8.4 | Como usuario, quiero eliminar individualmente una transacción detectada que no quiero guardar, tocando el ícono de papelera en su tarjeta | ✅ |
+| HU 8.5 | Como usuario, quiero descartar todas las transacciones detectadas de una sola vez si no quiero guardar ninguna | ⚠️ Parcial — verificado contra código (2026-07-22): no hay un botón "descartar todo"; solo se puede lograr eliminando cada tarjeta una por una con el ícono de papelera (HU 8.4), o cerrando la pantalla con ← (lo cual NO limpia la cola: los mismos items reaparecen la próxima vez que se abre "Revisar registros") |
 | HU 8.6 | Como usuario, quiero que la app me avise visualmente (badge rojo) cuando hay transacciones bancarias detectadas esperando revisión | ✅ |
 | HU 8.7 | Como usuario, quiero elegir qué bancos quiero que la app monitoree, para no recibir transacciones de cuentas que no me interesan | ✅ |
 | HU 8.8 | Como usuario, quiero que la detección de notificaciones respete mi privacidad: solo el monto y el comercio, nunca saldos ni números de tarjeta | ✅ |
 | HU 8.9 | Como usuario, quiero que la app NO detecte como transacción real un recordatorio de pago pendiente de factura ("Tienes un pago por $X. Completa tu pago...") que todavía no he confirmado | ✅ |
 | HU 8.10 | Como usuario, quiero que la app me explique cómo evitar que el sistema operativo detenga la detección en background (optimización de batería del fabricante), con acceso directo a esos ajustes | ✅ |
+
+### Épica 9: Chat NLP (Experimental)
+
+> ⚠️ **Nota de alcance:** `app/(tabs)/chat.tsx` es una pantalla completa y funcional (sesiones persistidas en SQLite, historial, consultas en lenguaje natural), pero **no hay ningún punto de entrada en la UI** que navegue a ella (no está en `FloatingDock`, ni en el Dashboard) — solo es alcanzable navegando directamente a la ruta `/chat`. Esto ya estaba así antes de este rango de commits (ver `CONTEXT.md`, sección 18, "Código inactivo"); las historias de esta épica describen lo que la pantalla hace una vez se llega a ella, no implican que sea descubrible desde el flujo normal de la app.
+
+| ID | Historia | Estado |
+|----|---------|--------|
+| HU 9.1 | Como usuario, quiero hacerle preguntas en lenguaje natural a un asistente local sobre mis finanzas (ej. resumen semanal) y recibir una respuesta con los datos de mi propia base de datos, sin conexión a internet | ✅ |
+| HU 9.2 | Como usuario, quiero que cada conversación se guarde como una sesión con título automático (derivado de mi primer mensaje), para poder retomarla después | ✅ |
+| HU 9.3 | Como usuario, quiero ver mi historial de conversaciones agrupado por HOY / AYER / ANTES en un panel lateral | ✅ |
+| HU 9.4 | Como usuario, quiero renombrar una conversación manteniendo presionado su nombre en el historial | ✅ |
+| HU 9.5 | Como usuario, quiero que borrar una conversación pida confirmación explícita, porque perder todo el historial de esa conversación es irreversible | ✅ *(agregado en este rango — antes se borraba sin confirmar)* |
+| HU 9.6 | Como usuario, quiero iniciar una conversación nueva sin perder las anteriores | ✅ |
 
 ---
 

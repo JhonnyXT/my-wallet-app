@@ -61,7 +61,7 @@ npx skills install
 ```
 
 Esto lee `skills-lock.json` (raíz del proyecto) y descarga las 6 skills públicas:
-`systematic-debugging`, `react-native`, `expo-react-native-typescript`, `expo-react-native-performance`, `finishing-a-development-branch`, `test-driven-development`.
+`systematic-debugging`, `react-native`, `expo-react-native-typescript`, `expo-react-native-performance`, `finishing-a-development-branch`, `test-driven-development`, `apple-design`.
 
 > Si tu CLI no soporta `install` desde lockfile, usa `npx skills add <fuente>/<skill>` para cada entry de `skills-lock.json`.
 
@@ -380,6 +380,7 @@ my-wallet-app/
 | `expo-react-native-performance` | pproenca/dot-skills | Optimización de rendimiento RN |
 | `finishing-a-development-branch` | obra/superpowers | Workflow para cerrar branches |
 | `test-driven-development` | obra/superpowers | TDD para cuando se agreguen tests |
+| `apple-design` | dickwu/apple-design-skill | Revisión de UI/UX cross-platform basada en Apple HIG (adaptado para React Native) |
 
 ### Commands (`.cursor/commands/`)
 

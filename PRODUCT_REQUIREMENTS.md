@@ -224,7 +224,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 8.2 | Como usuario, quiero revisar y editar cada transacción detectada antes de confirmar que se guarde, para evitar errores | ✅ |
 | HU 8.3 | Como usuario, quiero ver un indicador de confianza (alto/medio/bajo) en cada transacción detectada, para saber cuáles necesitan más atención | ✅ |
 | HU 8.4 | Como usuario, quiero eliminar individualmente una transacción detectada que no quiero guardar, tocando el ícono de papelera en su tarjeta | ✅ |
-| HU 8.5 | Como usuario, quiero descartar todas las transacciones detectadas de una sola vez si no quiero guardar ninguna | ⚠️ Parcial — verificado contra código (2026-07-22): no hay un botón "descartar todo"; solo se puede lograr eliminando cada tarjeta una por una con el ícono de papelera (HU 8.4), o cerrando la pantalla con ← (lo cual NO limpia la cola: los mismos items reaparecen la próxima vez que se abre "Revisar registros") |
+| HU 8.5 | Como usuario, quiero descartar todas las transacciones detectadas de una sola vez si no quiero guardar ninguna | ✅ Botón 🗑️ en el header de "Revisar registros", con confirmación explícita (`ConfirmDialog`) antes de vaciar la cola |
 | HU 8.6 | Como usuario, quiero que la app me avise visualmente (badge rojo) cuando hay transacciones bancarias detectadas esperando revisión | ✅ |
 | HU 8.7 | Como usuario, quiero elegir qué bancos quiero que la app monitoree, para no recibir transacciones de cuentas que no me interesan | ✅ |
 | HU 8.8 | Como usuario, quiero que la detección de notificaciones respete mi privacidad: solo el monto y el comercio, nunca saldos ni números de tarjeta | ✅ |

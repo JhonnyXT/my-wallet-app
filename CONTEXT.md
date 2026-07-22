@@ -541,7 +541,10 @@ rápido, pero con tolerancia a typos (distancia de Levenshtein) para keywords de
 palabra de 5+ caracteres (ej. "almuerso" → matchea "almuerzo"). Palabras cortas (<5 chars) y
 keywords multi-palabra solo matchean exacto, para no generar falsos positivos. 100% offline,
 sin dependencias — se evaluó meter IA/LLM para esto y se descartó por romper la regla de
-offline-first (ver discusión completa archivada fuera del repo, sesión 2026-07-22).
+offline-first (ver discusión completa archivada fuera del repo, sesión 2026-07-22). También se
+usa en el filtro de texto libre de la barra de búsqueda del dashboard
+(`useDashboardSearch.ts`, sección "Pipeline de búsqueda") — se descartó Fuse.js como dependencia
+externa por el mismo principio de offline-first/sin-dependencias.
 
 **Post-procesamiento:**
 - `normalizeMoneyText(text)`: convierte `$40,000` → `$40.000` en el texto
@@ -897,11 +900,12 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 ### Notification Review (`app/notification-review.tsx`) *(nuevo en v1.5.0)*
 - Pantalla fullscreen modal para revisar transacciones detectadas automáticamente desde notificaciones bancarias
 - Diseño basado en la pantalla "Review Transactions (Light)" de Stitch
-- **Header:** flecha azul (ChevronLeft) + "Revisar registros" (bold 20px) + subtítulo "N transacciones detectadas"
+- **Header:** flecha azul (ChevronLeft) + "Revisar registros" (bold 20px) + subtítulo "N transacciones detectadas" + botón 🗑️ "Descartar todo" a la derecha
 - **FlatList** de `ReviewCard`s: icono de categoría en círculo + descripción + fila de metadatos (nombre categoría + badge tipo `↓ Gasto` rojo / `↑ Ingreso` verde) + monto + botón ✏️ + botón 🗑️
 - **Footer de la lista:** sección "¿Falta algo?" + "+ Añadir registro manual" (azul, abre `active-expense`)
 - **Botón ✏️** → navega a `active-expense.tsx?from=notification-edit` (reutiliza el formulario completo, no un sheet propio — a diferencia de `voice-batch-review.tsx`, que sí tiene su propio `EditItemSheet` inline)
-- **Botón 🗑️** → `handleDeleteItem(id)`: quita el item de la lista local y llama `removePendingItem(id)` del store — sin diálogo de confirmación
+- **Botón 🗑️ por item** → `handleDeleteItem(id)`: quita el item de la lista local y llama `removePendingItem(id)` del store — sin diálogo de confirmación
+- **Botón 🗑️ del header ("Descartar todo")** → `handleDiscardAll()`: vacía `items` y llama `clearAll()` del store — a diferencia del borrado individual, **sí** pide confirmación vía `ConfirmDialog` (mismo componente que usa `settings.tsx`/`chat.tsx`), porque perder toda la cola de una vez es una acción más costosa
 - **Footer sticky:** `"N REGISTROS · TOTAL $ X"` (letras espaciadas) + botón pill azul "Guardar todo"
 - **Estado vacío:** icono 🔕, mensaje explicativo, botón "Entendido"
 - Al guardar: `addTransactionBatch(items)` (con `date: new Date()`) + `clearAll()` (store) + `router.back()`. En caso de error, `Alert.alert` nativo

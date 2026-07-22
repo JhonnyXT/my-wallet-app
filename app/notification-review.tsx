@@ -26,6 +26,7 @@ import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { useTheme } from "@/src/context/ThemeContext";
 import { formatMoneyDisplay } from "@/src/utils/formatMoney";
+import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import type { AppTheme } from "@/src/theme";
 
 // ─── Tipo local para items editables ─────────────────────────────────────────
@@ -207,6 +208,15 @@ export default function NotificationReviewScreen() {
     removePendingItem(id);
   }, [removePendingItem]);
 
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+
+  const handleDiscardAll = useCallback(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setItems([]);
+    clearAll();
+    setShowDiscardConfirm(false);
+  }, [clearAll]);
+
   const handleSaveAll = useCallback(async () => {
     if (items.length === 0) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -275,6 +285,14 @@ export default function NotificationReviewScreen() {
             {items.length} transacci{items.length !== 1 ? "ones" : "ón"} detectada{items.length !== 1 ? "s" : ""}
           </Text>
         </View>
+        <TouchableOpacity
+          onPress={() => setShowDiscardConfirm(true)}
+          hitSlop={12}
+          accessibilityLabel="Descartar todo"
+          accessibilityRole="button"
+        >
+          <Trash2 size={20} color={theme.textSub} />
+        </TouchableOpacity>
       </View>
 
       {/* Lista de tarjetas */}
@@ -320,6 +338,16 @@ export default function NotificationReviewScreen() {
           <Text style={s.saveBtnText}>Guardar todo</Text>
         </TouchableOpacity>
       </View>
+
+      <ConfirmDialog
+        visible={showDiscardConfirm}
+        variant="danger"
+        title="¿Descartar todo?"
+        message="Se eliminarán todas las transacciones detectadas de esta cola. Esta acción no se puede deshacer."
+        confirmLabel="Descartar todo"
+        onConfirm={handleDiscardAll}
+        onCancel={() => setShowDiscardConfirm(false)}
+      />
 
     </SafeAreaView>
   );

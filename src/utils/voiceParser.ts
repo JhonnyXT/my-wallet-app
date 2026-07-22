@@ -4,6 +4,7 @@
  * Devuelve `null` en campos no detectados para no sobreescribir selecciones previas.
  */
 import type { ActiveExpense, DateOption } from "@/src/store/useExpenseStore";
+import { fuzzyIncludes } from "@/src/utils/fuzzyMatch";
 
 // ─── Mapa de categorías (gastos + ingresos) ───────────────────────────────────
 const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
@@ -276,13 +277,13 @@ function extractCategory(text: string, userCats?: import("@/src/constants/catego
   const n = normalize(text);
   if (userCats) {
     for (const cat of userCats) {
-      if (cat.keywords.some((kw) => n.includes(kw))) {
+      if (cat.keywords.some((kw) => fuzzyIncludes(n, normalize(kw)))) {
         return { emoji: cat.emoji, name: cat.name };
       }
     }
   }
   for (const cat of CATEGORY_MAP) {
-    if (cat.keywords.some((kw) => n.includes(kw))) {
+    if (cat.keywords.some((kw) => fuzzyIncludes(n, normalize(kw)))) {
       return { emoji: cat.emoji, name: cat.name };
     }
   }
@@ -305,7 +306,7 @@ function extractIsExpense(text: string): boolean | undefined {
     "dividendos", "rendimientos", "intereses",
     "reembolso", "devolucion", "bono",
   ];
-  if (incomeKeywords.some((kw) => n.includes(kw))) return false;
+  if (incomeKeywords.some((kw) => fuzzyIncludes(n, kw))) return false;
 
   const expenseKeywords = [
     "gaste", "gasto", "compre", "compra", "pague", "pago",
@@ -313,7 +314,7 @@ function extractIsExpense(text: string): boolean | undefined {
     "me costo", "me cobro",
     "sali a", "fui a",
   ];
-  if (expenseKeywords.some((kw) => n.includes(kw))) return true;
+  if (expenseKeywords.some((kw) => fuzzyIncludes(n, kw))) return true;
 
   return undefined;
 }

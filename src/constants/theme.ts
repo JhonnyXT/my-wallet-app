@@ -1,3 +1,5 @@
+import { fuzzyIncludes } from "@/src/utils/fuzzyMatch";
+
 export const COLORS = {
   primary: "#135bec",
   backgroundLight: "#f6f6f8",
@@ -134,12 +136,12 @@ export function guessCategoryEmoji(description: string, userCats?: import("@/src
 
   if (userCats) {
     for (const cat of userCats) {
-      if (cat.keywords.some((kw) => lower.includes(kw))) return cat.emoji;
+      if (cat.keywords.some((kw) => fuzzyIncludes(lower, kw))) return cat.emoji;
     }
   }
 
   for (const [keyword, emoji] of Object.entries(CATEGORY_MAP)) {
-    if (lower.includes(keyword)) return emoji;
+    if (fuzzyIncludes(lower, keyword)) return emoji;
   }
 
   return "💸";

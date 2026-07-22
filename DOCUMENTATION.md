@@ -425,6 +425,7 @@ Cuando se detecta una transacción, aparece un **badge rojo 🔔** sobre el íco
 - Cada transacción muestra el banco, la descripción, el monto
 - Puedes **editar** la transacción (monto, descripción, categoría, tipo)
 - Puedes **eliminar** una transacción con el ícono de papelera 🗑️ junto al de editar
+- Puedes **descartar todas de una vez** con el ícono de papelera 🗑️ del encabezado — pide confirmación antes de vaciar la cola
 - Cuando todo está listo, toca **"Guardar todo"**
 
 **¿Qué datos se procesan?**

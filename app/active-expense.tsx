@@ -26,7 +26,6 @@ import { checkAndNotifyBudget } from "@/src/services/notificationService";
 import { NewCategoryModal } from "@/app/category-onboarding";
 import type { UserCategory } from "@/src/constants/categoryPresets";
 import { processVoiceInput } from "@/src/utils/voiceParser";
-import { formatMoneyInput } from "@/src/utils/formatMoney";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
 
@@ -365,6 +364,11 @@ export default function ActiveExpenseScreen() {
 
   // ─── Parser reactivo: actualiza selectores en tiempo real ───────────────
   useEffect(() => {
+    // Edición de un item ya estructurado (notificación bancaria o batch de voz):
+    // los campos ya vienen correctos desde notification-review/voice-batch-review,
+    // no hay que re-parsear el texto libre y arriesgar sobreescribir el monto real.
+    if (fromBatchReview || fromNotificationEdit) return;
+
     const text = store.note?.trim() ?? "";
 
     // Texto vacío → solo resetear el monto (NO tocar isExpense ni categoría)
@@ -396,15 +400,19 @@ export default function ActiveExpenseScreen() {
   }, [store.note]);
 
   function handleAmountTap() {
+    // Dígitos sin formatear mientras se edita: si insertáramos puntos de miles en
+    // cada tecla, el TextInput controlado reformatearía el string completo en cada
+    // cambio y el cursor saltaría al final en Android, impidiendo editar un dígito
+    // en medio del monto. Los puntos de miles se muestran de nuevo al salir del
+    // campo (handleAmountBlur), cuando vuelve a mostrarse como texto estático.
     const current = store.amount > 0 ? String(Math.round(store.amount)) : "";
-    setAmountDisplay(formatMoneyInput(current));
+    setAmountDisplay(current);
     setAmountEditing(true);
     setTimeout(() => amountInputRef.current?.focus(), 50);
   }
 
   function handleAmountChange(text: string) {
-    const digits = text.replace(/\D/g, "");
-    setAmountDisplay(formatMoneyInput(digits));
+    setAmountDisplay(text.replace(/\D/g, ""));
   }
 
   function handleAmountBlur() {

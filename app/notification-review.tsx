@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
-import { ChevronLeft, Pencil, Check, BellOff, Plus } from "lucide-react-native";
+import { ChevronLeft, Pencil, Check, BellOff, Plus, Trash2 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 
 import { useNotificationStore, type PendingNotificationItem } from "@/src/store/useNotificationStore";
@@ -59,10 +59,11 @@ function pendingToReview(item: PendingNotificationItem): ReviewItem {
 // ─── ReviewCard — Diseño Stitch ──────────────────────────────────────────────
 
 function ReviewCard({
-  item, onEdit,
+  item, onEdit, onDelete,
 }: {
   item: ReviewItem;
   onEdit: (item: ReviewItem) => void;
+  onDelete: (id: string) => void;
 }) {
   const theme = useTheme();
 
@@ -105,6 +106,16 @@ function ReviewCard({
       >
         <Pencil size={14} color={theme.textSub} />
       </TouchableOpacity>
+
+      {/* Boton eliminar */}
+      <TouchableOpacity
+        style={cardS.deleteBtn}
+        onPress={() => onDelete(item.id)}
+        hitSlop={10}
+        activeOpacity={0.6}
+      >
+        <Trash2 size={14} color="#EF4444" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -116,7 +127,7 @@ export default function NotificationReviewScreen() {
   const insets = useSafeAreaInsets();
   const ACCENT = "#135BEC";
 
-  const { pendingItems, clearAll } = useNotificationStore();
+  const { pendingItems, clearAll, removePendingItem } = useNotificationStore();
   const { addTransactionBatch } = useFinanceStore();
 
   const [items, setItems] = useState<ReviewItem[]>(() => pendingItems.map(pendingToReview));
@@ -185,6 +196,12 @@ export default function NotificationReviewScreen() {
     setEditingItemId(item.id);
     router.push("/active-expense?from=notification-edit");
   }, [expenseStore]);
+
+  const handleDeleteItem = useCallback((id: string) => {
+    Haptics.selectionAsync();
+    setItems((prev) => prev.filter((i) => i.id !== id));
+    removePendingItem(id);
+  }, [removePendingItem]);
 
   const handleSaveAll = useCallback(async () => {
     if (items.length === 0) return;
@@ -264,6 +281,7 @@ export default function NotificationReviewScreen() {
           <ReviewCard
             item={item}
             onEdit={handleEdit}
+            onDelete={handleDeleteItem}
           />
         )}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 200 }}
@@ -365,6 +383,7 @@ const cardS = StyleSheet.create({
     paddingVertical: 14,
     paddingLeft: 14,
     paddingRight: 10,
+    gap: 2,
     borderRadius: 16,
     shadowColor: "#000",
     shadowOpacity: 0.04,
@@ -396,6 +415,13 @@ const cardS = StyleSheet.create({
   typeLabel: { fontSize: 10, fontWeight: "600" },
   amount: { fontSize: 16, fontWeight: "700", marginRight: 8 },
   editBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteBtn: {
     width: 28,
     height: 28,
     borderRadius: 8,

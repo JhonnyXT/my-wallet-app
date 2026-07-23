@@ -610,7 +610,9 @@ parseNotification(packageName, title, text)
 useNotificationStore.addPendingItem(parsed) — agrega a la cola (dedup <2 min)
     ↓
 notifyBankTransaction(amount, description, bankName, isExpense)
-    → Push notification del sistema: "-$140.000 detectado — Nubank · Toca para revisar"
+    → Push notification del sistema: título "Nuevo gasto detectado — Nubank" (sin monto),
+      cuerpo "$140.000 · Compra en Éxito" (monto + etiqueta corta de la acción,
+      via shortenDescription() — no la descripción completa)
     → data: { screen: "notification-review" } para deep link
     ↓ [usuario toca la notificación push]
 _layout.tsx addNotificationResponseReceivedListener → router.push("/notification-review")
@@ -625,13 +627,13 @@ addTransactionBatch() → se guardan en SQLite
 - **`intentClassifier.ts`** — clasifica la intención de la notificación ANTES de intentar extraer nada, en 5 categorías nombradas y priorizadas: `otp`, `security_alert`, `payment_reminder`, `marketing`, `app_update`. Si no matchea ninguna, se asume `possible_transaction` y se continúa. La categoría `payment_reminder` existe específicamente para filtrar recordatorios de pago pendiente (ej. Nu: "Tienes un pago por $X. Completa tu pago...") que mencionan un monto pero NO son transacciones confirmadas — antes se colaban como gasto real.
 - **`amountExtractor.ts`** — 6 patrones de mayor a menor especificidad: `$200.000,00`, `$1.234.567`, `$45000`, `200.000,00`, `45.000`, `45000`
 - **`directionClassifier.ts`** — gasto vs ingreso: keywords explícitas ya confirmadas (`compra`, `pagó`, `pagaste`, `recibiste`, `consignación`, etc. — NO la palabra suelta "pago", ambigua) → confidence `"high"`. Si no hay keyword: heurística → gasto, confidence `"medium"`
-- **`descriptionExtractor.ts`** — limpia el texto de la notificación (monto, saldo, fechas, frases fijas del banco) y devuelve la oración completa restante — no un fragmento tipo keyword
+- **`descriptionExtractor.ts`** — `extractDescription()` limpia el texto de la notificación (monto, saldo, fechas, frases fijas del banco) y devuelve la oración completa restante (no un fragmento tipo keyword) — es lo que se guarda en `ParsedTransaction.description` y lo que precarga la nota al editar en `notification-review.tsx`. `shortenDescription(description, isExpense)` la reduce además a una etiqueta corta ("Compra en RAPPI CO") solo para el cuerpo de la notificación push (`notifyBankTransaction`) — ver sección "Confidence-aware push" más abajo.
 - **`bankPatterns.ts`** — un patrón por banco (Bancolombia, Nequi, Davivienda/DaviPlata, Nu, y `GENERIC_PATTERN` para el resto), cada uno valida que el texto aplique (`matches`) y extrae monto/dirección con sus reglas propias, pero **todos** usan `extractDescription()` para el campo `description` — antes cada patrón capturaba con una regex angosta solo el nombre del comercio/contraparte (ej. "RAPPI CO." en vez de "Compra en RAPPI CO."); se simplificó para mostrar la descripción completa y limpia en `notification-review.tsx`, dejando la edición manual (botón ✏️) para cuando el usuario quiera acortarla
 - **`parseNotification.ts`** — orquesta el pipeline completo, es la API pública (`@/src/utils/notificationParser` resuelve a `index.ts`, que re-exporta esto)
 - **`fixtures.ts`** — 9 casos reales/sintéticos con resultado esperado, cubiertos uno a uno por `parseNotification.test.ts` (Jest, `it.each`)
 - **Score de confianza**: `"high"` (keyword explícita) / `"medium"` (heurística, incluye siempre `GENERIC_PATTERN`) / `"low"`
 - **Privacidad**: `rawTitle` limitado a 100 chars, `rawText` a 200 chars. Saldos, números de tarjeta y datos personales son descartados.
-- **Confidence-aware push**: `notifyBankTransaction()` (`notificationService.ts`) redacta el título distinto según `confidence` — `"detectado"` (asertivo) solo con `high`; a confirmar con `medium`/`low`. El item siempre requiere confirmación manual en `notification-review.tsx` antes de guardarse en SQLite.
+- **Confidence-aware push**: `notifyBankTransaction()` (`notificationService.ts`) redacta el título distinto según `confidence` — `"detectado"` (asertivo) solo con `high`; a confirmar (`"¿...?"`) con `medium`/`low`. El título es una etiqueta corta (tipo + banco, ej. "Nuevo gasto detectado — Bancolombia") sin el monto; el cuerpo usa el monto + `shortenDescription(description, isExpense)` (ej. "$45.000 · Compra en RAPPI CO"), que reduce la descripción completa a "verbo + preposición + contraparte" — el verbo lo decide `isExpense` (no la keyword del banco, ambigua entre bancos/direcciones), la contraparte se extrae de la última frase preposicional del texto. La descripción **completa** original no se pierde: sigue en `ParsedTransaction.description` y es la nota prellenada al editar el ítem (botón ✏️) en `notification-review.tsx`. El item siempre requiere confirmación manual antes de guardarse en SQLite.
 
 ### Configuración en AndroidManifest.xml (verificado contra el manifest fusionado real, 2026-07-13)
 ```xml

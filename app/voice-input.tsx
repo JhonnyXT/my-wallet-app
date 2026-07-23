@@ -55,10 +55,16 @@ let SpeechModule: {
   requestPermissionsAsync: () => Promise<{ granted: boolean }>;
   start: (opts: object) => void;
   stop: () => void;
-  addListener(event: "error", cb: (e: ExpoSpeechRecognitionErrorEvent) => void): {
+  addListener(
+    event: "error",
+    cb: (e: ExpoSpeechRecognitionErrorEvent) => void,
+  ): {
     remove: () => void;
   };
-  addListener(event: "result", cb: (e: ExpoSpeechRecognitionResultEvent) => void): {
+  addListener(
+    event: "result",
+    cb: (e: ExpoSpeechRecognitionResultEvent) => void,
+  ): {
     remove: () => void;
   };
   addListener(event: string, cb: (e: unknown) => void): { remove: () => void };

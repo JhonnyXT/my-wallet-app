@@ -25,3 +25,44 @@ export function extractDescription(text: string, bankName: string): string {
   // Capitalizar primera letra
   return clean.charAt(0).toUpperCase() + clean.slice(1);
 }
+
+/**
+ * Reduce una descripción ya limpia (`extractDescription`) a una etiqueta corta
+ * para la notificación push: "Compra en RAPPI CO", "Recibiste de Juan Pérez".
+ *
+ * El verbo (Compra/Pago/Retiro vs Recibiste/Ingreso/Consignación) lo decide
+ * `isExpense` — YA clasificado por `classifyDirection` — no una keyword suelta
+ * del texto. Bancos distintos frasean la misma acción distinto ("enviaron" es
+ * ingreso en Nequi cuando alguien te manda plata, pero sería gasto si el
+ * usuario es quien envía), así que solo `isExpense` decide la dirección; las
+ * keywords dentro de cada rama solo eligen el verbo más específico posible.
+ *
+ * La contraparte (comercio/persona) se extrae de la última frase preposicional
+ * ("en X" / "a X" / "de X" / "Comercio: X") del texto ya limpio. Si no hay
+ * ninguna, se devuelve solo el verbo — nunca texto vacío ni crashea.
+ */
+export function shortenDescription(description: string, isExpense: boolean): string {
+  const trimmed = description.replace(/\.+$/, "").trim();
+
+  let verb: string;
+  if (isExpense) {
+    if (/compra/i.test(trimmed)) verb = "Compra";
+    else if (/retiro/i.test(trimmed)) verb = "Retiro";
+    else if (/(pag(o|ó|aste)|envi(aste|ó))/i.test(trimmed)) verb = "Pago";
+    else verb = "Gasto";
+  } else {
+    if (/consignaci[oó]n/i.test(trimmed)) verb = "Consignación";
+    else if (/(recib|enviaron|te lleg)/i.test(trimmed)) verb = "Recibiste";
+    else verb = "Ingreso";
+  }
+
+  const counterpartMatch = trimmed.match(/(?:^|\s)(comercio:?|en|a|de)\s+([^.]+)$/i);
+  if (!counterpartMatch) return verb;
+
+  const preposition = counterpartMatch[1].toLowerCase().startsWith("comercio")
+    ? "en"
+    : counterpartMatch[1].toLowerCase();
+  const counterpart = counterpartMatch[2].trim();
+
+  return `${verb} ${preposition} ${counterpart}`;
+}

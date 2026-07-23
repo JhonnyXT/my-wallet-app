@@ -6,6 +6,7 @@ import * as Notifications from "expo-notifications";
 import { Linking, Platform } from "react-native";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { formatCOP } from "@/src/utils/formatMoney";
+import { shortenDescription } from "@/src/utils/notificationParser/descriptionExtractor";
 
 // Configura cómo se muestran las notificaciones cuando la app está en primer plano
 // shouldShowAlert: false → no muestra el banner in-app; solo la bandeja del sistema
@@ -194,6 +195,15 @@ export async function checkAndNotifyGoalCompleted(
  * que el parser realmente está. En ambos casos el item queda en la cola de
  * `notification-review` y nunca se guarda en el historial sin que el usuario
  * lo confirme ahí.
+ *
+ * El título es una etiqueta corta (tipo + banco), sin el monto. El cuerpo usa
+ * el monto + una etiqueta corta de la acción (`shortenDescription`, ej.
+ * "Compra en RAPPI CO" / "Recibiste de Juan Pérez") en vez de la descripción
+ * completa — el verbo lo decide `isExpense`, ya clasificado, no la keyword
+ * suelta del banco (que varía y puede ser ambigua, ej. "enviaron" es ingreso
+ * cuando alguien te manda plata). La descripción completa capturada del banco
+ * sigue viva en `ParsedTransaction.description` y aparece igual que antes
+ * como nota prellenada al editar el ítem en `notification-review.tsx`.
  */
 export async function notifyBankTransaction(
   amount: number,
@@ -205,22 +215,23 @@ export async function notifyBankTransaction(
   try {
     await ensureChannels();
 
-    const sign = isExpense ? "-" : "+";
     const amtStr = `$${Math.round(amount)
       .toString()
       .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+    const label = isExpense ? "gasto" : "ingreso";
     const title =
       confidence === "high"
-        ? `${sign}${amtStr} detectado — ${bankName}`
-        : `¿${sign}${amtStr} en ${bankName}?`;
+        ? `Nuevo ${label} detectado — ${bankName}`
+        : `¿Nuevo ${label}? — ${bankName}`;
+    const shortDesc = description ? shortenDescription(description, isExpense) : "";
     const body =
       confidence === "high"
-        ? description
-          ? `${description} · Toca para revisar`
-          : "Toca para revisar la transacción pendiente"
-        : description
-          ? `Posible ${description} · Confirma en la app`
-          : "No estamos seguros — confirma en la app";
+        ? shortDesc
+          ? `${amtStr} · ${shortDesc}`
+          : `${amtStr} · Toca para revisar`
+        : shortDesc
+          ? `${amtStr} · Posible ${shortDesc.charAt(0).toLowerCase() + shortDesc.slice(1)}`
+          : `${amtStr} · No estamos seguros — confirma en la app`;
 
     await Notifications.scheduleNotificationAsync({
       content: {

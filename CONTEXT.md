@@ -666,10 +666,14 @@ Como `android/` está en `.gitignore` (se regenera con `expo prebuild`), un fix 
 Este bug estaba latente sin detectar porque nadie había corrido `expo prebuild -p android` + build real en este repo antes (detectado y corregido 2026-07-13).
 
 ### Entrypoint: `index.js`
-El archivo `package.json` apunta `"main": "index.js"` (en lugar del default `expo-router/entry`). El `index.js` registra el HeadlessJS task **antes** de inicializar Expo Router, garantizando que el task esté disponible desde el inicio:
+El archivo `package.json` apunta `"main": "index.js"` (en lugar del default `expo-router/entry`) para poder registrar el HeadlessJS task, algo que `expo-router/entry` no hace por sí solo. En orden de imports, `import "expo-router/entry"` se evalúa antes que la llamada a `registerHeadlessTask` — pero esto no es un problema: ambas líneas terminan de ejecutarse durante la carga síncrona del bundle, mucho antes de que Android invoque el task via `AppRegistry.startHeadlessTask` (una llamada nativa posterior, no parte del arranque normal de la UI). Lo único que importa es que el registro ocurra en algún punto de `index.js`, no el orden relativo a Expo Router:
 ```javascript
-AppRegistry.registerHeadlessTask(RNAndroidNotificationListenerHeadlessJsName, () => notificationHeadlessTask);
 import "expo-router/entry";
+
+AppRegistry.registerHeadlessTask(
+  RNAndroidNotificationListenerHeadlessJsName,
+  () => notificationHeadlessTask,
+);
 ```
 
 ---

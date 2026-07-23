@@ -85,6 +85,7 @@ descubre sus comandos, subagentes y skills automáticamente de sus carpetas.
 | ORM | Sin ORM (SQL directo con placeholders) | — |
 | Auth | N/A (app local, sin servidor) | — |
 | Testing | Jest (utilidades puras y `notificationParser`; componentes/stores/`src/db/` fuera de alcance) | ^30.4.2 |
+| Lint / Format | ESLint (`eslint-config-expo`, flat config) + Prettier (`.md`/`.mdc`/`docs/` excluidos vía `.prettierignore`) | ^9.39.5 / ^3.9.6 |
 | Package manager | npm | — |
 | CI/CD | GitHub Actions (EAS Build/Update, workflow_dispatch) | — |
 | Notificaciones push | react-native-android-notification-listener (HeadlessJS) + expo-notifications (canales locales) | ^5.0.1 |

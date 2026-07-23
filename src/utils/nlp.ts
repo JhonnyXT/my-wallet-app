@@ -28,8 +28,16 @@ export function parseExpenseInput(raw: string, userCats?: UserCategory[]): Parse
 
   if (!amountMatch) return null;
 
-  const amountStr = amountMatch[0].replace(",", ".");
-  const amount = parseFloat(amountStr);
+  // Si el último separador va seguido de exactamente 3 dígitos ("15.000"), es
+  // notación de miles COP: quitar separadores y parsear como entero.
+  // Si va seguido de 1-2 dígitos ("4.50"), es decimal: normalizar a punto.
+  // parseFloat() a secas confunde ambos casos ("15.000" → 15, no 15000).
+  const matchedStr = amountMatch[0];
+  const lastSeparator = matchedStr.match(/[.,](\d+)$/);
+  const amount =
+    lastSeparator && lastSeparator[1].length === 3
+      ? parseInt(matchedStr.replace(/[.,]/g, ""), 10)
+      : parseFloat(matchedStr.replace(",", "."));
 
   if (isNaN(amount) || amount <= 0) return null;
 

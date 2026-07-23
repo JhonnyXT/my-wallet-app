@@ -78,7 +78,7 @@ descubre sus comandos, subagentes y skills automáticamente de sus carpetas.
 | Base de datos | expo-sqlite (WAL mode) | ^55.0.10 |
 | ORM | Sin ORM (SQL directo con placeholders) | — |
 | Auth | N/A (app local, sin servidor) | — |
-| Testing | No configurado | — |
+| Testing | Jest (utilidades puras y `notificationParser`; componentes/stores/`src/db/` fuera de alcance) | ^30.4.2 |
 | Package manager | npm | — |
 | CI/CD | GitHub Actions (EAS Build/Update, workflow_dispatch) | — |
 | Notificaciones push | react-native-android-notification-listener (HeadlessJS) + expo-notifications (canales locales) | ^5.0.1 |

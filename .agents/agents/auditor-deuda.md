@@ -28,7 +28,7 @@ Lee `src/`, `app/`, configs raíz y `package.json`. No asumas que algo es deuda 
 - `catch` vacíos que ocultan errores críticos.
 
 ### 5. Configuración
-- Falta de ESLint, Prettier, testing framework (ya documentado como deuda conocida — no repetir como hallazgo nuevo, solo recordar en el reporte).
+- Falta de ESLint y Prettier (ya documentado como deuda conocida — no repetir como hallazgo nuevo, solo recordar en el reporte). Testing ya no aplica acá: Jest cubre utilidades puras y `notificationParser`; sí sigue siendo deuda que componentes `.tsx`, stores y `src/db/` (SQLite) no tengan estrategia de testing.
 - Scripts faltantes en `package.json`.
 
 ### 6. TypeScript

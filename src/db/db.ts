@@ -124,14 +124,14 @@ export async function getMonthlyTotal(): Promise<number> {
  * Si cualquier inserción falla, se hace rollback completo (no queda estado parcial).
  */
 export async function insertTransactionBatch(
-  items: Array<{
+  items: {
     amount: number;
     description: string;
     categoryEmoji: string;
     tags?: string[];
     date?: Date;
     paymentMethod?: string;
-  }>
+  }[]
 ): Promise<TransactionRow[]> {
   const db = await getNativeDatabase();
   const inserted: TransactionRow[] = [];

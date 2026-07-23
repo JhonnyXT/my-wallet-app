@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef , useState } from "react";
 import {
   View,
   Text,
@@ -24,7 +24,6 @@ import { parseExpenseInput } from "@/src/utils/nlp";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useUIStore } from "@/src/store/useUIStore";
 import { COLORS } from "@/src/constants/theme";
-import { useState } from "react";
 
 export function FloatingInputOverlay() {
   const insets = useSafeAreaInsets();

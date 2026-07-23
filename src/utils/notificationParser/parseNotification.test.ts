@@ -1,6 +1,9 @@
 // db.ts arrastra expo-sqlite (módulo nativo, no ejecuta en Jest/Node). parseNotification
 // solo usa localISOString, que es pura — se mockea con la misma implementación real para
 // no traer SQLite a un test de lógica de parsing sin ninguna dependencia de base de datos.
+import { parseNotification } from "./parseNotification";
+import { NOTIFICATION_FIXTURES } from "./fixtures";
+
 jest.mock("@/src/db/db", () => ({
   localISOString: (date: Date = new Date()) => {
     const pad = (n: number) => String(n).padStart(2, "0");
@@ -8,9 +11,6 @@ jest.mock("@/src/db/db", () => ({
       `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.000`;
   },
 }));
-
-import { parseNotification } from "./parseNotification";
-import { NOTIFICATION_FIXTURES } from "./fixtures";
 
 describe("parseNotification — fixtures reales", () => {
   it.each(NOTIFICATION_FIXTURES)("$label", (fixture) => {

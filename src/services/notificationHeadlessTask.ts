@@ -28,7 +28,7 @@ interface RawNotification {
   audioContentsURI: string;
   imageBackgroundURI: string;
   extraInfoText: string;
-  groupedMessages: Array<{ title: string; text: string }>;
+  groupedMessages: { title: string; text: string }[];
   icon: string;
   image: string;
   time: string;

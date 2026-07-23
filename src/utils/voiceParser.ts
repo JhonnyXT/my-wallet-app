@@ -325,9 +325,9 @@ function extractIsExpense(text: string): boolean | undefined {
  * Encuentra los rangos (start, end) de todas las expresiones monetarias
  * distintas en el texto normalizado. Orden de prioridad: millones > mil > formateado > largo.
  */
-function findAmountSpans(text: string): Array<{ start: number; end: number }> {
+function findAmountSpans(text: string): { start: number; end: number }[] {
   const n = normalize(text);
-  const spans: Array<{ start: number; end: number }> = [];
+  const spans: { start: number; end: number }[] = [];
 
   // Números base en español (sin acentos, para trabajar con texto normalizado)
   const W =

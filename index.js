@@ -7,11 +7,11 @@ import { AppRegistry } from "react-native";
 import { RNAndroidNotificationListenerHeadlessJsName } from "react-native-android-notification-listener";
 import { notificationHeadlessTask } from "@/src/services/notificationHeadlessTask";
 
+// Expo Router como entrypoint normal de la app
+import "expo-router/entry";
+
 // Registrar el HeadlessJS task con el nombre exacto que usa la librería nativa
 AppRegistry.registerHeadlessTask(
   RNAndroidNotificationListenerHeadlessJsName,
   () => notificationHeadlessTask
 );
-
-// Expo Router como entrypoint normal de la app
-import "expo-router/entry";

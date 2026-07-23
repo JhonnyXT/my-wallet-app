@@ -218,7 +218,7 @@ export default function VoiceInputScreen() {
         router.replace("/voice-batch-review");
       }, 1000);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     [clearSilenceTimer, reset, setFinalTranscript, setFromVoice, setStatus,
      setPendingBatch, userCategories]
   );
@@ -269,7 +269,7 @@ export default function VoiceInputScreen() {
       clearSilenceTimer();
       subs.forEach((s) => s?.remove?.());
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [clearSilenceTimer, handleDone, setError, setStatus, setTranscript]);
 
   // ─── Iniciar al montar la pantalla ────────────────────────────────────────

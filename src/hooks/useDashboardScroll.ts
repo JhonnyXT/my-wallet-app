@@ -55,7 +55,7 @@ export function useDashboardScroll(
   // animationKey para re-animar barras cuando el filtro cambia
   const chartAnimKey = useMemo(
     () => `${typeFilter ?? "all"}-${periodFilterLabel(periodFilter)}`,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     [typeFilter, periodFilter],
   );
 

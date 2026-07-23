@@ -4,7 +4,7 @@
  * El usuario puede editar, eliminar y confirmar cada transacción antes de guardar.
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect , router } from "expo-router";
 import {
   View,
   Text,
@@ -23,7 +23,6 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
 import { ChevronLeft, ChevronRight, Pencil, Check, Trash2, Plus } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 

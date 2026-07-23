@@ -11,7 +11,7 @@ import type { NotificationIntent } from "./types";
  * nueva si el tipo de notificación es genuinamente distinto a los que ya
  * existen — no agregar categorías por cada banco.
  */
-const INTENT_RULES: ReadonlyArray<{ intent: NotificationIntent; patterns: RegExp[] }> = [
+const INTENT_RULES: readonly { intent: NotificationIntent; patterns: RegExp[] }[] = [
   {
     intent: "otp",
     patterns: [

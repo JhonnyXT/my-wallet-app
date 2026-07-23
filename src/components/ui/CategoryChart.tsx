@@ -13,10 +13,6 @@ import {
   TouchableOpacity, KeyboardAvoidingView, Platform, Pressable,
   StatusBar, Dimensions, LayoutAnimation, UIManager,
 } from "react-native";
-
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import ReAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -34,6 +30,10 @@ import { getCategoryColor, getCategoryName } from "@/src/constants/theme";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
 import { useTheme } from "@/src/context/ThemeContext";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 export interface CategoryStat {

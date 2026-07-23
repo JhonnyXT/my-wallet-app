@@ -14,35 +14,32 @@ import { Mic, Pause, Play, Sparkles, X } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
-    Dimensions,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Animated, {
-    Easing,
-    FadeIn,
-    FadeOut,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withTiming,
-    ZoomIn,
+  Easing,
+  FadeIn,
+  FadeOut,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+  ZoomIn,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useVoiceStore } from "@/src/store/useVoiceStore";
-import {
-    normalizeMoneyText,
-    processMultiVoiceInput
-} from "@/src/utils/voiceParser";
+import { normalizeMoneyText, processMultiVoiceInput } from "@/src/utils/voiceParser";
 
 const { width: SW } = Dimensions.get("window");
 const ORB_SIZE = 192;
@@ -71,19 +68,19 @@ function VoiceOrb({ isListening }: { isListening: boolean }) {
       pulse.value = withRepeat(
         withSequence(
           withTiming(1.14, { duration: 900, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1.0, { duration: 900, easing: Easing.inOut(Easing.ease) })
+          withTiming(1.0, { duration: 900, easing: Easing.inOut(Easing.ease) }),
         ),
         -1,
-        false
+        false,
       );
       pulse2.value = withRepeat(
         withSequence(
           withTiming(1.0, { duration: 450 }),
           withTiming(1.22, { duration: 900, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1.0, { duration: 900, easing: Easing.inOut(Easing.ease) })
+          withTiming(1.0, { duration: 900, easing: Easing.inOut(Easing.ease) }),
         ),
         -1,
-        false
+        false,
       );
     } else {
       pulse.value = withTiming(1, { duration: 300 });
@@ -150,15 +147,22 @@ function AnimatedWords({ text }: { text: string }) {
 export default function VoiceInputScreen() {
   const insets = useSafeAreaInsets();
   const {
-    status, transcript, finalTranscript,
-    errorMessage, setStatus, setTranscript,
-    setFinalTranscript, setError, reset, setPendingBatch,
+    status,
+    transcript,
+    finalTranscript,
+    errorMessage,
+    setStatus,
+    setTranscript,
+    setFinalTranscript,
+    setError,
+    reset,
+    setPendingBatch,
   } = useVoiceStore();
-  const setFromVoice   = useExpenseStore((s) => s.setFromVoice);
+  const setFromVoice = useExpenseStore((s) => s.setFromVoice);
   const userCategories = useSettingsStore((s) => s.userCategories);
 
-  const silenceTimer      = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const processingTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const processingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Prominent Disclosure micrófono ───────────────────────────────────────
   const MIC_DISCLOSED_KEY = "mywallet-mic-disclosed";
@@ -167,7 +171,9 @@ export default function VoiceInputScreen() {
   // Ref que siempre tiene el valor actual de status para los listeners
   // (evita el stale-closure bug en el evento "end")
   const statusRef = useRef(status);
-  useEffect(() => { statusRef.current = status; }, [status]);
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   const isListening = status === "listening";
   const isProcessing = status === "processing";
@@ -218,9 +224,16 @@ export default function VoiceInputScreen() {
         router.replace("/voice-batch-review");
       }, 1000);
     },
-     
-    [clearSilenceTimer, reset, setFinalTranscript, setFromVoice, setStatus,
-     setPendingBatch, userCategories]
+
+    [
+      clearSilenceTimer,
+      reset,
+      setFinalTranscript,
+      setFromVoice,
+      setStatus,
+      setPendingBatch,
+      userCategories,
+    ],
   );
 
   // ─── Listeners de voz ────────────────────────────────────────────────────
@@ -269,7 +282,6 @@ export default function VoiceInputScreen() {
       clearSilenceTimer();
       subs.forEach((s) => s?.remove?.());
     };
-   
   }, [clearSilenceTimer, handleDone, setError, setStatus, setTranscript]);
 
   // ─── Iniciar al montar la pantalla ────────────────────────────────────────
@@ -277,10 +289,14 @@ export default function VoiceInputScreen() {
     checkDisclosureAndStart();
     return () => {
       clearSilenceTimer();
-      try { SpeechModule?.stop(); } catch { /* ignore */ }
+      try {
+        SpeechModule?.stop();
+      } catch {
+        /* ignore */
+      }
       reset();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function checkDisclosureAndStart() {
@@ -330,7 +346,11 @@ export default function VoiceInputScreen() {
 
   function handleClose() {
     clearSilenceTimer();
-    try { SpeechModule?.stop(); } catch { /* ignore */ }
+    try {
+      SpeechModule?.stop();
+    } catch {
+      /* ignore */
+    }
     reset();
     router.back();
   }
@@ -338,20 +358,17 @@ export default function VoiceInputScreen() {
   // ─── Texto a mostrar ──────────────────────────────────────────────────────
   // En processing: mostrar el texto final confirmado
   // En listening:  mostrar el transcript parcial en tiempo real
-  const displayText = isProcessing
-    ? (finalTranscript || transcript)
-    : transcript;
+  const displayText = isProcessing ? finalTranscript || transcript : transcript;
 
-  const statusLabel =
-    isProcessing
-      ? "Analizando tu registro..."
-      : isListening
+  const statusLabel = isProcessing
+    ? "Analizando tu registro..."
+    : isListening
       ? "Transcribiendo..."
       : status === "error"
-      ? errorMessage ?? "No te escuché. ¿Puedes repetirlo?"
-      : transcript
-      ? "Toca para continuar o terminar"
-      : "Toca el micrófono para hablar";
+        ? (errorMessage ?? "No te escuché. ¿Puedes repetirlo?")
+        : transcript
+          ? "Toca para continuar o terminar"
+          : "Toca el micrófono para hablar";
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -372,7 +389,10 @@ export default function VoiceInputScreen() {
             <View style={micDiscS.btns}>
               <TouchableOpacity
                 style={micDiscS.btnCancel}
-                onPress={() => { setShowMicDisclosure(false); handleClose(); }}
+                onPress={() => {
+                  setShowMicDisclosure(false);
+                  handleClose();
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={micDiscS.btnCancelText}>Cancelar</Text>
@@ -419,10 +439,7 @@ export default function VoiceInputScreen() {
 
           {/* Badge "Procesando" */}
           {isProcessing && (
-            <Animated.View
-              entering={FadeIn.duration(200)}
-              style={styles.processingBadge}
-            >
+            <Animated.View entering={FadeIn.duration(200)} style={styles.processingBadge}>
               <Text style={styles.processingText}>✓ Procesado</Text>
             </Animated.View>
           )}
@@ -437,10 +454,7 @@ export default function VoiceInputScreen() {
             >
               {isProcessing ? (
                 // En processing: mostrar texto completo sin re-animar
-                <Animated.Text
-                  entering={FadeIn.duration(150)}
-                  style={styles.transcriptTextFull}
-                >
+                <Animated.Text entering={FadeIn.duration(150)} style={styles.transcriptTextFull}>
                   "{displayText}"
                 </Animated.Text>
               ) : (
@@ -453,13 +467,8 @@ export default function VoiceInputScreen() {
               )}
             </ScrollView>
           ) : (
-            <Animated.Text
-              entering={FadeIn.duration(300)}
-              style={styles.transcriptPlaceholder}
-            >
-              {status === "error"
-                ? ""
-                : "Di algo como:\n\"McDonald's 25 mil ayer\""}
+            <Animated.Text entering={FadeIn.duration(300)} style={styles.transcriptPlaceholder}>
+              {status === "error" ? "" : 'Di algo como:\n"McDonald\'s 25 mil ayer"'}
             </Animated.Text>
           )}
 
@@ -495,10 +504,10 @@ export default function VoiceInputScreen() {
           {isListening
             ? "TOCA PARA PAUSAR"
             : isProcessing
-            ? "PROCESANDO..."
-            : transcript
-            ? "TOCA PARA CONTINUAR"
-            : "TOCA PARA INICIAR"}
+              ? "PROCESANDO..."
+              : transcript
+                ? "TOCA PARA CONTINUAR"
+                : "TOCA PARA INICIAR"}
         </Text>
       </View>
     </View>
@@ -730,18 +739,25 @@ const micDiscS = StyleSheet.create({
     gap: 12,
     width: "100%",
   },
-  icon:  { fontSize: 32 },
+  icon: { fontSize: 32 },
   title: { fontSize: 18, fontWeight: "700", color: "#E6EDF3", textAlign: "center" },
-  body:  { fontSize: 14, color: "#8B949E", lineHeight: 21, textAlign: "center" },
-  btns:  { flexDirection: "row", gap: 12, marginTop: 4, width: "100%" },
+  body: { fontSize: 14, color: "#8B949E", lineHeight: 21, textAlign: "center" },
+  btns: { flexDirection: "row", gap: 12, marginTop: 4, width: "100%" },
   btnCancel: {
-    flex: 1, paddingVertical: 12, borderRadius: 12,
-    borderWidth: 1, borderColor: "#30363D", alignItems: "center",
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#30363D",
+    alignItems: "center",
   },
-  btnCancelText:  { fontSize: 15, fontWeight: "600", color: "#8B949E" },
+  btnCancelText: { fontSize: 15, fontWeight: "600", color: "#8B949E" },
   btnConfirm: {
-    flex: 1, paddingVertical: 12, borderRadius: 12,
-    backgroundColor: "#135BEC", alignItems: "center",
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#135BEC",
+    alignItems: "center",
   },
   btnConfirmText: { fontSize: 15, fontWeight: "700", color: "#fff" },
 });

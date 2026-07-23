@@ -8,9 +8,17 @@ import { HueColorPicker } from "@/src/components/ui/HueColorPicker";
 import { AUTO_DETECT_ENABLED_KEY, ALLOWED_BANKS_KEY } from "@/src/constants/banks";
 import { CURATED_EMOJIS, type UserCategory } from "@/src/constants/categoryPresets";
 import { useTheme } from "@/src/context/ThemeContext";
-import { checkAndNotifyGoalCompleted, requestNotificationPermissions } from "@/src/services/notificationService";
+import {
+  checkAndNotifyGoalCompleted,
+  requestNotificationPermissions,
+} from "@/src/services/notificationService";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
-import { useSettingsStore, type PaymentMethod, type PaymentMethodType, type SavingsGoal } from "@/src/store/useSettingsStore";
+import {
+  useSettingsStore,
+  type PaymentMethod,
+  type PaymentMethodType,
+  type SavingsGoal,
+} from "@/src/store/useSettingsStore";
 import type { AppTheme } from "@/src/theme";
 import { hexToHue, hueToColors } from "@/src/utils/colorUtils";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
@@ -20,37 +28,37 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { router } from "expo-router";
 import {
-    Check,
-    ChevronLeft,
-    ChevronRight,
-    CreditCard,
-    Download,
-    LayoutGrid,
-    Moon,
-    Pencil,
-    PiggyBank,
-    Plus,
-    Trash2,
-    Wallet,
-    X,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CreditCard,
+  Download,
+  LayoutGrid,
+  Moon,
+  Pencil,
+  PiggyBank,
+  Plus,
+  Trash2,
+  Wallet,
+  X,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    Animated,
-    AppState,
-    KeyboardAvoidingView,
-    Linking,
-    Modal,
-    PanResponder,
-    Pressable,
-    ScrollView,
-    Share,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Animated,
+  AppState,
+  KeyboardAvoidingView,
+  Linking,
+  Modal,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import RNAndroidNotificationListener from "react-native-android-notification-listener";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -58,16 +66,31 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 const APP_VERSION = Constants.expoConfig?.version ?? "1.0.0";
 
 const GOAL_EMOJIS = [
-  "✈️", "🏖️", "🏠", "🏡", "🎁", "🚗", "🎓", "💻",
-  "🎮", "👟", "💍", "🏥", "🐶", "🌍", "🎵", "🎯",
+  "✈️",
+  "🏖️",
+  "🏠",
+  "🏡",
+  "🎁",
+  "🚗",
+  "🎓",
+  "💻",
+  "🎮",
+  "👟",
+  "💍",
+  "🏥",
+  "🐶",
+  "🌍",
+  "🎵",
+  "🎯",
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatCOP(value: number): string {
   if (value <= 0) return "Sin configurar";
-  return `$ ${Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")} COP`;
+  return `$ ${Math.round(value)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".")} COP`;
 }
-
 
 // ─── Componentes de sección ───────────────────────────────────────────────────
 
@@ -104,7 +127,10 @@ function SettingRow({
         <Text style={[s.rowLabel, danger && { color: "#DC2626" }]}>{label}</Text>
         {subtitle ? <Text style={s.rowSub}>{subtitle}</Text> : null}
       </View>
-      {rightElement ?? (onPress ? <ChevronRight size={16} color={s.rowSub.color as string} strokeWidth={2} /> : null)}
+      {rightElement ??
+        (onPress ? (
+          <ChevronRight size={16} color={s.rowSub.color as string} strokeWidth={2} />
+        ) : null)}
     </TouchableOpacity>
   );
 }
@@ -149,37 +175,38 @@ function BudgetAlertSection({
   onToggle: (v: boolean) => void;
   onThresholdChange: (v: number) => void;
 }) {
-  const theme   = useTheme();
-  const THUMB   = 28;
-  const pct     = Math.min(100, Math.max(0, threshold));
+  const theme = useTheme();
+  const THUMB = 28;
+  const pct = Math.min(100, Math.max(0, threshold));
 
-  const trackWRef                     = useRef(0);
+  const trackWRef = useRef(0);
   const [trackWState, setTrackWState] = useState(0);
-  const [liveValue,   setLiveValue]   = useState(pct);
-  const offset                        = useRef(new Animated.Value(pct / 100)).current;
-  const trackPageX                    = useRef(0);
+  const [liveValue, setLiveValue] = useState(pct);
+  const offset = useRef(new Animated.Value(pct / 100)).current;
+  const trackPageX = useRef(0);
 
   // Sincronizar cuando threshold cambia desde el store
   useEffect(() => {
     setLiveValue(pct);
     offset.setValue(pct / 100);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pct]);
 
   const usableW = Math.max(0, trackWState - THUMB);
 
   /** gs.moveX - trackPageX.current = X relativa al track, siempre fiable */
   const toNorm = (absX: number) =>
-    Math.min(1, Math.max(0,
-      (absX - trackPageX.current - THUMB / 2) / Math.max(1, trackWRef.current - THUMB),
-    ));
+    Math.min(
+      1,
+      Math.max(0, (absX - trackPageX.current - THUMB / 2) / Math.max(1, trackWRef.current - THUMB)),
+    );
 
   const pan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder:        () => true,
+      onStartShouldSetPanResponder: () => true,
       onStartShouldSetPanResponderCapture: () => true,
       // Solo capturar si el movimiento es más horizontal que vertical (evita bloquear el scroll)
-      onMoveShouldSetPanResponder:        (_, gs) => Math.abs(gs.dx) > Math.abs(gs.dy),
+      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > Math.abs(gs.dy),
       onMoveShouldSetPanResponderCapture: (_, gs) => Math.abs(gs.dx) > Math.abs(gs.dy),
 
       onPanResponderGrant: (e) => {
@@ -196,7 +223,7 @@ function BudgetAlertSection({
         setLiveValue(Math.round(norm * 100));
       },
       onPanResponderRelease: (_, gs) => {
-        const norm     = toNorm(gs.moveX);
+        const norm = toNorm(gs.moveX);
         const finalPct = Math.round(norm * 100);
         offset.setValue(norm);
         setLiveValue(finalPct);
@@ -208,7 +235,6 @@ function BudgetAlertSection({
   return (
     <View style={{ marginBottom: 8 }}>
       <View style={[bAS.card, { backgroundColor: theme.surface }]}>
-
         {/* ── Toggle ─────────────────────────────────────────────────── */}
         <View style={bAS.row}>
           <View style={bAS.rowLeft}>
@@ -245,35 +271,45 @@ function BudgetAlertSection({
 
               {trackWState > 0 && (
                 <Animated.View
-                  style={[bAS.trackFill, {
-                    backgroundColor: "#EF4444",
-                    width: offset.interpolate({
-                      inputRange:  [0, 1],
-                      outputRange: [THUMB / 2, usableW + THUMB / 2],
-                      extrapolate: "clamp",
-                    }),
-                  }]}
+                  style={[
+                    bAS.trackFill,
+                    {
+                      backgroundColor: "#EF4444",
+                      width: offset.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [THUMB / 2, usableW + THUMB / 2],
+                        extrapolate: "clamp",
+                      }),
+                    },
+                  ]}
                 />
               )}
 
               {trackWState > 0 && (
                 <Animated.View
-                  style={[bAS.thumb, {
-                    width: THUMB, height: THUMB, borderRadius: THUMB / 2,
-                    backgroundColor: "#FFFFFF",
-                    elevation: 4,
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.22,
-                    shadowRadius: 3,
-                    transform: [{
-                      translateX: offset.interpolate({
-                        inputRange:  [0, 1],
-                        outputRange: [0, usableW],
-                        extrapolate: "clamp",
-                      }),
-                    }],
-                  }]}
+                  style={[
+                    bAS.thumb,
+                    {
+                      width: THUMB,
+                      height: THUMB,
+                      borderRadius: THUMB / 2,
+                      backgroundColor: "#FFFFFF",
+                      elevation: 4,
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.22,
+                      shadowRadius: 3,
+                      transform: [
+                        {
+                          translateX: offset.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, usableW],
+                            extrapolate: "clamp",
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
                 />
               )}
             </View>
@@ -291,20 +327,20 @@ function BudgetAlertSection({
 }
 
 const bAS = StyleSheet.create({
-  card:        { borderRadius: 16, padding: 16, marginBottom: 4 },
-  row:         { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  rowLeft:     { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
-  bell:        { fontSize: 18 },
-  label:       { fontSize: 15, fontWeight: "600" },
-  sep:         { height: 1, marginVertical: 14 },
-  sliderRow:   { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
+  card: { borderRadius: 16, padding: 16, marginBottom: 4 },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  rowLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
+  bell: { fontSize: 18 },
+  label: { fontSize: 15, fontWeight: "600" },
+  sep: { height: 1, marginVertical: 14 },
+  sliderRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
   sliderLabel: { fontSize: 13 },
-  sliderPct:   { fontSize: 14, fontWeight: "700" },
-  trackOuter:  { height: 26, justifyContent: "center", marginBottom: 10, position: "relative" },
-  trackBg:     { height: 4, borderRadius: 2, position: "absolute", left: 0, right: 0 },
-  trackFill:   { height: 4, borderRadius: 2, position: "absolute", left: 0 },
-  thumb:       { position: "absolute" },
-  hint:        { fontSize: 12, marginTop: 2, lineHeight: 17 },
+  sliderPct: { fontSize: 14, fontWeight: "700" },
+  trackOuter: { height: 26, justifyContent: "center", marginBottom: 10, position: "relative" },
+  trackBg: { height: 4, borderRadius: 2, position: "absolute", left: 0, right: 0 },
+  trackFill: { height: 4, borderRadius: 2, position: "absolute", left: 0 },
+  thumb: { position: "absolute" },
+  hint: { fontSize: 12, marginTop: 2, lineHeight: 17 },
 });
 
 function FullScreenModal({
@@ -321,7 +357,12 @@ function FullScreenModal({
   const insets = useSafeAreaInsets();
   const s = useStyles();
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
       <SafeAreaView style={[s.safe, { paddingTop: 0 }]} edges={["top"]}>
         <View style={s.header}>
           <TouchableOpacity onPress={onClose} style={s.backBtn} hitSlop={12} activeOpacity={0.65}>
@@ -366,15 +407,14 @@ function InputModal({
   const theme = useTheme();
   const isMoney = keyboardType === "numeric";
 
-  const toDisplay = (raw: string) =>
-    isMoney ? formatMoneyInput(raw) : raw;
+  const toDisplay = (raw: string) => (isMoney ? formatMoneyInput(raw) : raw);
 
   const [display, setDisplay] = useState(() => toDisplay(value));
 
   // Sincronizar cuando cambia el valor externo o el modal se abre
   useEffect(() => {
     if (visible) setDisplay(toDisplay(value));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, value]);
 
   const handleChange = (text: string) => {
@@ -397,12 +437,8 @@ function InputModal({
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
         <View style={s.modalCard}>
           <Text style={s.modalTitle}>{title}</Text>
-          {!!subtitle && (
-            <Text style={s.modalSubtitle}>{subtitle}</Text>
-          )}
-          {isMoney && (
-            <Text style={s.modalMoneyPrefix}>$</Text>
-          )}
+          {!!subtitle && <Text style={s.modalSubtitle}>{subtitle}</Text>}
+          {isMoney && <Text style={s.modalMoneyPrefix}>$</Text>}
           <TextInput
             style={[s.modalInput, isMoney && s.modalInputMoney]}
             value={display}
@@ -412,18 +448,12 @@ function InputModal({
             keyboardType={isMoney ? "number-pad" : keyboardType}
             autoFocus
           />
-          {isMoney && display.length > 0 && (
-            <Text style={s.modalMoneySuffix}>COP</Text>
-          )}
+          {isMoney && display.length > 0 && <Text style={s.modalMoneySuffix}>COP</Text>}
           <View style={s.modalBtns}>
             <TouchableOpacity style={s.modalBtnCancel} onPress={onClose} activeOpacity={0.7}>
               <Text style={s.modalBtnCancelText}>Cancelar</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={s.modalBtnConfirm}
-              onPress={handleConfirm}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={s.modalBtnConfirm} onPress={handleConfirm} activeOpacity={0.7}>
               <Text style={s.modalBtnConfirmText}>Guardar</Text>
             </TouchableOpacity>
           </View>
@@ -462,10 +492,18 @@ function SelectorModal<T extends string>({
           <View key={opt.key}>
             <TouchableOpacity
               style={s.sheetOption}
-              onPress={() => { onSelect(opt.key); onClose(); }}
+              onPress={() => {
+                onSelect(opt.key);
+                onClose();
+              }}
               activeOpacity={0.65}
             >
-              <Text style={[s.sheetOptionText, opt.key === selected && { color: theme.accent, fontWeight: "700" }]}>
+              <Text
+                style={[
+                  s.sheetOptionText,
+                  opt.key === selected && { color: theme.accent, fontWeight: "700" },
+                ]}
+              >
                 {opt.label}
               </Text>
               {opt.key === selected && <Check size={16} color={theme.accent} strokeWidth={2.5} />}
@@ -481,34 +519,40 @@ function SelectorModal<T extends string>({
 // ─── Sección: Métodos de pago ─────────────────────────────────────────────────
 
 const PAYMENT_TYPE_OPTIONS: { key: PaymentMethodType; label: string }[] = [
-  { key: "cash",    label: "💵 Efectivo" },
-  { key: "debit",   label: "💳 Débito / Tarjeta" },
+  { key: "cash", label: "💵 Efectivo" },
+  { key: "debit", label: "💳 Débito / Tarjeta" },
   { key: "savings", label: "🐷 Ahorros" },
 ];
 
 function PaymentMethodsSection() {
   const s = useStyles();
-  const methods           = useSettingsStore((s) => s.paymentMethods);
-  const addMethod         = useSettingsStore((s) => s.addPaymentMethod);
-  const updateMethod      = useSettingsStore((s) => s.updatePaymentMethod);
-  const removeMethod      = useSettingsStore((s) => s.removePaymentMethod);
+  const methods = useSettingsStore((s) => s.paymentMethods);
+  const addMethod = useSettingsStore((s) => s.addPaymentMethod);
+  const updateMethod = useSettingsStore((s) => s.updatePaymentMethod);
+  const removeMethod = useSettingsStore((s) => s.removePaymentMethod);
 
   const [editTarget, setEditTarget] = useState<PaymentMethod | null>(null);
-  const [editName,   setEditName]   = useState("");
-  const [editType,   setEditType]   = useState<PaymentMethodType>("cash");
-  const [typeSheet,  setTypeSheet]  = useState(false);
-  const [nameModal,  setNameModal]  = useState(false);
-  const [addMode,    setAddMode]    = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editType, setEditType] = useState<PaymentMethodType>("cash");
+  const [typeSheet, setTypeSheet] = useState(false);
+  const [nameModal, setNameModal] = useState(false);
+  const [addMode, setAddMode] = useState(false);
 
   const [deleteDialog, setDeleteDialog] = useState<{ id: string; name: string } | null>(null);
   const [minMethodAlert, setMinMethodAlert] = useState(false);
 
   function openEdit(m: PaymentMethod) {
-    setEditTarget(m); setEditName(m.name); setEditType(m.type);
+    setEditTarget(m);
+    setEditName(m.name);
+    setEditType(m.type);
   }
 
   function openAdd() {
-    setEditTarget(null); setEditName(""); setEditType("cash"); setAddMode(true); setNameModal(true);
+    setEditTarget(null);
+    setEditName("");
+    setEditType("cash");
+    setAddMode(true);
+    setNameModal(true);
   }
 
   function saveEdit(name: string) {
@@ -547,11 +591,7 @@ function PaymentMethodsSection() {
               <Text style={s.rowLabel}>{m.name}</Text>
               <Text style={s.rowSub}>{typeLabel(m.type)}</Text>
             </View>
-            <TouchableOpacity
-              onPress={() => openEdit(m)}
-              style={s.payAction}
-              hitSlop={8}
-            >
+            <TouchableOpacity onPress={() => openEdit(m)} style={s.payAction} hitSlop={8}>
               <Pencil size={15} color={s.rowSub.color as string} strokeWidth={2} />
             </TouchableOpacity>
             <TouchableOpacity
@@ -579,7 +619,11 @@ function PaymentMethodsSection() {
         placeholder="Ej: Nequi, Bancolombia…"
         value={editName}
         onConfirm={saveEdit}
-        onClose={() => { setNameModal(false); setEditTarget(null); setAddMode(false); }}
+        onClose={() => {
+          setNameModal(false);
+          setEditTarget(null);
+          setAddMode(false);
+        }}
       />
 
       {/* Selector de tipo */}
@@ -598,7 +642,10 @@ function PaymentMethodsSection() {
         title="Eliminar método"
         message={`¿Seguro que quieres eliminar "${deleteDialog?.name ?? ""}"?`}
         confirmLabel="Eliminar"
-        onConfirm={() => { if (deleteDialog) removeMethod(deleteDialog.id); setDeleteDialog(null); }}
+        onConfirm={() => {
+          if (deleteDialog) removeMethod(deleteDialog.id);
+          setDeleteDialog(null);
+        }}
         onCancel={() => setDeleteDialog(null)}
       />
 
@@ -618,16 +665,20 @@ function PaymentMethodsSection() {
 // ─── Popup: Nueva Meta ────────────────────────────────────────────────────────
 
 function NuevaMetaModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const s               = useStyles();
-  const theme           = useTheme();
-  const addSavingsGoal  = useSettingsStore((st) => st.addSavingsGoal);
+  const s = useStyles();
+  const theme = useTheme();
+  const addSavingsGoal = useSettingsStore((st) => st.addSavingsGoal);
 
   const [selectedEmoji, setSelectedEmoji] = useState("✈️");
-  const [name,          setName]          = useState("");
+  const [name, setName] = useState("");
   const [targetDisplay, setTargetDisplay] = useState("");
 
   useEffect(() => {
-    if (!visible) { setSelectedEmoji("✈️"); setName(""); setTargetDisplay(""); }
+    if (!visible) {
+      setSelectedEmoji("✈️");
+      setName("");
+      setTargetDisplay("");
+    }
   }, [visible]);
 
   const canCreate = name.trim().length > 0 && targetDisplay.replace(/\D/g, "").length > 0;
@@ -635,16 +686,18 @@ function NuevaMetaModal({ visible, onClose }: { visible: boolean; onClose: () =>
   const handleCreate = () => {
     const target = parseInt(targetDisplay.replace(/\D/g, ""), 10);
     if (!name.trim() || !target) return;
-    addSavingsGoal({ name: name.trim(), emoji: selectedEmoji, targetAmount: target, savedAmount: 0 });
+    addSavingsGoal({
+      name: name.trim(),
+      emoji: selectedEmoji,
+      targetAmount: target,
+      savedAmount: 0,
+    });
     onClose();
   };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={s.modalOverlay}
-        behavior="padding"
-      >
+      <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
         <View style={[s.modalCard, { gap: 20 }]}>
           {/* Título */}
@@ -664,11 +717,12 @@ function NuevaMetaModal({ visible, onClose }: { visible: boolean; onClose: () =>
                     onPress={() => setSelectedEmoji(e)}
                     activeOpacity={0.7}
                     style={{
-                      width: 46, height: 46, borderRadius: 23,
-                      backgroundColor: selectedEmoji === e
-                        ? theme.accent + "22"
-                        : theme.inputBg,
-                      alignItems: "center", justifyContent: "center",
+                      width: 46,
+                      height: 46,
+                      borderRadius: 23,
+                      backgroundColor: selectedEmoji === e ? theme.accent + "22" : theme.inputBg,
+                      alignItems: "center",
+                      justifyContent: "center",
                       borderWidth: selectedEmoji === e ? 2 : 0,
                       borderColor: selectedEmoji === e ? theme.accent : "transparent",
                     }}
@@ -701,9 +755,7 @@ function NuevaMetaModal({ visible, onClose }: { visible: boolean; onClose: () =>
               <TextInput
                 style={s.goalAmountInput}
                 value={targetDisplay}
-                onChangeText={(t) =>
-                  setTargetDisplay(formatMoneyInput(t.replace(/\D/g, "")))
-                }
+                onChangeText={(t) => setTargetDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
                 placeholder="0"
                 placeholderTextColor={theme.textSub}
                 keyboardType="number-pad"
@@ -723,7 +775,9 @@ function NuevaMetaModal({ visible, onClose }: { visible: boolean; onClose: () =>
               disabled={!canCreate}
               activeOpacity={0.7}
             >
-              <Text style={canCreate ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>Crear</Text>
+              <Text style={canCreate ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>
+                Crear
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -743,26 +797,32 @@ function AbonarMetaModal({
   visible: boolean;
   onClose: () => void;
 }) {
-  const s                 = useStyles();
-  const theme             = useTheme();
+  const s = useStyles();
+  const theme = useTheme();
   const updateSavingsGoal = useSettingsStore((st) => st.updateSavingsGoal);
-  const addTransaction    = useFinanceStore((st) => st.addTransaction);
+  const addTransaction = useFinanceStore((st) => st.addTransaction);
 
   const [abonoDisplay, setAbonoDisplay] = useState("");
 
-  useEffect(() => { if (!visible) setAbonoDisplay(""); }, [visible]);
+  useEffect(() => {
+    if (!visible) setAbonoDisplay("");
+  }, [visible]);
 
   if (!goal) return null;
 
-  const abono        = parseInt(abonoDisplay.replace(/\D/g, ""), 10) || 0;
-  const currentPct   = goal.targetAmount > 0
-    ? Math.min(100, (goal.savedAmount / goal.targetAmount) * 100) : 0;
-  const projectedPct = goal.targetAmount > 0
-    ? Math.min(100, ((goal.savedAmount + abono) / goal.targetAmount) * 100) : 0;
-  const deltaPct     = Math.round(projectedPct - currentPct);
+  const abono = parseInt(abonoDisplay.replace(/\D/g, ""), 10) || 0;
+  const currentPct =
+    goal.targetAmount > 0 ? Math.min(100, (goal.savedAmount / goal.targetAmount) * 100) : 0;
+  const projectedPct =
+    goal.targetAmount > 0
+      ? Math.min(100, ((goal.savedAmount + abono) / goal.targetAmount) * 100)
+      : 0;
+  const deltaPct = Math.round(projectedPct - currentPct);
 
   const fmt = (v: number) =>
-    `$${Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+    `$${Math.round(v)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 
   const handleAbonar = async () => {
     if (abono <= 0 || !goal) return;
@@ -779,16 +839,15 @@ function AbonarMetaModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={s.modalOverlay}
-        behavior="padding"
-      >
+      <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
         <View style={[s.modalCard, { gap: 16 }]}>
           {/* Título */}
           <View style={{ gap: 3 }}>
             <Text style={s.modalTitle}>Abonar a meta</Text>
-            <Text style={s.rowSub}>{goal.emoji} {goal.name}</Text>
+            <Text style={s.rowSub}>
+              {goal.emoji} {goal.name}
+            </Text>
           </View>
 
           {/* Campo de monto */}
@@ -797,9 +856,7 @@ function AbonarMetaModal({
             <TextInput
               style={[s.goalAmountInput, { fontSize: 28, fontWeight: "800", letterSpacing: -0.5 }]}
               value={abonoDisplay}
-              onChangeText={(t) =>
-                setAbonoDisplay(formatMoneyInput(t.replace(/\D/g, "")))
-              }
+              onChangeText={(t) => setAbonoDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
               placeholder="0"
               placeholderTextColor={theme.textSub}
               keyboardType="number-pad"
@@ -823,7 +880,14 @@ function AbonarMetaModal({
                 {fmt(goal.targetAmount)}
               </Text>
             </View>
-            <View style={{ height: 8, backgroundColor: theme.inputBg, borderRadius: 4, overflow: "hidden" }}>
+            <View
+              style={{
+                height: 8,
+                backgroundColor: theme.inputBg,
+                borderRadius: 4,
+                overflow: "hidden",
+              }}
+            >
               <View
                 style={{
                   height: 8,
@@ -834,7 +898,14 @@ function AbonarMetaModal({
               />
             </View>
             {abono > 0 && deltaPct > 0 && (
-              <Text style={{ fontSize: 12, fontWeight: "600", color: theme.accent, textAlign: "center" }}>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: theme.accent,
+                  textAlign: "center",
+                }}
+              >
                 +{deltaPct}% con este abono
               </Text>
             )}
@@ -851,7 +922,9 @@ function AbonarMetaModal({
               disabled={abono <= 0}
               activeOpacity={0.7}
             >
-              <Text style={abono > 0 ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>Abonar</Text>
+              <Text style={abono > 0 ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>
+                Abonar
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -876,17 +949,19 @@ function SwipeableGoalItem({
   onAbonar: () => void;
 }) {
   const theme = useTheme();
-  const s     = useStyles();
+  const s = useStyles();
 
-  const pct  = goal.targetAmount > 0
-    ? Math.min(100, (goal.savedAmount / goal.targetAmount) * 100) : 0;
+  const pct =
+    goal.targetAmount > 0 ? Math.min(100, (goal.savedAmount / goal.targetAmount) * 100) : 0;
   const done = pct >= 100;
 
   const fmt = (v: number) =>
-    `$${Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+    `$${Math.round(v)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 
   const translateX = useRef(new Animated.Value(0)).current;
-  const isOpen     = useRef(false);
+  const isOpen = useRef(false);
 
   const spring = (toValue: number) =>
     Animated.spring(translateX, {
@@ -898,30 +973,34 @@ function SwipeableGoalItem({
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) =>
-        Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
       onPanResponderMove: (_, g) => {
         const base = isOpen.current ? -DELETE_W : 0;
         translateX.setValue(Math.min(0, base + g.dx));
       },
       onPanResponderRelease: (_, g) => {
         if (isOpen.current) {
-          g.dx > 20 ? (isOpen.current = false, spring(0)) : spring(-DELETE_W);
+          g.dx > 20 ? ((isOpen.current = false), spring(0)) : spring(-DELETE_W);
         } else {
-          if (g.dx < -SWIPE_THRESH) { isOpen.current = true; spring(-DELETE_W); }
-          else spring(0);
+          if (g.dx < -SWIPE_THRESH) {
+            isOpen.current = true;
+            spring(-DELETE_W);
+          } else spring(0);
         }
       },
-    })
+    }),
   ).current;
 
   function handleDelete() {
-    Animated.timing(translateX, { toValue: -400, duration: 200, useNativeDriver: true })
-      .start(() => onDelete());
+    Animated.timing(translateX, { toValue: -400, duration: 200, useNativeDriver: true }).start(() =>
+      onDelete(),
+    );
   }
 
   return (
-    <View style={[swipeGoalSt.wrapper, { backgroundColor: theme.isDark ? theme.itemBg : "#FFFFFF" }]}>
+    <View
+      style={[swipeGoalSt.wrapper, { backgroundColor: theme.isDark ? theme.itemBg : "#FFFFFF" }]}
+    >
       {/* Botón eliminar — detrás */}
       <View style={swipeGoalSt.deleteArea}>
         <TouchableOpacity style={swipeGoalSt.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
@@ -941,8 +1020,12 @@ function SwipeableGoalItem({
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             <Text style={{ fontSize: 28 }}>{goal.emoji}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: "700", color: "#059669" }}>¡Meta alcanzada!</Text>
-              <Text style={{ fontSize: 13, color: theme.textSub, marginTop: 2 }}>Ahorro completado con éxito</Text>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: "#059669" }}>
+                ¡Meta alcanzada!
+              </Text>
+              <Text style={{ fontSize: 13, color: theme.textSub, marginTop: 2 }}>
+                Ahorro completado con éxito
+              </Text>
             </View>
             <Text style={{ fontSize: 22 }}>🎉</Text>
           </View>
@@ -954,19 +1037,42 @@ function SwipeableGoalItem({
                 {goal.name}
               </Text>
               <TouchableOpacity
-                style={{ backgroundColor: "#135BEC", paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 }}
+                style={{
+                  backgroundColor: "#135BEC",
+                  paddingHorizontal: 14,
+                  paddingVertical: 6,
+                  borderRadius: 20,
+                }}
                 onPress={onAbonar}
                 activeOpacity={0.75}
               >
                 <Text style={{ fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>Abonar</Text>
               </TouchableOpacity>
             </View>
-            <View style={{ height: 6, backgroundColor: theme.inputBg, borderRadius: 3, overflow: "hidden" }}>
-              <View style={{ height: 6, width: `${pct}%` as `${number}%`, backgroundColor: "#135BEC", borderRadius: 3 }} />
+            <View
+              style={{
+                height: 6,
+                backgroundColor: theme.inputBg,
+                borderRadius: 3,
+                overflow: "hidden",
+              }}
+            >
+              <View
+                style={{
+                  height: 6,
+                  width: `${pct}%` as `${number}%`,
+                  backgroundColor: "#135BEC",
+                  borderRadius: 3,
+                }}
+              />
             </View>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={{ fontSize: 12, color: theme.textSub }}>{fmt(goal.savedAmount)} / {fmt(goal.targetAmount)}</Text>
-              <Text style={{ fontSize: 12, fontWeight: "700", color: "#135BEC" }}>{Math.round(pct)}%</Text>
+              <Text style={{ fontSize: 12, color: theme.textSub }}>
+                {fmt(goal.savedAmount)} / {fmt(goal.targetAmount)}
+              </Text>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#135BEC" }}>
+                {Math.round(pct)}%
+              </Text>
             </View>
           </>
         )}
@@ -1043,66 +1149,168 @@ function EditCategoryModal({
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
-      <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", paddingHorizontal: 28 }} onPress={onClose}>
-        <View style={{ width: "100%", backgroundColor: theme.surface, borderRadius: 22, padding: 24, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20, elevation: 20 }}>
-          <Pressable>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <Text style={{ fontSize: 20, fontWeight: "700", color: theme.text }}>Editar categoría</Text>
-              <TouchableOpacity onPress={onClose} activeOpacity={0.6}><Text style={{ fontSize: 20, color: theme.textSub, padding: 4 }}>✕</Text></TouchableOpacity>
-            </View>
-
-            <Text style={{ fontSize: 11, fontWeight: "700", color: theme.textSub, letterSpacing: 1, marginBottom: 10 }}>ÍCONO</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
-              {CURATED_EMOJIS.map(e => (
-                <TouchableOpacity
-                  key={e}
-                  onPress={() => setEmoji(e)}
-                  style={[
-                    { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", marginRight: 8, backgroundColor: theme.inputBg },
-                    e === emoji && { backgroundColor: "#DBEAFE", borderWidth: 2, borderColor: "#135BEC" },
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <Text style={{ fontSize: 22 }}>{e}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <Text style={{ fontSize: 11, fontWeight: "700", color: theme.textSub, letterSpacing: 1, marginBottom: 10, marginTop: 16 }}>COLOR DE TEMA</Text>
-            <HueColorPicker
-              hue={hue}
-              onChange={setHue}
-              previewEmoji={emoji}
-              style={{ marginBottom: 4 }}
-            />
-
-            <Text style={{ fontSize: 11, fontWeight: "700", color: theme.textSub, letterSpacing: 1, marginBottom: 10, marginTop: 16 }}>NOMBRE</Text>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Ej. Gimnasio"
-              placeholderTextColor={theme.textTertiary}
-              style={{ backgroundColor: theme.inputBg, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: theme.text }}
-              maxLength={24}
-              autoCapitalize="words"
-            />
-
-            <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
-              <TouchableOpacity onPress={onClose} activeOpacity={0.6} style={{ paddingVertical: 12, paddingHorizontal: 16 }}>
-                <Text style={{ fontSize: 15, fontWeight: "600", color: theme.textSub }}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSave}
-                activeOpacity={0.85}
-                disabled={!name.trim()}
-                style={[{ backgroundColor: "#135BEC", paddingVertical: 12, paddingHorizontal: 24, borderRadius: 14 }, !name.trim() && { opacity: 0.4 }]}
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "center",
+            alignItems: "center",
+            paddingHorizontal: 28,
+          }}
+          onPress={onClose}
+        >
+          <View
+            style={{
+              width: "100%",
+              backgroundColor: theme.surface,
+              borderRadius: 22,
+              padding: 24,
+              shadowColor: "#000",
+              shadowOpacity: 0.15,
+              shadowRadius: 20,
+              elevation: 20,
+            }}
+          >
+            <Pressable>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 20,
+                }}
               >
-                <Text style={{ color: "#FFF", fontSize: 15, fontWeight: "700" }}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </View>
-      </Pressable>
+                <Text style={{ fontSize: 20, fontWeight: "700", color: theme.text }}>
+                  Editar categoría
+                </Text>
+                <TouchableOpacity onPress={onClose} activeOpacity={0.6}>
+                  <Text style={{ fontSize: 20, color: theme.textSub, padding: 4 }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "700",
+                  color: theme.textSub,
+                  letterSpacing: 1,
+                  marginBottom: 10,
+                }}
+              >
+                ÍCONO
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginBottom: 4 }}
+              >
+                {CURATED_EMOJIS.map((e) => (
+                  <TouchableOpacity
+                    key={e}
+                    onPress={() => setEmoji(e)}
+                    style={[
+                      {
+                        width: 44,
+                        height: 44,
+                        borderRadius: 12,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginRight: 8,
+                        backgroundColor: theme.inputBg,
+                      },
+                      e === emoji && {
+                        backgroundColor: "#DBEAFE",
+                        borderWidth: 2,
+                        borderColor: "#135BEC",
+                      },
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontSize: 22 }}>{e}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "700",
+                  color: theme.textSub,
+                  letterSpacing: 1,
+                  marginBottom: 10,
+                  marginTop: 16,
+                }}
+              >
+                COLOR DE TEMA
+              </Text>
+              <HueColorPicker
+                hue={hue}
+                onChange={setHue}
+                previewEmoji={emoji}
+                style={{ marginBottom: 4 }}
+              />
+
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "700",
+                  color: theme.textSub,
+                  letterSpacing: 1,
+                  marginBottom: 10,
+                  marginTop: 16,
+                }}
+              >
+                NOMBRE
+              </Text>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                placeholder="Ej. Gimnasio"
+                placeholderTextColor={theme.textTertiary}
+                style={{
+                  backgroundColor: theme.inputBg,
+                  borderRadius: 14,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  fontSize: 15,
+                  color: theme.text,
+                }}
+                maxLength={24}
+                autoCapitalize="words"
+              />
+
+              <View
+                style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12, marginTop: 24 }}
+              >
+                <TouchableOpacity
+                  onPress={onClose}
+                  activeOpacity={0.6}
+                  style={{ paddingVertical: 12, paddingHorizontal: 16 }}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: "600", color: theme.textSub }}>
+                    Cancelar
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSave}
+                  activeOpacity={0.85}
+                  disabled={!name.trim()}
+                  style={[
+                    {
+                      backgroundColor: "#135BEC",
+                      paddingVertical: 12,
+                      paddingHorizontal: 24,
+                      borderRadius: 14,
+                    },
+                    !name.trim() && { opacity: 0.4 },
+                  ]}
+                >
+                  <Text style={{ color: "#FFF", fontSize: 15, fontWeight: "700" }}>Guardar</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </View>
+        </Pressable>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -1110,13 +1318,13 @@ function EditCategoryModal({
 
 // ─── Sección principal de metas ───────────────────────────────────────────────
 function SavingsGoalsSection() {
-  const s                = useStyles();
-  const theme            = useTheme();
-  const savingsGoals     = useSettingsStore((st) => st.savingsGoals);
+  const s = useStyles();
+  const theme = useTheme();
+  const savingsGoals = useSettingsStore((st) => st.savingsGoals);
   const removeSavingsGoal = useSettingsStore((st) => st.removeSavingsGoal);
 
   const [showNuevaMeta, setShowNuevaMeta] = useState(false);
-  const [abonarGoal,    setAbonarGoal]    = useState<SavingsGoal | null>(null);
+  const [abonarGoal, setAbonarGoal] = useState<SavingsGoal | null>(null);
 
   return (
     <>
@@ -1175,11 +1383,11 @@ function SavingsGoalsSection() {
 // ─── Sección: Detección automática de transacciones ──────────────────────────
 
 function AutoDetectSection() {
-  const s     = useStyles();
+  const s = useStyles();
   const theme = useTheme();
   const ACCENT = "#135BEC";
 
-  const [enabled,      setEnabled]      = useState(false);
+  const [enabled, setEnabled] = useState(false);
   const [allowedBanks, setAllowedBanks] = useState<string[]>([]);
   const [hasPermission, setHasPermission] = useState(false);
   const [showPermDialog, setShowPermDialog] = useState(false);
@@ -1189,7 +1397,7 @@ function AutoDetectSection() {
   useEffect(() => {
     (async () => {
       const savedEnabled = await AsyncStorage.getItem(AUTO_DETECT_ENABLED_KEY);
-      const savedBanks   = await AsyncStorage.getItem(ALLOWED_BANKS_KEY);
+      const savedBanks = await AsyncStorage.getItem(ALLOWED_BANKS_KEY);
       if (savedEnabled === "true") setEnabled(true);
       if (savedBanks) {
         try {
@@ -1236,34 +1444,40 @@ function AutoDetectSection() {
     }
   }, []);
 
-  const handleToggle = useCallback(async (value: boolean) => {
-    if (value && !hasPermission) {
-      setShowPermDialog(true);
-      return;
-    }
-    if (value) {
-      // La detección solo lee notificaciones (permiso de listener, ya validado arriba);
-      // mostrar la transacción como push requiere además el permiso normal de
-      // notificaciones de la app. requestNotificationPermissions() no vuelve a pedirlo
-      // si ya fue concedido antes (por esta misma sección o por Alertas de presupuesto).
-      await requestNotificationPermissions();
-    }
-    setEnabled(value);
-    await AsyncStorage.setItem(AUTO_DETECT_ENABLED_KEY, value ? "true" : "false");
-  }, [hasPermission]);
+  const handleToggle = useCallback(
+    async (value: boolean) => {
+      if (value && !hasPermission) {
+        setShowPermDialog(true);
+        return;
+      }
+      if (value) {
+        // La detección solo lee notificaciones (permiso de listener, ya validado arriba);
+        // mostrar la transacción como push requiere además el permiso normal de
+        // notificaciones de la app. requestNotificationPermissions() no vuelve a pedirlo
+        // si ya fue concedido antes (por esta misma sección o por Alertas de presupuesto).
+        await requestNotificationPermissions();
+      }
+      setEnabled(value);
+      await AsyncStorage.setItem(AUTO_DETECT_ENABLED_KEY, value ? "true" : "false");
+    },
+    [hasPermission],
+  );
 
   const handleOpenPermissionSettings = useCallback(() => {
     setShowPermDialog(false);
     RNAndroidNotificationListener.requestPermission();
   }, []);
 
-  const toggleBank = useCallback(async (packageName: string) => {
-    const updated = allowedBanks.includes(packageName)
-      ? allowedBanks.filter((p) => p !== packageName)
-      : [...allowedBanks, packageName];
-    setAllowedBanks(updated);
-    await AsyncStorage.setItem(ALLOWED_BANKS_KEY, JSON.stringify(updated));
-  }, [allowedBanks]);
+  const toggleBank = useCallback(
+    async (packageName: string) => {
+      const updated = allowedBanks.includes(packageName)
+        ? allowedBanks.filter((p) => p !== packageName)
+        : [...allowedBanks, packageName];
+      setAllowedBanks(updated);
+      await AsyncStorage.setItem(ALLOWED_BANKS_KEY, JSON.stringify(updated));
+    },
+    [allowedBanks],
+  );
 
   const activeCount = allowedBanks.length === 0 ? KNOWN_BANKS.length : allowedBanks.length;
 
@@ -1278,8 +1492,8 @@ function AutoDetectSection() {
             !hasPermission
               ? "Requiere permiso de notificaciones"
               : enabled
-              ? `Activo · ${activeCount} banco${activeCount !== 1 ? "s" : ""}`
-              : "Desactivado"
+                ? `Activo · ${activeCount} banco${activeCount !== 1 ? "s" : ""}`
+                : "Desactivado"
           }
           rightElement={
             <Switch
@@ -1310,10 +1524,13 @@ function AutoDetectSection() {
 
       {/* Info card: explicación de privacidad */}
       {enabled && (
-        <View style={[autoS.infoCard, { backgroundColor: ACCENT + "0D", borderColor: ACCENT + "30" }]}>
+        <View
+          style={[autoS.infoCard, { backgroundColor: ACCENT + "0D", borderColor: ACCENT + "30" }]}
+        >
           <Text style={[autoS.infoTitle, { color: ACCENT }]}>🔒 Tu privacidad, protegida</Text>
           <Text style={[autoS.infoText, { color: theme.textSub }]}>
-            Solo se extrae el monto y comercio de cada notificación. Nunca se leen saldos, números de tarjeta ni datos personales. Todo se procesa localmente en tu dispositivo.
+            Solo se extrae el monto y comercio de cada notificación. Nunca se leen saldos, números
+            de tarjeta ni datos personales. Todo se procesa localmente en tu dispositivo.
           </Text>
         </View>
       )}
@@ -1323,28 +1540,42 @@ function AutoDetectSection() {
           notificaciones) */}
       {enabled && (
         <View style={[autoS.infoCard, { backgroundColor: "#F59E0B0D", borderColor: "#F59E0B30" }]}>
-          <Text style={[autoS.infoTitle, { color: "#B45309" }]}>🔋 Evita que el sistema detenga la detección</Text>
+          <Text style={[autoS.infoTitle, { color: "#B45309" }]}>
+            🔋 Evita que el sistema detenga la detección
+          </Text>
           <Text style={[autoS.infoText, { color: theme.textSub }]}>
-            Algunos fabricantes (Samsung, Xiaomi, Huawei...) detienen apps en segundo plano para ahorrar batería, lo que puede interrumpir la detección automática. Desactiva la optimización de batería para MyWallet en los ajustes del sistema.
+            Algunos fabricantes (Samsung, Xiaomi, Huawei...) detienen apps en segundo plano para
+            ahorrar batería, lo que puede interrumpir la detección automática. Desactiva la
+            optimización de batería para MyWallet en los ajustes del sistema.
           </Text>
           <TouchableOpacity
             style={[autoS.batteryBtn, { borderColor: "#F59E0B" }]}
             onPress={() => Linking.openSettings()}
             activeOpacity={0.7}
           >
-            <Text style={[autoS.batteryBtnText, { color: "#B45309" }]}>Abrir ajustes de batería</Text>
+            <Text style={[autoS.batteryBtnText, { color: "#B45309" }]}>
+              Abrir ajustes de batería
+            </Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Diálogo de permiso */}
-      <Modal visible={showPermDialog} transparent animationType="fade" onRequestClose={() => setShowPermDialog(false)}>
+      <Modal
+        visible={showPermDialog}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPermDialog(false)}
+      >
         <Pressable style={s.modalOverlay} onPress={() => setShowPermDialog(false)}>
           <View style={[s.modalCard, { gap: 16 }]}>
             <Text style={{ fontSize: 24, textAlign: "center" }}>🔔</Text>
             <Text style={[s.modalTitle, { textAlign: "center" }]}>Acceso a notificaciones</Text>
-            <Text style={{ fontSize: 14, color: theme.textSub, lineHeight: 21, textAlign: "center" }}>
-              MyWallet leerá notificaciones de tus apps bancarias para detectar transacciones automáticamente.{"\n\n"}
+            <Text
+              style={{ fontSize: 14, color: theme.textSub, lineHeight: 21, textAlign: "center" }}
+            >
+              MyWallet leerá notificaciones de tus apps bancarias para detectar transacciones
+              automáticamente.{"\n\n"}
               {"· Solo apps bancarias que tú elijas\n"}
               {"· Procesamiento 100% en tu dispositivo\n"}
               {"· Ningún dato sale de tu teléfono\n"}
@@ -1352,10 +1583,18 @@ function AutoDetectSection() {
               Se abrirá la configuración del sistema. Busca "MyWallet" y activa el acceso.
             </Text>
             <View style={s.modalBtns}>
-              <TouchableOpacity style={s.modalBtnCancel} onPress={() => setShowPermDialog(false)} activeOpacity={0.7}>
+              <TouchableOpacity
+                style={s.modalBtnCancel}
+                onPress={() => setShowPermDialog(false)}
+                activeOpacity={0.7}
+              >
                 <Text style={s.modalBtnCancelText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={s.modalBtnConfirm} onPress={handleOpenPermissionSettings} activeOpacity={0.7}>
+              <TouchableOpacity
+                style={s.modalBtnConfirm}
+                onPress={handleOpenPermissionSettings}
+                activeOpacity={0.7}
+              >
                 <Text style={s.modalBtnConfirmText}>Abrir ajustes</Text>
               </TouchableOpacity>
             </View>
@@ -1364,44 +1603,69 @@ function AutoDetectSection() {
       </Modal>
 
       {/* Selector de bancos */}
-      <Modal visible={showBankSelector} transparent animationType="slide" onRequestClose={() => setShowBankSelector(false)}>
+      <Modal
+        visible={showBankSelector}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowBankSelector(false)}
+      >
         <Pressable style={s.sheetBackdrop} onPress={() => setShowBankSelector(false)} />
         <View style={[s.sheet, { paddingBottom: 40, maxHeight: "75%" }]}>
           <View style={s.sheetHandle} />
           <Text style={[s.sheetTitle, { marginBottom: 8 }]}>Bancos activos</Text>
-          <Text style={{ fontSize: 13, color: theme.textSub, paddingHorizontal: 20, marginBottom: 12 }}>
+          <Text
+            style={{ fontSize: 13, color: theme.textSub, paddingHorizontal: 20, marginBottom: 12 }}
+          >
             Elige de qué apps detectar transacciones. Si no seleccionas ninguno, se usan todos.
           </Text>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {[...KNOWN_BANKS].sort((a, b) => {
-              const aSelected = allowedBanks.length === 0 || allowedBanks.includes(a.packageName);
-              const bSelected = allowedBanks.length === 0 || allowedBanks.includes(b.packageName);
-              if (aSelected === bSelected) return 0;
-              return aSelected ? -1 : 1;
-            }).map((bank) => {
-              const isSelected = allowedBanks.length === 0 || allowedBanks.includes(bank.packageName);
-              return (
-                <TouchableOpacity
-                  key={bank.packageName}
-                  style={[autoS.bankRow, { borderBottomColor: theme.border }]}
-                  onPress={() => toggleBank(bank.packageName)}
-                  activeOpacity={0.65}
-                >
-                  <Text style={{ flex: 1, fontSize: 15, fontWeight: "600", color: theme.text }}>{bank.displayName}</Text>
-                  <View style={[autoS.bankCheck, { borderColor: isSelected ? ACCENT : theme.border, backgroundColor: isSelected ? ACCENT : "transparent" }]}>
-                    {isSelected && <Check size={12} color="#fff" strokeWidth={3} />}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+            {[...KNOWN_BANKS]
+              .sort((a, b) => {
+                const aSelected = allowedBanks.length === 0 || allowedBanks.includes(a.packageName);
+                const bSelected = allowedBanks.length === 0 || allowedBanks.includes(b.packageName);
+                if (aSelected === bSelected) return 0;
+                return aSelected ? -1 : 1;
+              })
+              .map((bank) => {
+                const isSelected =
+                  allowedBanks.length === 0 || allowedBanks.includes(bank.packageName);
+                return (
+                  <TouchableOpacity
+                    key={bank.packageName}
+                    style={[autoS.bankRow, { borderBottomColor: theme.border }]}
+                    onPress={() => toggleBank(bank.packageName)}
+                    activeOpacity={0.65}
+                  >
+                    <Text style={{ flex: 1, fontSize: 15, fontWeight: "600", color: theme.text }}>
+                      {bank.displayName}
+                    </Text>
+                    <View
+                      style={[
+                        autoS.bankCheck,
+                        {
+                          borderColor: isSelected ? ACCENT : theme.border,
+                          backgroundColor: isSelected ? ACCENT : "transparent",
+                        },
+                      ]}
+                    >
+                      {isSelected && <Check size={12} color="#fff" strokeWidth={3} />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
           </ScrollView>
           {allowedBanks.length > 0 && (
             <TouchableOpacity
               style={{ alignItems: "center", paddingVertical: 14 }}
-              onPress={async () => { setAllowedBanks([]); await AsyncStorage.setItem(ALLOWED_BANKS_KEY, "[]"); }}
+              onPress={async () => {
+                setAllowedBanks([]);
+                await AsyncStorage.setItem(ALLOWED_BANKS_KEY, "[]");
+              }}
               activeOpacity={0.7}
             >
-              <Text style={{ fontSize: 13, color: ACCENT, fontWeight: "600" }}>Seleccionar todos</Text>
+              <Text style={{ fontSize: 13, color: ACCENT, fontWeight: "600" }}>
+                Seleccionar todos
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1419,7 +1683,7 @@ const autoS = StyleSheet.create({
     gap: 4,
   },
   infoTitle: { fontSize: 13, fontWeight: "700", marginBottom: 4 },
-  infoText:  { fontSize: 12, lineHeight: 18 },
+  infoText: { fontSize: 12, lineHeight: 18 },
   batteryBtn: {
     marginTop: 8,
     alignSelf: "flex-start",
@@ -1430,96 +1694,113 @@ const autoS = StyleSheet.create({
   },
   batteryBtnText: { fontSize: 12, fontWeight: "700" },
   bankRow: {
-    flexDirection: "row", alignItems: "center", gap: 14,
-    paddingHorizontal: 20, paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   bankCheck: {
-    width: 22, height: 22, borderRadius: 11,
-    borderWidth: 2, alignItems: "center", justifyContent: "center",
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 
 // ─── Screen principal ─────────────────────────────────────────────────────────
 
 export default function SettingsScreen() {
-  const s      = useStyles();
-  const theme  = useTheme();
+  const s = useStyles();
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
 
-  const monthlyBudget       = useSettingsStore((s) => s.monthlyBudget);
-  const darkMode            = useSettingsStore((s) => s.darkMode);
-  const budgetByCategory    = useSettingsStore((s) => s.budgetByCategory);
-  const userCategories      = useSettingsStore((s) => s.userCategories);
+  const monthlyBudget = useSettingsStore((s) => s.monthlyBudget);
+  const darkMode = useSettingsStore((s) => s.darkMode);
+  const budgetByCategory = useSettingsStore((s) => s.budgetByCategory);
+  const userCategories = useSettingsStore((s) => s.userCategories);
 
-  const setMonthlyBudget          = useSettingsStore((s) => s.setMonthlyBudget);
-  const setDarkMode               = useSettingsStore((s) => s.setDarkMode);
-  const setBudgetForCategory      = useSettingsStore((s) => s.setBudgetForCategory);
-  const removeBudgetForCategory   = useSettingsStore((s) => s.removeBudgetForCategory);
-  const notificationsEnabled      = useSettingsStore((s) => s.notificationsEnabled);
-  const setNotificationsEnabled   = useSettingsStore((s) => s.setNotificationsEnabled);
-  const budgetAlertsEnabled       = useSettingsStore((s) => s.budgetAlertsEnabled);
-  const budgetAlertThreshold      = useSettingsStore((s) => s.budgetAlertThreshold);
-  const setBudgetAlertsEnabled    = useSettingsStore((s) => s.setBudgetAlertsEnabled);
-  const setBudgetAlertThreshold   = useSettingsStore((s) => s.setBudgetAlertThreshold);
+  const setMonthlyBudget = useSettingsStore((s) => s.setMonthlyBudget);
+  const setDarkMode = useSettingsStore((s) => s.setDarkMode);
+  const setBudgetForCategory = useSettingsStore((s) => s.setBudgetForCategory);
+  const removeBudgetForCategory = useSettingsStore((s) => s.removeBudgetForCategory);
+  const notificationsEnabled = useSettingsStore((s) => s.notificationsEnabled);
+  const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
+  const budgetAlertsEnabled = useSettingsStore((s) => s.budgetAlertsEnabled);
+  const budgetAlertThreshold = useSettingsStore((s) => s.budgetAlertThreshold);
+  const setBudgetAlertsEnabled = useSettingsStore((s) => s.setBudgetAlertsEnabled);
+  const setBudgetAlertThreshold = useSettingsStore((s) => s.setBudgetAlertThreshold);
 
   // Handler: al activar alertas de presupuesto, validar permiso de notificaciones
-  const handleBudgetAlertToggle = useCallback(async (value: boolean) => {
-    if (!value) {
-      setBudgetAlertsEnabled(false);
-      return;
-    }
-    // requestNotificationPermissions abre ajustes del sistema si fueron denegados
-    const granted = await requestNotificationPermissions();
-    if (!granted) return;
-    setNotificationsEnabled(true);
-    setBudgetAlertsEnabled(true);
-  }, [setBudgetAlertsEnabled, setNotificationsEnabled]);
+  const handleBudgetAlertToggle = useCallback(
+    async (value: boolean) => {
+      if (!value) {
+        setBudgetAlertsEnabled(false);
+        return;
+      }
+      // requestNotificationPermissions abre ajustes del sistema si fueron denegados
+      const granted = await requestNotificationPermissions();
+      if (!granted) return;
+      setNotificationsEnabled(true);
+      setBudgetAlertsEnabled(true);
+    },
+    [setBudgetAlertsEnabled, setNotificationsEnabled],
+  );
 
   // Modals state
-  const [budgetModal,        setBudgetModal]        = useState(false);
-  const [darkSheet,          setDarkSheet]          = useState(false);
-  const [catBudgetEmoji,     setCatBudgetEmoji]     = useState<string | null>(null);
-  const [showPaymentModal,   setShowPaymentModal]   = useState(false);
+  const [budgetModal, setBudgetModal] = useState(false);
+  const [darkSheet, setDarkSheet] = useState(false);
+  const [catBudgetEmoji, setCatBudgetEmoji] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCatBudgetModal, setShowCatBudgetModal] = useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [editingCat, setEditingCat] = useState<UserCategory | null>(null);
 
-  const [clearDataDialog,       setClearDataDialog]       = useState(false);
-  const [exportErrorDialog,     setExportErrorDialog]     = useState(false);
-  const [notifPermDialog,       setNotifPermDialog]       = useState(false);
+  const [clearDataDialog, setClearDataDialog] = useState(false);
+  const [exportErrorDialog, setExportErrorDialog] = useState(false);
+  const [notifPermDialog, setNotifPermDialog] = useState(false);
 
   // Onboarding tour
   const hasCompletedOnboarding = useSettingsStore((s) => s.hasCompletedOnboarding);
-  const hasSelectedCategories  = useSettingsStore((s) => s.hasSelectedCategories);
-  const onboardingStep         = useSettingsStore((s) => s.onboardingStep);
-  const setOnboardingStep      = useSettingsStore((s) => s.setOnboardingStep);
-  const completeOnboarding     = useSettingsStore((s) => s.completeOnboarding);
+  const hasSelectedCategories = useSettingsStore((s) => s.hasSelectedCategories);
+  const onboardingStep = useSettingsStore((s) => s.onboardingStep);
+  const setOnboardingStep = useSettingsStore((s) => s.setOnboardingStep);
+  const completeOnboarding = useSettingsStore((s) => s.completeOnboarding);
 
-  const settingsTourSteps: TourStep[] = useMemo(() => [
-    {
-      targetRef: getTourRef(TOUR_KEYS.INCOME_ROW),
-      title: "Configura tu ingreso",
-      message: "Aquí puedes definir cuánto ganas al mes para calcular tu presupuesto.",
-      buttonLabel: "Configurar",
-      onAction: () => {
-        setOnboardingStep(2);
-        setBudgetModal(true);
+  const settingsTourSteps: TourStep[] = useMemo(
+    () => [
+      {
+        targetRef: getTourRef(TOUR_KEYS.INCOME_ROW),
+        title: "Configura tu ingreso",
+        message: "Aquí puedes definir cuánto ganas al mes para calcular tu presupuesto.",
+        buttonLabel: "Configurar",
+        onAction: () => {
+          setOnboardingStep(2);
+          setBudgetModal(true);
+        },
       },
-    },
-    {
-      targetRef: getTourRef(TOUR_KEYS.BACK_BTN),
-      title: "¡Todo listo!",
-      message: "Tu ingreso está configurado. Vuelve al inicio para registrar tu primer movimiento.",
-      buttonLabel: "Volver al inicio",
-      onAction: () => {
-        setOnboardingStep(3);
-        router.back();
+      {
+        targetRef: getTourRef(TOUR_KEYS.BACK_BTN),
+        title: "¡Todo listo!",
+        message:
+          "Tu ingreso está configurado. Vuelve al inicio para registrar tu primer movimiento.",
+        buttonLabel: "Volver al inicio",
+        onAction: () => {
+          setOnboardingStep(3);
+          router.back();
+        },
       },
-    },
-  ], []);
+    ],
+    [],
+  );
 
-  const settingsTourVisible = hasSelectedCategories && !hasCompletedOnboarding && (onboardingStep === 1 || (onboardingStep === 2 && !budgetModal && monthlyBudget > 0));
+  const settingsTourVisible =
+    hasSelectedCategories &&
+    !hasCompletedOnboarding &&
+    (onboardingStep === 1 || (onboardingStep === 2 && !budgetModal && monthlyBudget > 0));
   const settingsTourIndex = onboardingStep === 1 ? 0 : 1;
 
   const transactions = useFinanceStore((s) => s.transactions);
@@ -1539,7 +1820,7 @@ export default function SettingsScreen() {
             Math.abs(t.amount ?? 0),
             t.payment_method ?? "cash",
             `"${t.tags ?? ""}"`,
-          ].join(",")
+          ].join(","),
         )
         .join("\n");
 
@@ -1567,14 +1848,20 @@ export default function SettingsScreen() {
   }
 
   const incomeSubtitle = monthlyBudget <= 0 ? "Sin configurar" : formatCOP(monthlyBudget);
-  const darkLabel = darkMode === "system" ? "Según el sistema" : darkMode === "light" ? "Claro" : "Oscuro";
+  const darkLabel =
+    darkMode === "system" ? "Según el sistema" : darkMode === "light" ? "Claro" : "Oscuro";
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
-
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity ref={getTourRef(TOUR_KEYS.BACK_BTN)} onPress={() => router.back()} style={s.backBtn} hitSlop={12} activeOpacity={0.65}>
+        <TouchableOpacity
+          ref={getTourRef(TOUR_KEYS.BACK_BTN)}
+          onPress={() => router.back()}
+          style={s.backBtn}
+          hitSlop={12}
+          activeOpacity={0.65}
+        >
           <ChevronLeft size={24} color={s.headerTitle.color as string} strokeWidth={2.5} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Configuración</Text>
@@ -1584,7 +1871,6 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 40 }]}
       >
-
         {/* ── CONTROL FINANCIERO ───────────────────────────────────────── */}
         <SectionHeader title="CONTROL FINANCIERO" />
         <View style={s.card}>
@@ -1663,7 +1949,6 @@ export default function SettingsScreen() {
         <View style={s.versionRow}>
           <Text style={s.versionText}>MYWALLET v{APP_VERSION}</Text>
         </View>
-
       </ScrollView>
 
       {/* ── Modales ───────────────────────────────────────────────────── */}
@@ -1683,8 +1968,8 @@ export default function SettingsScreen() {
         title="Modo de apariencia"
         options={[
           { key: "system", label: "Según el sistema" },
-          { key: "light",  label: "Claro" },
-          { key: "dark",   label: "Oscuro" },
+          { key: "light", label: "Claro" },
+          { key: "dark", label: "Oscuro" },
         ]}
         selected={darkMode}
         onSelect={setDarkMode}
@@ -1709,61 +1994,94 @@ export default function SettingsScreen() {
         onClose={() => setShowCategoriesModal(false)}
       >
         {/* Gastos */}
-        {userCategories.filter(c => c.type === "expense").length > 0 && (
+        {userCategories.filter((c) => c.type === "expense").length > 0 && (
           <>
-            <Text style={{ color: theme.textSub, fontSize: 11, fontWeight: "700", letterSpacing: 1, marginBottom: 8, marginLeft: 4 }}>
-              GASTOS ({userCategories.filter(c => c.type === "expense").length})
+            <Text
+              style={{
+                color: theme.textSub,
+                fontSize: 11,
+                fontWeight: "700",
+                letterSpacing: 1,
+                marginBottom: 8,
+                marginLeft: 4,
+              }}
+            >
+              GASTOS ({userCategories.filter((c) => c.type === "expense").length})
             </Text>
             <View style={s.card}>
-              {userCategories.filter(c => c.type === "expense").map((cat, i, arr) => (
-                <View key={cat.id}>
-                  <TouchableOpacity
-                    style={s.row}
-                    onPress={() => { setShowCategoriesModal(false); setEditingCat(cat); }}
-                    activeOpacity={0.65}
-                  >
-                    <View style={[s.rowIcon, { backgroundColor: cat.colorBg }]}>
-                      <Text style={{ fontSize: 18 }}>{cat.emoji}</Text>
-                    </View>
-                    <View style={s.rowText}>
-                      <Text style={s.rowLabel}>{cat.name}</Text>
-                      <Text style={s.rowSub}>{cat.isPreset ? "Predefinida" : "Personalizada"}</Text>
-                    </View>
-                    <Pencil size={14} color={theme.textSub} strokeWidth={2} />
-                  </TouchableOpacity>
-                  {i < arr.length - 1 && <View style={s.rowSep} />}
-                </View>
-              ))}
+              {userCategories
+                .filter((c) => c.type === "expense")
+                .map((cat, i, arr) => (
+                  <View key={cat.id}>
+                    <TouchableOpacity
+                      style={s.row}
+                      onPress={() => {
+                        setShowCategoriesModal(false);
+                        setEditingCat(cat);
+                      }}
+                      activeOpacity={0.65}
+                    >
+                      <View style={[s.rowIcon, { backgroundColor: cat.colorBg }]}>
+                        <Text style={{ fontSize: 18 }}>{cat.emoji}</Text>
+                      </View>
+                      <View style={s.rowText}>
+                        <Text style={s.rowLabel}>{cat.name}</Text>
+                        <Text style={s.rowSub}>
+                          {cat.isPreset ? "Predefinida" : "Personalizada"}
+                        </Text>
+                      </View>
+                      <Pencil size={14} color={theme.textSub} strokeWidth={2} />
+                    </TouchableOpacity>
+                    {i < arr.length - 1 && <View style={s.rowSep} />}
+                  </View>
+                ))}
             </View>
           </>
         )}
 
         {/* Ingresos */}
-        {userCategories.filter(c => c.type === "income").length > 0 && (
+        {userCategories.filter((c) => c.type === "income").length > 0 && (
           <>
-            <Text style={{ color: theme.textSub, fontSize: 11, fontWeight: "700", letterSpacing: 1, marginTop: 20, marginBottom: 8, marginLeft: 4 }}>
-              INGRESOS ({userCategories.filter(c => c.type === "income").length})
+            <Text
+              style={{
+                color: theme.textSub,
+                fontSize: 11,
+                fontWeight: "700",
+                letterSpacing: 1,
+                marginTop: 20,
+                marginBottom: 8,
+                marginLeft: 4,
+              }}
+            >
+              INGRESOS ({userCategories.filter((c) => c.type === "income").length})
             </Text>
             <View style={s.card}>
-              {userCategories.filter(c => c.type === "income").map((cat, i, arr) => (
-                <View key={cat.id}>
-                  <TouchableOpacity
-                    style={s.row}
-                    onPress={() => { setShowCategoriesModal(false); setEditingCat(cat); }}
-                    activeOpacity={0.65}
-                  >
-                    <View style={[s.rowIcon, { backgroundColor: cat.colorBg }]}>
-                      <Text style={{ fontSize: 18 }}>{cat.emoji}</Text>
-                    </View>
-                    <View style={s.rowText}>
-                      <Text style={s.rowLabel}>{cat.name}</Text>
-                      <Text style={s.rowSub}>{cat.isPreset ? "Predefinida" : "Personalizada"}</Text>
-                    </View>
-                    <Pencil size={14} color={theme.textSub} strokeWidth={2} />
-                  </TouchableOpacity>
-                  {i < arr.length - 1 && <View style={s.rowSep} />}
-                </View>
-              ))}
+              {userCategories
+                .filter((c) => c.type === "income")
+                .map((cat, i, arr) => (
+                  <View key={cat.id}>
+                    <TouchableOpacity
+                      style={s.row}
+                      onPress={() => {
+                        setShowCategoriesModal(false);
+                        setEditingCat(cat);
+                      }}
+                      activeOpacity={0.65}
+                    >
+                      <View style={[s.rowIcon, { backgroundColor: cat.colorBg }]}>
+                        <Text style={{ fontSize: 18 }}>{cat.emoji}</Text>
+                      </View>
+                      <View style={s.rowText}>
+                        <Text style={s.rowLabel}>{cat.name}</Text>
+                        <Text style={s.rowSub}>
+                          {cat.isPreset ? "Predefinida" : "Personalizada"}
+                        </Text>
+                      </View>
+                      <Pencil size={14} color={theme.textSub} strokeWidth={2} />
+                    </TouchableOpacity>
+                    {i < arr.length - 1 && <View style={s.rowSep} />}
+                  </View>
+                ))}
             </View>
           </>
         )}
@@ -1785,7 +2103,9 @@ export default function SettingsScreen() {
             alignItems: "center",
           }}
         >
-          <Text style={{ color: theme.accent, fontSize: 14, fontWeight: "600" }}>+ Gestionar categorías</Text>
+          <Text style={{ color: theme.accent, fontSize: 14, fontWeight: "600" }}>
+            + Gestionar categorías
+          </Text>
         </TouchableOpacity>
       </FullScreenModal>
 
@@ -1799,7 +2119,10 @@ export default function SettingsScreen() {
             setEditingCat(null);
             setShowCategoriesModal(true);
           }}
-          onClose={() => { setEditingCat(null); setShowCategoriesModal(true); }}
+          onClose={() => {
+            setEditingCat(null);
+            setShowCategoriesModal(true);
+          }}
         />
       )}
 
@@ -1816,49 +2139,53 @@ export default function SettingsScreen() {
           onToggle={handleBudgetAlertToggle}
           onThresholdChange={setBudgetAlertThreshold}
         />
-        {userCategories.filter(c => c.type === "expense").length > 0 ? (
+        {userCategories.filter((c) => c.type === "expense").length > 0 ? (
           <View style={s.card}>
-            {userCategories.filter(c => c.type === "expense").map((cat, i, arr) => {
-              const current = budgetByCategory[cat.emoji];
-              return (
-                <View key={cat.id}>
-                  <TouchableOpacity
-                    style={s.row}
-                    onPress={() => setCatBudgetEmoji(cat.emoji)}
-                    activeOpacity={0.65}
-                  >
-                    <View style={[s.rowIcon, { backgroundColor: cat.colorBg }]}>
-                      <Text style={{ fontSize: 18 }}>{cat.emoji}</Text>
-                    </View>
-                    <View style={s.rowText}>
-                      <Text style={s.rowLabel}>{cat.name}</Text>
+            {userCategories
+              .filter((c) => c.type === "expense")
+              .map((cat, i, arr) => {
+                const current = budgetByCategory[cat.emoji];
+                return (
+                  <View key={cat.id}>
+                    <TouchableOpacity
+                      style={s.row}
+                      onPress={() => setCatBudgetEmoji(cat.emoji)}
+                      activeOpacity={0.65}
+                    >
+                      <View style={[s.rowIcon, { backgroundColor: cat.colorBg }]}>
+                        <Text style={{ fontSize: 18 }}>{cat.emoji}</Text>
+                      </View>
+                      <View style={s.rowText}>
+                        <Text style={s.rowLabel}>{cat.name}</Text>
+                        {current ? (
+                          <Text style={[s.rowSub, { color: theme.isDark ? "#22C55E" : "#15803D" }]}>
+                            Límite: {formatCOP(current)}
+                          </Text>
+                        ) : (
+                          <Text style={s.rowSub}>Sin límite</Text>
+                        )}
+                      </View>
                       {current ? (
-                        <Text style={[s.rowSub, { color: theme.isDark ? "#22C55E" : "#15803D" }]}>
-                          Límite: {formatCOP(current)}
-                        </Text>
-                      ) : (
-                        <Text style={s.rowSub}>Sin límite</Text>
-                      )}
-                    </View>
-                    {current ? (
-                      <TouchableOpacity
-                        onPress={() => removeBudgetForCategory(cat.emoji)}
-                        hitSlop={14}
-                        style={{ padding: 4 }}
-                      >
-                        <X size={14} color="#DC2626" strokeWidth={2.5} />
-                      </TouchableOpacity>
-                    ) : null}
-                    <ChevronRight size={16} color="#64748B" strokeWidth={2} />
-                  </TouchableOpacity>
-                  {i < arr.length - 1 && <View style={s.rowSep} />}
-                </View>
-              );
-            })}
+                        <TouchableOpacity
+                          onPress={() => removeBudgetForCategory(cat.emoji)}
+                          hitSlop={14}
+                          style={{ padding: 4 }}
+                        >
+                          <X size={14} color="#DC2626" strokeWidth={2.5} />
+                        </TouchableOpacity>
+                      ) : null}
+                      <ChevronRight size={16} color="#64748B" strokeWidth={2} />
+                    </TouchableOpacity>
+                    {i < arr.length - 1 && <View style={s.rowSep} />}
+                  </View>
+                );
+              })}
           </View>
         ) : (
           <View style={{ alignItems: "center", paddingVertical: 32 }}>
-            <Text style={{ color: theme.textSub, fontSize: 14 }}>No tienes categorías de gasto configuradas</Text>
+            <Text style={{ color: theme.textSub, fontSize: 14 }}>
+              No tienes categorías de gasto configuradas
+            </Text>
           </View>
         )}
       </FullScreenModal>
@@ -1867,12 +2194,10 @@ export default function SettingsScreen() {
       {catBudgetEmoji && (
         <InputModal
           visible
-          title={`Límite para ${catBudgetEmoji} ${
-            (() => {
-              const cat = userCategories.find(c => c.emoji === catBudgetEmoji);
-              return cat?.name ?? catBudgetEmoji;
-            })()
-          }`}
+          title={`Límite para ${catBudgetEmoji} ${(() => {
+            const cat = userCategories.find((c) => c.emoji === catBudgetEmoji);
+            return cat?.name ?? catBudgetEmoji;
+          })()}`}
           placeholder="Ej: 500000"
           value={budgetByCategory[catBudgetEmoji] ? String(budgetByCategory[catBudgetEmoji]) : ""}
           keyboardType="numeric"
@@ -1924,7 +2249,6 @@ export default function SettingsScreen() {
         onCancel={() => setExportErrorDialog(false)}
       />
 
-
       {/* Guided Tour — usa Modal interno, siempre encima de todo */}
       <GuidedTour
         steps={settingsTourSteps}
@@ -1934,255 +2258,287 @@ export default function SettingsScreen() {
         visible={settingsTourVisible}
         onSkip={completeOnboarding}
       />
-
     </SafeAreaView>
   );
 }
 
 // ─── Estilos dinámicos ────────────────────────────────────────────────────────
 
-function buildStyles(t: AppTheme) { return StyleSheet.create({
-  safe:        { flex: 1, backgroundColor: t.bg },
+function buildStyles(t: AppTheme) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: t.bg },
 
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingHorizontal: 20,
-    paddingTop: 6,
-    paddingBottom: 8,
-    backgroundColor: t.bg,
-  },
-  backBtn: {
-    width: 36,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: t.text,
-    letterSpacing: -0.5,
-  },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 14,
+      paddingHorizontal: 20,
+      paddingTop: 6,
+      paddingBottom: 8,
+      backgroundColor: t.bg,
+    },
+    backBtn: {
+      width: 36,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headerTitle: {
+      fontSize: 22,
+      fontWeight: "800",
+      color: t.text,
+      letterSpacing: -0.5,
+    },
 
-  scroll: { paddingHorizontal: 20, paddingTop: 8 },
+    scroll: { paddingHorizontal: 20, paddingTop: 8 },
 
-  sectionHeader: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: t.textSub,
-    letterSpacing: 1.8,
-    marginTop: 24,
-    marginBottom: 8,
-    marginLeft: 4,
-  },
+    sectionHeader: {
+      fontSize: 11,
+      fontWeight: "800",
+      color: t.textSub,
+      letterSpacing: 1.8,
+      marginTop: 24,
+      marginBottom: 8,
+      marginLeft: 4,
+    },
 
-  card: {
-    backgroundColor: t.surface,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
+    card: {
+      backgroundColor: t.surface,
+      borderRadius: 16,
+      overflow: "hidden",
+    },
 
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-    minHeight: 60,
-  },
-  rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: t.inputBg,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  rowText:  { flex: 1 },
-  rowLabel: { fontSize: 15, fontWeight: "600", color: t.text, lineHeight: 20 },
-  rowSub:   { fontSize: 13, color: t.textSub, marginTop: 1 },
-  rowSep:   { height: StyleSheet.hairlineWidth, backgroundColor: t.border, marginLeft: 64 },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      gap: 12,
+      minHeight: 60,
+    },
+    rowIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: t.inputBg,
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    },
+    rowText: { flex: 1 },
+    rowLabel: { fontSize: 15, fontWeight: "600", color: t.text, lineHeight: 20 },
+    rowSub: { fontSize: 13, color: t.textSub, marginTop: 1 },
+    rowSep: { height: StyleSheet.hairlineWidth, backgroundColor: t.border, marginLeft: 64 },
 
-  payRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-  },
-  payRowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: t.inputBg,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  payRowEmoji: { fontSize: 18 },
-  payAction: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addMethodBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: t.border,
-  },
-  addMethodText: { fontSize: 14, fontWeight: "600", color: t.accent },
+    payRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      gap: 12,
+    },
+    payRowIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: t.inputBg,
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    },
+    payRowEmoji: { fontSize: 18 },
+    payAction: {
+      width: 32,
+      height: 32,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    addMethodBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: t.border,
+    },
+    addMethodText: { fontSize: 14, fontWeight: "600", color: t.accent },
 
-  versionRow:  { alignItems: "center", marginTop: 32 },
-  versionText: { fontSize: 12, color: t.textSub, letterSpacing: 1.5, fontWeight: "500" },
+    versionRow: { alignItems: "center", marginTop: 32 },
+    versionText: { fontSize: 12, color: t.textSub, letterSpacing: 1.5, fontWeight: "500" },
 
-  subCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: t.surface,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 12,
-  },
-  subCardIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: t.inputBg,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  subCardText: { flex: 1 },
-  subCardLabel: { fontSize: 15, fontWeight: "700", color: t.text, lineHeight: 20 },
-  subCardDesc:  { fontSize: 13, color: t.textSub, marginTop: 2, lineHeight: 18 },
+    subCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: t.surface,
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+      gap: 12,
+    },
+    subCardIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: t.inputBg,
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    },
+    subCardText: { flex: 1 },
+    subCardLabel: { fontSize: 15, fontWeight: "700", color: t.text, lineHeight: 20 },
+    subCardDesc: { fontSize: 13, color: t.textSub, marginTop: 2, lineHeight: 18 },
 
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "center",
-    paddingHorizontal: 28,
-  },
-  modalCard: {
-    backgroundColor: t.surface,
-    borderRadius: 20,
-    padding: 24,
-    gap: 16,
-  },
-  modalTitle: { fontSize: 17, fontWeight: "700", color: t.text },
-  modalSubtitle: { fontSize: 12, fontWeight: "400", color: t.textSub, marginTop: 4, textAlign: "center" as const },
-  modalMoneyPrefix: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: t.textSub,
-    marginBottom: -8,
-  },
-  modalMoneySuffix: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: t.textSub,
-    textAlign: "right",
-    marginTop: -8,
-  },
-  modalInput: {
-    borderWidth: 1.5,
-    borderColor: t.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: t.text,
-    backgroundColor: t.bg,
-  },
-  modalInputMoney: {
-    fontSize: 22,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    color: t.text,
-    textAlign: "right",
-  },
-  modalBtns:              { flexDirection: "row", gap: 10 },
-  modalBtnCancel:         { flex: 1, padding: 13, borderRadius: 12, backgroundColor: t.inputBg, alignItems: "center" },
-  modalBtnCancelText:     { fontSize: 15, fontWeight: "600", color: t.textSub },
-  modalBtnConfirm:        { flex: 1, padding: 13, borderRadius: 12, backgroundColor: "#135BEC", alignItems: "center" },
-  modalBtnConfirmDisabled:{ flex: 1, padding: 13, borderRadius: 12, backgroundColor: t.border, alignItems: "center" },
-  modalBtnConfirmText:    { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
-  modalBtnConfirmTextOff: { fontSize: 15, fontWeight: "700", color: t.textSub },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.45)",
+      justifyContent: "center",
+      paddingHorizontal: 28,
+    },
+    modalCard: {
+      backgroundColor: t.surface,
+      borderRadius: 20,
+      padding: 24,
+      gap: 16,
+    },
+    modalTitle: { fontSize: 17, fontWeight: "700", color: t.text },
+    modalSubtitle: {
+      fontSize: 12,
+      fontWeight: "400",
+      color: t.textSub,
+      marginTop: 4,
+      textAlign: "center" as const,
+    },
+    modalMoneyPrefix: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: t.textSub,
+      marginBottom: -8,
+    },
+    modalMoneySuffix: {
+      fontSize: 12,
+      fontWeight: "500",
+      color: t.textSub,
+      textAlign: "right",
+      marginTop: -8,
+    },
+    modalInput: {
+      borderWidth: 1.5,
+      borderColor: t.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: t.text,
+      backgroundColor: t.bg,
+    },
+    modalInputMoney: {
+      fontSize: 22,
+      fontWeight: "700",
+      letterSpacing: 0.5,
+      color: t.text,
+      textAlign: "right",
+    },
+    modalBtns: { flexDirection: "row", gap: 10 },
+    modalBtnCancel: {
+      flex: 1,
+      padding: 13,
+      borderRadius: 12,
+      backgroundColor: t.inputBg,
+      alignItems: "center",
+    },
+    modalBtnCancelText: { fontSize: 15, fontWeight: "600", color: t.textSub },
+    modalBtnConfirm: {
+      flex: 1,
+      padding: 13,
+      borderRadius: 12,
+      backgroundColor: "#135BEC",
+      alignItems: "center",
+    },
+    modalBtnConfirmDisabled: {
+      flex: 1,
+      padding: 13,
+      borderRadius: 12,
+      backgroundColor: t.border,
+      alignItems: "center",
+    },
+    modalBtnConfirmText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
+    modalBtnConfirmTextOff: { fontSize: 15, fontWeight: "700", color: t.textSub },
 
-  // ── Metas de ahorro — campos de modales ──────────────────────────────────
-  goalFieldLabel: {
-    fontSize: 11,
-    fontWeight: "700" as const,
-    color: t.textSub,
-    letterSpacing: 0.8,
-    textTransform: "uppercase" as const,
-  },
-  goalAmountRow: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    borderWidth: 1.5,
-    borderColor: t.border,
-    borderRadius: 12,
-    backgroundColor: t.bg,
-    paddingHorizontal: 14,
-  },
-  goalAmountPrefix: {
-    fontSize: 14,
-    fontWeight: "600" as const,
-    color: t.textSub,
-    marginRight: 8,
-  },
-  goalAmountInput: {
-    flex: 1,
-    paddingVertical: 13,
-    fontSize: 18,
-    fontWeight: "700" as const,
-    color: t.text,
-  },
+    // ── Metas de ahorro — campos de modales ──────────────────────────────────
+    goalFieldLabel: {
+      fontSize: 11,
+      fontWeight: "700" as const,
+      color: t.textSub,
+      letterSpacing: 0.8,
+      textTransform: "uppercase" as const,
+    },
+    goalAmountRow: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      borderWidth: 1.5,
+      borderColor: t.border,
+      borderRadius: 12,
+      backgroundColor: t.bg,
+      paddingHorizontal: 14,
+    },
+    goalAmountPrefix: {
+      fontSize: 14,
+      fontWeight: "600" as const,
+      color: t.textSub,
+      marginRight: 8,
+    },
+    goalAmountInput: {
+      flex: 1,
+      paddingVertical: 13,
+      fontSize: 18,
+      fontWeight: "700" as const,
+      color: t.text,
+    },
 
-  sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(15,23,42,0.4)" },
-  sheet: {
-    position: "absolute",
-    bottom: 0, left: 0, right: 0,
-    backgroundColor: t.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 40,
-    paddingTop: 12,
-    elevation: 24,
-  },
-  sheetHandle: {
-    width: 36, height: 4, borderRadius: 2,
-    backgroundColor: t.border,
-    alignSelf: "center",
-    marginBottom: 16,
-  },
-  sheetTitle: {
-    fontSize: 17, fontWeight: "700", color: t.text,
-    paddingHorizontal: 20, marginBottom: 4,
-  },
-  sheetOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  sheetOptionText: { fontSize: 15, color: t.text },
-  sheetSep: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: t.border,
-    marginHorizontal: 20,
-  },
-});}
+    sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(15,23,42,0.4)" },
+    sheet: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: t.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingBottom: 40,
+      paddingTop: 12,
+      elevation: 24,
+    },
+    sheetHandle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: t.border,
+      alignSelf: "center",
+      marginBottom: 16,
+    },
+    sheetTitle: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: t.text,
+      paddingHorizontal: 20,
+      marginBottom: 4,
+    },
+    sheetOption: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+    },
+    sheetOptionText: { fontSize: 15, color: t.text },
+    sheetSep: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: t.border,
+      marginHorizontal: 20,
+    },
+  });
+}
 
 function useStyles() {
   const t = useTheme();

@@ -15,17 +15,17 @@ const INTENT_RULES: readonly { intent: NotificationIntent; patterns: RegExp[] }[
   {
     intent: "otp",
     patterns: [
-      /ingresa.{0,15}c[oó]digo/i,       // "Ingresa el código"
-      /c[oó]digo.{0,10}verifica/i,      // "código de verificación"
-      /(\d{4,8})\s+es tu c[oó]digo/i,   // "123456 es tu código"
-      /token/i,                          // Token de seguridad
+      /ingresa.{0,15}c[oó]digo/i, // "Ingresa el código"
+      /c[oó]digo.{0,10}verifica/i, // "código de verificación"
+      /(\d{4,8})\s+es tu c[oó]digo/i, // "123456 es tu código"
+      /token/i, // Token de seguridad
     ],
   },
   {
     intent: "security_alert",
     patterns: [
-      /intento de (inicio|acceso)/i,      // Alerta de seguridad
-      /bloqueada|suspendida|desactivada/i,// Alerta de cuenta
+      /intento de (inicio|acceso)/i, // Alerta de seguridad
+      /bloqueada|suspendida|desactivada/i, // Alerta de cuenta
     ],
   },
   {
@@ -51,16 +51,11 @@ const INTENT_RULES: readonly { intent: NotificationIntent; patterns: RegExp[] }[
   },
   {
     intent: "marketing",
-    patterns: [
-      /descuento|promo|oferta|cashback/i,
-    ],
+    patterns: [/descuento|promo|oferta|cashback/i],
   },
   {
     intent: "app_update",
-    patterns: [
-      /tienes.{0,20}nuevo.{0,20}(mensaje|notificaci)/i,
-      /actualiza.{0,20}app/i,
-    ],
+    patterns: [/tienes.{0,20}nuevo.{0,20}(mensaje|notificaci)/i, /actualiza.{0,20}app/i],
   },
 ];
 

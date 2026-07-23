@@ -15,11 +15,11 @@ import {
 } from "@/src/utils/transactionFormatters";
 
 interface Props {
-  visible:        boolean;
-  onClose:        () => void;
-  transaction:    TransactionRow | null;
+  visible: boolean;
+  onClose: () => void;
+  transaction: TransactionRow | null;
   userCategories: { emoji: string; name: string }[];
-  savingsGoals:   SavingsGoal[];
+  savingsGoals: SavingsGoal[];
   paymentMethods: PaymentMethod[];
 }
 
@@ -31,7 +31,7 @@ export function TransactionDetailModal({
   savingsGoals,
   paymentMethods,
 }: Props) {
-  const theme  = useTheme();
+  const theme = useTheme();
   const styles = useMemo(() => buildStyles(theme), [theme]);
 
   return (
@@ -44,67 +44,80 @@ export function TransactionDetailModal({
     >
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.card} onPress={() => {}}>
-          {transaction && (() => {
-            const isExp    = transaction.amount > 0;
-            const catName  = resolveCategory(transaction.category_emoji, userCategories, savingsGoals);
-            const pmName   =
-              paymentMethods.find((m) => m.id === transaction.payment_method)?.name ??
-              (transaction.payment_method === "cash"    ? "Efectivo"
-               : transaction.payment_method === "savings" ? "Ahorros"
-               : transaction.payment_method === "credit"  ? "Tarjeta"
-               : "Efectivo");
-            const desc = (transaction.description || "").replace(/#\w+/g, "").trim();
-            let tags: string[] = [];
-            if (transaction.tags && transaction.tags.trim()) {
-              try { tags = JSON.parse(transaction.tags); } catch { tags = []; }
-            }
+          {transaction &&
+            (() => {
+              const isExp = transaction.amount > 0;
+              const catName = resolveCategory(
+                transaction.category_emoji,
+                userCategories,
+                savingsGoals,
+              );
+              const pmName =
+                paymentMethods.find((m) => m.id === transaction.payment_method)?.name ??
+                (transaction.payment_method === "cash"
+                  ? "Efectivo"
+                  : transaction.payment_method === "savings"
+                    ? "Ahorros"
+                    : transaction.payment_method === "credit"
+                      ? "Tarjeta"
+                      : "Efectivo");
+              const desc = (transaction.description || "").replace(/#\w+/g, "").trim();
+              let tags: string[] = [];
+              if (transaction.tags && transaction.tags.trim()) {
+                try {
+                  tags = JSON.parse(transaction.tags);
+                } catch {
+                  tags = [];
+                }
+              }
 
-            return (
-              <>
-                <Text style={styles.emoji}>{transaction.category_emoji}</Text>
-                <Text style={[styles.amount, { color: isExp ? theme.text : "#059669" }]}>
-                  {isExp ? "- " : "+ "}{formatDetailAmount(transaction.amount)}
-                </Text>
-                <Text style={styles.category}>{catName.toUpperCase()}</Text>
+              return (
+                <>
+                  <Text style={styles.emoji}>{transaction.category_emoji}</Text>
+                  <Text style={[styles.amount, { color: isExp ? theme.text : "#059669" }]}>
+                    {isExp ? "- " : "+ "}
+                    {formatDetailAmount(transaction.amount)}
+                  </Text>
+                  <Text style={styles.category}>{catName.toUpperCase()}</Text>
 
-                <View style={styles.divider} />
+                  <View style={styles.divider} />
 
-                <View style={styles.row}>
-                  <Text style={styles.label}>Tipo</Text>
-                  <Text style={styles.value}>{isExp ? "Gasto" : "Ingreso"}</Text>
-                </View>
-                <View style={styles.row}>
-                  <Text style={styles.label}>Cuenta</Text>
-                  <Text style={styles.value}>{pmName}</Text>
-                </View>
-                <View style={styles.row}>
-                  <Text style={styles.label}>Fecha</Text>
-                  <Text style={styles.value}>{formatDetailDate(transaction.date)}</Text>
-                </View>
-                <View style={styles.row}>
-                  <Text style={styles.label}>Hora</Text>
-                  <Text style={styles.value}>{formatDetailTime(transaction.date)}</Text>
-                </View>
-
-                {desc.length > 0 && (
-                  <>
-                    <View style={styles.divider} />
-                    <Text style={styles.desc}>"{desc}"</Text>
-                  </>
-                )}
-
-                {tags.length > 0 && (
-                  <View style={styles.tagsRow}>
-                    {tags.map((tag) => (
-                      <View key={tag} style={styles.tagPill}>
-                        <Text style={styles.tagText}>{tag}</Text>
-                      </View>
-                    ))}
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Tipo</Text>
+                    <Text style={styles.value}>{isExp ? "Gasto" : "Ingreso"}</Text>
                   </View>
-                )}
-              </>
-            );
-          })()}
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Cuenta</Text>
+                    <Text style={styles.value}>{pmName}</Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Fecha</Text>
+                    <Text style={styles.value}>{formatDetailDate(transaction.date)}</Text>
+                  </View>
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Hora</Text>
+                    <Text style={styles.value}>{formatDetailTime(transaction.date)}</Text>
+                  </View>
+
+                  {desc.length > 0 && (
+                    <>
+                      <View style={styles.divider} />
+                      <Text style={styles.desc}>"{desc}"</Text>
+                    </>
+                  )}
+
+                  {tags.length > 0 && (
+                    <View style={styles.tagsRow}>
+                      {tags.map((tag) => (
+                        <View key={tag} style={styles.tagPill}>
+                          <Text style={styles.tagText}>{tag}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </>
+              );
+            })()}
         </Pressable>
       </Pressable>
     </Modal>

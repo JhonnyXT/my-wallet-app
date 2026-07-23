@@ -1,4 +1,4 @@
-import { useEffect, useRef , useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -13,12 +13,7 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Sparkles, X } from "lucide-react-native";
-import Animated, {
-  FadeIn,
-  FadeOut,
-  SlideInDown,
-  SlideOutDown,
-} from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { parseExpenseInput } from "@/src/utils/nlp";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
@@ -88,74 +83,77 @@ export function FloatingInputOverlay() {
           exiting={SlideOutDown.duration(250)}
           style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}
         >
-        {/* Handle bar */}
-        <View style={styles.handle} />
+          {/* Handle bar */}
+          <View style={styles.handle} />
 
-        {/* Header */}
-        <View style={styles.sheetHeader}>
-          <Text style={styles.sheetTitle}>Nuevo gasto</Text>
-          <Pressable onPress={handleClose} style={styles.closeBtn}>
-            <X size={18} color={COLORS.slate600} strokeWidth={2} />
-          </Pressable>
-        </View>
-
-        {/* NLP Preview badge */}
-        {parsed && (
-          <Animated.View
-            entering={FadeIn.duration(200)}
-            exiting={FadeOut.duration(150)}
-            style={styles.badgeRow}
-          >
-            <View style={styles.badgeLight}>
-              <Text style={styles.badgeLightText}>
-                {parsed.categoryEmoji} {parsed.description}
-              </Text>
-            </View>
-            <View style={styles.badgeDark}>
-              <Text style={styles.badgeDarkText}>
-                $ {Math.round(parsed.amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}
-              </Text>
-            </View>
-          </Animated.View>
-        )}
-
-        {/* Input */}
-        <Pressable
-          onPress={() => inputRef.current?.focus()}
-          style={[styles.inputContainer, isFocused && styles.inputFocused]}
-        >
-          <View style={styles.iconWrapper}>
-            <Sparkles size={20} color={COLORS.primary} strokeWidth={2} />
+          {/* Header */}
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>Nuevo gasto</Text>
+            <Pressable onPress={handleClose} style={styles.closeBtn}>
+              <X size={18} color={COLORS.slate600} strokeWidth={2} />
+            </Pressable>
           </View>
-          <TextInput
-            ref={inputRef}
-            value={text}
-            onChangeText={setText}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            onSubmitEditing={handleSubmit}
-            placeholder="Ej: Café 5000 o Uber 15000"
-            placeholderTextColor={COLORS.slate400}
-            returnKeyType="done"
-            style={styles.textInput}
-            autoCorrect={false}
-          />
-        </Pressable>
 
-        {/* Submit */}
-        <Pressable
-          onPress={handleSubmit}
-          disabled={!parsed}
-          style={({ pressed }) => [
-            styles.submitBtn,
-            !parsed && styles.submitBtnDisabled,
-            pressed && parsed && styles.submitBtnPressed,
-          ]}
-        >
-          <Text style={styles.submitText}>
-            {parsed ? `Guardar ${parsed.categoryEmoji}` : "Escribe un gasto"}
-          </Text>
-        </Pressable>
+          {/* NLP Preview badge */}
+          {parsed && (
+            <Animated.View
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(150)}
+              style={styles.badgeRow}
+            >
+              <View style={styles.badgeLight}>
+                <Text style={styles.badgeLightText}>
+                  {parsed.categoryEmoji} {parsed.description}
+                </Text>
+              </View>
+              <View style={styles.badgeDark}>
+                <Text style={styles.badgeDarkText}>
+                  ${" "}
+                  {Math.round(parsed.amount)
+                    .toString()
+                    .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}
+                </Text>
+              </View>
+            </Animated.View>
+          )}
+
+          {/* Input */}
+          <Pressable
+            onPress={() => inputRef.current?.focus()}
+            style={[styles.inputContainer, isFocused && styles.inputFocused]}
+          >
+            <View style={styles.iconWrapper}>
+              <Sparkles size={20} color={COLORS.primary} strokeWidth={2} />
+            </View>
+            <TextInput
+              ref={inputRef}
+              value={text}
+              onChangeText={setText}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              onSubmitEditing={handleSubmit}
+              placeholder="Ej: Café 5000 o Uber 15000"
+              placeholderTextColor={COLORS.slate400}
+              returnKeyType="done"
+              style={styles.textInput}
+              autoCorrect={false}
+            />
+          </Pressable>
+
+          {/* Submit */}
+          <Pressable
+            onPress={handleSubmit}
+            disabled={!parsed}
+            style={({ pressed }) => [
+              styles.submitBtn,
+              !parsed && styles.submitBtnDisabled,
+              pressed && parsed && styles.submitBtnPressed,
+            ]}
+          >
+            <Text style={styles.submitText}>
+              {parsed ? `Guardar ${parsed.categoryEmoji}` : "Escribe un gasto"}
+            </Text>
+          </Pressable>
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>

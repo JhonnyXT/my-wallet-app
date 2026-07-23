@@ -21,7 +21,7 @@ export function BoldText({ text, style }: Props) {
           </Text>
         ) : (
           <Text key={i}>{part}</Text>
-        )
+        ),
       )}
     </Text>
   );

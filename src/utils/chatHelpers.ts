@@ -5,7 +5,10 @@
  * Elimina signos de interrogación/exclamación y trunca a 34 caracteres.
  */
 export function makeTitle(text: string): string {
-  const cleaned = text.trim().replace(/[¿?¡!]/g, "").trim();
+  const cleaned = text
+    .trim()
+    .replace(/[¿?¡!]/g, "")
+    .trim();
   return cleaned.length > 34 ? cleaned.slice(0, 34).trimEnd() + "…" : cleaned;
 }
 
@@ -37,9 +40,7 @@ export function getGroup(iso: string): "HOY" | "AYER" | "ANTES" {
  * Genera los paths SVG de la línea y el área para la gráfica de área suavizada.
  * Usa interpolación Catmull-Rom (t=0.3) entre los puntos dados.
  */
-export function smoothPath(
-  pts: { x: number; y: number }[]
-): { line: string; area: string } {
+export function smoothPath(pts: { x: number; y: number }[]): { line: string; area: string } {
   if (pts.length < 2) return { line: "", area: "" };
   const n = pts.length;
   let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
@@ -55,8 +56,6 @@ export function smoothPath(
     const cp2y = p2.y - ((p3.y - p1.y) * t) / 2;
     d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
   }
-  const areaD =
-    d +
-    ` L ${pts[n - 1].x.toFixed(1)} 96 L ${pts[0].x.toFixed(1)} 96 Z`;
+  const areaD = d + ` L ${pts[n - 1].x.toFixed(1)} 96 L ${pts[0].x.toFixed(1)} 96 Z`;
   return { line: d, area: areaD };
 }

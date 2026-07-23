@@ -28,7 +28,11 @@ function hslToHex(h: number, s: number, l: number): string {
 function hexToHsl(hex: string): { h: number; s: number; l: number } {
   // Normalizar: soporta #RGB y #RRGGBB
   let h = hex.replace("#", "");
-  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  if (h.length === 3)
+    h = h
+      .split("")
+      .map((c) => c + c)
+      .join("");
   if (h.length !== 6) return { h: 0, s: 75, l: 48 };
 
   const r = parseInt(h.slice(0, 2), 16) / 255;
@@ -49,8 +53,7 @@ function hexToHsl(hex: string): { h: number; s: number; l: number } {
   }
 
   const lightness = (max + min) / 2;
-  const saturation =
-    delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+  const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
 
   return {
     h: hue,

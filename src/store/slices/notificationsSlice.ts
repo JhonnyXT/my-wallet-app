@@ -3,36 +3,42 @@ import type { StateCreator } from "zustand";
 export interface NotificationsSlice {
   notificationsEnabled: boolean;
   /** Alertas de presupuesto activadas (independiente del permiso global) */
-  budgetAlertsEnabled:  boolean;
+  budgetAlertsEnabled: boolean;
   /** Umbral de alerta de presupuesto en % (0-100). Notifica cuando se supera este valor */
   budgetAlertThreshold: number;
   /** emoji → "YYYY-MM" (último mes en que se notificó sobre ese presupuesto) */
-  budgetNotifiedMonth:  Record<string, string>;
+  budgetNotifiedMonth: Record<string, string>;
   /** IDs de metas ya notificadas como cumplidas */
-  goalNotifiedIds:      string[];
+  goalNotifiedIds: string[];
 
-  setNotificationsEnabled:       (enabled: boolean) => void;
-  setBudgetAlertsEnabled:        (enabled: boolean) => void;
-  setBudgetAlertThreshold:       (threshold: number) => void;
-  markBudgetNotified:            (emoji: string, month: string) => void;
-  markGoalNotified:              (goalId: string) => void;
+  setNotificationsEnabled: (enabled: boolean) => void;
+  setBudgetAlertsEnabled: (enabled: boolean) => void;
+  setBudgetAlertThreshold: (threshold: number) => void;
+  markBudgetNotified: (emoji: string, month: string) => void;
+  markGoalNotified: (goalId: string) => void;
   clearExpiredBudgetNotifications: () => void;
 }
 
-export const createNotificationsSlice: StateCreator<NotificationsSlice, [], [], NotificationsSlice> = (set) => ({
+export const createNotificationsSlice: StateCreator<
+  NotificationsSlice,
+  [],
+  [],
+  NotificationsSlice
+> = (set) => ({
   notificationsEnabled: false,
-  budgetAlertsEnabled:  false,
-  budgetAlertThreshold: 80,   // recomendado: avisa al 80%; el usuario puede cambiarlo
+  budgetAlertsEnabled: false,
+  budgetAlertThreshold: 80, // recomendado: avisa al 80%; el usuario puede cambiarlo
 
-  budgetNotifiedMonth:  {},
-  goalNotifiedIds:      [],
+  budgetNotifiedMonth: {},
+  goalNotifiedIds: [],
 
   setNotificationsEnabled: (enabled) => set({ notificationsEnabled: enabled }),
-  setBudgetAlertsEnabled:  (enabled) => set((s) => ({
-    budgetAlertsEnabled: enabled,
-    // Al activar las alertas, limpiar el historial para que se re-evalúe
-    budgetNotifiedMonth: enabled ? {} : s.budgetNotifiedMonth,
-  })),
+  setBudgetAlertsEnabled: (enabled) =>
+    set((s) => ({
+      budgetAlertsEnabled: enabled,
+      // Al activar las alertas, limpiar el historial para que se re-evalúe
+      budgetNotifiedMonth: enabled ? {} : s.budgetNotifiedMonth,
+    })),
   setBudgetAlertThreshold: (threshold) =>
     set((s) => ({
       budgetAlertThreshold: Math.min(100, Math.max(0, Math.round(threshold))),
@@ -43,8 +49,7 @@ export const createNotificationsSlice: StateCreator<NotificationsSlice, [], [], 
   markBudgetNotified: (emoji, month) =>
     set((s) => ({ budgetNotifiedMonth: { ...s.budgetNotifiedMonth, [emoji]: month } })),
 
-  markGoalNotified: (goalId) =>
-    set((s) => ({ goalNotifiedIds: [...s.goalNotifiedIds, goalId] })),
+  markGoalNotified: (goalId) => set((s) => ({ goalNotifiedIds: [...s.goalNotifiedIds, goalId] })),
 
   clearExpiredBudgetNotifications: () => {
     const now = new Date();

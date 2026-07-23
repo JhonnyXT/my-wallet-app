@@ -5,8 +5,10 @@ import { getDefaultPeriod, periodFilterLabel, applyPeriodFilter, MONTH_ABBR } fr
 // local del dispositivo.
 function toLocalDateString(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
-    `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.000`;
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
+    `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.000`
+  );
 }
 
 describe("getDefaultPeriod", () => {
@@ -21,7 +23,9 @@ describe("periodFilterLabel", () => {
   });
 
   it("formatea 'month' como 'Mes Año' usando MONTH_ABBR", () => {
-    expect(periodFilterLabel({ type: "month", year: 2026, month: 3 })).toBe(`${MONTH_ABBR[2]} 2026`);
+    expect(periodFilterLabel({ type: "month", year: 2026, month: 3 })).toBe(
+      `${MONTH_ABBR[2]} 2026`,
+    );
   });
 
   it("formatea 'year' como el número de año", () => {
@@ -52,10 +56,7 @@ describe("applyPeriodFilter", () => {
   });
 
   it("'year' incluye solo transacciones del año pedido", () => {
-    const txs = [
-      { date: "2025-06-15T10:00:00.000" },
-      { date: "2024-06-15T10:00:00.000" },
-    ];
+    const txs = [{ date: "2025-06-15T10:00:00.000" }, { date: "2024-06-15T10:00:00.000" }];
     expect(applyPeriodFilter(txs, { type: "year", year: 2025 })).toEqual([txs[0]]);
   });
 

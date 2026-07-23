@@ -46,7 +46,9 @@ const MONTHS: Record<string, number> = {
 
 function fmt(amount: number): string {
   // Pesos colombianos: sin decimales, separador de miles
-  return `$ ${Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+  return `$ ${Math.round(amount)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
 /** Normalize: lowercase + strip accents */
@@ -96,8 +98,7 @@ export async function processQuery(raw: string): Promise<NLPResult> {
   // ── Specific named month (ej: "en enero", "cuánto en marzo") ───────────
   for (const [name, num] of Object.entries(MONTHS)) {
     if (q.includes(name)) {
-      const year =
-        num > curMonth ? curYear - 1 : curYear;
+      const year = num > curMonth ? curYear - 1 : curYear;
       const total = await queryMonthTotal(year, num);
       const label = name.charAt(0).toUpperCase() + name.slice(1);
       return { text: `En ${label} gastaste **${fmt(total)}** 📅` };
@@ -111,18 +112,13 @@ export async function processQuery(raw: string): Promise<NLPResult> {
   }
 
   // ── Last N transactions (ej: "últimas 5 transacciones") ────────────────
-  const lastNMatch = q.match(
-    /ultim[ao]s?\s+(\d+)\s+(transacciones|gastos|compras|movimientos)/
-  );
+  const lastNMatch = q.match(/ultim[ao]s?\s+(\d+)\s+(transacciones|gastos|compras|movimientos)/);
   if (lastNMatch) {
     const n = parseInt(lastNMatch[1]);
     const rows = await queryLastNTransactions(n);
     if (!rows.length) return { text: "No tienes transacciones aún 📝" };
     const list = rows
-      .map(
-        (t) =>
-          `${t.category_emoji} **${t.description}** — ${fmt(t.amount)}`
-      )
+      .map((t) => `${t.category_emoji} **${t.description}** — ${fmt(t.amount)}`)
       .join("\n");
     return {
       text: `Tus últimas ${rows.length} transacciones:\n\n${list}`,
@@ -131,18 +127,11 @@ export async function processQuery(raw: string): Promise<NLPResult> {
   }
 
   // ── Latest transactions (no number) ────────────────────────────────────
-  if (
-    /ultim[ao]s?\s+(transacciones|gastos|compras|movimientos)|ultimas\b|mis gastos/.test(
-      q
-    )
-  ) {
+  if (/ultim[ao]s?\s+(transacciones|gastos|compras|movimientos)|ultimas\b|mis gastos/.test(q)) {
     const rows = await queryLastNTransactions(5);
     if (!rows.length) return { text: "No tienes transacciones aún 📝" };
     const list = rows
-      .map(
-        (t) =>
-          `${t.category_emoji} **${t.description}** — ${fmt(t.amount)}`
-      )
+      .map((t) => `${t.category_emoji} **${t.description}** — ${fmt(t.amount)}`)
       .join("\n");
     return {
       text: `Tus últimas ${rows.length} transacciones:\n\n${list}`,
@@ -151,9 +140,7 @@ export async function processQuery(raw: string): Promise<NLPResult> {
   }
 
   // ── Biggest expense ─────────────────────────────────────────────────────
-  if (
-    /mayor gasto|mas caro|gasto mas grande|gasto mayor|mas costoso/.test(q)
-  ) {
+  if (/mayor gasto|mas caro|gasto mas grande|gasto mayor|mas costoso/.test(q)) {
     const tx = await queryMaxTransaction();
     if (!tx) return { text: "No hay gastos registrados aún 📝" };
     return {
@@ -166,8 +153,7 @@ export async function processQuery(raw: string): Promise<NLPResult> {
     const weekData = await queryWeeklyTotals();
     const total = weekData.reduce((sum, d) => sum + d.amount, 0);
     const prevTotal = await queryPrevWeekTotal();
-    const changePercent =
-      prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : 0;
+    const changePercent = prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : 0;
 
     const changeText =
       changePercent > 0

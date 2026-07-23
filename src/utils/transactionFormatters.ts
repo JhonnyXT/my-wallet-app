@@ -3,8 +3,18 @@
 import { EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
 
 const MONTH_ABBR = [
-  "Ene","Feb","Mar","Abr","May","Jun",
-  "Jul","Ago","Sep","Oct","Nov","Dic",
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
 ] as const;
 
 export function resolveCategory(
@@ -36,23 +46,35 @@ export function formatDetailTime(dateStr: string): string {
 }
 
 export function formatDetailAmount(amount: number): string {
-  return `$ ${Math.round(Math.abs(amount)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+  return `$ ${Math.round(Math.abs(amount))
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
 export function formatBalance(amount: number): string {
-  return `$${Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+  return `$${Math.round(amount)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
 export function normalize(text: string): string {
-  return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
-export function extractTagsFromTx(tx: { description?: string | null; tags?: string | null }): string[] {
+export function extractTagsFromTx(tx: {
+  description?: string | null;
+  tags?: string | null;
+}): string[] {
   if (tx.tags) {
     try {
       const parsed = JSON.parse(tx.tags);
       if (Array.isArray(parsed)) return parsed.map((t: string) => t.toLowerCase());
-    } catch { /* fallback */ }
+    } catch {
+      /* fallback */
+    }
   }
   const matches = (tx.description ?? "").match(/#(\w+)/g);
   return matches ? matches.map((t) => t.toLowerCase()) : [];

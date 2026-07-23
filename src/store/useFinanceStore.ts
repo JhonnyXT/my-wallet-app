@@ -48,7 +48,7 @@ async function notifyIfBudgetExceeded(
   const budget = budgetByCategory[categoryEmoji];
   if (!budget || budget <= 0) return;
 
-  const now   = new Date();
+  const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
   const spent = transactions
     .filter((t) => t.category_emoji === categoryEmoji && t.amount > 0 && new Date(t.date) >= start)
@@ -74,8 +74,22 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
   },
 
-  addTransaction: async (amount, description, categoryEmoji, tags = [], date?, paymentMethod = "cash") => {
-    const newTx = await insertTransaction(amount, description, categoryEmoji, tags, date, paymentMethod);
+  addTransaction: async (
+    amount,
+    description,
+    categoryEmoji,
+    tags = [],
+    date?,
+    paymentMethod = "cash",
+  ) => {
+    const newTx = await insertTransaction(
+      amount,
+      description,
+      categoryEmoji,
+      tags,
+      date,
+      paymentMethod,
+    );
     const updated = [newTx, ...get().transactions];
     set({ transactions: updated });
     // Solo verificar presupuesto en gastos (amount > 0)
@@ -89,7 +103,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const all = await getAllTransactions();
     set({ transactions: all });
     // Verificar presupuesto para cada categoría de gasto del lote
-    const expenseEmojis = [...new Set(items.filter((i) => i.amount > 0).map((i) => i.categoryEmoji))];
+    const expenseEmojis = [
+      ...new Set(items.filter((i) => i.amount > 0).map((i) => i.categoryEmoji)),
+    ];
     for (const emoji of expenseEmojis) {
       await notifyIfBudgetExceeded(all, emoji);
     }
@@ -110,5 +126,4 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       .transactions.filter((t) => new Date(t.date) >= firstDay)
       .reduce((sum, t) => sum + t.amount, 0);
   },
-
 }));

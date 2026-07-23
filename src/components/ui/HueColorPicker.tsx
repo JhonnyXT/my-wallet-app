@@ -23,8 +23,8 @@ import { hueToColors } from "@/src/utils/colorUtils";
 
 // ─── Constantes visuales ──────────────────────────────────────────────────────
 
-const BAR_HEIGHT   = 36;
-const THUMB_SIZE   = 28;
+const BAR_HEIGHT = 36;
+const THUMB_SIZE = 28;
 const PREVIEW_SIZE = 52;
 
 // 13 stops equidistantes del espectro HSL (hue 0-360)
@@ -56,14 +56,9 @@ export interface HueColorPickerProps {
 
 // ─── Componente ───────────────────────────────────────────────────────────────
 
-export function HueColorPicker({
-  hue,
-  onChange,
-  previewEmoji = "🎨",
-  style,
-}: HueColorPickerProps) {
-  const barWidth   = useRef(0);
-  const thumbAnim  = useRef(new Animated.Value(0)).current;
+export function HueColorPicker({ hue, onChange, previewEmoji = "🎨", style }: HueColorPickerProps) {
+  const barWidth = useRef(0);
+  const thumbAnim = useRef(new Animated.Value(0)).current;
 
   // Sincronizar posición del thumb con el hue actual (sin animación)
   const syncThumb = useCallback(
@@ -86,18 +81,18 @@ export function HueColorPicker({
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder:  () => true,
+      onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (e) => {
-        const x     = e.nativeEvent.locationX;
-        const w     = barWidth.current;
+        const x = e.nativeEvent.locationX;
+        const w = barWidth.current;
         if (w === 0) return;
         const newHue = Math.round(Math.max(0, Math.min(x / w, 1)) * 360);
         syncThumb(w, newHue);
         onChange(newHue);
       },
       onPanResponderMove: (e) => {
-        const x     = e.nativeEvent.locationX;
-        const w     = barWidth.current;
+        const x = e.nativeEvent.locationX;
+        const w = barWidth.current;
         if (w === 0) return;
         const newHue = Math.round(Math.max(0, Math.min(x / w, 1)) * 360);
         syncThumb(w, newHue);
@@ -118,16 +113,17 @@ export function HueColorPicker({
         </View>
         <View style={styles.previewColors}>
           <View style={[styles.colorChip, { backgroundColor: accent }]} />
-          <View style={[styles.colorChip, { backgroundColor: bg, borderWidth: 1.5, borderColor: accent }]} />
+          <View
+            style={[
+              styles.colorChip,
+              { backgroundColor: bg, borderWidth: 1.5, borderColor: accent },
+            ]}
+          />
         </View>
       </View>
 
       {/* Barra de gradiente + thumb */}
-      <View
-        style={styles.barWrapper}
-        onLayout={handleLayout}
-        {...panResponder.panHandlers}
-      >
+      <View style={styles.barWrapper} onLayout={handleLayout} {...panResponder.panHandlers}>
         <LinearGradient
           colors={HUE_GRADIENT_COLORS as [string, string, ...string[]]}
           start={{ x: 0, y: 0.5 }}

@@ -12,26 +12,33 @@ import {
 import { X } from "lucide-react-native";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
-import {
-  queryMonthlyExpensesByYear,
-  queryFirstTransactionYear,
-} from "@/src/db/queries";
+import { queryMonthlyExpensesByYear, queryFirstTransactionYear } from "@/src/db/queries";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const MONTH_NAMES = [
-  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
 ];
 
-const SCREEN_W  = Dimensions.get("window").width;
+const SCREEN_W = Dimensions.get("window").width;
 const SHEET_PAD = 24;
-const CELL_GAP  = 8;
-const CELL_W    = (SCREEN_W - SHEET_PAD * 2 - CELL_GAP * 2) / 3;
+const CELL_GAP = 8;
+const CELL_W = (SCREEN_W - SHEET_PAD * 2 - CELL_GAP * 2) / 3;
 
 function formatCompact(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000)     return `${Math.round(value / 1_000)}k`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}k`;
   return `$${Math.round(value)}`;
 }
 
@@ -55,14 +62,14 @@ export function MonthPickerModal({
   onClose,
 }: MonthPickerModalProps) {
   const theme = useTheme();
-  const st    = useMemo(() => buildStyles(theme), [theme]);
+  const st = useMemo(() => buildStyles(theme), [theme]);
 
-  const now          = new Date();
-  const currentYear  = now.getFullYear();
+  const now = new Date();
+  const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
 
-  const [draftYear,     setDraftYear]     = useState<number | null>(selectedYear);
-  const [draftMonth,    setDraftMonth]    = useState<number | null>(selectedMonth);
+  const [draftYear, setDraftYear] = useState<number | null>(selectedYear);
+  const [draftMonth, setDraftMonth] = useState<number | null>(selectedMonth);
   const [monthlyTotals, setMonthlyTotals] = useState<Record<number, number>>({});
   const [availableYears, setAvailableYears] = useState<number[]>([]);
 
@@ -86,7 +93,10 @@ export function MonthPickerModal({
 
   // Cargar totales cuando cambia el año
   useEffect(() => {
-    if (draftYear === null) { setMonthlyTotals({}); return; }
+    if (draftYear === null) {
+      setMonthlyTotals({});
+      return;
+    }
     queryMonthlyExpensesByYear(draftYear).then(setMonthlyTotals);
   }, [draftYear]);
 
@@ -106,7 +116,12 @@ export function MonthPickerModal({
   }
 
   // Renderiza el grid en filas de 3
-  const monthRows = [[1,2,3],[4,5,6],[7,8,9],[10,11,12]];
+  const monthRows = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9],
+    [10, 11, 12],
+  ];
 
   return (
     <Modal
@@ -124,98 +139,96 @@ export function MonthPickerModal({
 
         {/* Sheet */}
         <View style={st.sheet}>
-        {/* Handle */}
-        <View style={st.handle} />
+          {/* Handle */}
+          <View style={st.handle} />
 
-        {/* Header */}
-        <View style={st.header}>
-          <Text style={st.title}>Seleccionar periodo</Text>
-          <TouchableOpacity onPress={onClose} style={st.closeBtn} activeOpacity={0.7}>
-            <X size={15} color={theme.textSub} strokeWidth={2.2} />
-          </TouchableOpacity>
-        </View>
+          {/* Header */}
+          <View style={st.header}>
+            <Text style={st.title}>Seleccionar periodo</Text>
+            <TouchableOpacity onPress={onClose} style={st.closeBtn} activeOpacity={0.7}>
+              <X size={15} color={theme.textSub} strokeWidth={2.2} />
+            </TouchableOpacity>
+          </View>
 
-        {/* Pills de año */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={st.yearScroll}
-          contentContainerStyle={st.yearScrollContent}
-        >
-          <TouchableOpacity
-            style={[st.yearPill, draftYear === null && st.yearPillActive]}
-            onPress={() => selectYear(null)}
-            activeOpacity={0.75}
+          {/* Pills de año */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={st.yearScroll}
+            contentContainerStyle={st.yearScrollContent}
           >
-            <Text style={[st.yearPillText, draftYear === null && st.yearPillActiveText]}>
-              Todo el tiempo
-            </Text>
-          </TouchableOpacity>
-
-          {availableYears.map((y) => (
             <TouchableOpacity
-              key={y}
-              style={[st.yearPill, draftYear === y && st.yearPillActive]}
-              onPress={() => selectYear(y)}
+              style={[st.yearPill, draftYear === null && st.yearPillActive]}
+              onPress={() => selectYear(null)}
               activeOpacity={0.75}
             >
-              <Text style={[st.yearPillText, draftYear === y && st.yearPillActiveText]}>
-                {y}
+              <Text style={[st.yearPillText, draftYear === null && st.yearPillActiveText]}>
+                Todo el tiempo
               </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
 
-        {/* Contenido: grid de meses o mensaje "Todo el tiempo" */}
-        {draftYear === null ? (
-          <View style={st.allTimeMsg}>
-            <Text style={st.allTimeMsgText}>Se mostrarán todas las transacciones</Text>
-          </View>
-        ) : (
-          <View style={st.monthGrid}>
-            {monthRows.map((row) => (
-              <View key={row[0]} style={st.monthRow}>
-                {row.map((month) => {
-                  const isSel    = draftMonth === month;
-                  const isFut    = isFuture(month);
-                  const amount   = monthlyTotals[month];
-
-                  return (
-                    <TouchableOpacity
-                      key={month}
-                      style={[
-                        st.monthCell,
-                        isSel && st.monthCellSelected,
-                        isFut && st.monthCellFuture,
-                      ]}
-                      onPress={() => selectMonth(month)}
-                      disabled={isFut}
-                      activeOpacity={0.72}
-                    >
-                      <Text style={[st.monthName, isSel && st.monthNameSelected]}>
-                        {MONTH_NAMES[month - 1]}
-                      </Text>
-                      {amount !== undefined ? (
-                        <Text style={[st.monthAmount, isSel && st.monthAmountSelected]}>
-                          {formatCompact(amount)}
-                        </Text>
-                      ) : null}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+            {availableYears.map((y) => (
+              <TouchableOpacity
+                key={y}
+                style={[st.yearPill, draftYear === y && st.yearPillActive]}
+                onPress={() => selectYear(y)}
+                activeOpacity={0.75}
+              >
+                <Text style={[st.yearPillText, draftYear === y && st.yearPillActiveText]}>{y}</Text>
+              </TouchableOpacity>
             ))}
-          </View>
-        )}
+          </ScrollView>
 
-        {/* Botón Aplicar */}
-        <TouchableOpacity
-          style={st.applyBtn}
-          onPress={() => onApply(draftYear, draftMonth)}
-          activeOpacity={0.85}
-        >
-          <Text style={st.applyBtnText}>✓  Aplicar</Text>
-        </TouchableOpacity>
+          {/* Contenido: grid de meses o mensaje "Todo el tiempo" */}
+          {draftYear === null ? (
+            <View style={st.allTimeMsg}>
+              <Text style={st.allTimeMsgText}>Se mostrarán todas las transacciones</Text>
+            </View>
+          ) : (
+            <View style={st.monthGrid}>
+              {monthRows.map((row) => (
+                <View key={row[0]} style={st.monthRow}>
+                  {row.map((month) => {
+                    const isSel = draftMonth === month;
+                    const isFut = isFuture(month);
+                    const amount = monthlyTotals[month];
+
+                    return (
+                      <TouchableOpacity
+                        key={month}
+                        style={[
+                          st.monthCell,
+                          isSel && st.monthCellSelected,
+                          isFut && st.monthCellFuture,
+                        ]}
+                        onPress={() => selectMonth(month)}
+                        disabled={isFut}
+                        activeOpacity={0.72}
+                      >
+                        <Text style={[st.monthName, isSel && st.monthNameSelected]}>
+                          {MONTH_NAMES[month - 1]}
+                        </Text>
+                        {amount !== undefined ? (
+                          <Text style={[st.monthAmount, isSel && st.monthAmountSelected]}>
+                            {formatCompact(amount)}
+                          </Text>
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Botón Aplicar */}
+          <TouchableOpacity
+            style={st.applyBtn}
+            onPress={() => onApply(draftYear, draftMonth)}
+            activeOpacity={0.85}
+          >
+            <Text style={st.applyBtnText}>✓ Aplicar</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>

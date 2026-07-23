@@ -25,13 +25,16 @@ interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
-const VARIANT_CONFIG: Record<DialogVariant, {
-  icon: typeof Trash2;
-  iconBg: string;
-  iconColor: string;
-  btnBg: string;
-  btnText: string;
-}> = {
+const VARIANT_CONFIG: Record<
+  DialogVariant,
+  {
+    icon: typeof Trash2;
+    iconBg: string;
+    iconColor: string;
+    btnBg: string;
+    btnText: string;
+  }
+> = {
   danger: {
     icon: Trash2,
     iconBg: "#FEE2E2",
@@ -76,7 +79,12 @@ export function ConfirmDialog({
   useEffect(() => {
     if (visible) {
       Animated.parallel([
-        Animated.spring(scaleAnim, { toValue: 1, damping: 18, stiffness: 200, useNativeDriver: true }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          damping: 18,
+          stiffness: 200,
+          useNativeDriver: true,
+        }),
         Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
       ]).start();
     } else {
@@ -90,8 +98,9 @@ export function ConfirmDialog({
       <TouchableWithoutFeedback onPress={onCancel}>
         <Animated.View style={[st.backdrop, { opacity: opacityAnim }]}>
           <TouchableWithoutFeedback>
-            <Animated.View style={[st.card, { opacity: opacityAnim, transform: [{ scale: scaleAnim }] }]}>
-
+            <Animated.View
+              style={[st.card, { opacity: opacityAnim, transform: [{ scale: scaleAnim }] }]}
+            >
               <View style={[st.iconCircle, { backgroundColor: cfg.iconBg }]}>
                 <Icon size={24} color={cfg.iconColor} strokeWidth={2} />
               </View>
@@ -103,11 +112,14 @@ export function ConfirmDialog({
                 <TouchableOpacity activeOpacity={0.7} onPress={onCancel} style={st.cancelBtn}>
                   <Text style={st.cancelText}>{cancelLabel}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity activeOpacity={0.8} onPress={onConfirm} style={[st.confirmBtn, { backgroundColor: cfg.btnBg }]}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={onConfirm}
+                  style={[st.confirmBtn, { backgroundColor: cfg.btnBg }]}
+                >
                   <Text style={[st.confirmText, { color: cfg.btnText }]}>{confirmLabel}</Text>
                 </TouchableOpacity>
               </View>
-
             </Animated.View>
           </TouchableWithoutFeedback>
         </Animated.View>

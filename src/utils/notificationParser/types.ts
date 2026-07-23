@@ -16,21 +16,21 @@ export type ParseConfidence = "high" | "medium" | "low";
  * lista larga agregar el patrón, sin saber qué otras categorías existían ya.
  */
 export type NotificationIntent =
-  | "otp"                    // código de verificación / token de seguridad
-  | "security_alert"         // cuenta bloqueada/suspendida, intento de acceso
-  | "payment_reminder"       // invitación a pagar una factura, aún no confirmado
-  | "marketing"              // publicidad, promociones, cashback
-  | "app_update"             // avisos de actualización de la app del banco
-  | "possible_transaction";  // no matchea ninguna categoría de ruido -> intentar parsear
+  | "otp" // código de verificación / token de seguridad
+  | "security_alert" // cuenta bloqueada/suspendida, intento de acceso
+  | "payment_reminder" // invitación a pagar una factura, aún no confirmado
+  | "marketing" // publicidad, promociones, cashback
+  | "app_update" // avisos de actualización de la app del banco
+  | "possible_transaction"; // no matchea ninguna categoría de ruido -> intentar parsear
 
 export interface ParsedTransaction {
-  amount: number;           // siempre positivo
-  isExpense: boolean;       // true = gasto, false = ingreso
-  description: string;      // comercio o descripción limpia
-  bankName: string;         // nombre del banco
-  packageName: string;      // app que generó la notificación
-  rawTitle: string;         // título original (para debugging)
-  rawText: string;          // texto original (para debugging)
+  amount: number; // siempre positivo
+  isExpense: boolean; // true = gasto, false = ingreso
+  description: string; // comercio o descripción limpia
+  bankName: string; // nombre del banco
+  packageName: string; // app que generó la notificación
+  rawTitle: string; // título original (para debugging)
+  rawText: string; // texto original (para debugging)
   confidence: ParseConfidence;
-  detectedAt: string;       // ISO timestamp
+  detectedAt: string; // ISO timestamp
 }

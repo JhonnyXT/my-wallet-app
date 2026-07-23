@@ -58,10 +58,8 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
   setCustomDate: (customDate) => set({ customDate, date: "custom" }),
   setNote: (note) => set({ note }),
   setAccount: (account) => set({ account }),
-  addTag: (tag) =>
-    set((s) => ({ tags: s.tags.includes(tag) ? s.tags : [...s.tags, tag] })),
-  removeTag: (tag) =>
-    set((s) => ({ tags: s.tags.filter((t) => t !== tag) })),
+  addTag: (tag) => set((s) => ({ tags: s.tags.includes(tag) ? s.tags : [...s.tags, tag] })),
+  removeTag: (tag) => set((s) => ({ tags: s.tags.filter((t) => t !== tag) })),
   setFromVoice: (data) => set((s) => ({ ...s, ...data })),
   reset: () => set(initialState()),
 }));

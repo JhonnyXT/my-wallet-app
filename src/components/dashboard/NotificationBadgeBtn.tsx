@@ -7,9 +7,9 @@ import { useNotificationStore } from "@/src/store/useNotificationStore";
 import { useTheme } from "@/src/context/ThemeContext";
 
 export function NotificationBadgeBtn() {
-  const theme        = useTheme();
+  const theme = useTheme();
   const pendingItems = useNotificationStore((s) => s.pendingItems);
-  const count        = pendingItems.length;
+  const count = pendingItems.length;
 
   if (count === 0) return null;
 

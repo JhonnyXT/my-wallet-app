@@ -69,6 +69,6 @@ export const useNotificationStore = create<NotificationState>()(
       storage: createJSONStorage(() => AsyncStorage),
       // Solo persiste los items pendientes; no hace falta versionar el estado de UI
       partialize: (state) => ({ pendingItems: state.pendingItems }),
-    }
-  )
+    },
+  ),
 );

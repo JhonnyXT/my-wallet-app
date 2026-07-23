@@ -41,24 +41,31 @@ export default function CategoryOnboarding() {
   const router = useRouter();
   const st = useMemo(() => buildStyles(theme), [theme]);
 
-  const { setUserCategories, completeCategories, userCategories, hasSelectedCategories } = useSettingsStore();
+  const { setUserCategories, completeCategories, userCategories, hasSelectedCategories } =
+    useSettingsStore();
   const isEditing = hasSelectedCategories;
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
-    if (userCategories.length > 0) return new Set(userCategories.map(c => c.id));
+    if (userCategories.length > 0) return new Set(userCategories.map((c) => c.id));
     return new Set();
   });
   const [customCats, setCustomCats] = useState<UserCategory[]>(() =>
-    userCategories.filter(c => !c.isPreset)
+    userCategories.filter((c) => !c.isPreset),
   );
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<"expense" | "income">("expense");
 
-  const allExpense = useMemo(() => [...EXPENSE_PRESETS, ...customCats.filter(c => c.type === "expense")], [customCats]);
-  const allIncome = useMemo(() => [...INCOME_PRESETS, ...customCats.filter(c => c.type === "income")], [customCats]);
+  const allExpense = useMemo(
+    () => [...EXPENSE_PRESETS, ...customCats.filter((c) => c.type === "expense")],
+    [customCats],
+  );
+  const allIncome = useMemo(
+    () => [...INCOME_PRESETS, ...customCats.filter((c) => c.type === "income")],
+    [customCats],
+  );
 
   const toggleSelect = useCallback((id: string) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -70,7 +77,7 @@ export default function CategoryOnboarding() {
 
   const handleSave = useCallback(() => {
     const all = [...EXPENSE_PRESETS, ...INCOME_PRESETS, ...customCats];
-    const chosen = all.filter(c => selectedIds.has(c.id));
+    const chosen = all.filter((c) => selectedIds.has(c.id));
     setUserCategories(chosen);
     completeCategories();
     if (isEditing) {
@@ -81,8 +88,8 @@ export default function CategoryOnboarding() {
   }, [selectedIds, customCats, setUserCategories, completeCategories, router, isEditing]);
 
   const handleCreateCategory = useCallback((cat: UserCategory) => {
-    setCustomCats(prev => [...prev, cat]);
-    setSelectedIds(prev => new Set(prev).add(cat.id));
+    setCustomCats((prev) => [...prev, cat]);
+    setSelectedIds((prev) => new Set(prev).add(cat.id));
     setModalVisible(false);
   }, []);
 
@@ -94,7 +101,7 @@ export default function CategoryOnboarding() {
       <>
         {rows.map((row, ri) => (
           <View key={ri} style={st.row}>
-            {row.map(cat => {
+            {row.map((cat) => {
               const active = selectedIds.has(cat.id);
               return (
                 <TouchableOpacity
@@ -103,35 +110,53 @@ export default function CategoryOnboarding() {
                   onPress={() => toggleSelect(cat.id)}
                   style={[
                     st.card,
-                    { backgroundColor: active ? cat.colorBg : theme.isDark ? "#1E293B" : "#F8FAFC" },
+                    {
+                      backgroundColor: active ? cat.colorBg : theme.isDark ? "#1E293B" : "#F8FAFC",
+                    },
                     active && { borderColor: cat.colorAccent, borderWidth: 2 },
                   ]}
                 >
                   <Text style={st.cardEmoji}>{cat.emoji}</Text>
-                  <Text style={[st.cardLabel, { color: active ? cat.colorAccent : theme.textSub }]} numberOfLines={1}>
+                  <Text
+                    style={[st.cardLabel, { color: active ? cat.colorAccent : theme.textSub }]}
+                    numberOfLines={1}
+                  >
                     {cat.name}
                   </Text>
-                  {active && <View style={[st.checkBadge, { backgroundColor: cat.colorAccent }]}><Text style={st.checkMark}>✓</Text></View>}
+                  {active && (
+                    <View style={[st.checkBadge, { backgroundColor: cat.colorAccent }]}>
+                      <Text style={st.checkMark}>✓</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
             })}
             {/* Fill empty slots */}
-            {row.length < 3 && Array.from({ length: 3 - row.length }).map((_, i) => {
-              if (ri === rows.length - 1 && i === 0) {
+            {row.length < 3 &&
+              Array.from({ length: 3 - row.length }).map((_, i) => {
+                if (ri === rows.length - 1 && i === 0) {
+                  return (
+                    <TouchableOpacity
+                      key="add"
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setModalType(type);
+                        setModalVisible(true);
+                      }}
+                      style={[st.card, st.addCard]}
+                    >
+                      <Text style={[st.addIcon, { color: theme.textSub }]}>+</Text>
+                      <Text style={[st.addLabel, { color: theme.textSub }]}>Añadir</Text>
+                    </TouchableOpacity>
+                  );
+                }
                 return (
-                  <TouchableOpacity
-                    key="add"
-                    activeOpacity={0.7}
-                    onPress={() => { setModalType(type); setModalVisible(true); }}
-                    style={[st.card, st.addCard]}
-                  >
-                    <Text style={[st.addIcon, { color: theme.textSub }]}>+</Text>
-                    <Text style={[st.addLabel, { color: theme.textSub }]}>Añadir</Text>
-                  </TouchableOpacity>
+                  <View
+                    key={`empty-${i}`}
+                    style={[st.card, { backgroundColor: "transparent", borderWidth: 0 }]}
+                  />
                 );
-              }
-              return <View key={`empty-${i}`} style={[st.card, { backgroundColor: "transparent", borderWidth: 0 }]} />;
-            })}
+              })}
           </View>
         ))}
         {/* Add button if last row is full */}
@@ -139,7 +164,10 @@ export default function CategoryOnboarding() {
           <View style={st.row}>
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => { setModalType(type); setModalVisible(true); }}
+              onPress={() => {
+                setModalType(type);
+                setModalVisible(true);
+              }}
               style={[st.card, st.addCard]}
             >
               <Text style={[st.addIcon, { color: theme.textSub }]}>+</Text>
@@ -157,7 +185,11 @@ export default function CategoryOnboarding() {
 
       <ScrollView contentContainerStyle={st.scrollContent} showsVerticalScrollIndicator={false}>
         {isEditing && (
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ marginBottom: 12, flexDirection: "row", alignItems: "center" }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+            style={{ marginBottom: 12, flexDirection: "row", alignItems: "center" }}
+          >
             <Text style={{ color: theme.accent, fontSize: 15, fontWeight: "600" }}>← Volver</Text>
           </TouchableOpacity>
         )}
@@ -226,7 +258,12 @@ export function NewCategoryModal({ visible, type, theme, onClose, onSave }: Moda
     setHue(210);
     setName("");
     scaleAnim.setValue(0.9);
-    Animated.spring(scaleAnim, { toValue: 1, damping: 18, stiffness: 200, useNativeDriver: true }).start();
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      damping: 18,
+      stiffness: 200,
+      useNativeDriver: true,
+    }).start();
   }, [scaleAnim]);
 
   const handleSave = useCallback(() => {
@@ -246,75 +283,77 @@ export function NewCategoryModal({ visible, type, theme, onClose, onSave }: Moda
   }, [name, emoji, hue, type, onSave]);
 
   return (
-    <Modal visible={visible} transparent animationType="none" onShow={handleOpen} onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior="padding"
-        keyboardVerticalOffset={0}
-      >
-      <Pressable style={ms.backdrop} onPress={onClose}>
-        <Animated.View style={[ms.card, { transform: [{ scale: scaleAnim }] }]}>
-          <Pressable>
-            <View style={ms.header}>
-              <Text style={ms.headerTitle}>Nueva Categoría</Text>
-              <TouchableOpacity onPress={onClose} activeOpacity={0.6}>
-                <Text style={ms.headerX}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Emoji selector */}
-            <Text style={ms.label}>ÍCONO</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={ms.emojiScroll}>
-              {CURATED_EMOJIS.map(e => (
-                <TouchableOpacity
-                  key={e}
-                  onPress={() => setEmoji(e)}
-                  style={[ms.emojiBtn, e === emoji && ms.emojiBtnActive]}
-                  activeOpacity={0.7}
-                >
-                  <Text style={ms.emojiText}>{e}</Text>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onShow={handleOpen}
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
+        <Pressable style={ms.backdrop} onPress={onClose}>
+          <Animated.View style={[ms.card, { transform: [{ scale: scaleAnim }] }]}>
+            <Pressable>
+              <View style={ms.header}>
+                <Text style={ms.headerTitle}>Nueva Categoría</Text>
+                <TouchableOpacity onPress={onClose} activeOpacity={0.6}>
+                  <Text style={ms.headerX}>✕</Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              </View>
 
-            {/* Color selector */}
-            <Text style={ms.label}>COLOR DE TEMA</Text>
-            <HueColorPicker
-              hue={hue}
-              onChange={setHue}
-              previewEmoji={emoji}
-              style={ms.colorPicker}
-            />
+              {/* Emoji selector */}
+              <Text style={ms.label}>ÍCONO</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={ms.emojiScroll}>
+                {CURATED_EMOJIS.map((e) => (
+                  <TouchableOpacity
+                    key={e}
+                    onPress={() => setEmoji(e)}
+                    style={[ms.emojiBtn, e === emoji && ms.emojiBtnActive]}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={ms.emojiText}>{e}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
 
-            {/* Name input */}
-            <Text style={ms.label}>NOMBRE DE LA CATEGORÍA</Text>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Ej. Gimnasio"
-              placeholderTextColor={theme.textTertiary}
-              style={ms.nameInput}
-              maxLength={24}
-              autoCapitalize="words"
-            />
+              {/* Color selector */}
+              <Text style={ms.label}>COLOR DE TEMA</Text>
+              <HueColorPicker
+                hue={hue}
+                onChange={setHue}
+                previewEmoji={emoji}
+                style={ms.colorPicker}
+              />
 
-            {/* Buttons */}
-            <View style={ms.btnRow}>
-              <TouchableOpacity onPress={onClose} activeOpacity={0.6} style={ms.cancelBtn}>
-                <Text style={[ms.cancelText, { color: theme.textSub }]}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSave}
-                activeOpacity={0.85}
-                disabled={!name.trim()}
-                style={[ms.okBtn, !name.trim() && { opacity: 0.4 }]}
-              >
-                <Text style={ms.okText}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Animated.View>
-      </Pressable>
+              {/* Name input */}
+              <Text style={ms.label}>NOMBRE DE LA CATEGORÍA</Text>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                placeholder="Ej. Gimnasio"
+                placeholderTextColor={theme.textTertiary}
+                style={ms.nameInput}
+                maxLength={24}
+                autoCapitalize="words"
+              />
+
+              {/* Buttons */}
+              <View style={ms.btnRow}>
+                <TouchableOpacity onPress={onClose} activeOpacity={0.6} style={ms.cancelBtn}>
+                  <Text style={[ms.cancelText, { color: theme.textSub }]}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSave}
+                  activeOpacity={0.85}
+                  disabled={!name.trim()}
+                  style={[ms.okBtn, !name.trim() && { opacity: 0.4 }]}
+                >
+                  <Text style={ms.okText}>Guardar</Text>
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -328,7 +367,14 @@ function buildStyles(t: AppTheme) {
     scrollContent: { paddingHorizontal: 24, paddingTop: 40 },
     title: { fontSize: 28, fontWeight: "800", color: t.text, letterSpacing: -0.5 },
     subtitle: { fontSize: 14, color: t.textSub, marginTop: 8, lineHeight: 20, marginBottom: 28 },
-    sectionTitle: { fontSize: 16, fontWeight: "700", color: t.text, marginBottom: 14, textTransform: "uppercase", letterSpacing: 0.5 },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: t.text,
+      marginBottom: 14,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
     row: { flexDirection: "row", gap: CARD_GAP, marginBottom: CARD_GAP },
     card: {
       width: CARD_W,

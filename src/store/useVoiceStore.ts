@@ -11,7 +11,7 @@ export type PendingTransaction = Extract<
 
 // Transacción manual ingresada desde active-expense mientras se revisa un batch
 export type ManualAddItem = {
-  amount: number;        // siempre positivo
+  amount: number; // siempre positivo
   description: string;
   categoryEmoji: string;
   categoryName: string;

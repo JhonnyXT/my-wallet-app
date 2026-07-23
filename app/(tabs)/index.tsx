@@ -52,17 +52,17 @@ export type { PeriodFilter } from "@/src/utils/periodFilter";
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
-  const theme             = useTheme();
-  const insets            = useSafeAreaInsets();
-  const transactions      = useFinanceStore((s) => s.transactions);
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const transactions = useFinanceStore((s) => s.transactions);
   const deleteTransaction = useFinanceStore((s) => s.deleteTransaction);
-  const addTransaction    = useFinanceStore((s) => s.addTransaction);
-  const monthlyBudget     = useSettingsStore((s) => s.monthlyBudget);
-  const userCategories    = useSettingsStore((s) => s.userCategories);
-  const resetExpense      = useExpenseStore((s) => s.reset);
+  const addTransaction = useFinanceStore((s) => s.addTransaction);
+  const monthlyBudget = useSettingsStore((s) => s.monthlyBudget);
+  const userCategories = useSettingsStore((s) => s.userCategories);
+  const resetExpense = useExpenseStore((s) => s.reset);
   const setExpenseCategory = useExpenseStore((s) => s.setCategory);
-  const paymentMethods    = useSettingsStore((s) => s.paymentMethods);
-  const savingsGoals      = useSettingsStore((s) => s.savingsGoals);
+  const paymentMethods = useSettingsStore((s) => s.paymentMethods);
+  const savingsGoals = useSettingsStore((s) => s.savingsGoals);
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   // ── Detalle de transacción (long-press) ──────────────────────────────────
@@ -129,13 +129,8 @@ export default function DashboardScreen() {
   });
 
   // ── Scroll y animaciones ─────────────────────────────────────────────────
-  const {
-    scrollY,
-    scrollHandler,
-    headerParallaxStyle,
-    pillsParallaxStyle,
-    chartAnimKey,
-  } = useDashboardScroll(typeFilter, periodFilter);
+  const { scrollY, scrollHandler, headerParallaxStyle, pillsParallaxStyle, chartAnimKey } =
+    useDashboardScroll(typeFilter, periodFilter);
 
   // ── Tour de onboarding ───────────────────────────────────────────────────
   const {
@@ -149,10 +144,13 @@ export default function DashboardScreen() {
   // ── Filtro por categoría (tap corto en columna del chart) ───────────────
   const setCategoryFilter = useUIStore((s) => s.setCategoryFilter);
 
-  const handleCategoryTap = useCallback((emoji: string, name: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCategoryFilter({ emoji, name });
-  }, [setCategoryFilter]);
+  const handleCategoryTap = useCallback(
+    (emoji: string, name: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setCategoryFilter({ emoji, name });
+    },
+    [setCategoryFilter],
+  );
 
   // Botón atrás del dispositivo: cierra primero el filtro de categoría
   useEffect(() => {
@@ -168,7 +166,9 @@ export default function DashboardScreen() {
   // Refleja en JS si el FlatList está en el tope (solo cambia al cruzar el umbral,
   // sin disparar runOnJS en cada frame).
   const atTopRef = useRef(true);
-  const setAtTop = useCallback((v: boolean) => { atTopRef.current = v; }, []);
+  const setAtTop = useCallback((v: boolean) => {
+    atTopRef.current = v;
+  }, []);
   useAnimatedReaction(
     () => scrollY.value <= 4,
     (atTop, prev) => {
@@ -181,23 +181,24 @@ export default function DashboardScreen() {
   // PanResponder en capa de captura: solo intercepta cuando hay filtro activo,
   // estamos en el tope del scroll y el gesto es claramente vertical descendente.
   // Si suelta tras arrastrar > 80 px, limpia el filtro. No muestra ningún spinner.
-  const pullDownPan = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponderCapture: () => false,
-    onMoveShouldSetPanResponderCapture: (_, gs) =>
-      !!categoryFilter
-      && atTopRef.current
-      && gs.dy > 14
-      && gs.dy > Math.abs(gs.dx) * 1.2,
-    onPanResponderGrant: () => {
-      Haptics.selectionAsync();
-    },
-    onPanResponderRelease: (_, gs) => {
-      if (gs.dy > 80) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        clearCategoryFilter();
-      }
-    },
-  }), [categoryFilter, clearCategoryFilter]);
+  const pullDownPan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponderCapture: () => false,
+        onMoveShouldSetPanResponderCapture: (_, gs) =>
+          !!categoryFilter && atTopRef.current && gs.dy > 14 && gs.dy > Math.abs(gs.dx) * 1.2,
+        onPanResponderGrant: () => {
+          Haptics.selectionAsync();
+        },
+        onPanResponderRelease: (_, gs) => {
+          if (gs.dy > 80) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            clearCategoryFilter();
+          }
+        },
+      }),
+    [categoryFilter, clearCategoryFilter],
+  );
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   function handleNewTransactionFromChart(emoji: string, categoryName: string) {
@@ -210,26 +211,32 @@ export default function DashboardScreen() {
 
   const handleDetail = useCallback((tx: TransactionRow) => setDetailTx(tx), []);
 
-  const handleDeleteTransaction = useCallback(async (id: number) => {
-    const tx = transactions.find((t) => t.id === id);
-    await deleteTransaction(id);
-    if (!tx) return;
-  }, [transactions, deleteTransaction]);
+  const handleDeleteTransaction = useCallback(
+    async (id: number) => {
+      const tx = transactions.find((t) => t.id === id);
+      await deleteTransaction(id);
+      if (!tx) return;
+    },
+    [transactions, deleteTransaction],
+  );
 
-  const renderItem = useCallback(({ item, index }: { item: TxRow; index: number }) => (
-    <View style={styles.txItem}>
-      <TransactionItem
-        transaction={item}
-        index={index}
-        dimmed={false}
-        onDelete={handleDeleteTransaction}
-        onDetail={handleDetail}
-      />
-    </View>
-  ), [handleDeleteTransaction, handleDetail, styles.txItem]);
+  const renderItem = useCallback(
+    ({ item, index }: { item: TxRow; index: number }) => (
+      <View style={styles.txItem}>
+        <TransactionItem
+          transaction={item}
+          index={index}
+          dimmed={false}
+          onDelete={handleDeleteTransaction}
+          onDetail={handleDetail}
+        />
+      </View>
+    ),
+    [handleDeleteTransaction, handleDetail, styles.txItem],
+  );
 
   // ── Derivados de estado ───────────────────────────────────────────────────
-  const isNewPeriod      = filteredTransactions.length === 0 && isCurrentPeriod && !isSearching;
+  const isNewPeriod = filteredTransactions.length === 0 && isCurrentPeriod && !isSearching;
   const newPeriodMessage = "Nuevo mes, ¡comienza ahora!";
 
   // ── ListHeader ────────────────────────────────────────────────────────────
@@ -251,10 +258,17 @@ export default function DashboardScreen() {
           {isNewPeriod && (
             <View style={styles.newPeriodOverlay}>
               <Text style={styles.newPeriodText}>{newPeriodMessage}</Text>
-              <Text style={styles.newPeriodSub}>Registra tu primer movimiento con + o el micrófono</Text>
+              <Text style={styles.newPeriodSub}>
+                Registra tu primer movimiento con + o el micrófono
+              </Text>
             </View>
           )}
-          <View style={[isNewPeriod ? { opacity: 0.18 } : undefined, { paddingTop: 8, paddingBottom: 16 }]}>
+          <View
+            style={[
+              isNewPeriod ? { opacity: 0.18 } : undefined,
+              { paddingTop: 8, paddingBottom: 16 },
+            ]}
+          >
             <CategoryChart
               stats={activeStats}
               allEmojis={allEmojis}
@@ -274,11 +288,15 @@ export default function DashboardScreen() {
       {displayedTransactions.length > 0 && (
         <View style={styles.dayHeader}>
           <Text style={styles.dayLabel}>
-            {isSearching       ? "RESULTADOS"
-              : categoryFilter  ? categoryFilter.name.toUpperCase()
-              : typeFilter === "expense" ? "GASTOS"
-              : typeFilter === "income"  ? "INGRESOS"
-              : "RECIENTE"}
+            {isSearching
+              ? "RESULTADOS"
+              : categoryFilter
+                ? categoryFilter.name.toUpperCase()
+                : typeFilter === "expense"
+                  ? "GASTOS"
+                  : typeFilter === "income"
+                    ? "INGRESOS"
+                    : "RECIENTE"}
           </Text>
           <Text style={styles.dayLabelRight}>
             {isSearching
@@ -339,7 +357,6 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.headerLeft}>
-
           <Reanimated.View style={[styles.balanceSection, headerParallaxStyle as object]}>
             <Text style={styles.balanceLabel}>
               {isSearching
@@ -408,7 +425,9 @@ export default function DashboardScreen() {
                 <View style={styles.budgetTrack}>
                   <View style={[styles.budgetFill, { width: `${budgetPct}%` as `${number}%` }]} />
                 </View>
-                <Text style={styles.budgetBarPct}>{budgetPct}% de {formatBalance(monthlyBudget)}</Text>
+                <Text style={styles.budgetBarPct}>
+                  {budgetPct}% de {formatBalance(monthlyBudget)}
+                </Text>
               </View>
             )}
           </Reanimated.View>
@@ -456,7 +475,11 @@ export default function DashboardScreen() {
           {
             bottom: Animated.add(baseSearchBottom, keyboardExtraAnim),
             opacity: searchBarOpacity,
-            transform: [{ translateY: searchBarAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+            transform: [
+              {
+                translateY: searchBarAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }),
+              },
+            ],
           },
         ]}
         pointerEvents={searchOpen ? "auto" : "none"}
@@ -527,14 +550,17 @@ export default function DashboardScreen() {
       <MonthPickerModal
         visible={monthPickerOpen}
         selectedYear={
-          periodFilter.type === "month" ? periodFilter.year :
-          periodFilter.type === "year"  ? periodFilter.year : null
+          periodFilter.type === "month"
+            ? periodFilter.year
+            : periodFilter.type === "year"
+              ? periodFilter.year
+              : null
         }
         selectedMonth={periodFilter.type === "month" ? periodFilter.month : null}
         onApply={(year, month) => {
-          if (year === null)       setPeriodFilter({ type: "all" });
+          if (year === null) setPeriodFilter({ type: "all" });
           else if (month === null) setPeriodFilter({ type: "year", year });
-          else                     setPeriodFilter({ type: "month", year, month });
+          else setPeriodFilter({ type: "month", year, month });
           setMonthPickerOpen(false);
         }}
         onClose={() => setMonthPickerOpen(false)}
@@ -646,13 +672,13 @@ function createStyles(t: AppTheme) {
       letterSpacing: 0.1,
     },
     // Activo — gasto
-    pillExpenseActive: { backgroundColor: "#FEE2E2" },  // rojo claro (no rosa)
-    pillExpenseText:   { color: "#E53E3E" },             // rojo medio, no demasiado intenso
+    pillExpenseActive: { backgroundColor: "#FEE2E2" }, // rojo claro (no rosa)
+    pillExpenseText: { color: "#E53E3E" }, // rojo medio, no demasiado intenso
     // Activo — ingreso
-    pillIncomeActive:  { backgroundColor: "#DCFCE7" },  // verde claro
-    pillIncomeText:    { color: "#16A34A" },             // verde medio
+    pillIncomeActive: { backgroundColor: "#DCFCE7" }, // verde claro
+    pillIncomeText: { color: "#16A34A" }, // verde medio
     // Inactivo — gris neutro
-    pillInactive:     { backgroundColor: t.pillNeutral ?? "#F1F5F9" },
+    pillInactive: { backgroundColor: t.pillNeutral ?? "#F1F5F9" },
     pillInactiveText: { color: t.textSub, fontWeight: "600" as const },
     pillContent: {
       flexDirection: "row" as const,
@@ -777,8 +803,8 @@ function createStyles(t: AppTheme) {
       paddingVertical: 64,
       paddingHorizontal: 28,
     },
-    emptyEmoji:    { fontSize: 48, marginBottom: 14 },
-    emptyTitle:    { fontSize: 17, fontWeight: "700", color: t.textSub, marginBottom: 8 },
+    emptyEmoji: { fontSize: 48, marginBottom: 14 },
+    emptyTitle: { fontSize: 17, fontWeight: "700", color: t.textSub, marginBottom: 8 },
     emptySubtitle: { fontSize: 14, color: t.textSub, textAlign: "center", lineHeight: 21 },
 
     // ── Barra de búsqueda ───────────────────────────────────────────────────
@@ -798,7 +824,7 @@ function createStyles(t: AppTheme) {
       paddingVertical: 12,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.10,
+      shadowOpacity: 0.1,
       shadowRadius: 16,
       elevation: 10,
     },

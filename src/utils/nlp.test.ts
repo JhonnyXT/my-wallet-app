@@ -39,11 +39,18 @@ describe("parseExpenseInput", () => {
   });
 
   it("prioriza las keywords de categorías del usuario sobre el mapa legacy", () => {
-    const userCats: UserCategory[] = [{
-      id: "mascotas", emoji: "🎯", name: "Mascotas",
-      colorBg: "#F1F5F9", colorAccent: "#475569",
-      type: "expense", keywords: ["uber"], isPreset: false,
-    }];
+    const userCats: UserCategory[] = [
+      {
+        id: "mascotas",
+        emoji: "🎯",
+        name: "Mascotas",
+        colorBg: "#F1F5F9",
+        colorAccent: "#475569",
+        type: "expense",
+        keywords: ["uber"],
+        isPreset: false,
+      },
+    ];
     const result = parseExpenseInput("Uber 15000", userCats);
     expect(result!.categoryEmoji).toBe("🎯");
   });

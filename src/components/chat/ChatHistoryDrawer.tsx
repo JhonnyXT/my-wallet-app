@@ -196,12 +196,7 @@ export function ChatHistoryDrawer({
   if (!visible) return null;
 
   return (
-    <Modal
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
+    <Modal transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       {/* Fondo oscuro */}
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={d.backdrop} />
@@ -221,7 +216,12 @@ export function ChatHistoryDrawer({
         {/* Cabecera del panel */}
         <View style={d.panelHeader}>
           <Text style={d.panelTitle}>HISTORIAL</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={12} accessibilityLabel="Cerrar historial" accessibilityRole="button">
+          <TouchableOpacity
+            onPress={onClose}
+            hitSlop={12}
+            accessibilityLabel="Cerrar historial"
+            accessibilityRole="button"
+          >
             <X size={20} color={theme.text} strokeWidth={2} />
           </TouchableOpacity>
         </View>
@@ -230,17 +230,14 @@ export function ChatHistoryDrawer({
         {drawerItems.length === 0 ? (
           <View style={d.emptyWrap}>
             <Text style={d.emptyText}>
-              Aún no hay conversaciones guardadas.{"\n"}Empieza una nueva
-              para verla aquí.
+              Aún no hay conversaciones guardadas.{"\n"}Empieza una nueva para verla aquí.
             </Text>
           </View>
         ) : (
           <FlatList
             data={drawerItems}
             keyExtractor={(item, idx) =>
-              item.type === "header"
-                ? `hdr-${item.label}`
-                : `s-${item.session.id}-${idx}`
+              item.type === "header" ? `hdr-${item.label}` : `s-${item.session.id}-${idx}`
             }
             showsVerticalScrollIndicator={false}
             style={{ flex: 1 }}
@@ -257,9 +254,7 @@ export function ChatHistoryDrawer({
                 <TouchableOpacity
                   onPress={() => onLoadSession(session.id)}
                   onLongPress={async () => {
-                    await Haptics.impactAsync(
-                      Haptics.ImpactFeedbackStyle.Medium
-                    );
+                    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     onStartRename(session.id, session.title);
                   }}
                   activeOpacity={0.7}
@@ -278,18 +273,13 @@ export function ChatHistoryDrawer({
                       />
                     ) : (
                       <Text
-                        style={[
-                          d.sessionTitle,
-                          isActive && d.sessionTitleActive,
-                        ]}
+                        style={[d.sessionTitle, isActive && d.sessionTitleActive]}
                         numberOfLines={1}
                       >
                         {session.title}
                       </Text>
                     )}
-                    <Text style={d.sessionTime}>
-                      {formatTime(session.updated_at)}
-                    </Text>
+                    <Text style={d.sessionTime}>{formatTime(session.updated_at)}</Text>
                   </View>
 
                   <TouchableOpacity
@@ -308,11 +298,7 @@ export function ChatHistoryDrawer({
         )}
 
         {/* Nueva conversación */}
-        <TouchableOpacity
-          style={d.newChatBtn}
-          onPress={onNewChat}
-          activeOpacity={0.88}
-        >
+        <TouchableOpacity style={d.newChatBtn} onPress={onNewChat} activeOpacity={0.88}>
           <Plus size={16} color={theme.bg} strokeWidth={2.5} />
           <Text style={d.newChatText}>Nueva conversación</Text>
         </TouchableOpacity>

@@ -1,12 +1,5 @@
 import { useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  Image,
-  Animated,
-  StyleSheet,
-  Dimensions,
-} from "react-native";
+import { View, Text, Image, Animated, StyleSheet, Dimensions } from "react-native";
 
 const { width } = Dimensions.get("window");
 
@@ -15,10 +8,10 @@ interface AnimatedSplashProps {
 }
 
 export function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
-  const iconScale    = useRef(new Animated.Value(0.3)).current;
-  const iconOpacity  = useRef(new Animated.Value(0)).current;
-  const textOpacity  = useRef(new Animated.Value(0)).current;
-  const textTransY   = useRef(new Animated.Value(18)).current;
+  const iconScale = useRef(new Animated.Value(0.3)).current;
+  const iconOpacity = useRef(new Animated.Value(0)).current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
+  const textTransY = useRef(new Animated.Value(18)).current;
   const wholeOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {

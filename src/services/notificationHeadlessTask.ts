@@ -56,8 +56,17 @@ export async function notificationHeadlessTask(taskData: { notification: string 
     const allowedRaw = await AsyncStorage.getItem(ALLOWED_BANKS_KEY);
     if (allowedRaw) {
       let allowedBanks: unknown;
-      try { allowedBanks = JSON.parse(allowedRaw); } catch { return; }
-      if (Array.isArray(allowedBanks) && allowedBanks.length > 0 && !allowedBanks.includes(notification.app)) return;
+      try {
+        allowedBanks = JSON.parse(allowedRaw);
+      } catch {
+        return;
+      }
+      if (
+        Array.isArray(allowedBanks) &&
+        allowedBanks.length > 0 &&
+        !allowedBanks.includes(notification.app)
+      )
+        return;
     }
 
     // 3. Usar el texto más completo disponible
@@ -75,8 +84,13 @@ export async function notificationHeadlessTask(taskData: { notification: string 
 
     // 6. Notificación push al usuario para que sepa que hay una transacción pendiente.
     //    El wording se ajusta según parsed.confidence (ver notifyBankTransaction).
-    await notifyBankTransaction(parsed.amount, parsed.description, parsed.bankName, parsed.isExpense, parsed.confidence);
-
+    await notifyBankTransaction(
+      parsed.amount,
+      parsed.description,
+      parsed.bankName,
+      parsed.isExpense,
+      parsed.confidence,
+    );
   } catch (e) {
     // Loguear en desarrollo para facilitar diagnóstico; silenciar en producción
     if (__DEV__) console.error("[HeadlessTask] Error procesando notificación:", e);

@@ -5,3 +5,14 @@ specs
 coverage
 node_modules
 package-lock.json
+
+# Documentación (AGENTS.md, CONTEXT.md, .agents/**/*.md, etc.): Prettier recalcula el
+# padding de tablas markdown y reformatea prosa, generando diffs enormes en docs que se
+# mantienen a mano con mucho cuidado. Prettier es solo para código (JS/TS/JSON), no para docs.
+*.md
+*.mdc
+
+# Landing page de GitHub Pages: CSS compacto hecho a mano (metodología ui-ux-pro-max
+# documentada en AGENTS.md). Prettier lo expande verbosamente (+1400 líneas de diff) sin
+# ganancia real — no es código de la app, es un artefacto de marketing/compliance aparte.
+docs/

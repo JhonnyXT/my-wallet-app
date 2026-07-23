@@ -1,8 +1,5 @@
 import { useRef, useMemo, useCallback } from "react";
-import {
-  View, Text, StyleSheet, Animated,
-  PanResponder, TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, Animated, PanResponder, TouchableOpacity } from "react-native";
 import * as Haptics from "expo-haptics";
 import AnimatedRN, { FadeInDown } from "react-native-reanimated";
 import { Trash2 } from "lucide-react-native";
@@ -13,8 +10,8 @@ import { useSettingsStore } from "@/src/store/useSettingsStore";
 import type { AppTheme } from "@/src/theme";
 
 // ─── Constantes del swipe ─────────────────────────────────────────────────────
-const DELETE_WIDTH  = 72;   // ancho del botón de eliminar
-const SWIPE_THRESH  = 48;   // mínimo para que se abra el botón
+const DELETE_WIDTH = 72; // ancho del botón de eliminar
+const SWIPE_THRESH = 48; // mínimo para que se abra el botón
 
 interface TransactionItemProps {
   transaction: TransactionRow;
@@ -24,14 +21,29 @@ interface TransactionItemProps {
   onDetail?: (tx: TransactionRow) => void;
 }
 
-const SHORT_MONTHS = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const SHORT_MONTHS = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sep",
+  "oct",
+  "nov",
+  "dic",
+];
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 function formatAmount(amount: number): string {
-  return `$ ${Math.round(Math.abs(amount)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+  return `$ ${Math.round(Math.abs(amount))
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
 function capitalize(s: string): string {
@@ -53,7 +65,7 @@ function resolveCategoryName(
 }
 
 function extractTags(text: string): string[] {
-  return (text.match(/#\w+/g) ?? []);
+  return text.match(/#\w+/g) ?? [];
 }
 
 function cleanDescription(text: string): string {
@@ -67,22 +79,30 @@ export function TransactionItem({
   onDelete,
   onDetail,
 }: TransactionItemProps) {
-  const theme          = useTheme();
-  const styles         = useMemo(() => createStyles(theme), [theme]);
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const userCategories = useSettingsStore((s) => s.userCategories);
-  const savingsGoals   = useSettingsStore((s) => s.savingsGoals);
-  const palette        = getCategoryColor(transaction.category_emoji);
-  const categoryName   = resolveCategoryName(transaction.category_emoji, userCategories, savingsGoals);
-  const dateStr        = formatDate(transaction.date);
-  const isExpense    = transaction.amount >= 0;
-  const amountColor  = isExpense ? theme.text : "#059669";
-  const amountSign   = isExpense ? "- " : "+ ";
+  const savingsGoals = useSettingsStore((s) => s.savingsGoals);
+  const palette = getCategoryColor(transaction.category_emoji);
+  const categoryName = resolveCategoryName(
+    transaction.category_emoji,
+    userCategories,
+    savingsGoals,
+  );
+  const dateStr = formatDate(transaction.date);
+  const isExpense = transaction.amount >= 0;
+  const amountColor = isExpense ? theme.text : "#059669";
+  const amountSign = isExpense ? "- " : "+ ";
 
   const rawDesc = transaction.description || categoryName;
 
   let tags: string[] = [];
   if (transaction.tags && transaction.tags.trim() !== "") {
-    try { tags = JSON.parse(transaction.tags); } catch { tags = extractTags(transaction.tags); }
+    try {
+      tags = JSON.parse(transaction.tags);
+    } catch {
+      tags = extractTags(transaction.tags);
+    }
   } else {
     tags = extractTags(rawDesc);
   }
@@ -91,7 +111,7 @@ export function TransactionItem({
 
   // ── Swipe to delete ──────────────────────────────────────────────────────────
   const translateX = useRef(new Animated.Value(0)).current;
-  const isOpen     = useRef(false);
+  const isOpen = useRef(false);
 
   const spring = (toValue: number, cb?: () => void) =>
     Animated.spring(translateX, {
@@ -106,8 +126,7 @@ export function TransactionItem({
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, g) =>
-        Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
       onPanResponderMove: (_, g) => {
         if (Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy)) {
           const base = isOpen.current ? -DELETE_WIDTH : 0;
@@ -135,7 +154,7 @@ export function TransactionItem({
       onPanResponderTerminate: () => {
         spring(isOpen.current ? -DELETE_WIDTH : 0);
       },
-    })
+    }),
   ).current;
 
   function handleDelete() {
@@ -157,205 +176,205 @@ export function TransactionItem({
       style={[styles.wrapper, dimmed && styles.dimmed]}
     >
       <View style={styles.container}>
-      {/* Botón de eliminar — detrás del row */}
-      <View style={styles.deleteContainer}>
-        <TouchableOpacity
-          style={styles.deleteBtn}
-          onPress={handleDelete}
-          activeOpacity={0.8}
-        >
-          <Trash2 size={20} color="#FFFFFF" strokeWidth={2} />
-        </TouchableOpacity>
-      </View>
+        {/* Botón de eliminar — detrás del row */}
+        <View style={styles.deleteContainer}>
+          <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
+            <Trash2 size={20} color="#FFFFFF" strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
 
-      {/* Animated.View: maneja el deslizamiento (translateX) + PanResponder para swipe */}
-      <Animated.View
-        style={[styles.row, { transform: [{ translateX }] }]}
-        {...panResponder.panHandlers}
-      >
-        {/* TouchableOpacity: captura el tap → detail sin interferir con el swipe */}
-        <TouchableOpacity
-          activeOpacity={0.82}
-          onPress={() => {
-            if (isOpen.current) { handleClose(); return; }
-            Haptics.selectionAsync();
-            onDetail?.(transaction);
-          }}
-          style={styles.rowInner}
+        {/* Animated.View: maneja el deslizamiento (translateX) + PanResponder para swipe */}
+        <Animated.View
+          style={[styles.row, { transform: [{ translateX }] }]}
+          {...panResponder.panHandlers}
         >
-          {/* Icono circular */}
-          <View style={[styles.iconCircle, { backgroundColor: palette.bg }]}>
-            <Text style={styles.emoji}>{transaction.category_emoji}</Text>
-          </View>
-
-          {/* Bloque de texto */}
-          <View style={styles.textBlock}>
-            <View style={styles.categoryRow}>
-              <Text style={styles.categoryName}>
-                {categoryName}
-              </Text>
-              <Text style={styles.categorySep}>{"  ·  "}</Text>
-              <Text style={styles.categoryDate} numberOfLines={1}>
-                {dateStr}
-              </Text>
+          {/* TouchableOpacity: captura el tap → detail sin interferir con el swipe */}
+          <TouchableOpacity
+            activeOpacity={0.82}
+            onPress={() => {
+              if (isOpen.current) {
+                handleClose();
+                return;
+              }
+              Haptics.selectionAsync();
+              onDetail?.(transaction);
+            }}
+            style={styles.rowInner}
+          >
+            {/* Icono circular */}
+            <View style={[styles.iconCircle, { backgroundColor: palette.bg }]}>
+              <Text style={styles.emoji}>{transaction.category_emoji}</Text>
             </View>
-            <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-              {title}
-            </Text>
-            {tags.length > 0 && (
-              <View style={styles.tagsRow}>
-                {tags.map((tag) => (
-                  <View key={tag} style={styles.tagPill}>
-                    <Text style={styles.tagText}>{tag}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
 
-          {/* Monto */}
-          <Text style={[styles.amount, { color: amountColor }]}>
-            {amountSign}{formatAmount(transaction.amount)}
-          </Text>
-        </TouchableOpacity>
-      </Animated.View>
+            {/* Bloque de texto */}
+            <View style={styles.textBlock}>
+              <View style={styles.categoryRow}>
+                <Text style={styles.categoryName}>{categoryName}</Text>
+                <Text style={styles.categorySep}>{"  ·  "}</Text>
+                <Text style={styles.categoryDate} numberOfLines={1}>
+                  {dateStr}
+                </Text>
+              </View>
+              <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+                {title}
+              </Text>
+              {tags.length > 0 && (
+                <View style={styles.tagsRow}>
+                  {tags.map((tag) => (
+                    <View key={tag} style={styles.tagPill}>
+                      <Text style={styles.tagText}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Monto */}
+            <Text style={[styles.amount, { color: amountColor }]}>
+              {amountSign}
+              {formatAmount(transaction.amount)}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </AnimatedRN.View>
   );
 }
 
-function createStyles(t: AppTheme) { return StyleSheet.create({
-  // Wrapper exterior: maneja el spacing — lo lleva la animación de Reanimated
-  wrapper: {
-    marginBottom: 8,
-  },
-  dimmed: {
-    opacity: 0.4,
-  },
-  // Contenedor visual: clip con borderRadius
-  container: {
-    position: "relative",
-    overflow: "hidden",
-    backgroundColor: t.isDark ? t.itemBg : "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: t.isDark ? 1 : 0,
-    borderColor: t.isDark ? t.border : "transparent",
-    // Sombra sutil en modo claro para dar sensación de tarjeta
-    shadowColor: t.isDark ? "transparent" : "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: t.isDark ? 0 : 0.06,
-    shadowRadius: 4,
-    elevation: t.isDark ? 0 : 2,
-  },
+function createStyles(t: AppTheme) {
+  return StyleSheet.create({
+    // Wrapper exterior: maneja el spacing — lo lleva la animación de Reanimated
+    wrapper: {
+      marginBottom: 8,
+    },
+    dimmed: {
+      opacity: 0.4,
+    },
+    // Contenedor visual: clip con borderRadius
+    container: {
+      position: "relative",
+      overflow: "hidden",
+      backgroundColor: t.isDark ? t.itemBg : "#FFFFFF",
+      borderRadius: 16,
+      borderWidth: t.isDark ? 1 : 0,
+      borderColor: t.isDark ? t.border : "transparent",
+      // Sombra sutil en modo claro para dar sensación de tarjeta
+      shadowColor: t.isDark ? "transparent" : "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: t.isDark ? 0 : 0.06,
+      shadowRadius: 4,
+      elevation: t.isDark ? 0 : 2,
+    },
 
-  // Botón rojo detrás
-  deleteContainer: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: DELETE_WIDTH,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  deleteBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 9999,
-    backgroundColor: "#EF4444",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    // Botón rojo detrás
+    deleteContainer: {
+      position: "absolute",
+      right: 0,
+      top: 0,
+      bottom: 0,
+      width: DELETE_WIDTH,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    deleteBtn: {
+      width: 48,
+      height: 48,
+      borderRadius: 9999,
+      backgroundColor: "#EF4444",
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  // Animated.View: solo background + radio para que el translateX deslice correctamente
-  row: {
-    backgroundColor: t.isDark ? t.itemBg : "#FFFFFF",
-    borderRadius: 16,
-  },
-  // TouchableOpacity interior: contiene todo el layout del item
-  rowInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 14,
-    paddingLeft: 16,
-    paddingRight: 16,
-  },
-  iconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 9999,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 14,
-    flexShrink: 0,
-  },
-  emoji: {
-    fontSize: 24,
-    lineHeight: 32,
-  },
-  textBlock: {
-    flex: 1,
-    gap: 3,
-    marginRight: 12,
-    minWidth: 0,
-  },
-  categoryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-  },
-  categoryName: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: t.textSub,
-    lineHeight: 16,
-    letterSpacing: 0.1,
-  },
-  categorySep: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: t.textSub,
-    lineHeight: 16,
-  },
-  categoryDate: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: t.textSub,
-    lineHeight: 16,
-    letterSpacing: 0.1,
-    flexShrink: 0,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: t.text,
-    lineHeight: 21,
-    letterSpacing: -0.2,
-  },
-  tagsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 4,
-    marginTop: 2,
-  },
-  tagPill: {
-    backgroundColor: t.inputBg,
-    borderRadius: 9999,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  tagText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: t.textSub,
-    lineHeight: 16,
-  },
-  amount: {
-    fontSize: 15,
-    fontWeight: "700",
-    lineHeight: 21,
-    flexShrink: 0,
-    minWidth: 80,
-    textAlign: "right",
-  },
-});}
+    // Animated.View: solo background + radio para que el translateX deslice correctamente
+    row: {
+      backgroundColor: t.isDark ? t.itemBg : "#FFFFFF",
+      borderRadius: 16,
+    },
+    // TouchableOpacity interior: contiene todo el layout del item
+    rowInner: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 14,
+      paddingLeft: 16,
+      paddingRight: 16,
+    },
+    iconCircle: {
+      width: 52,
+      height: 52,
+      borderRadius: 9999,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 14,
+      flexShrink: 0,
+    },
+    emoji: {
+      fontSize: 24,
+      lineHeight: 32,
+    },
+    textBlock: {
+      flex: 1,
+      gap: 3,
+      marginRight: 12,
+      minWidth: 0,
+    },
+    categoryRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: "wrap",
+    },
+    categoryName: {
+      fontSize: 12,
+      fontWeight: "500",
+      color: t.textSub,
+      lineHeight: 16,
+      letterSpacing: 0.1,
+    },
+    categorySep: {
+      fontSize: 12,
+      fontWeight: "500",
+      color: t.textSub,
+      lineHeight: 16,
+    },
+    categoryDate: {
+      fontSize: 12,
+      fontWeight: "500",
+      color: t.textSub,
+      lineHeight: 16,
+      letterSpacing: 0.1,
+      flexShrink: 0,
+    },
+    title: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: t.text,
+      lineHeight: 21,
+      letterSpacing: -0.2,
+    },
+    tagsRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 4,
+      marginTop: 2,
+    },
+    tagPill: {
+      backgroundColor: t.inputBg,
+      borderRadius: 9999,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+    },
+    tagText: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: t.textSub,
+      lineHeight: 16,
+    },
+    amount: {
+      fontSize: 15,
+      fontWeight: "700",
+      lineHeight: 21,
+      flexShrink: 0,
+      minWidth: 80,
+      textAlign: "right",
+    },
+  });
+}

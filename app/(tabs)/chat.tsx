@@ -12,12 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, Sparkles, ArrowUp, AlignJustify } from "lucide-react-native";
-import {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  Easing,
-} from "react-native-reanimated";
+import { useSharedValue, useAnimatedStyle, withTiming, Easing } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { processQuery } from "@/src/features/chat/useLocalNLP";
@@ -301,12 +296,7 @@ export default function ChatScreen() {
         const result = await processQuery(trimmed);
         const cardJson = result.card ? JSON.stringify(result.card) : undefined;
 
-        const saved = await addChatMessage(
-          sessionId,
-          "assistant",
-          result.text,
-          cardJson
-        );
+        const saved = await addChatMessage(sessionId, "assistant", result.text, cardJson);
 
         setMessages((prev) => [
           ...prev.filter((m) => !m.isLoading),
@@ -331,20 +321,17 @@ export default function ChatScreen() {
         ]);
       } finally {
         setIsThinking(false);
-        setTimeout(
-          () => flatListRef.current?.scrollToEnd({ animated: true }),
-          100
-        );
+        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
       }
     },
-     
-    [isThinking, activeSessionId]
+
+    [isThinking, activeSessionId],
   );
 
   // ── renderItem de FlatList ────────────────────────────────────────────────
   const renderMessage = useCallback(
     ({ item }: { item: ChatMessage }) => <ChatMessageBubble item={item} />,
-    []
+    [],
   );
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -417,10 +404,7 @@ export default function ChatScreen() {
               <Pressable
                 key={sug}
                 onPress={() => sendMessage(sug)}
-                style={({ pressed }) => [
-                  s.chip,
-                  pressed && { opacity: 0.7 },
-                ]}
+                style={({ pressed }) => [s.chip, pressed && { opacity: 0.7 }]}
               >
                 <Text style={s.chipText}>{sug}</Text>
               </Pressable>
@@ -431,12 +415,7 @@ export default function ChatScreen() {
         {/* ── Barra de input ────────────────────────────────────────────── */}
         <View style={[s.inputWrap, { paddingBottom: dockPad }]}>
           <View style={s.inputPill}>
-            <Sparkles
-              size={16}
-              color={BLUE_CHAT}
-              strokeWidth={2}
-              style={{ marginLeft: 16 }}
-            />
+            <Sparkles size={16} color={BLUE_CHAT} strokeWidth={2} style={{ marginLeft: 16 }} />
             <TextInput
               value={input}
               onChangeText={setInput}

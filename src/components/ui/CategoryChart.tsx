@@ -8,10 +8,22 @@
  *  • Levantar dedo → ejecuta la opción seleccionada (o cierra si ninguna)
  */
 import {
-  View, Text, ScrollView, StyleSheet,
-  PanResponder, Animated, Modal, TextInput,
-  TouchableOpacity, KeyboardAvoidingView, Platform, Pressable,
-  StatusBar, Dimensions, LayoutAnimation, UIManager,
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  PanResponder,
+  Animated,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StatusBar,
+  Dimensions,
+  LayoutAnimation,
+  UIManager,
 } from "react-native";
 import ReAnimated, {
   useSharedValue,
@@ -52,14 +64,14 @@ interface CategoryChartProps {
   onCategoryTap?: (emoji: string, categoryName: string) => void;
   alertColors?: boolean;
   isIncomeMode?: boolean; // barras verdes proporcionales, sin presupuesto ni editar
-  animationKey?: string;  // cambia para re-disparar entrada escalonada de barras
+  animationKey?: string; // cambia para re-disparar entrada escalonada de barras
   scrollY?: SharedValue<number>; // reservado para animación futura — no usado actualmente
 }
 
 interface BudgetEditState {
   emoji: string;
   currentBudget: number; // límite ya guardado (0 si no hay)
-  spent: number;         // monto gastado este mes en esa categoría
+  spent: number; // monto gastado este mes en esa categoría
 }
 
 interface PopupState {
@@ -74,22 +86,22 @@ interface PopupState {
 }
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
-const BAR_W    = 68;   // ligeramente más ancho para mejor layout horizontal
-const BAR_GAP  = 14;
-const H_PAD      = 20;
-const MAX_BAR_H  = 280;  // altura máxima de una columna en pantalla
-const MIN_GHOST_H = 44;  // mínimo para que el ghost siempre sea visible
-const RADIUS     = 14;
+const BAR_W = 68; // ligeramente más ancho para mejor layout horizontal
+const BAR_GAP = 14;
+const H_PAD = 20;
+const MAX_BAR_H = 280; // altura máxima de una columna en pantalla
+const MIN_GHOST_H = 44; // mínimo para que el ghost siempre sea visible
+const RADIUS = 14;
 export const CHART_H = MAX_BAR_H + 24; // espacio extra para labels y padding
-const MIN_FILL_H   = 52;  // altura mínima comprimida del fill (cabe layout horizontal)
-const PCT_MIN_RATIO = 0.40; // umbral mínimo (40%) para mostrar el % dentro del fill
-export const COMPRESS_END  = 140; // px de scroll donde los fills quedan totalmente comprimidos
+const MIN_FILL_H = 52; // altura mínima comprimida del fill (cabe layout horizontal)
+const PCT_MIN_RATIO = 0.4; // umbral mínimo (40%) para mostrar el % dentro del fill
+export const COMPRESS_END = 140; // px de scroll donde los fills quedan totalmente comprimidos
 export const CHART_COMPACT_H = MIN_FILL_H + 24; // altura compacta del chart wrapper (76px)
-const POPUP_W    = 170;
+const POPUP_W = 170;
 
 // Borde punteado neutro — siempre gris, nunca colored
 const BORDER_LIGHT = "rgba(0,0,0,0.28)";
-const BORDER_DARK  = "rgba(255,255,255,0.45)";
+const BORDER_DARK = "rgba(255,255,255,0.45)";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 /**
@@ -113,14 +125,14 @@ interface BarVisual {
 
 function getBarVisual(
   emoji: string,
-  ratio: number,  // spent / budget
+  ratio: number, // spent / budget
   userCats?: import("@/src/constants/categoryPresets").UserCategory[],
 ): BarVisual {
   const { accent } = getCategoryColor(emoji, userCats);
   // Cuando hay presupuesto, el ghost bar siempre se muestra (incluso al <60%)
   // para que el usuario vea visualmente el límite. Color rojo solo si supera el 100%.
   if (ratio >= 1.0) return { fillColor: "#EF4444", hasBorder: true };
-  return                       { fillColor: accent,   hasBorder: true };
+  return { fillColor: accent, hasBorder: true };
 }
 
 function fmtAmount(n: number): string {
@@ -136,7 +148,9 @@ function fmtAmount(n: number): string {
 }
 
 function fmtCOP(n: number): string {
-  return `$ ${Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+  return `$ ${Math.round(n)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
 function getCategoryDisplayName(
@@ -149,7 +163,8 @@ function getCategoryDisplayName(
     // getCategoryName no encontró un nombre → buscar en metas primero
     if (goals) {
       const goalMatch = goals.find((g) => g.emoji === emoji);
-      if (goalMatch) return goalMatch.name.charAt(0).toUpperCase() + goalMatch.name.slice(1).toLowerCase();
+      if (goalMatch)
+        return goalMatch.name.charAt(0).toUpperCase() + goalMatch.name.slice(1).toLowerCase();
     }
     // Fallback genérico para evitar mostrar el emoji como nombre
     return "General";
@@ -158,31 +173,24 @@ function getCategoryDisplayName(
 }
 
 // ─── Mini modal inline de edición de presupuesto (diseño Stitch) ─────────────
-function BudgetEditModal({
-  state,
-  onClose,
-}: {
-  state: BudgetEditState;
-  onClose: () => void;
-}) {
+function BudgetEditModal({ state, onClose }: { state: BudgetEditState; onClose: () => void }) {
   const { isDark } = useTheme();
   const userCats = useSettingsStore((s) => s.userCategories);
-  const goals    = useSettingsStore((s) => s.savingsGoals);
+  const goals = useSettingsStore((s) => s.savingsGoals);
   const { emoji, currentBudget, spent } = state;
-  const name         = getCategoryDisplayName(emoji, userCats, goals);
-  const setBudget    = useSettingsStore((s) => s.setBudgetForCategory);
+  const name = getCategoryDisplayName(emoji, userCats, goals);
+  const setBudget = useSettingsStore((s) => s.setBudgetForCategory);
   const removeBudget = useSettingsStore((s) => s.removeBudgetForCategory);
 
   const [display, setDisplay] = useState(
-    currentBudget > 0 ? formatMoneyInput(String(Math.round(currentBudget))) : ""
+    currentBudget > 0 ? formatMoneyInput(String(Math.round(currentBudget))) : "",
   );
 
   // El % consumido se actualiza en tiempo real según el nuevo monto
   const parsedBudget = parseFloat(display.replace(/\D/g, "")) || 0;
-  const consumedPct  = parsedBudget > 0
-    ? Math.min(Math.round((spent / parsedBudget) * 100), 100)
-    : 0;
-  const overBudget   = parsedBudget > 0 && spent > parsedBudget;
+  const consumedPct =
+    parsedBudget > 0 ? Math.min(Math.round((spent / parsedBudget) * 100), 100) : 0;
+  const overBudget = parsedBudget > 0 && spent > parsedBudget;
 
   function handleChange(text: string) {
     const digits = text.replace(/\D/g, "");
@@ -203,13 +211,13 @@ function BudgetEditModal({
     <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       {/* Fondo semi-oscuro consistente con el resto de popups */}
       <Pressable style={bm.backdrop} onPress={onClose} />
-      <KeyboardAvoidingView
-        style={bm.overlay}
-        behavior="padding"
-        pointerEvents="box-none"
-      >
-
-        <View style={[bm.card, isDark && { backgroundColor: "#1E293B", borderWidth: 1, borderColor: "#334155" }]}>
+      <KeyboardAvoidingView style={bm.overlay} behavior="padding" pointerEvents="box-none">
+        <View
+          style={[
+            bm.card,
+            isDark && { backgroundColor: "#1E293B", borderWidth: 1, borderColor: "#334155" },
+          ]}
+        >
           {/* ── Header: emoji + nombre centrado ── */}
           <View style={bm.header}>
             <Text style={bm.headerEmoji}>{emoji}</Text>
@@ -237,10 +245,7 @@ function BudgetEditModal({
           <View style={bm.progressSection}>
             <View style={bm.progressLabels}>
               <Text style={bm.progressLabelLeft}>PRESUPUESTO ACTUAL</Text>
-              <Text style={[
-                bm.progressLabelRight,
-                overBudget && { color: "#DC2626" },
-              ]}>
+              <Text style={[bm.progressLabelRight, overBudget && { color: "#DC2626" }]}>
                 {consumedPct}% consumido
               </Text>
             </View>
@@ -252,8 +257,9 @@ function BudgetEditModal({
                     width: `${consumedPct}%` as `${number}%`,
                     backgroundColor: overBudget
                       ? "#DC2626"
-                      : consumedPct > 80 ? "#F59E0B"
-                      : "#135BEC",
+                      : consumedPct > 80
+                        ? "#F59E0B"
+                        : "#135BEC",
                   },
                 ]}
               />
@@ -262,14 +268,14 @@ function BudgetEditModal({
 
           {/* ── Botones ── */}
           <View style={bm.actions}>
-            <TouchableOpacity style={[bm.btnCancel, isDark && { backgroundColor: "#334155" }]} onPress={onClose} activeOpacity={0.7}>
-              <Text style={[bm.btnCancelText, isDark && { color: "#94A3B8" }]}>Cancelar</Text>
-            </TouchableOpacity>
             <TouchableOpacity
-              style={bm.btnConfirm}
-              onPress={handleConfirm}
+              style={[bm.btnCancel, isDark && { backgroundColor: "#334155" }]}
+              onPress={onClose}
               activeOpacity={0.7}
             >
+              <Text style={[bm.btnCancelText, isDark && { color: "#94A3B8" }]}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={bm.btnConfirm} onPress={handleConfirm} activeOpacity={0.7}>
               <Text style={bm.btnConfirmText}>Actualizar</Text>
             </TouchableOpacity>
           </View>
@@ -277,7 +283,10 @@ function BudgetEditModal({
           {/* Quitar límite — solo si ya existe uno */}
           {currentBudget > 0 && (
             <TouchableOpacity
-              onPress={() => { removeBudget(emoji); onClose(); }}
+              onPress={() => {
+                removeBudget(emoji);
+                onClose();
+              }}
               activeOpacity={0.7}
               style={bm.removeLinkRow}
             >
@@ -305,7 +314,7 @@ function CategoryPopup({ popup }: { popup: PopupState }) {
   }
 
   const ACCENT = "#135BEC";
-  const upActive   = selection === "up";
+  const upActive = selection === "up";
   const downActive = selection === "down";
 
   // Animación de escala al aparecer
@@ -313,29 +322,20 @@ function CategoryPopup({ popup }: { popup: PopupState }) {
   const opacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(scale,   { toValue: 1, useNativeDriver: true, tension: 200, friction: 15 }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 15 }),
       Animated.timing(opacity, { toValue: 1, duration: 120, useNativeDriver: true }),
     ]).start();
   }, []);
 
   return (
-    <Animated.View
-      style={[
-        popupStyles.card,
-        { transform: [{ scale }], opacity },
-      ]}
-    >
+    <Animated.View style={[popupStyles.card, { transform: [{ scale }], opacity }]}>
       {/* ── Fila superior: ↑ Editar presupuesto — solo en modo gastos ── */}
       {!isIncomeMode && (
         <>
           <View style={[popupStyles.row, upActive && popupStyles.rowActive]}>
-            <ArrowUp
-              size={13}
-              color={upActive ? ACCENT : "#94A3B8"}
-              strokeWidth={2.5}
-            />
+            <ArrowUp size={13} color={upActive ? ACCENT : "#94A3B8"} strokeWidth={2.5} />
             <Text style={[popupStyles.rowLabel, upActive && popupStyles.rowLabelActive]}>
-              {(budget !== undefined && budget > 0) ? "EDITAR\nPRESUPUESTO" : "AGREGAR\nPRESUPUESTO"}
+              {budget !== undefined && budget > 0 ? "EDITAR\nPRESUPUESTO" : "AGREGAR\nPRESUPUESTO"}
             </Text>
           </View>
           <View style={popupStyles.divider} />
@@ -359,11 +359,7 @@ function CategoryPopup({ popup }: { popup: PopupState }) {
 
       {/* ── Fila inferior: ↓ Nueva transacción ──────────────────── */}
       <View style={[popupStyles.row, downActive && popupStyles.rowActive]}>
-        <ArrowDown
-          size={13}
-          color={downActive ? ACCENT : "#94A3B8"}
-          strokeWidth={2.5}
-        />
+        <ArrowDown size={13} color={downActive ? ACCENT : "#94A3B8"} strokeWidth={2.5} />
         <Text style={[popupStyles.rowLabel, downActive && popupStyles.rowLabelActive]}>
           {"NUEVA\nTRANSACCIÓN"}
         </Text>
@@ -374,12 +370,25 @@ function CategoryPopup({ popup }: { popup: PopupState }) {
 
 // ─── Barra con datos + PanResponder ──────────────────────────────────────────
 function AnimatedBar({
-  stat, fillH, ghostH, pct, hasBudget, fillColor, fillOpacity, hasBorder,
-  delay, onLongPress, onSelectionChange, onRelease, onTap, animationKey, scrollY,
+  stat,
+  fillH,
+  ghostH,
+  pct,
+  hasBudget,
+  fillColor,
+  fillOpacity,
+  hasBorder,
+  delay,
+  onLongPress,
+  onSelectionChange,
+  onRelease,
+  onTap,
+  animationKey,
+  scrollY,
 }: {
   stat: CategoryStat;
-  fillH: number;   // altura del fill (puede > ghostH en overspent)
-  ghostH: number;  // altura del ghost proporcional al presupuesto
+  fillH: number; // altura del fill (puede > ghostH en overspent)
+  ghostH: number; // altura del ghost proporcional al presupuesto
   pct: number;
   hasBudget: boolean;
   fillColor: string;
@@ -402,8 +411,8 @@ function AnimatedBar({
   // Fill height = animación de entrada ∩ compresión por scroll
   const fillHeightStyle = useAnimatedStyle(() => {
     "worklet";
-    const ratio   = interpolate(sv.value, [0, COMPRESS_END], [0, 1], Extrapolation.CLAMP);
-    const minH    = Math.min(fillH, MIN_FILL_H);
+    const ratio = interpolate(sv.value, [0, COMPRESS_END], [0, 1], Extrapolation.CLAMP);
+    const minH = Math.min(fillH, MIN_FILL_H);
     const scrolledH = fillH - (fillH - minH) * ratio; // fillH → minH
     return { height: Math.min(heightAnim.value, scrolledH) };
   });
@@ -412,7 +421,12 @@ function AnimatedBar({
   const ghostFadeStyle = useAnimatedStyle(() => {
     "worklet";
     return {
-      opacity: interpolate(sv.value, [COMPRESS_END * 0.85, COMPRESS_END], [1, 0], Extrapolation.CLAMP),
+      opacity: interpolate(
+        sv.value,
+        [COMPRESS_END * 0.85, COMPRESS_END],
+        [1, 0],
+        Extrapolation.CLAMP,
+      ),
     };
   });
 
@@ -426,7 +440,12 @@ function AnimatedBar({
     if (isShortBar) return { opacity: 0 };
     return {
       // Empieza a desvanecerse en el 75% del scroll y termina al 100%
-      opacity: interpolate(sv.value, [COMPRESS_END * 0.75, COMPRESS_END], [1, 0], Extrapolation.CLAMP),
+      opacity: interpolate(
+        sv.value,
+        [COMPRESS_END * 0.75, COMPRESS_END],
+        [1, 0],
+        Extrapolation.CLAMP,
+      ),
     };
   });
 
@@ -435,7 +454,12 @@ function AnimatedBar({
     if (isShortBar) return { opacity: 1 };
     return {
       // Aparece en el último 25% del scroll, cuando el pill ya es pequeño
-      opacity: interpolate(sv.value, [COMPRESS_END * 0.75, COMPRESS_END], [0, 1], Extrapolation.CLAMP),
+      opacity: interpolate(
+        sv.value,
+        [COMPRESS_END * 0.75, COMPRESS_END],
+        [0, 1],
+        Extrapolation.CLAMP,
+      ),
     };
   });
 
@@ -444,26 +468,34 @@ function AnimatedBar({
     heightAnim.value = 0;
     heightAnim.value = withDelay(
       delay,
-      withTiming(fillH, { duration: 520, easing: Easing.out(Easing.cubic) })
+      withTiming(fillH, { duration: 520, easing: Easing.out(Easing.cubic) }),
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fillH, animationKey]);
 
   // ── Callbacks en refs para evitar stale closures en PanResponder ──
-  const onLongPressRef       = useRef(onLongPress);
+  const onLongPressRef = useRef(onLongPress);
   const onSelectionChangeRef = useRef(onSelectionChange);
-  const onReleaseRef         = useRef(onRelease);
-  const onTapRef             = useRef(onTap);
-  useEffect(() => { onLongPressRef.current       = onLongPress;       }, [onLongPress]);
-  useEffect(() => { onSelectionChangeRef.current = onSelectionChange; }, [onSelectionChange]);
-  useEffect(() => { onReleaseRef.current         = onRelease;         }, [onRelease]);
-  useEffect(() => { onTapRef.current             = onTap;             }, [onTap]);
+  const onReleaseRef = useRef(onRelease);
+  const onTapRef = useRef(onTap);
+  useEffect(() => {
+    onLongPressRef.current = onLongPress;
+  }, [onLongPress]);
+  useEffect(() => {
+    onSelectionChangeRef.current = onSelectionChange;
+  }, [onSelectionChange]);
+  useEffect(() => {
+    onReleaseRef.current = onRelease;
+  }, [onRelease]);
+  useEffect(() => {
+    onTapRef.current = onTap;
+  }, [onTap]);
 
-  const timerRef    = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const activeRef   = useRef(false);
-  const selRef      = useRef<"up" | "down" | null>(null);
-  const touchX0Ref  = useRef(0);
-  const touchY0Ref  = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const activeRef = useRef(false);
+  const selRef = useRef<"up" | "down" | null>(null);
+  const touchX0Ref = useRef(0);
+  const touchY0Ref = useRef(0);
   // Flag para evitar que el `onTouchEnd` dispare un tap inmediatamente después
   // de que el long-press haya consumido el gesto (PanResponder ya reseteó activeRef)
   const consumedRef = useRef(false);
@@ -473,14 +505,13 @@ function AnimatedBar({
   // de modo que el ScrollView puede robar libremente deslizamientos horizontales.
   const pan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,      // No robar el toque inicial
-      onMoveShouldSetPanResponder:  () => activeRef.current, // Reclamar solo tras long-press
+      onStartShouldSetPanResponder: () => false, // No robar el toque inicial
+      onMoveShouldSetPanResponder: () => activeRef.current, // Reclamar solo tras long-press
       onPanResponderTerminationRequest: () => !activeRef.current,
 
       onPanResponderMove: (_, gs) => {
         if (!activeRef.current) return;
-        const newSel: "up" | "down" | null =
-          gs.dy < -22 ? "up" : gs.dy > 22 ? "down" : null;
+        const newSel: "up" | "down" | null = gs.dy < -22 ? "up" : gs.dy > 22 ? "down" : null;
         if (newSel !== selRef.current) {
           selRef.current = newSel;
           if (newSel) Haptics.selectionAsync();
@@ -495,7 +526,7 @@ function AnimatedBar({
           onReleaseRef.current(selRef.current);
         }
         activeRef.current = false;
-        selRef.current    = null;
+        selRef.current = null;
       },
 
       onPanResponderTerminate: () => {
@@ -505,31 +536,32 @@ function AnimatedBar({
           onReleaseRef.current(null);
         }
         activeRef.current = false;
-        selRef.current    = null;
+        selRef.current = null;
       },
-    })
+    }),
   ).current;
 
-  const labelColor  = isDark ? "#F1F5F9" : "#1E293B";
+  const labelColor = isDark ? "#F1F5F9" : "#1E293B";
   const borderColor = isDark ? BORDER_DARK : BORDER_LIGHT;
 
   return (
     <View style={styles.column}>
-
       {/* 1. Fill: crece desde abajo hasta fillH. fillOpacity 0.68 con color, 1.0 con gris neutro */}
-      <ReAnimated.View style={[styles.fill, fillHeightStyle, { backgroundColor: fillColor, opacity: fillOpacity }]} />
+      <ReAnimated.View
+        style={[styles.fill, fillHeightStyle, { backgroundColor: fillColor, opacity: fillOpacity }]}
+      />
 
       {/* 2. Ghost border — se desvanece al comprimir (no hay espacio en modo compacto) */}
       {hasBorder && ghostH > 0 && (
-        <ReAnimated.View style={[styles.ghostBorder, { height: ghostH, borderColor }, ghostFadeStyle]} />
+        <ReAnimated.View
+          style={[styles.ghostBorder, { height: ghostH, borderColor }, ghostFadeStyle]}
+        />
       )}
 
       {/* 3a. Labels verticales (emoji + monto + % dentro del fill) — desaparecen al comprimir */}
       <ReAnimated.View style={[styles.labelsInner, verticalOpacityStyle]}>
         <Text style={styles.emojiText}>{stat.emoji}</Text>
-        <Text style={[styles.amtText, { color: labelColor }]}>
-          {fmtAmount(stat.total)}
-        </Text>
+        <Text style={[styles.amtText, { color: labelColor }]}>{fmtAmount(stat.total)}</Text>
         {hasBudget && pct >= PCT_MIN_RATIO * 100 && (
           <Text style={[styles.pctText, { color: labelColor }]}>{pct}%</Text>
         )}
@@ -575,7 +607,7 @@ function AnimatedBar({
             if (dx < 10 && dy < 10) onTapRef.current?.(e.nativeEvent.pageX);
           }
           activeRef.current = false;
-          selRef.current    = null;
+          selRef.current = null;
         }}
         onTouchCancel={() => {
           clearTimeout(timerRef.current);
@@ -584,7 +616,7 @@ function AnimatedBar({
             onReleaseRef.current(null);
           }
           activeRef.current = false;
-          selRef.current    = null;
+          selRef.current = null;
         }}
         {...pan.panHandlers}
         accessible={false}
@@ -596,7 +628,10 @@ function AnimatedBar({
 // ─── Barra vacía + PanResponder ───────────────────────────────────────────────
 function GhostBar({
   emoji,
-  onLongPress, onSelectionChange, onRelease, onTap,
+  onLongPress,
+  onSelectionChange,
+  onRelease,
+  onTap,
 }: {
   emoji: string;
   onLongPress: () => void;
@@ -605,33 +640,40 @@ function GhostBar({
   onTap?: (pageX: number) => void;
 }) {
   const { isDark } = useTheme();
-  const onLongPressRef       = useRef(onLongPress);
+  const onLongPressRef = useRef(onLongPress);
   const onSelectionChangeRef = useRef(onSelectionChange);
-  const onReleaseRef         = useRef(onRelease);
-  const onTapRef             = useRef(onTap);
-  useEffect(() => { onLongPressRef.current       = onLongPress;       }, [onLongPress]);
-  useEffect(() => { onSelectionChangeRef.current = onSelectionChange; }, [onSelectionChange]);
-  useEffect(() => { onReleaseRef.current         = onRelease;         }, [onRelease]);
-  useEffect(() => { onTapRef.current             = onTap;             }, [onTap]);
+  const onReleaseRef = useRef(onRelease);
+  const onTapRef = useRef(onTap);
+  useEffect(() => {
+    onLongPressRef.current = onLongPress;
+  }, [onLongPress]);
+  useEffect(() => {
+    onSelectionChangeRef.current = onSelectionChange;
+  }, [onSelectionChange]);
+  useEffect(() => {
+    onReleaseRef.current = onRelease;
+  }, [onRelease]);
+  useEffect(() => {
+    onTapRef.current = onTap;
+  }, [onTap]);
 
-  const timerRef    = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const activeRef   = useRef(false);
-  const selRef      = useRef<"up" | "down" | null>(null);
-  const touchX0Ref  = useRef(0);
-  const touchY0Ref  = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const activeRef = useRef(false);
+  const selRef = useRef<"up" | "down" | null>(null);
+  const touchX0Ref = useRef(0);
+  const touchY0Ref = useRef(0);
   // Flag para evitar que `onTouchEnd` dispare un tap después de que el long-press
   // ya consumió el gesto (PanResponder reseteó activeRef antes de que llegue onTouchEnd)
   const consumedRef = useRef(false);
 
   const pan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,      // No robar el toque inicial
-      onMoveShouldSetPanResponder:  () => activeRef.current, // Reclamar solo tras long-press
+      onStartShouldSetPanResponder: () => false, // No robar el toque inicial
+      onMoveShouldSetPanResponder: () => activeRef.current, // Reclamar solo tras long-press
       onPanResponderTerminationRequest: () => !activeRef.current,
       onPanResponderMove: (_, gs) => {
         if (!activeRef.current) return;
-        const newSel: "up" | "down" | null =
-          gs.dy < -22 ? "up" : gs.dy > 22 ? "down" : null;
+        const newSel: "up" | "down" | null = gs.dy < -22 ? "up" : gs.dy > 22 ? "down" : null;
         if (newSel !== selRef.current) {
           selRef.current = newSel;
           if (newSel) Haptics.selectionAsync();
@@ -645,7 +687,7 @@ function GhostBar({
           onReleaseRef.current(selRef.current);
         }
         activeRef.current = false;
-        selRef.current    = null;
+        selRef.current = null;
       },
       onPanResponderTerminate: () => {
         clearTimeout(timerRef.current);
@@ -654,9 +696,9 @@ function GhostBar({
           onReleaseRef.current(null);
         }
         activeRef.current = false;
-        selRef.current    = null;
+        selRef.current = null;
       },
-    })
+    }),
   ).current;
 
   const labelColor = isDark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.18)";
@@ -698,7 +740,7 @@ function GhostBar({
             if (dx < 10 && dy < 10) onTapRef.current?.(e.nativeEvent.pageX);
           }
           activeRef.current = false;
-          selRef.current    = null;
+          selRef.current = null;
         }}
         onTouchCancel={() => {
           clearTimeout(timerRef.current);
@@ -707,7 +749,7 @@ function GhostBar({
             onReleaseRef.current(null);
           }
           activeRef.current = false;
-          selRef.current    = null;
+          selRef.current = null;
         }}
         {...pan.panHandlers}
         accessible={false}
@@ -731,10 +773,10 @@ export function CategoryChart({
   animationKey,
   scrollY,
 }: CategoryChartProps) {
-  const { isDark }     = useTheme();
+  const { isDark } = useTheme();
   const userCategories = useSettingsStore((s) => s.userCategories);
-  const savingsGoals   = useSettingsStore((s) => s.savingsGoals);
-  const [popup,      setPopup]      = useState<PopupState | null>(null);
+  const savingsGoals = useSettingsStore((s) => s.savingsGoals);
+  const [popup, setPopup] = useState<PopupState | null>(null);
   const [budgetEdit, setBudgetEdit] = useState<BudgetEditState | null>(null);
   const prevStatsKey = useRef("");
 
@@ -742,7 +784,7 @@ export function CategoryChart({
   const NEUTRAL_FILL = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)";
 
   useEffect(() => {
-    const key = stats.map(s => `${s.emoji}:${s.total}`).join(",");
+    const key = stats.map((s) => `${s.emoji}:${s.total}`).join(",");
     if (prevStatsKey.current && prevStatsKey.current !== key) {
       LayoutAnimation.configureNext(LayoutAnimation.create(300, "easeInEaseOut", "opacity"));
     }
@@ -751,47 +793,40 @@ export function CategoryChart({
 
   // Ref para acceder al popup dentro de los callbacks del PanResponder
   const popupRef = useRef<PopupState | null>(null);
-  useEffect(() => { popupRef.current = popup; }, [popup]);
+  useEffect(() => {
+    popupRef.current = popup;
+  }, [popup]);
 
   // Ref al contenedor raíz para medir posición en pantalla
-  const containerRef  = useRef<View>(null);
+  const containerRef = useRef<View>(null);
   const [chartOrigin, setChartOrigin] = useState({ x: 0, y: 0 });
 
   // ─── Escala proporcional ──────────────────────────────────────────────────
   // La escala se calcula sobre el mayor valor entre presupuestos y gastos,
   // de modo que las barras grises (sin presupuesto) y las coloreadas (con presupuesto)
   // mantengan una relación visual coherente.
-  const maxIncomeStat = isIncomeMode && stats.length > 0
-    ? Math.max(...stats.map(s => s.total))
-    : 1;
+  const maxIncomeStat =
+    isIncomeMode && stats.length > 0 ? Math.max(...stats.map((s) => s.total)) : 1;
 
-  const maxSpent  = stats.length > 0 ? Math.max(...stats.map(s => s.total)) : 0;
-  const maxBudgetValue = Math.max(
-    ...Object.values(budgetByCategory ?? {}).filter(v => v > 0),
-    0,
-  );
+  const maxSpent = stats.length > 0 ? Math.max(...stats.map((s) => s.total)) : 0;
+  const maxBudgetValue = Math.max(...Object.values(budgetByCategory ?? {}).filter((v) => v > 0), 0);
 
-  const maxBudget = isIncomeMode
-    ? maxIncomeStat
-    : Math.max(maxBudgetValue, maxSpent, 1);
+  const maxBudget = isIncomeMode ? maxIncomeStat : Math.max(maxBudgetValue, maxSpent, 1);
 
   const scale = MAX_BAR_H / maxBudget;
 
   // ─── Orden: 1) categorías CON presupuesto, 2) con gasto sin presupuesto, 3) vacías ───
-  const withDataSet = new Set(stats.map(s => s.emoji));
+  const withDataSet = new Set(stats.map((s) => s.emoji));
   const ordered = isIncomeMode
-    ? [
-        ...stats.map(s => s.emoji),
-        ...allEmojis.filter(e => !withDataSet.has(e)),
-      ]
+    ? [...stats.map((s) => s.emoji), ...allEmojis.filter((e) => !withDataSet.has(e))]
     : (() => {
-        const withBudget    = stats.filter(s => (budgetByCategory[s.emoji] ?? 0) > 0).map(s => s.emoji);
-        const withoutBudget = stats.filter(s => (budgetByCategory[s.emoji] ?? 0) <= 0).map(s => s.emoji);
-        return [
-          ...withBudget,
-          ...withoutBudget,
-          ...allEmojis.filter(e => !withDataSet.has(e)),
-        ];
+        const withBudget = stats
+          .filter((s) => (budgetByCategory[s.emoji] ?? 0) > 0)
+          .map((s) => s.emoji);
+        const withoutBudget = stats
+          .filter((s) => (budgetByCategory[s.emoji] ?? 0) <= 0)
+          .map((s) => s.emoji);
+        return [...withBudget, ...withoutBudget, ...allEmojis.filter((e) => !withDataSet.has(e))];
       })();
 
   let delay = 0;
@@ -802,8 +837,8 @@ export function CategoryChart({
     // Clampear para que el popup no salga por la derecha
     const xHint = Math.min(colX, 300 - POPUP_W);
 
-    const stat   = stats.find(s => s.emoji === emoji);
-    const total  = stat?.total ?? 0;
+    const stat = stats.find((s) => s.emoji === emoji);
+    const total = stat?.total ?? 0;
     const budget = isIncomeMode ? undefined : budgetByCategory[emoji];
 
     return {
@@ -815,14 +850,14 @@ export function CategoryChart({
         });
       },
       onSelectionChange: (sel: "up" | "down" | null) => {
-        setPopup(prev => prev ? { ...prev, selection: sel } : prev);
+        setPopup((prev) => (prev ? { ...prev, selection: sel } : prev));
       },
       onRelease: (sel: "up" | "down" | null) => {
         setPopup(null);
         if (sel === "up" && !isIncomeMode) {
           // Editar presupuesto solo en modo gastos
           const currentBudget = budgetByCategory[emoji] ?? 0;
-          const spent         = stats.find(s => s.emoji === emoji)?.total ?? 0;
+          const spent = stats.find((s) => s.emoji === emoji)?.total ?? 0;
           setBudgetEdit({ emoji, currentBudget, spent });
         } else if (sel === "down") {
           const name = getCategoryDisplayName(emoji, userCategories, savingsGoals);
@@ -847,30 +882,31 @@ export function CategoryChart({
         scrollEnabled={popup === null}
       >
         {ordered.map((emoji, idx) => {
-          const stat      = stats.find(s => s.emoji === emoji);
+          const stat = stats.find((s) => s.emoji === emoji);
           const budgetAmt = isIncomeMode ? undefined : budgetByCategory[emoji];
-          const handlers  = makeHandlers(emoji, idx);
+          const handlers = makeHandlers(emoji, idx);
 
           if (stat) {
             // ── Alturas proporcionales ───────────────────────────────────────
-            let fillH:    number;
-            let ghostH:   number;
+            let fillH: number;
+            let ghostH: number;
             let displayPct: number;
             let ratio = 0;
 
             if (isIncomeMode) {
-              ratio   = maxIncomeStat > 0 ? stat.total / maxIncomeStat : 0;
-              fillH   = Math.round(ratio * MAX_BAR_H);
-              ghostH  = 0; // sin ghost en ingresos
+              ratio = maxIncomeStat > 0 ? stat.total / maxIncomeStat : 0;
+              fillH = Math.round(ratio * MAX_BAR_H);
+              ghostH = 0; // sin ghost en ingresos
               displayPct = Math.round(ratio * 100);
             } else if (budgetAmt && budgetAmt > 0) {
-              ratio      = stat.total / budgetAmt;
+              ratio = stat.total / budgetAmt;
               // Mínimo de MIN_FILL_H cuando hay gasto real, para que los labels siempre quepan dentro del fill
-              fillH      = stat.total > 0
-                ? Math.max(Math.min(Math.round(stat.total * scale), MAX_BAR_H), MIN_FILL_H)
-                : Math.min(Math.round(stat.total * scale), MAX_BAR_H);
+              fillH =
+                stat.total > 0
+                  ? Math.max(Math.min(Math.round(stat.total * scale), MAX_BAR_H), MIN_FILL_H)
+                  : Math.min(Math.round(stat.total * scale), MAX_BAR_H);
               // MIN_GHOST_H garantiza que el ghost siempre sea visible aunque el presupuesto sea muy pequeño
-              ghostH     = Math.max(Math.min(Math.round(budgetAmt * scale), MAX_BAR_H), MIN_GHOST_H);
+              ghostH = Math.max(Math.min(Math.round(budgetAmt * scale), MAX_BAR_H), MIN_GHOST_H);
               // Si no está excedido, el ghost debe ser siempre >= fill para respetar la jerarquía visual
               if (ratio < 1.0) ghostH = Math.max(ghostH, fillH);
               // Si está excedido (ratio >= 1): el ghost muestra el nivel real de presupuesto
@@ -879,10 +915,11 @@ export function CategoryChart({
               displayPct = Math.round(ratio * 100);
             } else {
               // Sin presupuesto: barra GRIS proporcional al gasto real
-              fillH      = stat.total > 0
-                ? Math.max(Math.min(Math.round(stat.total * scale), MAX_BAR_H), MIN_FILL_H)
-                : 0;
-              ghostH     = 0;
+              fillH =
+                stat.total > 0
+                  ? Math.max(Math.min(Math.round(stat.total * scale), MAX_BAR_H), MIN_FILL_H)
+                  : 0;
+              ghostH = 0;
               displayPct = 0;
             }
 
@@ -900,7 +937,7 @@ export function CategoryChart({
             const d = delay;
             delay += 80;
             // Opacidad del fill: 1.0 cuando es gris neutro (sin presupuesto), 0.68 con color
-            const isNeutral   = !isIncomeMode && !(budgetAmt && budgetAmt > 0);
+            const isNeutral = !isIncomeMode && !(budgetAmt && budgetAmt > 0);
             const fillOpacity = isNeutral ? 1 : 0.68;
             return (
               <AnimatedBar
@@ -920,13 +957,7 @@ export function CategoryChart({
               />
             );
           }
-          return (
-            <GhostBar
-              key={emoji}
-              emoji={emoji}
-              {...handlers}
-            />
-          );
+          return <GhostBar key={emoji} emoji={emoji} {...handlers} />;
         })}
       </ScrollView>
 
@@ -939,10 +970,7 @@ export function CategoryChart({
         onRequestClose={() => setPopup(null)}
       >
         {/* Fondo semi-oscuro — toca para cerrar el popup */}
-        <Pressable
-          style={chartOverlay.backdrop}
-          onPress={() => setPopup(null)}
-        />
+        <Pressable style={chartOverlay.backdrop} onPress={() => setPopup(null)} />
 
         {/* Card del popup anclado a la posición del chart en pantalla */}
         {popup && (
@@ -950,11 +978,8 @@ export function CategoryChart({
             style={[
               chartOverlay.popupAbs,
               {
-                top:  chartOrigin.y,
-                left: Math.max(8, Math.min(
-                  popup.xHint + chartOrigin.x,
-                  SCREEN_W - POPUP_W - 8
-                )),
+                top: chartOrigin.y,
+                left: Math.max(8, Math.min(popup.xHint + chartOrigin.x, SCREEN_W - POPUP_W - 8)),
               },
             ]}
             pointerEvents="none"
@@ -965,12 +990,7 @@ export function CategoryChart({
       </Modal>
 
       {/* Mini modal para editar presupuesto (tiene su propio Modal interno) */}
-      {budgetEdit && (
-        <BudgetEditModal
-          state={budgetEdit}
-          onClose={() => setBudgetEdit(null)}
-        />
-      )}
+      {budgetEdit && <BudgetEditModal state={budgetEdit} onClose={() => setBudgetEdit(null)} />}
     </View>
   );
 }
@@ -999,7 +1019,7 @@ const styles = StyleSheet.create({
   // Borde punteado del ghost (transparente + outline dashed)
   ghostBorder: {
     position: "absolute",
-    bottom: 0,   // anclar al fondo — height se pasa dinámicamente (ghostH)
+    bottom: 0, // anclar al fondo — height se pasa dinámicamente (ghostH)
     left: 0,
     right: 0,
     // NO top: 0 aquí — si se pone top:0 + bottom:0 juntos ignoran el height dinámico
@@ -1007,7 +1027,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderStyle: "dashed",
     backgroundColor: "transparent",
-    zIndex: 2,   // encima del fill (zIndex 0), debajo de labels (zIndex 5)
+    zIndex: 2, // encima del fill (zIndex 0), debajo de labels (zIndex 5)
   },
   // Barra de relleno — absolutamente posicionada en el fondo del column
   fill: {

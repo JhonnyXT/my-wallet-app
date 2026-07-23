@@ -11,112 +11,238 @@ const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
   // ── Gastos ──────────────────────────────────────────────────────────────────
   {
     keywords: [
-      "restaurante", "almuerzo", "cena", "desayuno", "mcdonalds",
-      "pizza", "burger", "sushi", "comida", "comer", "pollo", "empanada",
-      "cafe", "coffee", "starbucks", "tinto", "capuchino", "latte",
-      "mercado", "supermercado", "carulla", "jumbo", "exito",
-      "tienda", "panaderia",
+      "restaurante",
+      "almuerzo",
+      "cena",
+      "desayuno",
+      "mcdonalds",
+      "pizza",
+      "burger",
+      "sushi",
+      "comida",
+      "comer",
+      "pollo",
+      "empanada",
+      "cafe",
+      "coffee",
+      "starbucks",
+      "tinto",
+      "capuchino",
+      "latte",
+      "mercado",
+      "supermercado",
+      "carulla",
+      "jumbo",
+      "exito",
+      "tienda",
+      "panaderia",
     ],
-    emoji: "🍔", name: "Comida",
+    emoji: "🍔",
+    name: "Comida",
   },
   {
     keywords: [
-      "uber", "taxi", "bus", "metro", "transporte", "gasolina",
-      "combustible", "shuttle", "vuelo", "avion", "tren", "moto", "peaje",
-      "parqueadero", "parqueo",
+      "uber",
+      "taxi",
+      "bus",
+      "metro",
+      "transporte",
+      "gasolina",
+      "combustible",
+      "shuttle",
+      "vuelo",
+      "avion",
+      "tren",
+      "moto",
+      "peaje",
+      "parqueadero",
+      "parqueo",
     ],
-    emoji: "🚗", name: "Transporte",
+    emoji: "🚗",
+    name: "Transporte",
   },
   {
     keywords: [
-      "arriendo", "alquiler", "luz", "agua", "gas", "internet",
-      "servicios", "celular", "telefono", "hogar", "casa", "reparacion",
-      "plomero", "electricista",
+      "arriendo",
+      "alquiler",
+      "luz",
+      "agua",
+      "gas",
+      "internet",
+      "servicios",
+      "celular",
+      "telefono",
+      "hogar",
+      "casa",
+      "reparacion",
+      "plomero",
+      "electricista",
     ],
-    emoji: "🏠", name: "Hogar",
+    emoji: "🏠",
+    name: "Hogar",
   },
   {
     keywords: [
-      "zara", "ropa", "compras", "gadget", "electronico", "celular nuevo",
-      "laptop", "tablet", "zapatos", "accesorio",
+      "zara",
+      "ropa",
+      "compras",
+      "gadget",
+      "electronico",
+      "celular nuevo",
+      "laptop",
+      "tablet",
+      "zapatos",
+      "accesorio",
     ],
-    emoji: "🛍️", name: "Compras",
+    emoji: "🛍️",
+    name: "Compras",
   },
   {
     keywords: [
-      "medicina", "medico", "doctor", "farmacia", "salud", "drogueria",
-      "clinica", "hospital", "cita", "examen", "vacuna", "eps",
+      "medicina",
+      "medico",
+      "doctor",
+      "farmacia",
+      "salud",
+      "drogueria",
+      "clinica",
+      "hospital",
+      "cita",
+      "examen",
+      "vacuna",
+      "eps",
     ],
-    emoji: "🏥", name: "Salud",
+    emoji: "🏥",
+    name: "Salud",
   },
   {
     keywords: [
-      "cine", "netflix", "juego", "entretenimiento", "playstation",
-      "xbox", "spotify", "concierto", "pelicula", "serie", "teatro",
-      "gym", "gimnasio",
+      "cine",
+      "netflix",
+      "juego",
+      "entretenimiento",
+      "playstation",
+      "xbox",
+      "spotify",
+      "concierto",
+      "pelicula",
+      "serie",
+      "teatro",
+      "gym",
+      "gimnasio",
     ],
-    emoji: "🎮", name: "Entretenimiento",
+    emoji: "🎮",
+    name: "Entretenimiento",
   },
   {
     keywords: [
-      "curso", "libro", "educacion", "colegio", "universidad",
-      "clase", "taller", "seminario", "capacitacion",
+      "curso",
+      "libro",
+      "educacion",
+      "colegio",
+      "universidad",
+      "clase",
+      "taller",
+      "seminario",
+      "capacitacion",
     ],
-    emoji: "🎓", name: "Educación",
+    emoji: "🎓",
+    name: "Educación",
   },
   {
     keywords: [
-      "personal", "cuidado", "barberia", "peluqueria", "salon",
-      "cosmetico", "belleza", "deporte", "futbol", "natacion",
+      "personal",
+      "cuidado",
+      "barberia",
+      "peluqueria",
+      "salon",
+      "cosmetico",
+      "belleza",
+      "deporte",
+      "futbol",
+      "natacion",
     ],
-    emoji: "👤", name: "Personal",
+    emoji: "👤",
+    name: "Personal",
   },
   // ── Ingresos ─────────────────────────────────────────────────────────────────
   {
     keywords: [
-      "salario", "nomina", "sueldo", "quincena", "mensualidad",
-      "pago empresa", "pago del trabajo",
+      "salario",
+      "nomina",
+      "sueldo",
+      "quincena",
+      "mensualidad",
+      "pago empresa",
+      "pago del trabajo",
     ],
-    emoji: "💼", name: "Salario",
+    emoji: "💼",
+    name: "Salario",
   },
   {
     keywords: [
-      "freelance", "proyecto", "honorarios", "consultoria", "contrato",
+      "freelance",
+      "proyecto",
+      "honorarios",
+      "consultoria",
+      "contrato",
       "servicio prestado",
     ],
-    emoji: "💻", name: "Freelance",
+    emoji: "💻",
+    name: "Freelance",
   },
   {
-    keywords: [
-      "inversion", "dividendos", "intereses", "rendimientos", "acciones", "cripto",
-    ],
-    emoji: "📈", name: "Inversiones",
+    keywords: ["inversion", "dividendos", "intereses", "rendimientos", "acciones", "cripto"],
+    emoji: "📈",
+    name: "Inversiones",
   },
   {
-    keywords: [
-      "regalo", "bono", "reembolso", "devolucion", "venta", "comision",
-      "cashback",
-    ],
-    emoji: "🎁", name: "Extra",
+    keywords: ["regalo", "bono", "reembolso", "devolucion", "venta", "comision", "cashback"],
+    emoji: "🎁",
+    name: "Extra",
   },
   {
-    keywords: [
-      "negocio", "facturacion", "cobro del negocio", "venta del negocio",
-    ],
-    emoji: "🏢", name: "Negocio",
+    keywords: ["negocio", "facturacion", "cobro del negocio", "venta del negocio"],
+    emoji: "🏢",
+    name: "Negocio",
   },
 ];
 
 // ─── Palabras numéricas en español ───────────────────────────────────────────
 const WORD_NUMBERS: Record<string, number> = {
-  uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
-  seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
-  once: 11, doce: 12, trece: 13, catorce: 14, quince: 15,
-  veinte: 20, treinta: 30, cuarenta: 40, cincuenta: 50,
-  sesenta: 60, setenta: 70, ochenta: 80, noventa: 90,
-  cien: 100, ciento: 100, doscientos: 200, trescientos: 300,
-  cuatrocientos: 400, quinientos: 500, seiscientos: 600,
-  setecientos: 700, ochocientos: 800, novecientos: 900,
+  uno: 1,
+  dos: 2,
+  tres: 3,
+  cuatro: 4,
+  cinco: 5,
+  seis: 6,
+  siete: 7,
+  ocho: 8,
+  nueve: 9,
+  diez: 10,
+  once: 11,
+  doce: 12,
+  trece: 13,
+  catorce: 14,
+  quince: 15,
+  veinte: 20,
+  treinta: 30,
+  cuarenta: 40,
+  cincuenta: 50,
+  sesenta: 60,
+  setenta: 70,
+  ochenta: 80,
+  noventa: 90,
+  cien: 100,
+  ciento: 100,
+  doscientos: 200,
+  trescientos: 300,
+  cuatrocientos: 400,
+  quinientos: 500,
+  seiscientos: 600,
+  setecientos: 700,
+  ochocientos: 800,
+  novecientos: 900,
   mil: 1000,
 };
 
@@ -133,9 +259,7 @@ function normalize(text: string): string {
  * para mostrar siempre en formato COP.
  */
 export function normalizeMoneyText(text: string): string {
-  return text.replace(/(\d{1,3})(,(\d{3}))+/g, (match) =>
-    match.replace(/,/g, ".")
-  );
+  return text.replace(/(\d{1,3})(,(\d{3}))+/g, (match) => match.replace(/,/g, "."));
 }
 
 /**
@@ -178,8 +302,7 @@ function extractAmount(text: string): number {
 
   // Helper: busca una palabra con límites de palabra para evitar
   // falsos positivos como "mil" dentro de "millones" o "familia"
-  const hasWordBound = (word: string) =>
-    new RegExp(`\\b${word}\\b`).test(n);
+  const hasWordBound = (word: string) => new RegExp(`\\b${word}\\b`).test(n);
 
   // Helper: extrae miles adicionales después de "millones"
   // "5 millones 400" → 400.000   "5 millones 400 mil" → 400.000
@@ -200,9 +323,7 @@ function extractAmount(text: string): number {
   const millonNumMatch = n.match(/(\d+(?:[.,]\d+)?)\s*\bmillones?\b/);
   if (millonNumMatch) {
     const base = parseFloat(millonNumMatch[1].replace(",", ".")) * 1_000_000;
-    const after = n.slice(
-      n.indexOf(millonNumMatch[0]) + millonNumMatch[0].length
-    );
+    const after = n.slice(n.indexOf(millonNumMatch[0]) + millonNumMatch[0].length);
     return base + extraAfterMillones(after);
   }
 
@@ -217,7 +338,10 @@ function extractAmount(text: string): number {
         // Solo aplica si aparece antes de "millones"
         const wIdx = n.search(new RegExp(`\\b${word}\\b`));
         const mIdx = n.search(/\bmillones?\b/);
-        if (wIdx < mIdx) { wordMillions = val; break; }
+        if (wIdx < mIdx) {
+          wordMillions = val;
+          break;
+        }
       }
     }
     if (wordMillions > 0) {
@@ -242,7 +366,7 @@ function extractAmount(text: string): number {
   let wordAmount = 0;
   let hasWordNumber = false;
   for (const [word, val] of Object.entries(WORD_NUMBERS)) {
-    if (word === "mil") continue;          // "mil" se maneja por separado
+    if (word === "mil") continue; // "mil" se maneja por separado
     if (hasWordBound(word)) {
       wordAmount += val;
       hasWordNumber = true;
@@ -273,7 +397,10 @@ function extractDate(text: string): DateOption | null {
 }
 
 /** Devuelve la categoría detectada. Consulta primero userCategories si se proveen. */
-function extractCategory(text: string, userCats?: import("@/src/constants/categoryPresets").UserCategory[]): { emoji: string; name: string } | null {
+function extractCategory(
+  text: string,
+  userCats?: import("@/src/constants/categoryPresets").UserCategory[],
+): { emoji: string; name: string } | null {
   const n = normalize(text);
   if (userCats) {
     for (const cat of userCats) {
@@ -296,23 +423,54 @@ function extractIsExpense(text: string): boolean | undefined {
   const n = normalize(text);
 
   const incomeKeywords = [
-    "recibi", "recibe", "recibido", "ingrese", "ingreso",
-    "me pagaron", "me deposita", "me depositaron",
-    "cobre", "cobrado", "cobrar",
-    "salario", "sueldo", "nomina", "quincena", "mensualidad",
-    "ganancia", "vendi", "venta",
-    "me dieron", "me mandaron", "me gane",
-    "freelance", "honorarios", "consultoria", "proyecto pagado",
-    "dividendos", "rendimientos", "intereses",
-    "reembolso", "devolucion", "bono",
+    "recibi",
+    "recibe",
+    "recibido",
+    "ingrese",
+    "ingreso",
+    "me pagaron",
+    "me deposita",
+    "me depositaron",
+    "cobre",
+    "cobrado",
+    "cobrar",
+    "salario",
+    "sueldo",
+    "nomina",
+    "quincena",
+    "mensualidad",
+    "ganancia",
+    "vendi",
+    "venta",
+    "me dieron",
+    "me mandaron",
+    "me gane",
+    "freelance",
+    "honorarios",
+    "consultoria",
+    "proyecto pagado",
+    "dividendos",
+    "rendimientos",
+    "intereses",
+    "reembolso",
+    "devolucion",
+    "bono",
   ];
   if (incomeKeywords.some((kw) => fuzzyIncludes(n, kw))) return false;
 
   const expenseKeywords = [
-    "gaste", "gasto", "compre", "compra", "pague", "pago",
-    "costo", "cuesta",
-    "me costo", "me cobro",
-    "sali a", "fui a",
+    "gaste",
+    "gasto",
+    "compre",
+    "compra",
+    "pague",
+    "pago",
+    "costo",
+    "cuesta",
+    "me costo",
+    "me cobro",
+    "sali a",
+    "fui a",
   ];
   if (expenseKeywords.some((kw) => fuzzyIncludes(n, kw))) return true;
 
@@ -351,15 +509,13 @@ function findAmountSpans(text: string): { start: number; end: number }[] {
       // Número largo sin formato: "30000"
       "\\b\\d{4,}\\b",
     ].join("|"),
-    "g"
+    "g",
   );
 
   let m;
   while ((m = AMOUNT_RE.exec(n)) !== null) {
     const span = { start: m.index, end: m.index + m[0].trimEnd().length };
-    const overlaps = spans.some(
-      (s) => span.start < s.end && span.end > s.start
-    );
+    const overlaps = spans.some((s) => span.start < s.end && span.end > s.start);
     if (!overlaps) spans.push(span);
   }
   return spans;
@@ -384,7 +540,7 @@ function splitIntoSegments(text: string): string[] {
     const between = text.slice(spans[i].end, spans[i + 1].start);
     const conjMatch =
       /\s+(?:y\s+(?:también\s+|además\s+)?|también\s+|además\s+|luego\s+|después\s+)/i.exec(
-        between
+        between,
       );
     if (conjMatch) {
       splitPoints.push(spans[i].end + conjMatch.index);
@@ -407,29 +563,35 @@ function splitIntoSegments(text: string): string[] {
 }
 
 // ─── Función principal exportada ─────────────────────────────────────────────
-export function processVoiceInput(raw: string, userCats?: import("@/src/constants/categoryPresets").UserCategory[]): Partial<ActiveExpense> & {
+export function processVoiceInput(
+  raw: string,
+  userCats?: import("@/src/constants/categoryPresets").UserCategory[],
+): Partial<ActiveExpense> & {
   _categoryDetected: boolean;
   _dateDetected: boolean;
 } {
-  const category  = extractCategory(raw, userCats);
-  const date      = extractDate(raw);
+  const category = extractCategory(raw, userCats);
+  const date = extractDate(raw);
   const isExpense = extractIsExpense(raw);
-  const amount    = extractAmount(raw);
+  const amount = extractAmount(raw);
   // Normalizar texto y convertir expresión de dinero textual a dígitos formateados
   const normalizedRaw = normalizeMoneyText(raw);
-  const cleanNote     = replaceAmountInNote(normalizedRaw, amount);
+  const cleanNote = replaceAmountInNote(normalizedRaw, amount);
 
   const result: Partial<ActiveExpense> & { _categoryDetected: boolean; _dateDetected: boolean } = {
     amount,
-    note:          cleanNote,
+    note: cleanNote,
     rawTranscript: cleanNote,
-    tags:          [],
+    tags: [],
     _categoryDetected: category !== null,
-    _dateDetected:     date !== null,
+    _dateDetected: date !== null,
   };
 
-  if (category)             { result.categoryEmoji = category.emoji; result.categoryName = category.name; }
-  if (date)                   result.date      = date;
+  if (category) {
+    result.categoryEmoji = category.emoji;
+    result.categoryName = category.name;
+  }
+  if (date) result.date = date;
   if (isExpense !== undefined) result.isExpense = isExpense;
 
   return result;
@@ -440,8 +602,7 @@ export function processVoiceInput(raw: string, userCats?: import("@/src/constant
 type SingleResult = ReturnType<typeof processVoiceInput>;
 
 export type MultiVoiceResult =
-  | { multiple: false; single: SingleResult }
-  | { multiple: true; transactions: SingleResult[] };
+  { multiple: false; single: SingleResult } | { multiple: true; transactions: SingleResult[] };
 
 /**
  * Detecta si el transcript contiene múltiples transacciones (varios montos).
@@ -454,7 +615,7 @@ export type MultiVoiceResult =
  */
 export function processMultiVoiceInput(
   raw: string,
-  userCats?: import("@/src/constants/categoryPresets").UserCategory[]
+  userCats?: import("@/src/constants/categoryPresets").UserCategory[],
 ): MultiVoiceResult {
   const spans = findAmountSpans(raw);
 

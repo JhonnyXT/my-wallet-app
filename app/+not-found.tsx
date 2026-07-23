@@ -7,13 +7,9 @@ export default function NotFoundScreen() {
       <Stack.Screen options={{ title: "Pantalla no encontrada" }} />
       <View className="flex-1 items-center justify-center bg-pearl px-6">
         <Text className="text-4xl mb-3">🔍</Text>
-        <Text className="text-xl font-semibold text-midnight mb-2">
-          Pantalla no encontrada
-        </Text>
+        <Text className="text-xl font-semibold text-midnight mb-2">Pantalla no encontrada</Text>
         <Link href="/">
-          <Text className="text-accent text-sm font-medium">
-            Volver al inicio
-          </Text>
+          <Text className="text-accent text-sm font-medium">Volver al inicio</Text>
         </Link>
       </View>
     </>

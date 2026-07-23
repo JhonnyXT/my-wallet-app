@@ -53,8 +53,10 @@ export async function initDatabase(): Promise<void> {
 /** Formato ISO local (sin conversión UTC) para evitar desfase de zona horaria */
 export function localISOString(date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T` +
-    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.000`;
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T` +
+    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.000`
+  );
 }
 
 export async function insertTransaction(
@@ -67,10 +69,10 @@ export async function insertTransaction(
 ): Promise<TransactionRow> {
   const dateStr = localISOString(date ?? new Date());
   const tagsStr = tags.length > 0 ? JSON.stringify(tags) : "";
-  const db      = await getNativeDatabase();
-  const result  = await db.runAsync(
+  const db = await getNativeDatabase();
+  const result = await db.runAsync(
     `INSERT INTO transactions (amount, description, category_emoji, date, tags, payment_method) VALUES (?, ?, ?, ?, ?, ?)`,
-    [amount, description, categoryEmoji, dateStr, tagsStr, paymentMethod]
+    [amount, description, categoryEmoji, dateStr, tagsStr, paymentMethod],
   );
   return {
     id: result.lastInsertRowId,
@@ -90,15 +92,13 @@ export async function deleteTransaction(id: number): Promise<void> {
 
 export async function getAllTransactions(): Promise<TransactionRow[]> {
   const db = await getNativeDatabase();
-  return db.getAllAsync<TransactionRow>(
-    `SELECT * FROM transactions ORDER BY date DESC`
-  );
+  return db.getAllAsync<TransactionRow>(`SELECT * FROM transactions ORDER BY date DESC`);
 }
 
 export async function hasAnyTransactions(): Promise<boolean> {
   const db = await getNativeDatabase();
   const result = await db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) as count FROM transactions`
+    `SELECT COUNT(*) as count FROM transactions`,
   );
   return (result?.count ?? 0) > 0;
 }
@@ -114,7 +114,7 @@ export async function getMonthlyTotal(): Promise<number> {
   const firstDay = localISOString(new Date(now.getFullYear(), now.getMonth(), 1));
   const result = await db.getFirstAsync<{ total: number | null }>(
     `SELECT SUM(amount) as total FROM transactions WHERE date >= ?`,
-    [firstDay]
+    [firstDay],
   );
   return result?.total ?? 0;
 }
@@ -131,7 +131,7 @@ export async function insertTransactionBatch(
     tags?: string[];
     date?: Date;
     paymentMethod?: string;
-  }[]
+  }[],
 ): Promise<TransactionRow[]> {
   const db = await getNativeDatabase();
   const inserted: TransactionRow[] = [];
@@ -140,10 +140,10 @@ export async function insertTransactionBatch(
     for (const item of items) {
       const dateStr = localISOString(item.date ?? new Date());
       const tagsStr = item.tags && item.tags.length > 0 ? JSON.stringify(item.tags) : "";
-      const method  = item.paymentMethod ?? "cash";
-      const result  = await db.runAsync(
+      const method = item.paymentMethod ?? "cash";
+      const result = await db.runAsync(
         `INSERT INTO transactions (amount, description, category_emoji, date, tags, payment_method) VALUES (?, ?, ?, ?, ?, ?)`,
-        [item.amount, item.description, item.categoryEmoji, dateStr, tagsStr, method]
+        [item.amount, item.description, item.categoryEmoji, dateStr, tagsStr, method],
       );
       inserted.push({
         id: result.lastInsertRowId,

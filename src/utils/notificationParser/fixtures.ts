@@ -12,8 +12,7 @@
  */
 
 export type FixtureExpectation =
-  | { kind: "filtered" }
-  | { kind: "parsed"; amount: number; isExpense: boolean };
+  { kind: "filtered" } | { kind: "parsed"; amount: number; isExpense: boolean };
 
 export interface NotificationFixture {
   label: string;

@@ -18,10 +18,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { UserCategory } from "@/src/constants/categoryPresets";
 
 import { createCategoriesSlice, type CategoriesSlice } from "./slices/categoriesSlice";
-import { createBudgetSlice,     type BudgetSlice     } from "./slices/budgetSlice";
-import { createPaymentsSlice,   type PaymentsSlice, type PaymentMethod, type PaymentMethodType } from "./slices/paymentsSlice";
-import { createGoalsSlice,      type GoalsSlice,      type SavingsGoal  } from "./slices/goalsSlice";
-import { createPrefsSlice,      type PrefsSlice,      type DarkModeOption } from "./slices/prefsSlice";
+import { createBudgetSlice, type BudgetSlice } from "./slices/budgetSlice";
+import {
+  createPaymentsSlice,
+  type PaymentsSlice,
+  type PaymentMethod,
+  type PaymentMethodType,
+} from "./slices/paymentsSlice";
+import { createGoalsSlice, type GoalsSlice, type SavingsGoal } from "./slices/goalsSlice";
+import { createPrefsSlice, type PrefsSlice, type DarkModeOption } from "./slices/prefsSlice";
 import { createNotificationsSlice, type NotificationsSlice } from "./slices/notificationsSlice";
 
 // ─── Re-exportar tipos públicos (sin cambios para los importadores) ────────────
@@ -30,12 +35,11 @@ export type { DarkModeOption, PaymentMethodType, PaymentMethod, SavingsGoal };
 
 // ─── Tipo combinado del store ─────────────────────────────────────────────────
 
-export type SettingsState =
-  CategoriesSlice &
-  BudgetSlice     &
-  PaymentsSlice   &
-  GoalsSlice      &
-  PrefsSlice      &
+export type SettingsState = CategoriesSlice &
+  BudgetSlice &
+  PaymentsSlice &
+  GoalsSlice &
+  PrefsSlice &
   NotificationsSlice;
 
 // ─── Helpers de categorías (misma API pública) ────────────────────────────────
@@ -65,8 +69,8 @@ export const useSettingsStore = create<SettingsState>()(
       ...createNotificationsSlice(...a),
     }),
     {
-      name:    "mywallet-settings",
+      name: "mywallet-settings",
       storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
+    },
+  ),
 );

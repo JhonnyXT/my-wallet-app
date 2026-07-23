@@ -31,12 +31,12 @@ export const PERIODS = ["Hoy", "Esta semana", "Esta quincena", "Este mes", "Este
 type LucideIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 
 const PERIOD_ICONS: Record<string, LucideIcon> = {
-  "Hoy":              CalendarCheck,
-  "Esta semana":      CalendarDays,
-  "Esta quincena":    Calendar,
-  "Este mes":         CalendarDays,
-  "Este año":         CalendarPlus,
-  "Todo":             List,
+  Hoy: CalendarCheck,
+  "Esta semana": CalendarDays,
+  "Esta quincena": Calendar,
+  "Este mes": CalendarDays,
+  "Este año": CalendarPlus,
+  Todo: List,
 };
 
 // ─── Bottom Sheet de período ──────────────────────────────────────────────────
@@ -57,7 +57,7 @@ function PeriodSheet({
   onOpenMonthPicker?: () => void;
 }) {
   const theme = useTheme();
-  const bs    = useMemo(() => buildBs(theme), [theme]);
+  const bs = useMemo(() => buildBs(theme), [theme]);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
@@ -68,20 +68,31 @@ function PeriodSheet({
         <Text style={bs.title}>Periodo</Text>
 
         {periods.map((opt, i) => {
-          const Icon  = PERIOD_ICONS[opt];
+          const Icon = PERIOD_ICONS[opt];
           const isSel = opt === selected;
           return (
             <View key={opt}>
               <TouchableOpacity
                 activeOpacity={0.6}
-                onPress={() => { onSelect(opt); onClose(); }}
+                onPress={() => {
+                  onSelect(opt);
+                  onClose();
+                }}
                 style={bs.option}
               >
                 <View style={bs.optionLeft}>
                   <View style={[bs.iconBox, isSel && { backgroundColor: theme.accent + "18" }]}>
-                    {Icon && <Icon size={18} color={isSel ? theme.accent : theme.textSub} strokeWidth={1.8} />}
+                    {Icon && (
+                      <Icon
+                        size={18}
+                        color={isSel ? theme.accent : theme.textSub}
+                        strokeWidth={1.8}
+                      />
+                    )}
                   </View>
-                  <Text style={[bs.optionText, isSel && { color: theme.accent, fontWeight: "700" }]}>
+                  <Text
+                    style={[bs.optionText, isSel && { color: theme.accent, fontWeight: "700" }]}
+                  >
                     {opt}
                   </Text>
                 </View>
@@ -96,7 +107,10 @@ function PeriodSheet({
         <View style={bs.sep} />
         <TouchableOpacity
           activeOpacity={0.6}
-          onPress={() => { onClose(); onOpenMonthPicker?.(); }}
+          onPress={() => {
+            onClose();
+            onOpenMonthPicker?.();
+          }}
           style={bs.option}
         >
           <View style={bs.optionLeft}>
@@ -116,10 +130,12 @@ function PeriodSheet({
 
 function PillChip({ label, onPress }: { label: string; onPress: () => void }) {
   const theme = useTheme();
-  const ch    = useMemo(() => buildCh(theme), [theme]);
+  const ch = useMemo(() => buildCh(theme), [theme]);
   return (
     <TouchableOpacity activeOpacity={0.72} onPress={onPress} style={ch.pill}>
-      <Text style={ch.pillText} numberOfLines={1}>{label}</Text>
+      <Text style={ch.pillText} numberOfLines={1}>
+        {label}
+      </Text>
       <ChevronsUpDown size={13} color={theme.text} strokeWidth={2.2} />
     </TouchableOpacity>
   );
@@ -141,16 +157,13 @@ export function FilterChips({
   onOpenMonthPicker,
 }: FilterChipsProps) {
   const theme = useTheme();
-  const ch    = useMemo(() => buildCh(theme), [theme]);
+  const ch = useMemo(() => buildCh(theme), [theme]);
   const [sheetVisible, setSheetVisible] = useState(false);
 
   return (
     <>
       <View style={ch.row}>
-        <PillChip
-          label={periodLabel ?? period}
-          onPress={() => setSheetVisible(true)}
-        />
+        <PillChip label={periodLabel ?? period} onPress={() => setSheetVisible(true)} />
       </View>
 
       <PeriodSheet
@@ -167,93 +180,97 @@ export function FilterChips({
 
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 
-function buildBs(t: AppTheme) { return StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15,23,42,0.4)",
-  },
-  container: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: t.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 36,
-    paddingTop: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 24,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: t.border,
-    alignSelf: "center",
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: t.text,
-    paddingHorizontal: 20,
-    marginBottom: 4,
-  },
-  option: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-  },
-  optionLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: t.inputBg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  optionText: {
-    fontSize: 15,
-    color: t.text,
-  },
-  sep: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: t.border,
-    marginHorizontal: 20,
-  },
-});}
+function buildBs(t: AppTheme) {
+  return StyleSheet.create({
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(15,23,42,0.4)",
+    },
+    container: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: t.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingBottom: 36,
+      paddingTop: 12,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 20,
+      elevation: 24,
+    },
+    handle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: t.border,
+      alignSelf: "center",
+      marginBottom: 16,
+    },
+    title: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: t.text,
+      paddingHorizontal: 20,
+      marginBottom: 4,
+    },
+    option: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+    },
+    optionLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    iconBox: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: t.inputBg,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    optionText: {
+      fontSize: 15,
+      color: t.text,
+    },
+    sep: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: t.border,
+      marginHorizontal: 20,
+    },
+  });
+}
 
-function buildCh(t: AppTheme) { return StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  pill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: t.surface,
-    borderRadius: 9999,
-    borderWidth: 1.5,
-    borderColor: t.border,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  pillText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: t.text,
-    lineHeight: 20,
-  },
-});}
+function buildCh(t: AppTheme) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    pill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      backgroundColor: t.surface,
+      borderRadius: 9999,
+      borderWidth: 1.5,
+      borderColor: t.border,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+    },
+    pillText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: t.text,
+      lineHeight: 20,
+    },
+  });
+}

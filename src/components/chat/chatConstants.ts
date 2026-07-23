@@ -15,8 +15,7 @@ export const BLUE_CHAT = "#2D5BFF";
 
 // ─── Constantes de texto ──────────────────────────────────────────────────────
 
-export const WELCOME_TEXT =
-  "Hola. ¿En qué puedo ayudarte con tus finanzas hoy?";
+export const WELCOME_TEXT = "Hola. ¿En qué puedo ayudarte con tus finanzas hoy?";
 
 export const INITIAL_MESSAGE: ChatMessage = {
   id: "welcome",

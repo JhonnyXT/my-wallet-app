@@ -14,15 +14,15 @@ import type { PeriodFilter } from "@/src/utils/periodFilter";
 import { periodFilterLabel } from "@/src/utils/periodFilter";
 
 export interface UseDashboardScrollReturn {
-  scrollY:             SharedValue<number>;
-  scrollHandler:       ReturnType<typeof useAnimatedScrollHandler>;
+  scrollY: SharedValue<number>;
+  scrollHandler: ReturnType<typeof useAnimatedScrollHandler>;
   headerParallaxStyle: ReturnType<typeof useAnimatedStyle>;
-  pillsParallaxStyle:  ReturnType<typeof useAnimatedStyle>;
-  chartAnimKey:        string;
+  pillsParallaxStyle: ReturnType<typeof useAnimatedStyle>;
+  chartAnimKey: string;
 }
 
 export function useDashboardScroll(
-  typeFilter:   TypeFilter,
+  typeFilter: TypeFilter,
   periodFilter: PeriodFilter,
 ): UseDashboardScrollReturn {
   const scrollY = useSharedValue(0);
@@ -39,8 +39,8 @@ export function useDashboardScroll(
     "worklet";
     return {
       transform: [
-        { scale:      interpolate(scrollY.value, [0, 100], [1, 0.94],  Extrapolation.CLAMP) },
-        { translateY: interpolate(scrollY.value, [0, 100], [0, -5],    Extrapolation.CLAMP) },
+        { scale: interpolate(scrollY.value, [0, 100], [1, 0.94], Extrapolation.CLAMP) },
+        { translateY: interpolate(scrollY.value, [0, 100], [0, -5], Extrapolation.CLAMP) },
       ],
     };
   });
@@ -55,7 +55,7 @@ export function useDashboardScroll(
   // animationKey para re-animar barras cuando el filtro cambia
   const chartAnimKey = useMemo(
     () => `${typeFilter ?? "all"}-${periodFilterLabel(periodFilter)}`,
-     
+
     [typeFilter, periodFilter],
   );
 

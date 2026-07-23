@@ -35,8 +35,7 @@ export const useUIStore = create<UIState>((set) => ({
       if (!clean || s.activeTags.includes(clean)) return s;
       return { activeTags: [...s.activeTags, clean], searchQuery: "" };
     }),
-  removeTag: (tag) =>
-    set((s) => ({ activeTags: s.activeTags.filter((t) => t !== tag) })),
+  removeTag: (tag) => set((s) => ({ activeTags: s.activeTags.filter((t) => t !== tag) })),
   closeSearch: () => set({ searchOpen: false, searchQuery: "", activeTags: [] }),
 
   categoryFilter: null,

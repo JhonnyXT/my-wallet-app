@@ -10,41 +10,41 @@ import { fuzzyIncludes } from "@/src/utils/fuzzyMatch";
 
 export interface UseDashboardSearchReturn {
   // Ref de input
-  searchInputRef:      React.RefObject<TextInput | null>;
+  searchInputRef: React.RefObject<TextInput | null>;
   // Estado de dropdown
-  tagDropdownOpen:     boolean;
+  tagDropdownOpen: boolean;
   // Animaciones
-  searchBarAnim:       Animated.Value;
-  keyboardExtraAnim:   Animated.Value;
-  searchBarOpacity:    Animated.AnimatedInterpolation<number>;
+  searchBarAnim: Animated.Value;
+  keyboardExtraAnim: Animated.Value;
+  searchBarOpacity: Animated.AnimatedInterpolation<number>;
   // Tags
-  allTags:             string[];
-  tagSuggestions:      string[];
-  isTypingTag:         boolean;
+  allTags: string[];
+  tagSuggestions: string[];
+  isTypingTag: boolean;
   // Handlers
-  handleSelectTag:     (tag: string) => void;
+  handleSelectTag: (tag: string) => void;
   handleSearchTextChange: (text: string) => void;
-  handleSearchSubmit:  () => void;
+  handleSearchSubmit: () => void;
   // Resultados filtrados
-  searchedTransactions:  TransactionRow[];
+  searchedTransactions: TransactionRow[];
   displayedTransactions: TransactionRow[];
-  isSearching:           boolean;
-  hasActiveSearch:       boolean;
+  isSearching: boolean;
+  hasActiveSearch: boolean;
   // Valores del store (para renderizar la barra)
-  searchOpen:   boolean;
-  searchQuery:  string;
-  activeTags:   string[];
-  removeTag:    (tag: string) => void;
-  closeSearch:  () => void;
+  searchOpen: boolean;
+  searchQuery: string;
+  activeTags: string[];
+  removeTag: (tag: string) => void;
+  closeSearch: () => void;
   // Filtro por categoría (tap corto en columna del chart)
-  categoryFilter:        { emoji: string; name: string } | null;
-  clearCategoryFilter:   () => void;
+  categoryFilter: { emoji: string; name: string } | null;
+  clearCategoryFilter: () => void;
 }
 
 interface UseDashboardSearchParams {
-  transactions:             TransactionRow[];
+  transactions: TransactionRow[];
   typeFilteredTransactions: TransactionRow[];
-  baseSearchBottom:         number;
+  baseSearchBottom: number;
 }
 
 export function useDashboardSearch({
@@ -52,14 +52,14 @@ export function useDashboardSearch({
   typeFilteredTransactions,
   baseSearchBottom,
 }: UseDashboardSearchParams): UseDashboardSearchReturn {
-  const searchOpen          = useUIStore((s) => s.searchOpen);
-  const searchQuery         = useUIStore((s) => s.searchQuery);
-  const setSearchQuery      = useUIStore((s) => s.setSearchQuery);
-  const activeTags          = useUIStore((s) => s.activeTags);
-  const addTag              = useUIStore((s) => s.addTag);
-  const removeTag           = useUIStore((s) => s.removeTag);
-  const closeSearch         = useUIStore((s) => s.closeSearch);
-  const categoryFilter      = useUIStore((s) => s.categoryFilter);
+  const searchOpen = useUIStore((s) => s.searchOpen);
+  const searchQuery = useUIStore((s) => s.searchQuery);
+  const setSearchQuery = useUIStore((s) => s.setSearchQuery);
+  const activeTags = useUIStore((s) => s.activeTags);
+  const addTag = useUIStore((s) => s.addTag);
+  const removeTag = useUIStore((s) => s.removeTag);
+  const closeSearch = useUIStore((s) => s.closeSearch);
+  const categoryFilter = useUIStore((s) => s.categoryFilter);
   const clearCategoryFilter = useUIStore((s) => s.clearCategoryFilter);
 
   const searchInputRef = useRef<TextInput>(null);
@@ -84,12 +84,23 @@ export function useDashboardSearch({
   useEffect(() => {
     const onShow = Keyboard.addListener("keyboardDidShow", (e) => {
       const extra = Math.max(0, e.endCoordinates.height - baseSearchBottom + 10);
-      Animated.timing(keyboardExtraAnim, { toValue: extra, duration: 180, useNativeDriver: false }).start();
+      Animated.timing(keyboardExtraAnim, {
+        toValue: extra,
+        duration: 180,
+        useNativeDriver: false,
+      }).start();
     });
     const onHide = Keyboard.addListener("keyboardDidHide", () => {
-      Animated.timing(keyboardExtraAnim, { toValue: 0, duration: 160, useNativeDriver: false }).start();
+      Animated.timing(keyboardExtraAnim, {
+        toValue: 0,
+        duration: 160,
+        useNativeDriver: false,
+      }).start();
     });
-    return () => { onShow.remove(); onHide.remove(); };
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
   }, [baseSearchBottom]);
 
   // ── Tags únicos disponibles ───────────────────────────────────────────────
@@ -103,14 +114,12 @@ export function useDashboardSearch({
     return [...tagSet].sort();
   }, [transactions]);
 
-  const isTypingTag  = searchQuery.startsWith("#");
-  const tagFragment  = isTypingTag ? searchQuery.slice(1).toLowerCase() : "";
+  const isTypingTag = searchQuery.startsWith("#");
+  const tagFragment = isTypingTag ? searchQuery.slice(1).toLowerCase() : "";
 
   const tagSuggestions = useMemo(() => {
     if (!isTypingTag) return [];
-    return allTags
-      .filter((t) => t.includes(tagFragment) && !activeTags.includes(t))
-      .slice(0, 5);
+    return allTags.filter((t) => t.includes(tagFragment) && !activeTags.includes(t)).slice(0, 5);
   }, [isTypingTag, tagFragment, allTags, activeTags]);
 
   useEffect(() => {
@@ -137,7 +146,7 @@ export function useDashboardSearch({
   }
 
   // ── Pipeline de búsqueda ─────────────────────────────────────────────────
-  const activeQuery     = searchQuery.trim();
+  const activeQuery = searchQuery.trim();
   const hasActiveSearch = !!activeQuery || activeTags.length > 0;
 
   const searchedTransactions = useMemo(() => {
@@ -155,7 +164,7 @@ export function useDashboardSearch({
     if (activeQuery && !isTypingTag) {
       const q = normalize(activeQuery);
       results = results.filter((tx) => {
-        const desc    = normalize(tx.description ?? "");
+        const desc = normalize(tx.description ?? "");
         const catName = normalize(EMOJI_TO_CATEGORY_NAME[tx.category_emoji] ?? "");
         return fuzzyIncludes(desc, q) || fuzzyIncludes(catName, q);
       });
@@ -170,9 +179,7 @@ export function useDashboardSearch({
   const displayedTransactions = useMemo(() => {
     if (isSearching) return searchedTransactions;
     if (categoryFilter) {
-      return typeFilteredTransactions.filter(
-        (tx) => tx.category_emoji === categoryFilter.emoji
-      );
+      return typeFilteredTransactions.filter((tx) => tx.category_emoji === categoryFilter.emoji);
     }
     return typeFilteredTransactions;
   }, [isSearching, searchedTransactions, categoryFilter, typeFilteredTransactions]);

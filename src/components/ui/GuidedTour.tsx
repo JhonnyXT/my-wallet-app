@@ -41,7 +41,14 @@ interface GuidedTourProps {
 const SCREEN_H = Dimensions.get("screen").height;
 const SB_H = Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) : 0;
 
-export function GuidedTour({ steps, currentStep, globalStep, totalSteps, visible, onSkip }: GuidedTourProps) {
+export function GuidedTour({
+  steps,
+  currentStep,
+  globalStep,
+  totalSteps,
+  visible,
+  onSkip,
+}: GuidedTourProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const tooltipScale = useRef(new Animated.Value(0.92)).current;
   const [spotRect, setSpotRect] = useState<LayoutRectangle | null>(null);
@@ -77,7 +84,12 @@ export function GuidedTour({ steps, currentStep, globalStep, totalSteps, visible
     if (visible && spotRect) {
       Animated.parallel([
         Animated.timing(fadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }),
-        Animated.spring(tooltipScale, { toValue: 1, damping: 18, stiffness: 200, useNativeDriver: true }),
+        Animated.spring(tooltipScale, {
+          toValue: 1,
+          damping: 18,
+          stiffness: 200,
+          useNativeDriver: true,
+        }),
       ]).start();
     }
   }, [visible, spotRect]);
@@ -104,20 +116,30 @@ export function GuidedTour({ steps, currentStep, globalStep, totalSteps, visible
         <Animated.View style={[StyleSheet.absoluteFill, { opacity: fadeAnim }]}>
           {/* 4 rectángulos overlay alrededor del spotlight */}
           <View style={[s.overlay, { top: 0, left: 0, right: 0, height: Math.max(0, spotY) }]} />
-          <View style={[s.overlay, { top: spotY, left: 0, width: Math.max(0, spotX), height: spotH }]} />
+          <View
+            style={[s.overlay, { top: spotY, left: 0, width: Math.max(0, spotX), height: spotH }]}
+          />
           <View style={[s.overlay, { top: spotY, left: spotX + spotW, right: 0, height: spotH }]} />
           <View style={[s.overlay, { top: spotY + spotH, left: 0, right: 0, bottom: 0 }]} />
 
           {/* Spotlight ring */}
-          <View style={[s.spotRing, {
-            top: spotY, left: spotX, width: spotW, height: spotH, borderRadius: spotR,
-          }]} />
+          <View
+            style={[
+              s.spotRing,
+              {
+                top: spotY,
+                left: spotX,
+                width: spotW,
+                height: spotH,
+                borderRadius: spotR,
+              },
+            ]}
+          />
 
           {/* Tooltip card */}
-          <Animated.View style={[
-            s.card,
-            { top: tooltipTop, transform: [{ scale: tooltipScale }] },
-          ]}>
+          <Animated.View
+            style={[s.card, { top: tooltipTop, transform: [{ scale: tooltipScale }] }]}
+          >
             <Text style={s.title}>{step.title}</Text>
             <Text style={s.desc}>{step.message}</Text>
 

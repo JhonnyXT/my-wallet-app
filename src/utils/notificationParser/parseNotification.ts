@@ -15,7 +15,7 @@ import type { ParsedTransaction } from "./types";
 export function parseNotification(
   packageName: string,
   title: string,
-  text: string
+  text: string,
 ): ParsedTransaction | null {
   // 1. Verificar whitelist
   if (!BANK_PACKAGE_NAMES.has(packageName)) return null;
@@ -47,8 +47,8 @@ export function parseNotification(
     description: (result.description ?? bank.displayName).substring(0, 80),
     bankName: bank.displayName,
     packageName,
-    rawTitle: title.substring(0, 100),    // limitado a 100 chars para no almacenar saldos largos
-    rawText: text.substring(0, 200),      // limitado para privacidad
+    rawTitle: title.substring(0, 100), // limitado a 100 chars para no almacenar saldos largos
+    rawText: text.substring(0, 200), // limitado para privacidad
     confidence: result.confidence ?? "medium",
     detectedAt: localISOString(),
   };

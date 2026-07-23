@@ -55,43 +55,36 @@ export async function initChatTables(): Promise<void> {
 // ─── Sessions ────────────────────────────────────────────────────────────────
 
 export async function createChatSession(
-  title: string = "Nueva conversación"
+  title: string = "Nueva conversación",
 ): Promise<ChatSessionRow> {
   const db = await getDb();
   const now = localISOString();
   const result = await db.runAsync(
     `INSERT INTO chat_sessions (title, created_at, updated_at) VALUES (?, ?, ?)`,
-    [title, now, now]
+    [title, now, now],
   );
   return { id: result.lastInsertRowId, title, created_at: now, updated_at: now };
 }
 
-export async function updateSessionTitle(
-  id: number,
-  title: string
-): Promise<void> {
+export async function updateSessionTitle(id: number, title: string): Promise<void> {
   const db = await getDb();
   const now = localISOString();
-  await db.runAsync(
-    `UPDATE chat_sessions SET title = ?, updated_at = ? WHERE id = ?`,
-    [title, now, id]
-  );
+  await db.runAsync(`UPDATE chat_sessions SET title = ?, updated_at = ? WHERE id = ?`, [
+    title,
+    now,
+    id,
+  ]);
 }
 
 export async function touchSession(id: number): Promise<void> {
   const db = await getDb();
   const now = localISOString();
-  await db.runAsync(
-    `UPDATE chat_sessions SET updated_at = ? WHERE id = ?`,
-    [now, id]
-  );
+  await db.runAsync(`UPDATE chat_sessions SET updated_at = ? WHERE id = ?`, [now, id]);
 }
 
 export async function getChatSessions(): Promise<ChatSessionRow[]> {
   const db = await getDb();
-  return db.getAllAsync<ChatSessionRow>(
-    `SELECT * FROM chat_sessions ORDER BY updated_at DESC`
-  );
+  return db.getAllAsync<ChatSessionRow>(`SELECT * FROM chat_sessions ORDER BY updated_at DESC`);
 }
 
 export async function deleteChatSession(id: number): Promise<void> {
@@ -108,13 +101,13 @@ export async function addChatMessage(
   sessionId: number,
   role: "user" | "assistant",
   text: string,
-  cardJson?: string
+  cardJson?: string,
 ): Promise<ChatMessageRow> {
   const db = await getDb();
   const now = localISOString();
   const result = await db.runAsync(
     `INSERT INTO chat_messages (session_id, role, text, card_json, created_at) VALUES (?, ?, ?, ?, ?)`,
-    [sessionId, role, text, cardJson ?? null, now]
+    [sessionId, role, text, cardJson ?? null, now],
   );
   return {
     id: result.lastInsertRowId,
@@ -126,12 +119,10 @@ export async function addChatMessage(
   };
 }
 
-export async function getChatMessages(
-  sessionId: number
-): Promise<ChatMessageRow[]> {
+export async function getChatMessages(sessionId: number): Promise<ChatMessageRow[]> {
   const db = await getDb();
   return db.getAllAsync<ChatMessageRow>(
     `SELECT * FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC`,
-    [sessionId]
+    [sessionId],
   );
 }

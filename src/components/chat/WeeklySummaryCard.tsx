@@ -100,10 +100,7 @@ export function WeeklySummaryCard({ card }: Props) {
   const c = useMemo(() => buildStyles(theme), [theme]);
 
   const { total, prevTotal, weekData } = card;
-  const changePercent =
-    prevTotal > 0
-      ? Math.round(((total - prevTotal) / prevTotal) * 100)
-      : 0;
+  const changePercent = prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : 0;
   const isUp = changePercent >= 0;
   const fmt = (n: number) =>
     `$\u00A0${Math.round(n)
@@ -116,10 +113,7 @@ export function WeeklySummaryCard({ card }: Props) {
   const innerH = chartH - padTop;
   const maxAmt = Math.max(...weekData.map((d) => d.amount), 1);
   const pts = weekData.map((d, i) => ({
-    x:
-      weekData.length === 1
-        ? chartW / 2
-        : (i / (weekData.length - 1)) * chartW,
+    x: weekData.length === 1 ? chartW / 2 : (i / (weekData.length - 1)) * chartW,
     y: padTop + innerH - (d.amount / maxAmt) * innerH,
   }));
   const { line: linePath, area: areaPath } = smoothPath(pts);
@@ -196,9 +190,7 @@ export function WeeklySummaryCard({ card }: Props) {
           {weekData.map((d, i) => (
             <View key={i} style={c.dayCell}>
               {d.isToday && <View style={c.dayDot} />}
-              <Text style={[c.dayLabel, d.isToday && c.dayLabelToday]}>
-                {d.day}
-              </Text>
+              <Text style={[c.dayLabel, d.isToday && c.dayLabelToday]}>{d.day}</Text>
             </View>
           ))}
         </View>

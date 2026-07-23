@@ -5,21 +5,16 @@
  * Diseño basado en la pantalla "Review Transactions (Light)" de Stitch.
  */
 import { useState, useCallback, useMemo, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  Platform,
-  Alert,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Platform, Alert } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { ChevronLeft, Pencil, Check, BellOff, Plus, Trash2 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 
-import { useNotificationStore, type PendingNotificationItem } from "@/src/store/useNotificationStore";
+import {
+  useNotificationStore,
+  type PendingNotificationItem,
+} from "@/src/store/useNotificationStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
@@ -50,9 +45,9 @@ type ReviewItem = {
 function pendingToReview(
   item: PendingNotificationItem,
   userCategories: UserCategory[],
-  savingsGoals: SavingsGoal[]
+  savingsGoals: SavingsGoal[],
 ): ReviewItem {
-  const description   = item.description || item.bankName;
+  const description = item.description || item.bankName;
   const categoryEmoji = guessCategoryEmoji(description, userCategories);
   return {
     id: item.id,
@@ -73,7 +68,9 @@ function pendingToReview(
 // ─── ReviewCard — Diseño Stitch ──────────────────────────────────────────────
 
 function ReviewCard({
-  item, onEdit, onDelete,
+  item,
+  onEdit,
+  onDelete,
 }: {
   item: ReviewItem;
   onEdit: (item: ReviewItem) => void;
@@ -95,7 +92,9 @@ function ReviewCard({
         </Text>
         <View style={cardS.metaRow}>
           <Text style={[cardS.catName, { color: theme.textSub }]}>{item.categoryName}</Text>
-          <View style={[cardS.typeBadge, { backgroundColor: item.isExpense ? "#FEE2E2" : "#D1FAE5" }]}>
+          <View
+            style={[cardS.typeBadge, { backgroundColor: item.isExpense ? "#FEE2E2" : "#D1FAE5" }]}
+          >
             <Text style={[cardS.typeArrow, { color: item.isExpense ? "#DC2626" : "#059669" }]}>
               {item.isExpense ? "↓" : "↑"}
             </Text>
@@ -107,9 +106,7 @@ function ReviewCard({
       </View>
 
       {/* Monto */}
-      <Text style={[cardS.amount, { color: theme.text }]}>
-        $ {formatMoneyDisplay(item.amount)}
-      </Text>
+      <Text style={[cardS.amount, { color: theme.text }]}>$ {formatMoneyDisplay(item.amount)}</Text>
 
       {/* Boton editar */}
       <TouchableOpacity
@@ -148,10 +145,10 @@ export default function NotificationReviewScreen() {
   const { pendingItems, clearAll, removePendingItem } = useNotificationStore();
   const { addTransactionBatch } = useFinanceStore();
   const userCategories = useSettingsStore((s) => s.userCategories);
-  const savingsGoals   = useSettingsStore((s) => s.savingsGoals);
+  const savingsGoals = useSettingsStore((s) => s.savingsGoals);
 
   const [items, setItems] = useState<ReviewItem[]>(() =>
-    pendingItems.map((p) => pendingToReview(p, userCategories, savingsGoals))
+    pendingItems.map((p) => pendingToReview(p, userCategories, savingsGoals)),
   );
 
   useEffect(() => {
@@ -164,9 +161,9 @@ export default function NotificationReviewScreen() {
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
-  const expenseStore        = useExpenseStore();
-  const pendingManualItem   = useVoiceStore((s) => s.pendingManualItem);
-  const clearPendingManual  = useVoiceStore((s) => s.clearPendingManualItem);
+  const expenseStore = useExpenseStore();
+  const pendingManualItem = useVoiceStore((s) => s.pendingManualItem);
+  const clearPendingManual = useVoiceStore((s) => s.clearPendingManualItem);
 
   // Cuando active-expense devuelve un item editado/añadido, lo procesamos
   useFocusEffect(
@@ -180,52 +177,58 @@ export default function NotificationReviewScreen() {
             i.id === editingItemId
               ? {
                   ...i,
-                  amount:        pendingManualItem.amount,
-                  description:   pendingManualItem.description,
-                  isExpense:     pendingManualItem.isExpense,
+                  amount: pendingManualItem.amount,
+                  description: pendingManualItem.description,
+                  isExpense: pendingManualItem.isExpense,
                   categoryEmoji: pendingManualItem.categoryEmoji,
-                  categoryName:  pendingManualItem.categoryName,
+                  categoryName: pendingManualItem.categoryName,
                   paymentMethod: pendingManualItem.paymentMethod,
                 }
-              : i
-          )
+              : i,
+          ),
         );
         setEditingItemId(null);
       } else {
         // Flujo añadir manual: agregar como nuevo item a la cola de revisión
         const newItem: ReviewItem = {
           id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          amount:        pendingManualItem.amount,
-          description:   pendingManualItem.description,
-          isExpense:     pendingManualItem.isExpense,
+          amount: pendingManualItem.amount,
+          description: pendingManualItem.description,
+          isExpense: pendingManualItem.isExpense,
           categoryEmoji: pendingManualItem.categoryEmoji,
-          categoryName:  pendingManualItem.categoryName,
+          categoryName: pendingManualItem.categoryName,
           paymentMethod: pendingManualItem.paymentMethod,
-          bankName:      "Manual",
-          confidence:    "high",
+          bankName: "Manual",
+          confidence: "high",
         };
         setItems((prev) => [newItem, ...prev]);
       }
 
       clearPendingManual();
-    }, [pendingManualItem, editingItemId, clearPendingManual])
+    }, [pendingManualItem, editingItemId, clearPendingManual]),
   );
 
-  const handleEdit = useCallback((item: ReviewItem) => {
-    // Pre-popular useExpenseStore con los datos actuales del item
-    expenseStore.setIsExpense(item.isExpense);
-    expenseStore.setAmount(item.amount);
-    expenseStore.setNote(item.description);
-    expenseStore.setCategory(item.categoryEmoji, item.categoryName);
-    setEditingItemId(item.id);
-    router.push("/active-expense?from=notification-edit");
-  }, [expenseStore]);
+  const handleEdit = useCallback(
+    (item: ReviewItem) => {
+      // Pre-popular useExpenseStore con los datos actuales del item
+      expenseStore.setIsExpense(item.isExpense);
+      expenseStore.setAmount(item.amount);
+      expenseStore.setNote(item.description);
+      expenseStore.setCategory(item.categoryEmoji, item.categoryName);
+      setEditingItemId(item.id);
+      router.push("/active-expense?from=notification-edit");
+    },
+    [expenseStore],
+  );
 
-  const handleDeleteItem = useCallback((id: string) => {
-    Haptics.selectionAsync();
-    setItems((prev) => prev.filter((i) => i.id !== id));
-    removePendingItem(id);
-  }, [removePendingItem]);
+  const handleDeleteItem = useCallback(
+    (id: string) => {
+      Haptics.selectionAsync();
+      setItems((prev) => prev.filter((i) => i.id !== id));
+      removePendingItem(id);
+    },
+    [removePendingItem],
+  );
 
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
@@ -258,10 +261,7 @@ export default function NotificationReviewScreen() {
   }, [items, addTransactionBatch, clearAll]);
 
   // Total absoluto para el footer
-  const grandTotal = useMemo(() =>
-    items.reduce((s, i) => s + i.amount, 0),
-    [items]
-  );
+  const grandTotal = useMemo(() => items.reduce((s, i) => s + i.amount, 0), [items]);
 
   // ─── Estado vacio ─────────────────────────────────────────────────────────
   if (items.length === 0) {
@@ -273,16 +273,23 @@ export default function NotificationReviewScreen() {
           </TouchableOpacity>
           <View style={s.headerText}>
             <Text style={[s.headerTitle, { color: theme.text }]}>Revisar registros</Text>
-            <Text style={[s.headerSub, { color: theme.textSub }]}>Sin transacciones pendientes</Text>
+            <Text style={[s.headerSub, { color: theme.textSub }]}>
+              Sin transacciones pendientes
+            </Text>
           </View>
         </View>
         <View style={s.emptyState}>
           <BellOff size={48} color={theme.textSub} />
           <Text style={[s.emptyTitle, { color: theme.text }]}>Sin transacciones pendientes</Text>
           <Text style={[s.emptyDesc, { color: theme.textSub }]}>
-            Las transacciones detectadas automaticamente desde tus notificaciones bancarias apareceran aqui.
+            Las transacciones detectadas automaticamente desde tus notificaciones bancarias
+            apareceran aqui.
           </Text>
-          <TouchableOpacity style={[s.emptyBtn, { backgroundColor: ACCENT }]} onPress={() => router.back()} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={[s.emptyBtn, { backgroundColor: ACCENT }]}
+            onPress={() => router.back()}
+            activeOpacity={0.85}
+          >
             <Text style={s.emptyBtnText}>Entendido</Text>
           </TouchableOpacity>
         </View>
@@ -301,7 +308,8 @@ export default function NotificationReviewScreen() {
         <View style={s.headerText}>
           <Text style={[s.headerTitle, { color: theme.text }]}>Revisar registros</Text>
           <Text style={[s.headerSub, { color: theme.textSub }]}>
-            {items.length} transacci{items.length !== 1 ? "ones" : "ón"} detectada{items.length !== 1 ? "s" : ""}
+            {items.length} transacci{items.length !== 1 ? "ones" : "ón"} detectada
+            {items.length !== 1 ? "s" : ""}
           </Text>
         </View>
         <TouchableOpacity
@@ -319,11 +327,7 @@ export default function NotificationReviewScreen() {
         data={items}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <ReviewCard
-            item={item}
-            onEdit={handleEdit}
-            onDelete={handleDeleteItem}
-          />
+          <ReviewCard item={item} onEdit={handleEdit} onDelete={handleDeleteItem} />
         )}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 200 }}
         showsVerticalScrollIndicator={false}
@@ -346,7 +350,8 @@ export default function NotificationReviewScreen() {
       {/* Footer fijo — estilo Stitch */}
       <View style={[s.footer, { backgroundColor: theme.bg, paddingBottom: insets.bottom + 12 }]}>
         <Text style={[s.footerSummary, { color: theme.textSub }]}>
-          {items.length} REGISTRO{items.length !== 1 ? "S" : ""} · TOTAL $ {formatMoneyDisplay(grandTotal)}
+          {items.length} REGISTRO{items.length !== 1 ? "S" : ""} · TOTAL ${" "}
+          {formatMoneyDisplay(grandTotal)}
         </Text>
         <TouchableOpacity
           style={[s.saveBtn, { backgroundColor: ACCENT }]}
@@ -367,7 +372,6 @@ export default function NotificationReviewScreen() {
         onConfirm={handleDiscardAll}
         onCancel={() => setShowDiscardConfirm(false)}
       />
-
     </SafeAreaView>
   );
 }

@@ -15,7 +15,9 @@ export function formatMoneyInput(raw: string): string {
  */
 export function formatMoneyDisplay(value: number): string {
   if (!value || value <= 0) return "0";
-  return Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return Math.round(value)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
 /**

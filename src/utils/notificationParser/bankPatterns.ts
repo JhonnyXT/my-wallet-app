@@ -24,8 +24,7 @@ export const BANCOLOMBIA_PATTERN: BankPattern = {
 };
 
 export const NEQUI_PATTERN: BankPattern = {
-  matches: (_, text) =>
-    /(recibiste|enviaste|pagaste|te enviaron|llegaron|\$[\d.,]+)/i.test(text),
+  matches: (_, text) => /(recibiste|enviaste|pagaste|te enviaron|llegaron|\$[\d.,]+)/i.test(text),
   parse: (title, text, bank) => {
     const amount = extractAmount(text) ?? extractAmount(title);
     if (!amount) return null;
@@ -36,8 +35,7 @@ export const NEQUI_PATTERN: BankPattern = {
 };
 
 export const DAVIVIENDA_PATTERN: BankPattern = {
-  matches: (_, text) =>
-    /(débito|debito|crédito|credito|comercio|retiro|\$[\d.,]+)/i.test(text),
+  matches: (_, text) => /(débito|debito|crédito|credito|comercio|retiro|\$[\d.,]+)/i.test(text),
   parse: (_, text, bank) => {
     const amount = extractAmount(text);
     if (!amount) return null;
@@ -75,8 +73,8 @@ export const GENERIC_PATTERN: BankPattern = {
 /** Mapa de patrones por packageName (los que tienen patrón específico). */
 export const BANK_PATTERNS: Record<string, BankPattern> = {
   "co.com.bancolombia.personas.superapp": BANCOLOMBIA_PATTERN,
-  "com.nequi.MobileApp":                  NEQUI_PATTERN,
-  "com.davivienda.daviviendaapp":         DAVIVIENDA_PATTERN,
-  "com.davivienda.daviplataapp":          DAVIVIENDA_PATTERN,
-  "com.nu.production":                    NU_PATTERN,
+  "com.nequi.MobileApp": NEQUI_PATTERN,
+  "com.davivienda.daviviendaapp": DAVIVIENDA_PATTERN,
+  "com.davivienda.daviplataapp": DAVIVIENDA_PATTERN,
+  "com.nu.production": NU_PATTERN,
 };

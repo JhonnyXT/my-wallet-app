@@ -11,36 +11,36 @@ import { formatCOP } from "@/src/utils/formatMoney";
 // shouldShowAlert: false → no muestra el banner in-app; solo la bandeja del sistema
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert:  false,
-    shouldPlaySound:  false,
-    shouldSetBadge:   false,
+    shouldShowAlert: false,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
     shouldShowBanner: false,
-    shouldShowList:   true,
+    shouldShowList: true,
   }),
 });
 
 // ─── Canal Android (obligatorio en API 26+) ──────────────────────────────────
 
 const CHANNEL_BUDGET = "budget-alerts";
-const CHANNEL_GOALS  = "goal-alerts";
-const CHANNEL_BANK   = "bank-transactions";
+const CHANNEL_GOALS = "goal-alerts";
+const CHANNEL_BANK = "bank-transactions";
 
 async function ensureChannels() {
   if (Platform.OS !== "android") return;
   await Notifications.setNotificationChannelAsync(CHANNEL_BUDGET, {
-    name:       "Alertas de presupuesto",
+    name: "Alertas de presupuesto",
     importance: Notifications.AndroidImportance.HIGH,
-    sound:      null,
+    sound: null,
   });
   await Notifications.setNotificationChannelAsync(CHANNEL_GOALS, {
-    name:       "Metas de ahorro",
+    name: "Metas de ahorro",
     importance: Notifications.AndroidImportance.DEFAULT,
-    sound:      null,
+    sound: null,
   });
   await Notifications.setNotificationChannelAsync(CHANNEL_BANK, {
-    name:       "Transacciones detectadas",
+    name: "Transacciones detectadas",
     importance: Notifications.AndroidImportance.HIGH,
-    sound:      null,
+    sound: null,
   });
 }
 
@@ -110,10 +110,10 @@ export async function checkAndNotifyBudget(
 
   if (!store.notificationsEnabled || !store.budgetAlertsEnabled || budget <= 0) return;
 
-  const month     = currentMonth();
-  const ratio     = spent / budget;
+  const month = currentMonth();
+  const ratio = spent / budget;
   const threshold = store.budgetAlertThreshold / 100;
-  const isOver    = ratio >= 1.0;
+  const isOver = ratio >= 1.0;
 
   // Claves compuestas para permitir dos notificaciones por categoría por mes:
   // una al cruzar el umbral, otra al superar el 100%
@@ -129,14 +129,13 @@ export async function checkAndNotifyBudget(
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "Presupuesto superado",
-        body:  `Superaste el límite de "${categoryName}" por ${formatCOP(over)}.`,
+        body: `Superaste el límite de "${categoryName}" por ${formatCOP(over)}.`,
         sound: true,
         ...(Platform.OS === "android" && { channelId: CHANNEL_BUDGET }),
       },
       trigger: null,
     });
     store.markBudgetNotified(keyOverspent, month);
-
   } else {
     // Notificar cuando se cruza el umbral configurado (máximo una vez por mes)
     if (threshold > 0 && ratio < threshold) return;
@@ -147,7 +146,7 @@ export async function checkAndNotifyBudget(
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "Alerta de presupuesto",
-        body:  `Llevas el ${pct}% de tu presupuesto en "${categoryName}".`,
+        body: `Llevas el ${pct}% de tu presupuesto en "${categoryName}".`,
         sound: true,
         ...(Platform.OS === "android" && { channelId: CHANNEL_BUDGET }),
       },
@@ -172,7 +171,7 @@ export async function checkAndNotifyGoalCompleted(
   await Notifications.scheduleNotificationAsync({
     content: {
       title: "¡Meta de ahorro cumplida!",
-      body:  `${goalEmoji} Has completado tu meta "${goalName}". ¡Felicidades!`,
+      body: `${goalEmoji} Has completado tu meta "${goalName}". ¡Felicidades!`,
       sound: false,
       ...(Platform.OS === "android" && { channelId: CHANNEL_GOALS }),
     },
@@ -206,14 +205,22 @@ export async function notifyBankTransaction(
   try {
     await ensureChannels();
 
-    const sign   = isExpense ? "-" : "+";
-    const amtStr = `$${Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
-    const title  = confidence === "high"
-      ? `${sign}${amtStr} detectado — ${bankName}`
-      : `¿${sign}${amtStr} en ${bankName}?`;
-    const body   = confidence === "high"
-      ? (description ? `${description} · Toca para revisar` : "Toca para revisar la transacción pendiente")
-      : (description ? `Posible ${description} · Confirma en la app` : "No estamos seguros — confirma en la app");
+    const sign = isExpense ? "-" : "+";
+    const amtStr = `$${Math.round(amount)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+    const title =
+      confidence === "high"
+        ? `${sign}${amtStr} detectado — ${bankName}`
+        : `¿${sign}${amtStr} en ${bankName}?`;
+    const body =
+      confidence === "high"
+        ? description
+          ? `${description} · Toca para revisar`
+          : "Toca para revisar la transacción pendiente"
+        : description
+          ? `Posible ${description} · Confirma en la app`
+          : "No estamos seguros — confirma en la app";
 
     await Notifications.scheduleNotificationAsync({
       content: {

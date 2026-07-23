@@ -3,14 +3,7 @@ const eslintConfigPrettier = require("eslint-config-prettier");
 const { defineConfig, globalIgnores } = require("eslint/config");
 
 module.exports = defineConfig([
-  globalIgnores([
-    "android/**",
-    "ios/**",
-    ".expo/**",
-    "specs/**",
-    "coverage/**",
-    "node_modules/**",
-  ]),
+  globalIgnores(["android/**", "ios/**", ".expo/**", "specs/**", "coverage/**", "node_modules/**"]),
   ...expoConfig,
   {
     rules: {

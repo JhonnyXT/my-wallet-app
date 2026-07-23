@@ -13,5 +13,5 @@ import "expo-router/entry";
 // Registrar el HeadlessJS task con el nombre exacto que usa la librería nativa
 AppRegistry.registerHeadlessTask(
   RNAndroidNotificationListenerHeadlessJsName,
-  () => notificationHeadlessTask
+  () => notificationHeadlessTask,
 );

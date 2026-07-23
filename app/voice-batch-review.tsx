@@ -4,7 +4,7 @@
  * El usuario puede editar, eliminar y confirmar cada transacción antes de guardar.
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useFocusEffect , router } from "expo-router";
+import { useFocusEffect, router } from "expo-router";
 import {
   View,
   Text,
@@ -26,7 +26,11 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { ChevronLeft, ChevronRight, Pencil, Check, Trash2, Plus } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 
-import { useVoiceStore, type PendingTransaction, type ManualAddItem } from "@/src/store/useVoiceStore";
+import {
+  useVoiceStore,
+  type PendingTransaction,
+  type ManualAddItem,
+} from "@/src/store/useVoiceStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -38,7 +42,7 @@ import type { AppTheme } from "@/src/theme";
 
 type ReviewItem = {
   id: string;
-  amount: number;         // siempre positivo; el signo lo da isExpense
+  amount: number; // siempre positivo; el signo lo da isExpense
   description: string;
   categoryEmoji: string;
   categoryName: string;
@@ -63,13 +67,24 @@ function pendingToReviewItem(t: PendingTransaction, idx: number): ReviewItem {
 type CatOption = { key: string; label: string; colorBg: string; colorAccent: string };
 
 function CategorySheet({
-  visible, selected, isExpense, categories, onSelect, onClose,
+  visible,
+  selected,
+  isExpense,
+  categories,
+  onSelect,
+  onClose,
 }: {
-  visible: boolean; selected: string; isExpense: boolean;
-  categories: CatOption[]; onSelect: (k: string) => void; onClose: () => void;
+  visible: boolean;
+  selected: string;
+  isExpense: boolean;
+  categories: CatOption[];
+  onSelect: (k: string) => void;
+  onClose: () => void;
 }) {
   const [temp, setTemp] = useState(selected);
-  useEffect(() => { if (visible) setTemp(selected); }, [visible, selected]);
+  useEffect(() => {
+    if (visible) setTemp(selected);
+  }, [visible, selected]);
   const theme = useTheme();
   const ACCENT = "#135BEC";
 
@@ -112,7 +127,13 @@ function CategorySheet({
                       </View>
                     )}
                   </View>
-                  <Text style={[catS.itemLabel, { color: isSel ? ACCENT : theme.text }, isSel && { fontWeight: "700" }]}>
+                  <Text
+                    style={[
+                      catS.itemLabel,
+                      { color: isSel ? ACCENT : theme.text },
+                      isSel && { fontWeight: "700" },
+                    ]}
+                  >
                     {cat.label}
                   </Text>
                 </TouchableOpacity>
@@ -122,7 +143,10 @@ function CategorySheet({
         </ScrollView>
         <TouchableOpacity
           style={[catS.confirmBtn, { backgroundColor: ACCENT }]}
-          onPress={() => { onSelect(temp); onClose(); }}
+          onPress={() => {
+            onSelect(temp);
+            onClose();
+          }}
           activeOpacity={0.85}
         >
           <Text style={catS.confirmText}>CONFIRMAR</Text>
@@ -135,7 +159,11 @@ function CategorySheet({
 // ─── EditItemSheet ────────────────────────────────────────────────────────────
 
 function EditItemSheet({
-  visible, item, categories, onSave, onClose,
+  visible,
+  item,
+  categories,
+  onSave,
+  onClose,
 }: {
   visible: boolean;
   item: ReviewItem | null;
@@ -146,12 +174,12 @@ function EditItemSheet({
   const theme = useTheme();
   const ACCENT = "#135BEC";
 
-  const [amountStr, setAmountStr]   = useState("");
-  const [description, setDesc]      = useState("");
-  const [isExpense, setIsExpense]   = useState(true);
-  const [catEmoji, setCatEmoji]     = useState("💰");
-  const [catName, setCatName]       = useState("General");
-  const [showCatSheet, setShowCat]  = useState(false);
+  const [amountStr, setAmountStr] = useState("");
+  const [description, setDesc] = useState("");
+  const [isExpense, setIsExpense] = useState(true);
+  const [catEmoji, setCatEmoji] = useState("💰");
+  const [catName, setCatName] = useState("General");
+  const [showCatSheet, setShowCat] = useState(false);
 
   useEffect(() => {
     if (visible && item) {
@@ -169,7 +197,9 @@ function EditItemSheet({
 
   const catColor = useMemo(() => {
     const match = categories.find((c) => c.key === catEmoji);
-    return match ? { bg: match.colorBg, accent: match.colorAccent } : { bg: "#E2E8F0", accent: "#64748B" };
+    return match
+      ? { bg: match.colorBg, accent: match.colorAccent }
+      : { bg: "#E2E8F0", accent: "#64748B" };
   }, [categories, catEmoji]);
 
   function handleSave() {
@@ -204,19 +234,25 @@ function EditItemSheet({
               style={[editS.toggleBtn, isExpense && editS.toggleBtnExpenseActive]}
               onPress={() => setIsExpense(true)}
             >
-              <Text style={[editS.toggleText, isExpense && editS.toggleTextExpenseActive]}>↓ Gasto</Text>
+              <Text style={[editS.toggleText, isExpense && editS.toggleTextExpenseActive]}>
+                ↓ Gasto
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[editS.toggleBtn, !isExpense && editS.toggleBtnIncomeActive]}
               onPress={() => setIsExpense(false)}
             >
-              <Text style={[editS.toggleText, !isExpense && editS.toggleTextIncomeActive]}>↑ Ingreso</Text>
+              <Text style={[editS.toggleText, !isExpense && editS.toggleTextIncomeActive]}>
+                ↑ Ingreso
+              </Text>
             </TouchableOpacity>
           </View>
 
           {/* Monto */}
           <Text style={[editS.label, { color: theme.textSub }]}>MONTO</Text>
-          <View style={[editS.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+          <View
+            style={[editS.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
+          >
             <Text style={[editS.inputPrefix, { color: theme.textSub }]}>$</Text>
             <TextInput
               style={[editS.input, { color: theme.text }]}
@@ -231,7 +267,9 @@ function EditItemSheet({
 
           {/* Descripción */}
           <Text style={[editS.label, { color: theme.textSub }]}>DESCRIPCIÓN</Text>
-          <View style={[editS.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+          <View
+            style={[editS.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
+          >
             <TextInput
               style={[editS.input, { color: theme.text }]}
               value={description}
@@ -302,8 +340,7 @@ function ReviewItemCard({
   const pan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, g) =>
-        Math.abs(g.dx) > 6 && Math.abs(g.dx) > Math.abs(g.dy),
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 6 && Math.abs(g.dx) > Math.abs(g.dy),
       onPanResponderMove: (_, g) => {
         const val = isOpen.current ? g.dx - DELETE_BTN_W : g.dx;
         translateX.setValue(Math.min(0, Math.max(val, -DELETE_BTN_W)));
@@ -319,7 +356,7 @@ function ReviewItemCard({
           friction: 12,
         }).start();
       },
-    })
+    }),
   ).current;
 
   const catColor = getCategoryColor(item.categoryEmoji);
@@ -340,10 +377,7 @@ function ReviewItemCard({
 
       {/* Tarjeta (encima, deslizable) */}
       <Animated.View
-        style={[
-          cardS.card,
-          { backgroundColor: theme.surface, transform: [{ translateX }] },
-        ]}
+        style={[cardS.card, { backgroundColor: theme.surface, transform: [{ translateX }] }]}
         {...pan.panHandlers}
       >
         {/* Emoji de categoría */}
@@ -357,14 +391,16 @@ function ReviewItemCard({
             {item.description}
           </Text>
           <View style={cardS.subRow}>
-            <Text style={[cardS.categoryLabel, { color: theme.textSub }]}>
-              {item.categoryName}
-            </Text>
-            <View style={[
-              cardS.typeBadge,
-              item.isExpense ? cardS.badgeExpense : cardS.badgeIncome,
-            ]}>
-              <Text style={[cardS.badgeText, item.isExpense ? cardS.badgeExpenseText : cardS.badgeIncomeText]}>
+            <Text style={[cardS.categoryLabel, { color: theme.textSub }]}>{item.categoryName}</Text>
+            <View
+              style={[cardS.typeBadge, item.isExpense ? cardS.badgeExpense : cardS.badgeIncome]}
+            >
+              <Text
+                style={[
+                  cardS.badgeText,
+                  item.isExpense ? cardS.badgeExpenseText : cardS.badgeIncomeText,
+                ]}
+              >
                 {item.isExpense ? "↓ Gasto" : "↑ Ingreso"}
               </Text>
             </View>
@@ -376,12 +412,7 @@ function ReviewItemCard({
           <Text style={[cardS.amount, { color: theme.text }]}>
             $ {formatMoneyDisplay(item.amount)}
           </Text>
-          <TouchableOpacity
-            style={cardS.editBtn}
-            onPress={onEdit}
-            hitSlop={8}
-            activeOpacity={0.7}
-          >
+          <TouchableOpacity style={cardS.editBtn} onPress={onEdit} hitSlop={8} activeOpacity={0.7}>
             <Pencil size={15} color={theme.textSub} strokeWidth={1.8} />
           </TouchableOpacity>
         </View>
@@ -393,18 +424,19 @@ function ReviewItemCard({
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function VoiceBatchReview() {
-  const theme   = useTheme();
-  const insets  = useSafeAreaInsets();
-  const ACCENT  = "#135BEC";
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const ACCENT = "#135BEC";
 
-  const { pendingBatch, clearPendingBatch, pendingManualItem, clearPendingManualItem } = useVoiceStore();
+  const { pendingBatch, clearPendingBatch, pendingManualItem, clearPendingManualItem } =
+    useVoiceStore();
   const addTransactionBatch = useFinanceStore((s) => s.addTransactionBatch);
-  const userCategories      = useSettingsStore((s) => s.userCategories);
+  const userCategories = useSettingsStore((s) => s.userCategories);
 
-  const [items, setItems]       = useState<ReviewItem[]>([]);
+  const [items, setItems] = useState<ReviewItem[]>([]);
   const [editItem, setEditItem] = useState<ReviewItem | null>(null);
-  const [editVisible, setEdit]  = useState(false);
-  const [saving, setSaving]     = useState(false);
+  const [editVisible, setEdit] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Inicializar desde pendingBatch al montar
   useEffect(() => {
@@ -414,7 +446,7 @@ export default function VoiceBatchReview() {
       return;
     }
     setItems(batch.map(pendingToReviewItem));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Recoger registro manual al recuperar el foco (viene de active-expense?from=batch-review)
@@ -435,7 +467,7 @@ export default function VoiceBatchReview() {
         ]);
         clearPendingManualItem();
       }
-    }, [pendingManualItem, clearPendingManualItem])
+    }, [pendingManualItem, clearPendingManualItem]),
   );
 
   // Opciones de categorías para los sheets
@@ -447,13 +479,13 @@ export default function VoiceBatchReview() {
         colorBg: c.colorBg,
         colorAccent: c.colorAccent,
       })),
-    [userCategories]
+    [userCategories],
   );
 
   // Total calculado en tiempo real
   const totalExpense = useMemo(
     () => items.filter((i) => i.isExpense).reduce((acc, i) => acc + i.amount, 0),
-    [items]
+    [items],
   );
 
   const handleDelete = useCallback((id: string) => {
@@ -499,7 +531,10 @@ export default function VoiceBatchReview() {
       {/* Header */}
       <View style={st.header}>
         <TouchableOpacity
-          onPress={() => { clearPendingBatch(); router.back(); }}
+          onPress={() => {
+            clearPendingBatch();
+            router.back();
+          }}
           hitSlop={12}
           style={st.backBtn}
         >
@@ -508,7 +543,8 @@ export default function VoiceBatchReview() {
         <View style={st.headerText}>
           <Text style={[st.title, { color: theme.text }]}>Revisar registros</Text>
           <Text style={[st.subtitle, { color: theme.textSub }]}>
-            {items.length} {items.length === 1 ? "transacción detectada" : "transacciones detectadas"}
+            {items.length}{" "}
+            {items.length === 1 ? "transacción detectada" : "transacciones detectadas"}
           </Text>
         </View>
       </View>
@@ -547,7 +583,16 @@ export default function VoiceBatchReview() {
       />
 
       {/* Footer sticky */}
-      <View style={[st.footer, { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: insets.bottom + 12 }]}>
+      <View
+        style={[
+          st.footer,
+          {
+            backgroundColor: theme.surface,
+            borderTopColor: theme.border,
+            paddingBottom: insets.bottom + 12,
+          },
+        ]}
+      >
         <Text style={[st.footerSummary, { color: theme.textSub }]}>
           {items.length} {items.length === 1 ? "registro" : "registros"}
           {items.filter((i) => i.isExpense).length > 0
@@ -555,18 +600,13 @@ export default function VoiceBatchReview() {
             : ""}
         </Text>
         <TouchableOpacity
-          style={[
-            st.saveBtn,
-            { backgroundColor: items.length === 0 ? theme.border : ACCENT },
-          ]}
+          style={[st.saveBtn, { backgroundColor: items.length === 0 ? theme.border : ACCENT }]}
           onPress={handleSaveAll}
           disabled={items.length === 0 || saving}
           activeOpacity={0.85}
         >
           <Check size={20} color="#FFFFFF" strokeWidth={2.5} />
-          <Text style={st.saveBtnText}>
-            {saving ? "Guardando..." : "Guardar todo"}
-          </Text>
+          <Text style={st.saveBtnText}>{saving ? "Guardando..." : "Guardar todo"}</Text>
         </TouchableOpacity>
       </View>
 
@@ -830,4 +870,3 @@ const catS = StyleSheet.create({
   },
   confirmText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
 });
-

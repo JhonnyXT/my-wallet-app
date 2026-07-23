@@ -8,21 +8,54 @@
  * evitan a propósito — ese tipo de notificación se descarta antes, en
  * `intentClassifier`, no aquí.
  */
-export function classifyDirection(text: string): { isExpense: boolean; confidence: "high" | "medium" } {
+export function classifyDirection(text: string): {
+  isExpense: boolean;
+  confidence: "high" | "medium";
+} {
   const n = text.toLowerCase();
 
   const expenseKeywords = [
-    "compra", "compró", "débito", "debito", "debitado", "debitada", "pagó",
-    "pagado", "pagada", "pagaste", "retiro", "retiró", "cargo", "cargado", "cobro", "cobrado",
-    "transacción débito", "transaccion debito", "enviaste", "enviaron a",
-    "transferencia enviada", "salida",
+    "compra",
+    "compró",
+    "débito",
+    "debito",
+    "debitado",
+    "debitada",
+    "pagó",
+    "pagado",
+    "pagada",
+    "pagaste",
+    "retiro",
+    "retiró",
+    "cargo",
+    "cargado",
+    "cobro",
+    "cobrado",
+    "transacción débito",
+    "transaccion debito",
+    "enviaste",
+    "enviaron a",
+    "transferencia enviada",
+    "salida",
   ];
 
   const incomeKeywords = [
-    "recibiste", "recibió", "recibido", "ingreso", "abono", "consignación",
-    "consignacion", "depósito", "deposito", "transferencia recibida",
-    "llegaron", "te enviaron", "transferencia entrante",
-    "crédito", "credito", "entrada",
+    "recibiste",
+    "recibió",
+    "recibido",
+    "ingreso",
+    "abono",
+    "consignación",
+    "consignacion",
+    "depósito",
+    "deposito",
+    "transferencia recibida",
+    "llegaron",
+    "te enviaron",
+    "transferencia entrante",
+    "crédito",
+    "credito",
+    "entrada",
   ];
 
   for (const kw of incomeKeywords) {

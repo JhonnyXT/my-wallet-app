@@ -81,9 +81,7 @@ function DigitColumn({
 // Así cuando el conteo de dígitos cambia, los dígitos existentes conservan
 // su estado de animación y solo los nuevos se montan/desmontan.
 
-type Token =
-  | { type: "digit"; digit: number; key: string }
-  | { type: "sep"; key: string };
+type Token = { type: "digit"; digit: number; key: string } | { type: "sep"; key: string };
 
 function tokenize(n: number): Token[] {
   const raw = Math.round(Math.abs(n)).toString();
@@ -119,12 +117,7 @@ export interface RollingNumberProps {
   duration?: number;
 }
 
-export function RollingNumber({
-  value,
-  prefix = "$ ",
-  style,
-  duration = 400,
-}: RollingNumberProps) {
+export function RollingNumber({ value, prefix = "$ ", style, duration = 400 }: RollingNumberProps) {
   const flat = StyleSheet.flatten(style) as TextStyle | undefined;
   const fontSize = (flat?.fontSize as number) ?? 14;
   // Usa lineHeight del estilo si está definido; si no, estima desde fontSize
@@ -141,9 +134,7 @@ export function RollingNumber({
   return (
     <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
       {/* Prefijo ("$") fuera de las columnas animadas */}
-      {prefix ? (
-        <Text style={baseTextStyle}>{prefix}</Text>
-      ) : null}
+      {prefix ? <Text style={baseTextStyle}>{prefix}</Text> : null}
 
       {tokens.map((token) =>
         token.type === "sep" ? (
@@ -153,14 +144,7 @@ export function RollingNumber({
             entering={FadeInDown.duration(220)}
             exiting={FadeOut.duration(160)}
           >
-            <Text
-              style={[
-                baseTextStyle,
-                { lineHeight: digitHeight },
-              ]}
-            >
-              {"."}
-            </Text>
+            <Text style={[baseTextStyle, { lineHeight: digitHeight }]}>{"."}</Text>
           </Reanimated.View>
         ) : (
           // Columna de dígito: fade-in al aparecer (nuevo dígito), fade-out al desaparecer
@@ -176,7 +160,7 @@ export function RollingNumber({
               duration={duration}
             />
           </Reanimated.View>
-        )
+        ),
       )}
     </View>
   );

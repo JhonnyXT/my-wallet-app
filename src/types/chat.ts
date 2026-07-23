@@ -14,5 +14,4 @@ export interface ChatMessage {
 // ─── Ítem agrupado para el drawer de historial ────────────────────────────────
 
 export type ChatGroupedItem =
-  | { type: "header"; label: string }
-  | { type: "session"; session: ChatSessionRow };
+  { type: "header"; label: string } | { type: "session"; session: ChatSessionRow };

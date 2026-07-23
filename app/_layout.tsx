@@ -22,22 +22,19 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const loadTransactions      = useFinanceStore((s) => s.loadTransactions);
-  const darkMode              = useSettingsStore((s) => s.darkMode);
+  const loadTransactions = useFinanceStore((s) => s.loadTransactions);
+  const darkMode = useSettingsStore((s) => s.darkMode);
   const hasSelectedCategories = useSettingsStore((s) => s.hasSelectedCategories);
-  const systemScheme          = useColorScheme();
-  const router                = useRouter();
+  const systemScheme = useColorScheme();
+  const router = useRouter();
 
   const theme = useMemo(() => {
-    const effective =
-      darkMode === "system"
-        ? (systemScheme ?? "light")
-        : darkMode;
+    const effective = darkMode === "system" ? (systemScheme ?? "light") : darkMode;
     return effective === "dark" ? dark : light;
   }, [darkMode, systemScheme]);
 
-  const [appReady, setAppReady]       = useState(false);
-  const [splashDone, setSplashDone]   = useState(false);
+  const [appReady, setAppReady] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
 
   // ─── Deep link desde notificación push ───────────────────────────────────
   // Ref para evitar re-registro en re-renders
@@ -61,7 +58,7 @@ export default function RootLayout() {
     return () => {
       notifListenerRef.current?.remove();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -81,7 +78,7 @@ export default function RootLayout() {
       }
     }
     bootstrap();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Después del splash, si no ha seleccionado categorías → onboarding
@@ -146,9 +143,7 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
 
-      {appReady && !splashDone && (
-        <AnimatedSplash onFinish={() => setSplashDone(true)} />
-      )}
+      {appReady && !splashDone && <AnimatedSplash onFinish={() => setSplashDone(true)} />}
     </ThemeProvider>
   );
 }

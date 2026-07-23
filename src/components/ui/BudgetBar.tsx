@@ -17,9 +17,7 @@ export function BudgetBar({ percentage }: BudgetBarProps) {
     <View style={styles.container}>
       <View style={styles.labelRow}>
         <Text style={styles.label}>Presupuesto</Text>
-        <Text style={[styles.label, isWarning && styles.labelWarning]}>
-          {percentage}%
-        </Text>
+        <Text style={[styles.label, isWarning && styles.labelWarning]}>{percentage}%</Text>
       </View>
       <View style={styles.track}>
         <Animated.View

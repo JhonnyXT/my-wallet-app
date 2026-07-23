@@ -18,9 +18,9 @@ export default function WalletScreen() {
 }
 
 const s = StyleSheet.create({
-  root:     { flex: 1 },
-  center:   { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
-  icon:     { fontSize: 36, marginBottom: 12 },
-  title:    { fontSize: 20, fontWeight: "600", marginBottom: 8 },
+  root: { flex: 1 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
+  icon: { fontSize: 36, marginBottom: 12 },
+  title: { fontSize: 20, fontWeight: "600", marginBottom: 8 },
   subtitle: { fontSize: 14, textAlign: "center" },
 });

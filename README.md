@@ -78,9 +78,9 @@ my-wallet-app/
 ## Estado del proyecto
 
 Versión actual: **1.5.0**. Deuda técnica conocida: Jest cubre utilidades puras y `notificationParser`
-pero componentes/stores/`src/db/` (SQLite) todavía no tienen estrategia de testing, sin
-ESLint/Prettier, y el build release todavía firma con la keystore de debug (sin keystore de
-producción). Detalle completo en [`AGENTS.md`](./AGENTS.md).
+pero componentes/stores/`src/db/` (SQLite) todavía no tienen estrategia de testing, y el build
+release todavía firma con la keystore de debug (sin keystore de producción). ESLint/Prettier ya
+están configurados. Detalle completo en [`AGENTS.md`](./AGENTS.md).
 
 ## Documentación
 

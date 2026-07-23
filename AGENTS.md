@@ -48,7 +48,13 @@ npm test -- <patrón>  # ej. npm test -- formatMoney
 Cobertura hoy: utilidades puras y `notificationParser` (`src/utils/**/*.test.ts`, co-locados). Componentes `.tsx`, stores y `src/db/` (SQLite) todavía no tienen estrategia de testing — ver Deuda técnica.
 
 ### Lint
-No hay ESLint/Prettier configurado. Deuda técnica documentada.
+```bash
+npm run lint          # ESLint (eslint.config.js, flat config)
+npm run lint:fix       # con --fix
+npm run format         # Prettier --write
+npm run format:check   # Prettier --check
+```
+`.prettierignore` excluye `*.md`/`*.mdc` (docs mantenidas a mano, Prettier rompe el padding de tablas) y `docs/` (landing con CSS compacto hecho a mano) — Prettier es solo para código JS/TS/JSON de `app/`/`src/`/configs de raíz.
 
 ---
 
@@ -238,7 +244,7 @@ my-wallet-app/
 ## Deuda técnica documentada
 
 - [x] ~~Sin framework de testing (ni Jest ni Vitest)~~ — Jest instalado (`jest.config.js`, `npm test`). Cobertura: los 9 fixtures de `notificationParser/fixtures.ts` (uno por `it()`) + `formatMoney`, `periodFilter`, `colorUtils`, `transactionFormatters`, `voiceParser`, `nlp` (65 tests, 0 fallos). Alcance actual: solo utilidades puras y lógica de parsing — componentes `.tsx`, stores Zustand y `src/db/` (SQLite) quedan fuera hasta definir estrategia de mocking (`jest-expo`, mocks de `expo-sqlite`/AsyncStorage). Al escribir un test que importe (aunque sea transitivamente) algo de `src/db/`, mockear solo la función puntual usada — ver ejemplo en `parseNotification.test.ts`, que mockea `localISOString` sin traer `expo-sqlite`.
-- [ ] Sin ESLint ni Prettier configurados
+- [x] ~~Sin ESLint ni Prettier configurados~~ — `eslint-config-expo@~55.0.1` (flat config, pineado a la versión de SDK 55) + Prettier. `react/no-unescaped-entities` desactivada (regla de React DOM sin sentido en RN, ver `eslint.config.js`). Todo el código de `app/`/`src/`/configs de raíz reformateado; docs (`*.md`/`*.mdc`) y `docs/` (landing) excluidos a propósito de Prettier — ver sección Lint arriba. Estado: 0 errores, 35 warnings legítimos (unused vars, `react-hooks/exhaustive-deps`) pendientes de resolver incrementalmente, no bloquean nada.
 - [x] ~~3 componentes huérfanos: `ActionPills`, `CustomTabBar`, `AnimatedNumber`~~ — eliminados
 - [x] ~~Hook muerto: `src/features/voice/useVoiceExpense.ts`~~ — eliminado
 - [x] ~~Constantes AsyncStorage duplicadas (settings.tsx + notificationHeadlessTask.ts)~~ — consolidadas en `src/constants/banks.ts`

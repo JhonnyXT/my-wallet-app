@@ -89,4 +89,4 @@ src/theme/          → Tokens de tema light/dark.
 - NO hacer push automático a remoto.
 - NO almacenar datos bancarios reales (números de cuenta/tarjeta).
 - NO usar class components — solo funcionales con hooks.
-- NO crear archivos en `src/features/voice/useVoiceExpense.ts` — está deprecado.
+- NO recrear `src/features/voice/` — la carpeta se eliminó junto con `useVoiceExpense.ts`; la lógica de voz vive en `src/utils/voiceParser.ts` y `useVoiceStore`.

@@ -40,16 +40,28 @@ import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { normalizeMoneyText, processMultiVoiceInput } from "@/src/utils/voiceParser";
+import type {
+  ExpoSpeechRecognitionErrorEvent,
+  ExpoSpeechRecognitionResultEvent,
+} from "expo-speech-recognition";
 
 const { width: SW } = Dimensions.get("window");
 const ORB_SIZE = 192;
 
 // ─── Guard: expo-speech-recognition solo en native build ─────────────────────
+// Tipos reales del paquete (type-only import, sin efecto en runtime) — solo el
+// require() de abajo depende de estar en un build nativo, no los tipos.
 let SpeechModule: {
   requestPermissionsAsync: () => Promise<{ granted: boolean }>;
   start: (opts: object) => void;
   stop: () => void;
-  addListener: (event: string, cb: (e: any) => void) => { remove: () => void };
+  addListener(event: "error", cb: (e: ExpoSpeechRecognitionErrorEvent) => void): {
+    remove: () => void;
+  };
+  addListener(event: "result", cb: (e: ExpoSpeechRecognitionResultEvent) => void): {
+    remove: () => void;
+  };
+  addListener(event: string, cb: (e: unknown) => void): { remove: () => void };
 } | null = null;
 
 try {
@@ -254,14 +266,14 @@ export default function VoiceInputScreen() {
         if (statusRef.current !== "processing") setStatus("idle");
       }),
 
-      SpeechModule.addListener("error", (e: any) => {
+      SpeechModule.addListener("error", (e) => {
         const msg = e?.message ?? "No te escuché. ¿Puedes repetirlo?";
         setError(msg);
         clearSilenceTimer();
       }),
 
       // Resultados parciales → actualización en tiempo real
-      SpeechModule.addListener("result", (event: any) => {
+      SpeechModule.addListener("result", (event) => {
         const text: string = event.results?.[0]?.transcript ?? "";
         if (!text) return;
 

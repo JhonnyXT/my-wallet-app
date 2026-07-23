@@ -10,7 +10,7 @@ export function BudgetBar({ percentage }: BudgetBarProps) {
   const isWarning = percentage >= BUDGET_WARNING_THRESHOLD;
 
   const barStyle = useAnimatedStyle(() => ({
-    width: withTiming(`${Math.min(percentage, 100)}%` as any, { duration: 600 }),
+    width: withTiming(`${Math.min(percentage, 100)}%` as `${number}%`, { duration: 600 }),
   }));
 
   return (

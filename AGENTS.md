@@ -41,7 +41,11 @@ $adb = "C:\Users\FAMILY\AppData\Local\Android\Sdk\platform-tools\adb.exe"
 ```
 
 ### Tests
-No hay testing configurado. Deuda técnica documentada.
+```bash
+npm test              # corre toda la suite (Jest)
+npm test -- <patrón>  # ej. npm test -- formatMoney
+```
+Cobertura hoy: utilidades puras y `notificationParser` (`src/utils/**/*.test.ts`, co-locados). Componentes `.tsx`, stores y `src/db/` (SQLite) todavía no tienen estrategia de testing — ver Deuda técnica.
 
 ### Lint
 No hay ESLint/Prettier configurado. Deuda técnica documentada.
@@ -233,7 +237,7 @@ my-wallet-app/
 
 ## Deuda técnica documentada
 
-- [ ] Sin framework de testing (ni Jest ni Vitest) — pendiente, próxima iteración. `src/utils/notificationParser/fixtures.ts` ya tiene casos reales con resultado esperado, listos para envolverse en `it()`/`test()` uno a uno apenas se instale el runner.
+- [x] ~~Sin framework de testing (ni Jest ni Vitest)~~ — Jest instalado (`jest.config.js`, `npm test`). Cobertura: los 9 fixtures de `notificationParser/fixtures.ts` (uno por `it()`) + `formatMoney`, `periodFilter`, `colorUtils`, `transactionFormatters`, `voiceParser`, `nlp` (65 tests, 0 fallos). Alcance actual: solo utilidades puras y lógica de parsing — componentes `.tsx`, stores Zustand y `src/db/` (SQLite) quedan fuera hasta definir estrategia de mocking (`jest-expo`, mocks de `expo-sqlite`/AsyncStorage). Al escribir un test que importe (aunque sea transitivamente) algo de `src/db/`, mockear solo la función puntual usada — ver ejemplo en `parseNotification.test.ts`, que mockea `localISOString` sin traer `expo-sqlite`.
 - [ ] Sin ESLint ni Prettier configurados
 - [x] ~~3 componentes huérfanos: `ActionPills`, `CustomTabBar`, `AnimatedNumber`~~ — eliminados
 - [x] ~~Hook muerto: `src/features/voice/useVoiceExpense.ts`~~ — eliminado

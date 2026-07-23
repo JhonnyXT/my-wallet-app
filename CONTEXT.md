@@ -1209,7 +1209,6 @@ en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún
 ```json
 {
   "@react-native-async-storage/async-storage": "^2.2.0",
-  "expo-notifications": "~0.29.x",
   "@react-native-community/datetimepicker": "8.6.0",
   "@react-navigation/native": "^7.1.28",
   "expo": "~55.0.4",
@@ -1219,18 +1218,19 @@ en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún
   "expo-haptics": "^55.0.8",
   "expo-linear-gradient": "~55.0.8",
   "expo-linking": "~55.0.7",
+  "expo-notifications": "~55.0.13",
   "expo-router": "~55.0.3",
+  "expo-sharing": "~55.0.14",
   "expo-speech-recognition": "^3.1.1",
   "expo-splash-screen": "~55.0.10",
   "expo-sqlite": "^55.0.10",
   "expo-status-bar": "~55.0.4",
-  "expo-symbols": "~55.0.4",
-  "expo-web-browser": "~55.0.9",
   "lucide-react-native": "^0.576.0",
   "nativewind": "^4.2.2",
   "react": "19.2.0",
   "react-dom": "19.2.0",
   "react-native": "0.83.2",
+  "react-native-android-notification-listener": "^5.0.1",
   "react-native-reanimated": "^4.2.1",
   "react-native-safe-area-context": "~5.6.2",
   "react-native-screens": "~4.23.0",
@@ -1240,13 +1240,23 @@ en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún
   "zustand": "^5.0.11"
 }
 ```
+> `expo-web-browser` y `expo-symbols` se eliminaron de aquí (nunca se usaron directamente —
+> ver deuda técnica resuelta B13 en `AGENTS.md`).
 
 ### Desarrollo
 ```json
 {
   "@babel/core": "^7.29.0",
   "@babel/preset-env": "^7.29.0",
+  "@babel/preset-typescript": "^7.29.7",
+  "@types/jest": "^30.0.0",
   "@types/react": "~19.2.2",
+  "babel-jest": "^30.4.1",
+  "eslint": "^9.39.5",
+  "eslint-config-expo": "~55.0.1",
+  "eslint-config-prettier": "^10.1.8",
+  "jest": "^30.4.2",
+  "prettier": "^3.9.6",
   "react-native-css-interop": "^0.2.2",
   "tailwindcss": "^3.3.2",
   "typescript": "~5.9.2"

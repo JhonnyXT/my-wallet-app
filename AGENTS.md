@@ -217,7 +217,7 @@ my-wallet-app/
 - `package.json` `"main"` apunta a `index.js` (NO `expo-router/entry`) porque registra el HeadlessJS task para notificaciones bancarias.
 - `amount > 0` = gasto, `amount < 0` = ingreso (convención invertida vs lo usual).
 - `expo-sharing` está en dependencias pero NO se usa en código — se reemplazó por `Share` de react-native. No borrar porque `app.json` la tiene como plugin (B9).
-- `expo-web-browser` y `expo-symbols` están en package.json pero sin imports directos; pueden ser requeridos transitivamente por Expo plugins — no eliminar sin auditoría de plugins (B13).
+- ~~`expo-web-browser` y `expo-symbols` en package.json sin imports directos~~ — **resuelto** (B13): auditados y eliminados de `dependencies`. `expo-web-browser` no lo requería nada (ni código, ni plugin en `app.json`, ni otro paquete) — se fue por completo de `node_modules`. `expo-symbols` es dependencia dura de `expo-router` (para su feature `native-tabs`, que no usamos, y sin código nativo Android) — sigue instalado transitivamente sin que lo declaremos. Verificado con `expo-doctor`, `expo prebuild -p android --clean` + `assembleRelease` (build exitoso, sin referencias a `expo-web-browser` en el proyecto nativo generado).
 - `tsconfig.json` usa `paths: "@/*": ["./*"]` que mapea toda la raíz del proyecto. Suficiente para el setup de Expo Router; no restringir a `src/` sin verificar que no quiebra importaciones de `app/`, `assets/` etc. (B8).
 - ~~`useVoiceExpense.ts` en `src/features/voice/` está roto y sin uso~~ — **resuelto**: eliminado (sin importadores, usaba `useUIStore.openExpenseInput` inexistente).
 - ~~`ActionPills.tsx`, `CustomTabBar.tsx`, `AnimatedNumber.tsx` son componentes huérfanos~~ — **resuelto**: eliminados (verificado sin imports externos antes de borrar).
@@ -249,7 +249,7 @@ my-wallet-app/
 - [x] ~~3 componentes huérfanos: `ActionPills`, `CustomTabBar`, `AnimatedNumber`~~ — eliminados
 - [x] ~~Hook muerto: `src/features/voice/useVoiceExpense.ts`~~ — eliminado
 - [x] ~~Constantes AsyncStorage duplicadas (settings.tsx + notificationHeadlessTask.ts)~~ — consolidadas en `src/constants/banks.ts`
-- [ ] Dependencias posiblemente no usadas: `expo-web-browser`, `expo-symbols` (ver nota B13 arriba)
+- [x] ~~Dependencias posiblemente no usadas: `expo-web-browser`, `expo-symbols`~~ — eliminadas de `dependencies` (ver B13 arriba)
 - [ ] Varios `as any` localizados (SpeechModule types, estilos porcentuales Reanimated)
 - [x] ~~`.commit_msg.txt` reaparecía tracked en el repo (residuo del flujo `/commit` en PowerShell)~~ — eliminado del tracking y agregado a `.gitignore`
 - [ ] **Sin keystore de producción**: `android/app/build.gradle` firma el build type `release` con `signingConfigs.debug` (`debug.keystore`, alias `androiddebugkey`) porque no existe una keystore de producción real ni `keystore.properties` en el repo (correcto que no esté versionado, pero tampoco existe localmente). Un APK "release" firmado con clave de debug dispara bloqueos de Google Play Protect ("App blocked to protect your device") al instalarlo manualmente en el dispositivo — confirmado 2026-07-13. Pendiente: generar una keystore de producción real con `keytool` (el usuario debe generarla/resguardarla, no es algo para automatizar sin su decisión explícita) y conectarla al build vía un config plugin (mismo patrón que `plugins/withAllowBackupDisabled.js`, ya que `android/app/build.gradle` se pierde en cada `expo prebuild`). Mientras tanto: instalar con `adb install -r` evita el bloqueo de Play Protect (no pasa por el Instalador de Paquetes del sistema).

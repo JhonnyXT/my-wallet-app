@@ -48,114 +48,14 @@ No hay ESLint/Prettier configurado. Deuda técnica documentada.
 
 ---
 
-## Onboarding del sistema de agentes IA
+## Sistema de agentes IA
 
-Este repositorio incluye un **sistema completo de agentes de IA** (compatible con Cursor, Claude Code y otros). Cualquier colaborador que clone el proyecto puede activar todo el contexto, las skills y los comandos personalizados con dos pasos:
+Este repo trae un sistema de agentes compartido entre Claude Code y Cursor (commands, subagentes,
+skills, reglas y flujo SDD). Su documentación completa —onboarding, mapa de archivos y cómo
+extenderlo— vive en **[`.agents/README.md`](.agents/README.md)**, fuera del contexto auto-cargado.
 
-### 1. Skills públicas — restaurar desde `skills-lock.json`
-
-Las skills custom del proyecto están versionadas dentro de `.agents/skills/`. Las skills **públicas** (de terceros) no se versionan; se reinstalan desde el lockfile que sí está versionado:
-
-```bash
-npx skills install
-```
-
-Esto lee `skills-lock.json` (raíz del proyecto) y descarga las 11 skills públicas:
-`systematic-debugging`, `react-native`, `expo-react-native-typescript`, `expo-react-native-performance`, `finishing-a-development-branch`, `test-driven-development`, `apple-design`, `verification-before-completion`, `writing-skills`, `react-native-best-practices`, `upgrading-react-native`.
-
-> Si tu CLI no soporta `install` desde lockfile, usa `npx skills add <fuente>/<skill>` para cada entry de `skills-lock.json`.
-
-### 2. Cursor IDE — detección automática
-
-Cursor detecta automáticamente al abrir el repositorio:
-- `.cursor/rules/*.mdc` — se cargan según los `globs` de cada regla.
-- `.cursor/commands/*.md` — se invocan escribiendo `/<nombre>` en el chat.
-- `.cursor/agents/*.md` — disponibles como subagents (cuadro "Task" del agente).
-- `AGENTS.md` — leído por el agente como guía maestra del repositorio.
-
-No requiere configuración adicional. Solo asegúrate de tener Cursor actualizado.
-
-### 2b. Claude Code — detección automática
-
-Claude Code carga `CLAUDE.md` (raíz) automáticamente, que a su vez importa este mismo `AGENTS.md` completo. Además:
-- `.claude/agents/*.md` — subagentes (`revisor-ui`, `auditor-deuda`, `generador-docs`), con `tools` explícitos.
-- `.claude/commands/*.md` — slash commands, adaptados de `.cursor/commands/` (sin PowerShell, con rutas portables vía `$ANDROID_HOME`).
-- `.agents/skills/*/SKILL.md` — las mismas skills que usa Cursor; Claude Code las lee del mismo lugar, no están duplicadas.
-
-Las reglas `.cursor/rules/*.mdc` no se auto-cargan por `globs` en Claude Code (esa activación condicional es específica de Cursor) — se leen bajo demanda según la tabla en `CLAUDE.md`.
-
-### 2c. Spec-Driven Development (`/sdd`)
-
-Para features complejas que ameriten spec formal antes de implementar (no reemplaza el flujo directo
-para cambios simples — ver criterios en la tabla de abajo). Implementado como slash commands propios
-(mismo patrón que usa el monorepo `wms/` de la organización), no con la herramienta externa spec-kit:
-sin CLI ni dependencia externa que mantener, un archivo `.md` por comando, versionado igual que el
-resto de `.claude/commands/` y `.cursor/commands/`.
-
-- `/sdd <objetivo>` — genera el spec completo en `specs/<slug-feature>/`: `requirements.md`,
-  `brownfield-impact.md`, `design.md`, `tasks.md`, `test-plan.md`.
-- `/sdd-clarify <feature>` — opcional, resuelve ambigüedades (`[NEEDS CLARIFICATION]`) antes de
-  implementar. Tomado de la idea de `/speckit-clarify` de spec-kit.
-- `/sdd-analyze <feature>` — opcional, revisa consistencia cruzada entre los 5 artefactos (requisitos
-  sin tarea/prueba, impacto no declarado, violaciones a las Reglas inmutables) antes de implementar.
-  Tomado de la idea de `/speckit-analyze` de spec-kit.
-- `/sdd-build <feature>` — implementa desde el spec, tarea por tarea.
-- `/sdd-test <feature>` — genera y ejecuta pruebas desde `test-plan.md`.
-
-Flujo típico: `/sdd` → (`/sdd-clarify` si quedó algo ambiguo) → (`/sdd-analyze` si se quiere una
-revisión de consistencia) → `/sdd-build` → `/sdd-test`.
-
-**`specs/` está en `.gitignore`** (mismo criterio que `wms-inventarios-ms`): son documentos de trabajo
-locales, no se suben al repo. Si se quiere compartir una spec puntual con otra persona/máquina, hay
-que hacerlo por fuera de git (copiar el archivo, pegar en un canal, etc.) — no hay historial
-compartido de specs vía git en este proyecto.
-
-No hay un `constitution.md` separado: la gobernanza para SDD ya vive en las "Reglas inmutables" de
-este archivo (sección más abajo) — los comandos `/sdd-*` la referencian directamente.
-
-### 3. Comandos slash más usados
-
-| Comando | Cuándo usarlo |
-|---------|---------------|
-| `/arrancar` | Build APK release + instala vía ADB (full deploy) |
-| `/dev` | Build debug + hot reload (desarrollo iterativo) |
-| `/build-apk` | Solo construye APK release sin instalar |
-| `/revisar` | Validación pre-commit con `wallet-validator` |
-| `/commit` | Commit inteligente con validación + actualización de docs |
-| `/push` | Sincroniza los 4 documentos del proyecto contra el rango completo de commits a subir, antes de hacer `git push` |
-| `/nuevo-componente` | Scaffold componente UI Stitch |
-| `/nueva-pantalla` | Scaffold pantalla modal con registro |
-| `/nuevo-feature` | Scaffold feature completo (pantalla + store + DB + componente) |
-| `/sdd` | Genera spec formal (requirements/brownfield-impact/design/tasks/test-plan) para features grandes |
-| `/sdd-build` | Implementa desde un spec ya generado |
-| `/sdd-test` | Genera/ejecuta pruebas desde el test-plan de un spec |
-
-### 4. Subagentes disponibles
-
-| Agente | Modo | Cuándo invocarlo |
-|--------|------|------------------|
-| `revisor-ui` | Solo lectura | Antes de mergear UI: audita tema, accesibilidad, consistencia visual |
-| `auditor-deuda` | Solo lectura | Periódicamente: detecta código muerto, duplicaciones, deuda técnica |
-| `generador-docs` | Lectura + escritura `.md` | Después de cambios estructurales: regenera AGENTS.md / CONTEXT.md |
-
-### 5. Estructura del sistema (resumen)
-
-```
-.cursor/
-  rules/      → 4 reglas con globs (siempre activas o por archivo)
-  commands/   → 14 slash commands (9 propios + /sdd, /sdd-clarify, /sdd-analyze, /sdd-build, /sdd-test)
-  agents/     → 3 subagentes especializados
-.agents/
-  skills/     → 4 skills custom + 11 públicas (vía skills-lock.json)
-specs/               → Specs por feature generadas con /sdd (requirements.md, design.md, tasks.md, test-plan.md, brownfield-impact.md) — en .gitignore, no se versiona
-AGENTS.md            → Este archivo (guía maestra)
-CONTEXT.md           → Contexto técnico exhaustivo (~1100 líneas)
-DOCUMENTATION.md     → Manual de usuario final
-PRODUCT_REQUIREMENTS.md → Historias de usuario y requisitos
-skills-lock.json     → Lockfile reproducible de skills públicas
-```
-
-> El detalle completo de cada archivo está en [Mapa de archivos de agentes](#mapa-de-archivos-de-agentes) al final.
+Léelo solo si vas a tocar el tooling. Para trabajar en la app no hace falta: cada herramienta
+descubre sus comandos, subagentes y skills automáticamente de sus carpetas.
 
 ---
 
@@ -205,7 +105,7 @@ my-wallet-app/
 │   └── voice-batch-review.tsx        # Modal: revisión lote multi-voz
 │
 ├── src/
-│   ├── components/ui/                # 17 componentes reutilizables
+│   ├── components/ui/                # 12 componentes reutilizables
 │   ├── components/chat/              # BoldText, WeeklySummaryCard, ChatMessageBubble, ChatHistoryDrawer, chatConstants
 │   ├── components/dashboard/         # NotificationBadgeBtn, TransactionDetailModal
 │   ├── constants/                    # categoryPresets, layout, theme (legacy), banks.ts
@@ -215,6 +115,7 @@ my-wallet-app/
 │   ├── hooks/                        # useDashboardScroll, useDashboardSearch, useDashboardTotals, useDashboardTour, useTransactionFilters
 │   ├── services/                     # notificationService.ts, notificationHeadlessTask.ts
 │   ├── store/                        # 6 stores Zustand (useSettingsStore + useNotificationStore persistidos)
+│   │   └── slices/                   # 6 slices de useSettingsStore: budget, categories, goals, notifications, payments, prefs
 │   ├── theme/index.ts                # Tokens AppTheme: light + dark
 │   ├── types/                        # chat.ts
 │   └── utils/                        # formatMoney, nlp, voiceParser, notificationParser, colorUtils, tourRefs, chatHelpers, periodFilter, transactionFormatters, fuzzyMatch
@@ -222,7 +123,7 @@ my-wallet-app/
 ├── index.js                          # Entrypoint: registra HeadlessJS task + delega a expo-router/entry
 ├── android/                          # Proyecto Android nativo (Gradle, manifest, Kotlin)
 ├── docs/                             # Sitio estático servido por GitHub Pages (landing pública + política de privacidad)
-├── CONTEXT.md                        # Ventana de contexto técnico completo (~1100 líneas)
+├── CONTEXT.md                        # Ventana de contexto técnico completo (~1250 líneas)
 ├── DOCUMENTATION.md                  # Guía de usuario
 └── PRODUCT_REQUIREMENTS.md           # Historias de usuario y requisitos
 ```
@@ -238,13 +139,7 @@ my-wallet-app/
   - `docs/icon.png`, `docs/favicon.png` — assets del sitio.
 - **Relación con Play Store**: `docs/privacy-policy.html` existe para cumplir el requisito de Google Play Console de tener una URL pública de política de privacidad — es un artefacto de *compliance*, no parte de la app en sí (por eso no se documenta en `DOCUMENTATION.md`/`PRODUCT_REQUIREMENTS.md`, que cubren la app, no el sitio de marketing).
 - **Proceso manual de release del APK (sin automatizar)**: el botón "Descargar APK" de `docs/index.html` apunta a un asset fijo de un GitHub Release (ej. `https://github.com/JhonnyXT/my-wallet-app/releases/download/v1.5.0/app-release.apk`), no a "la última versión" dinámicamente. Al sacar una versión nueva de la app hay que, manualmente: (1) publicar un GitHub Release nuevo con el APK compilado (`gh release create vX.Y.Z <ruta-al-apk> ...`) y (2) actualizar el link de descarga en `docs/index.html` para que apunte al asset nuevo. Si se omite el paso 2, la landing sigue ofreciendo una versión vieja del APK sin que nada lo avise — no hay CI que sincronice esto.
-- La landing se diseñó con ayuda de la skill/plugin `ui-ux-pro-max`, instalada a nivel de usuario de Claude Code (no es parte de este repo ni de `.agents/skills/` — no requiere instalación local para clonar/editar el HTML).
-- **Qué se tomó de `ui-ux-pro-max` y qué se descartó** (para no repetir el mismo proceso de prueba y error si se vuelve a tocar el diseño):
-  - Se corrió `design_system.py "Personal Finance Tracker"` (script del plugin global, no vive en este repo — cacheado en `~/.claude/plugins/cache/ui-ux-pro-max-skill/`). Se usó el **patrón de layout** que devolvió ("Interactive Product Demo": Hero → Features → CTA) — es la estructura real de `docs/index.html`.
-  - Se **descartó la paleta de color genérica** que devolvió el generador (`#1E40AF` azul + `#059669` verde sobre fondo `#0F172A`, estilo "Dark Mode OLED"). En su lugar se usaron los colores reales de MyWallet (`#135BEC` accent, `#22C55E` verde, `#EF4444` rojo), para que la landing se sienta como la app real y no como una plantilla genérica de fintech. Ojo: solo `#135BEC` es un token de `src/theme/index.ts` (`accent`); el verde y el rojo están hardcodeados en componentes (`CategoryChart.tsx`, `TransactionItem.tsx`) y no existen como tokens del tema.
-  - Se **descartó la tipografía que devolvió el generador** (`Caveat` + `Quicksand`, pairing "handwritten/personal" — pensado para blogs personales, no encajaba con una app financiera). Se hizo una búsqueda separada por dominio (`search.py --domain typography "fintech professional trustworthy"`), que devolvió el pairing **"Financial Trust" (IBM Plex Sans)** — explícitamente recomendado para bancos/fintech — y ese sí se usó, en ambas páginas.
-  - Se probaron otras 3 opciones de estilo (`search.py --domain style "fintech mobile app trust minimal"`: "Bitcoin DeFi", "SaaS Mobile High-Tech Boutique", "Modern Dark Cinema") solo como referencia — ninguna se adoptó tal cual, porque todas traían su propia paleta/efectos que hubieran competido con la identidad visual ya establecida de MyWallet.
-  - Regla general aplicada: usar la skill para **estructura y validación** (¿el patrón de layout tiene sentido para este tipo de producto? ¿la tipografía es apropiada para la industria?), no para **la identidad visual final** — eso lo define la app real, no una paleta genérica por categoría de producto.
+- La landing se diseñó con ayuda de la skill/plugin `ui-ux-pro-max` (instalada a nivel de usuario de Claude Code, no es parte de este repo). La metodología aplicada —qué se tomó del generador y qué se descartó— está documentada en [`.agents/README.md`](.agents/README.md#diseño-de-la-landing-con-ui-ux-pro-max-metodología).
 
 ---
 
@@ -350,88 +245,3 @@ my-wallet-app/
 
 ---
 
-## Mapa de archivos de agentes
-
-### Rules (`.cursor/rules/`)
-
-| Archivo | Activación | Descripción |
-|---------|-----------|-------------|
-| `project-conventions.mdc` | `alwaysApply: true` | Restricciones globales inmutables: COP, offline, arquitectura |
-| `database.mdc` | `src/db/**` | Convenciones SQLite, WAL, fechas ISO, migraciones |
-| `ui-components.mdc` | `**/*.tsx` | Stitch Design, tema dinámico, animaciones, checklist |
-| `typescript-strict.mdc` | `**/*.ts, **/*.tsx` | TypeScript strict, patrones Zustand, exports, imports |
-
-### Skills custom (`.agents/skills/`)
-
-| Skill | Propósito |
-|-------|----------|
-| `add-screen` | Scaffold nueva pantalla Expo Router con tema y registro en _layout |
-| `add-component` | Scaffold nuevo componente UI Stitch con dark mode |
-| `debug-react-native` | Debugging por capas: SQLite → Zustand → Router → UI → Build → Notificaciones |
-| `wallet-validator` | Validación pre-commit (12 checks) basada en reglas del proyecto |
-
-### Skills públicas (`.agents/skills/`)
-
-| Skill | Fuente | Propósito |
-|-------|--------|----------|
-| `systematic-debugging` | obra/superpowers | Debugging genérico avanzado |
-| `react-native` | jezweb/claude-skills | Best practices React Native |
-| `expo-react-native-typescript` | mindrally/skills | Expo + RN + TypeScript |
-| `expo-react-native-performance` | pproenca/dot-skills | Optimización de rendimiento RN |
-| `finishing-a-development-branch` | obra/superpowers | Workflow para cerrar branches |
-| `test-driven-development` | obra/superpowers | TDD para cuando se agreguen tests |
-| `apple-design` | dickwu/apple-design-skill | Revisión de UI/UX cross-platform basada en Apple HIG (adaptado para React Native) |
-| `verification-before-completion` | obra/superpowers | Exige correr y confirmar comandos de verificación antes de declarar algo "listo"/"corregido" — complementa `/revisar` |
-| `writing-skills` | obra/superpowers | Guía para crear/editar skills nuevas siguiendo buenas prácticas, útil al extender `.agents/skills/` propias |
-| `react-native-best-practices` | callstackincubator/agent-skills | Optimización de rendimiento RN: FPS/re-renders, tamaño de bundle, TTI, memoria, alineación de librerías nativas a 16kb en Android — workflow de profiling medir→optimizar→re-medir |
-| `upgrading-react-native` | callstackincubator/agent-skills | Sube versión de React Native/Expo SDK: diffs de `rn-diff-purge`, cambios de `package.json`, config nativa, breaking changes |
-
-### Commands (`.cursor/commands/`)
-
-| Comando | Descripción |
-|---------|-------------|
-| `/arrancar` | Build APK release + instalación por ADB en dispositivo conectado |
-| `/revisar` | Validación técnica completa (lint + wallet-validator) |
-| `/commit` | Commit inteligente con validación previa |
-| `/push` | Sincroniza documentación (los 4 archivos) contra el rango completo a subir, luego `git push` |
-| `/nuevo-componente` | Scaffold componente UI Stitch |
-| `/nueva-pantalla` | Scaffold pantalla modal con registro |
-| `/nuevo-feature` | Scaffold módulo completo (pantalla + store + DB + componente) |
-| `/build-apk` | Build release + instalación por ADB |
-
-### Subagents (`.cursor/agents/`)
-
-| Agente | Modo | Propósito |
-|--------|------|----------|
-| `revisor-ui` | Solo lectura | Audita consistencia visual, dark mode, accesibilidad |
-| `auditor-deuda` | Solo lectura | Identifica deuda técnica, código muerto, duplicaciones |
-| `generador-docs` | Lectura + escritura .md | Actualiza AGENTS.md, CONTEXT.md, DOCUMENTATION.md |
-
-### Equivalente para Claude Code
-
-| Ruta | Qué es | Relación con lo de Cursor |
-|------|--------|---------------------------|
-| `CLAUDE.md` (raíz) | Punto de entrada que Claude Code auto-carga | Importa este mismo `AGENTS.md` con `@AGENTS.md` |
-| `.claude/agents/*.md` | Subagentes (mismos 3 roles) | Adaptados de `.cursor/agents/`, con `tools:` explícitos (`Read, Grep, Glob` para los de solo lectura) |
-| `.claude/commands/*.md` | Slash commands (mismos 9) | Adaptados de `.cursor/commands/`, sin PowerShell/rutas de usuario hardcodeadas — usan `$ANDROID_HOME` y bash |
-| `.agents/skills/*/SKILL.md` | Skills custom | Compartidas tal cual, sin duplicar — ya estaban en formato compatible |
-
-Mantener ambos sistemas (`.cursor/` y `.claude/`) sincronizados manualmente: un cambio de convención en uno debe reflejarse en el otro.
-
-### Spec-Driven Development (`.claude/commands/sdd*.md`, `.cursor/commands/sdd*.md`, `specs/`)
-
-| Ruta | Qué es |
-|------|--------|
-| `.claude/commands/sdd.md` / `.cursor/commands/sdd.md` | Genera el spec completo de una feature |
-| `.claude/commands/sdd-clarify.md` / `.cursor/commands/sdd-clarify.md` | Resuelve ambigüedades antes de implementar (opcional) |
-| `.claude/commands/sdd-analyze.md` / `.cursor/commands/sdd-analyze.md` | Consistencia cruzada entre artefactos antes de implementar (opcional) |
-| `.claude/commands/sdd-build.md` / `.cursor/commands/sdd-build.md` | Implementa desde el spec |
-| `.claude/commands/sdd-test.md` / `.cursor/commands/sdd-test.md` | Genera/ejecuta pruebas desde el test-plan |
-| `specs/<slug-feature>/` | Artefactos por feature: `requirements.md`, `brownfield-impact.md`, `design.md`, `tasks.md`, `test-plan.md` (en `.gitignore`, no versionado) |
-
-Mismo patrón que `wms/wms-inventarios-ms` (comandos propios en vez de la herramienta externa spec-kit),
-adaptado a frontend React Native/Expo en vez de Clean/Hexagonal Architecture de backend. Se probó
-instalar [spec-kit](https://github.com/github/spec-kit) primero, pero se descartó: dependía de un CLI
-externo (`uv` + `specify-cli`) y usaba el mecanismo de Agent Skills de Claude Code, que no recarga en
-caliente dentro de una sesión ya abierta — los comandos `.claude/commands/*.md` (mecanismo clásico,
-igual al que ya usan `/commit`, `/revisar`, etc.) no tienen ese problema.

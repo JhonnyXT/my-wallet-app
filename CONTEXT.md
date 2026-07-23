@@ -102,6 +102,7 @@ my-wallet-app/
 │
 ├── src/                          # Lógica y componentes
 │   ├── components/ui/            # Componentes reutilizables
+│   │   ├── AnimatedSplash.tsx    # Splash animado (icono + texto) al arrancar, usado en app/_layout.tsx
 │   │   ├── BudgetBar.tsx         # Barra de progreso presupuesto
 │   │   ├── CategoryChart.tsx     # Gráfica de categorías (barras + animaciones scroll)
 │   │   ├── ConfirmDialog.tsx     # Diálogo de confirmación reutilizable (danger/warning/info)

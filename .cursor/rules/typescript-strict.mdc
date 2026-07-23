@@ -32,7 +32,7 @@ export const useMyStore = create<StoreState>((set, get) => ({
 }));
 ```
 
-Store persistido (solo `useSettingsStore` usa esto):
+Store persistido (`useSettingsStore` y `useNotificationStore`):
 ```typescript
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";

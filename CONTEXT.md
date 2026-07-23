@@ -394,7 +394,7 @@ addPendingItem(item: ParsedTransaction): void   // agrega a la cola, evita dupli
 removePendingItem(id: string): void
 clearAll(): void
 ```
-**Importante:** Este store NO se persiste en AsyncStorage. Los items solo viven mientras la app está abierta. Si el usuario cierra la app sin revisar, las notificaciones se pierden (por diseño: el usuario siempre revisa antes de guardar).
+**Importante:** Este store **sí se persiste** en AsyncStorage (`persist` + `partialize` sobre `pendingItems`, clave `"notification-pending-queue"`), justamente para sobrevivir cold starts: cuando el HeadlessJS task detecta una transacción con la app cerrada, el item sigue disponible al abrirla. Lo que nunca ocurre automáticamente es la escritura en la base de datos — un item solo pasa a `transactions` si el usuario lo confirma en `notification-review.tsx`.
 
 ### Regla crítica de stores
 - **NUNCA** mezclar lógica de servidor/API en los stores (la app es offline)

@@ -352,7 +352,7 @@ Las categorías se pueden crear desde **tres contextos**:
 | Diálogo de confirmación | Spring scale + fade-in con variante visual (danger/warning/info) |
 | Spotlight onboarding | GuidedTour: fade-in overlay oscuro con cutout circular + spring scale tooltip entre pasos |
 | Reordenamiento de gráfica | `LayoutAnimation` suave al cambiar el orden de categorías por monto |
-| Números animados | `AnimatedNumber` interpola Balance neto, Gastos e Ingresos al cambiar valores |
+| Números animados | `RollingNumber` anima por dígito Balance neto, Gastos e Ingresos al cambiar valores |
 | Long-press detalle | Modal fade con tarjeta centrada, haptic feedback al activar (500ms) |
 | Selección de categoría (onboarding) | Spring scale en modal de nueva categoría; checkmark animado en tarjetas |
 

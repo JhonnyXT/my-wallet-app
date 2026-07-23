@@ -41,7 +41,8 @@ Referencia: `@/src/store/useSettingsStore.ts`
 
 ```
 app/                → Pantallas (Expo Router). Solo orquestan: leen stores, llaman utils, renderizan UI.
-src/store/          → Estado global (Zustand). Un store por dominio. 7 stores, 1 persistido.
+src/store/          → Estado global (Zustand). Un store por dominio. 6 stores, 2 persistidos
+                      (useSettingsStore organizado en slices/ por dominio).
 src/db/             → Capa de datos SQLite pura, sin lógica de negocio.
 src/components/ui/  → Componentes reutilizables, reciben props, agnósticos a la pantalla.
 src/features/       → Hooks de dominio (NLP, voz).

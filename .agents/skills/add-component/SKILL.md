@@ -23,7 +23,7 @@ metadata:
 - Cada componente tiene su propia función `createStyles(t: AppTheme)` interna, no compartida.
 - NO mezclar StyleSheet y NativeWind en el mismo componente.
 - Los componentes son agnósticos: reciben datos como props, no leen de stores directamente (salvo tema y settings de categorías).
-- `AnimatedNumber`, `ActionPills` y `CustomTabBar` están deprecated — no usarlos como referencia.
+- `AnimatedNumber`, `ActionPills` y `CustomTabBar` fueron eliminados del repo — no reintroducirlos ni usarlos como referencia. Para valores numéricos animados, usar `RollingNumber`.
 
 ## Instructions
 

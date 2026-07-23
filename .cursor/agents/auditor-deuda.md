@@ -21,7 +21,7 @@ Lee todos los archivos del proyecto: `src/`, `app/`, `android/`, configs raíz, 
 ### 2. Duplicaciones
 - Constantes repetidas en múltiples archivos (como `AUTO_DETECT_ENABLED_KEY`).
 - Lógica duplicada entre archivos (como carga de SpeechModule).
-- Componentes que hacen lo mismo (AnimatedNumber vs RollingNumber).
+- Componentes que hacen lo mismo (dos implementaciones del mismo widget conviviendo).
 
 ### 3. Dependencias
 - `package.json` dependencies que no se importan en ningún archivo `.ts`/`.tsx`.

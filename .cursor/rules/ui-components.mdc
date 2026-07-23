@@ -94,10 +94,7 @@ onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Ma
 
 Usar `RollingNumber` (`@/src/components/ui/RollingNumber.tsx`) para todos los valores numéricos.
 - No puede ir dentro de `<Text>`. Reestructurar como `<View flexDirection="row">`.
-- `AnimatedNumber` está LEGADO — no usar en código nuevo.
 
-## Componentes huérfanos (NO USAR)
-
-- `ActionPills.tsx` — sin imports, legacy.
-- `CustomTabBar.tsx` — sin imports, las tabs usan `tabBar={() => null}`.
-- `AnimatedNumber.tsx` — legado, reemplazado por `RollingNumber`.
+> `ActionPills.tsx`, `CustomTabBar.tsx` y `AnimatedNumber.tsx` **ya no existen** en el repo (se
+> eliminaron por no tener importadores). Si aparecen en un ejemplo antiguo, no reintroducirlos:
+> el reemplazo de `AnimatedNumber` es `RollingNumber`.

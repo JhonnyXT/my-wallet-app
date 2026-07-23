@@ -21,8 +21,7 @@ metadata:
 ## Gotchas
 - `amount > 0` = gasto, `amount < 0` = ingreso — convención invertida.
 - `#135BEC` para botones primarios es la ÚNICA excepción a "no hardcodear colores".
-- `src/features/voice/useVoiceExpense.ts` está roto y no se usa — ignorar en validación.
-- `ActionPills.tsx`, `CustomTabBar.tsx`, `AnimatedNumber.tsx` son huérfanos — no son errores.
+- `src/features/voice/useVoiceExpense.ts` y los componentes huérfanos (`ActionPills.tsx`, `CustomTabBar.tsx`, `AnimatedNumber.tsx`) ya fueron eliminados del repo — si aparecen, es un archivo reintroducido por error, no deuda conocida.
 - El `main` de `package.json` DEBE ser `"index.js"` (no `"expo-router/entry"`).
 
 ## Instructions

@@ -47,12 +47,12 @@ Tipos: `feat`, `fix`, `refactor`, `docs`, `chore`, `style`, `perf`.
 Scope: el área principal afectada (ui, db, store, voice, settings, notifications).
 
 ### Paso 5 — Ejecutar commit
-Escribir el mensaje a un archivo temporal y commitear (PowerShell no soporta heredocs estilo bash):
+**No crear archivos temporales** (`commit-msg.txt` fue un residuo de este flujo que quedaba tracked
+por error; ya está en `.gitignore` pero igual no debe generarse). Pasar cada párrafo del mensaje
+como un `-m` separado — funciona igual en PowerShell y en bash:
 ```powershell
-Set-Content -Path "commit-msg.txt" -Value "mensaje del commit"
 git add -A
-git commit -F commit-msg.txt
-Remove-Item commit-msg.txt
+git commit -m "tipo(scope): mensaje del commit" -m "Detalles de los cambios realizados si aplica."
 ```
 
 ### Paso 6 — Confirmar

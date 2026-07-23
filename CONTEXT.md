@@ -138,6 +138,7 @@ my-wallet-app/
 │   │   ├── useExpenseStore.ts       # Formulario gasto/ingreso en curso
 │   │   ├── useNotificationStore.ts  # Cola persistida (AsyncStorage) de transacciones detectadas de notificaciones bancarias
 │   │   ├── useSettingsStore.ts      # Config usuario (persist AsyncStorage) + flags de notificaciones
+│   │   │   └── slices/               # 6 slices por dominio: categories, budget, payments, goals, prefs, notifications
 │   │   ├── useUIStore.ts            # Estado de UI (búsqueda, filtro por categoría, overlay NLP)
 │   │   └── useVoiceStore.ts         # Estado de reconocimiento de voz
 │   │
@@ -304,6 +305,10 @@ interface ActiveExpense {
 **Patrón:** Estado efímero del formulario en curso. Se resetea al guardar/cerrar.
 
 ### useSettingsStore (persistido en AsyncStorage)
+Internamente organizado en 6 slices por dominio en `src/store/slices/` (`categoriesSlice`,
+`budgetSlice`, `paymentsSlice`, `goalsSlice`, `prefsSlice`, `notificationsSlice`), combinados en un
+único store con `SettingsState = CategoriesSlice & BudgetSlice & PaymentsSlice & GoalsSlice & PrefsSlice & NotificationsSlice`.
+La API pública es idéntica a la de un store plano — ningún importador externo cambia.
 ```typescript
 {
   userName: string

@@ -165,13 +165,14 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | ID | Historia | Estado |
 |----|---------|--------|
-| HU 3.1 | Como usuario, quiero eliminar una transacción deslizando hacia la izquierda en la lista | ✅ |
+| HU 3.1 | Como usuario, quiero eliminar una transacción deslizando hacia la izquierda en la lista (con diálogo de confirmación) | ✅ |
 | HU 3.2 | Como usuario, quiero buscar transacciones por descripción, categoría o tag | ✅ |
 | HU 3.3 | Como usuario, quiero ver el historial completo en un modal con filtros por categoría | ✅ |
 | HU 3.4 | Como usuario, quiero que la descripción de cada transacción se trunque con "..." si es muy larga | ✅ |
 | HU 3.5 | Como usuario, quiero tocar un registro para ver su detalle completo (categoría, monto, tipo, cuenta, fecha, hora, descripción) | ✅ |
+| HU 3.6 | Como usuario, quiero editar una transacción ya guardada (monto, descripción, categoría, cuenta, fecha) deslizándola hacia la derecha, sin tener que eliminarla y crear una nueva | ✅ |
 
-> **Nota:** La edición de transacciones fue descartada por diseño. La práctica en apps de finanzas personales es eliminar y crear nueva. Simplifica la UX.
+> **Nota histórica:** la edición de transacciones se descartó por diseño en una versión anterior ("solo crear y eliminar", más simple). Se revirtió el 2026-08-14 a pedido explícito del usuario — HU 3.6 la implementa con `updateTransaction()` real en la base de datos.
 
 ### Épica 4: Datos y Configuración
 

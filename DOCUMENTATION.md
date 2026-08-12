@@ -109,7 +109,8 @@ Cuando no hay movimientos en el período seleccionado:
 - **Gastos:** monto en negro con signo `−`
 - **Ingresos:** monto en verde con signo `+`
 - **Toca** cualquier registro para ver el **detalle completo**: emoji, monto, categoría, tipo, cuenta (método de pago), fecha, hora y descripción
-- **Desliza izquierda** sobre cualquier registro para ver el botón de eliminar (rojo con ícono de papelera)
+- **Desliza izquierda** sobre cualquier registro para ver el botón de eliminar (rojo con ícono de papelera) — pide confirmación antes de borrar
+- **Desliza derecha** sobre cualquier registro para ver el botón de editar (azul con ícono de lápiz) — abre el formulario "Editar Gasto/Ingreso" con todos los campos prellenados
 
 ---
 
@@ -129,45 +130,35 @@ Cuando no hay movimientos en el período seleccionado:
 
 ### En el formulario de transacción
 
-**Título de la pantalla:** Nuevo Gasto o Nuevo Ingreso (según lo que seleccionaste)
+**Título de la pantalla:** Nuevo Gasto o Nuevo Ingreso (según lo que seleccionaste), o **Editar Gasto/Editar Ingreso** si llegaste deslizando un registro existente hacia la derecha. Solo tiene un botón atrás en el header — sin botón de guardar arriba.
 
-**Campo de monto:**
-- Toca el número grande para editarlo directamente
-- Mientras escribes ves solo los dígitos (sin puntos), para que puedas corregir un número en medio del monto sin que el cursor salte; al salir del campo se formatea con puntos de miles: `20000` → `20.000`
-- El tamaño del número **se reduce automáticamente** cuando el monto es muy grande (millones), para que siempre sea visible en pantalla
-- Usa el teclado numérico
+**Tarjeta principal (importe + descripción + fecha):**
+- **Importe:** toca el número grande para editarlo directamente. Mientras escribes ves solo los dígitos (sin puntos), para que puedas corregir un número en medio del monto sin que el cursor salte; al salir del campo se formatea con puntos de miles: `20000` → `20.000`. El tamaño del número **se reduce automáticamente** cuando el monto es muy grande (millones), para que siempre sea visible en pantalla. Usa el teclado numérico.
+- **Descripción:** toca la fila con el ícono de documento para abrir un panel colapsable con un campo de texto libre (con NLP) y los tags. Escribe en lenguaje natural, por ejemplo `"Almuerzo en restaurante con compañeros"` o `"Uber al aeropuerto ayer"`. Mientras escribes, la app detecta automáticamente la **fecha** (si mencionas "ayer"/"anteayer") y la **categoría** (según palabras clave) y actualiza esos selectores solos.
+  > ℹ️ El **monto ya no se sincroniza** desde el texto de la descripción — tiene su propio campo editable independiente (el número grande de arriba). Escribir un monto en la descripción es solo texto libre, no cambia el importe de la transacción.
+- **Fecha:** toca la fila con el ícono de calendario para abrir un calendario mensual (por defecto: hoy). No permite seleccionar fechas futuras. Selecciona y cierra en el mismo toque, con un chip "Hoy" de acceso directo.
 
-**Campo de descripción (texto libre con NLP):**
-- Escribe en lenguaje natural, por ejemplo:
-  - `"Almuerzo en restaurante con compañeros"`
-  - `"Uber al aeropuerto ayer 35000"`
-  - `"Recibí pago de freelance 200 mil"`
-- Mientras escribes, la app **detecta automáticamente:**
-  - El monto (actualiza el número grande)
-  - La fecha (si mencionas "ayer" o "anteayer")
-  - La categoría (según palabras clave)
+**Categoría:** lista horizontal siempre visible debajo de la tarjeta, con tus categorías elegidas + un ítem "Nueva" (ícono `+`) al final para crear una al vuelo. Toca cualquiera para seleccionarla directamente — no hay sheet ni confirmación aparte.
 
-> ⚠️ **Importante:** Si el NLP detecta un monto en el texto, actualizará el monto en pantalla. Si quieres un monto diferente al escrito en la descripción, ajústalo tocando el número grande después de escribir.
-
-**Selectores rápidos (3 íconos circulares):**
-
-| Ícono | Selector | Opciones |
-|-------|----------|----------|
-| 📅 Fecha | Hoy / Calendario | Por defecto: Hoy |
-| 🍽️ Categoría | Grid dinámico con tus categorías elegidas + ítem "Nueva" para crear al vuelo | Se actualiza automáticamente con el NLP |
-| 👛 Cuenta | Tus métodos de pago configurados | Por defecto: el primero disponible |
+**Cuenta:** lista vertical siempre visible con tus métodos de pago configurados (por defecto: el primero disponible). Toca cualquiera para seleccionarla. Debajo hay un enlace **"Gestionar métodos de pago"** que abre un panel para agregar/editar cuentas sin salir del formulario.
 
 > ℹ️ El método de pago seleccionado en "Cuenta" queda registrado junto con la transacción.
 
-**Tags (etiquetas):**
+**Tags (etiquetas):** dentro del panel de descripción —
 - Selecciona tags sugeridos tocándolos: `#viaje`, `#trabajo`, `#comida`, `#salud`, `#ocio`
 - Escribe tu propio tag en el campo con el `+` y presiona Enter
 - Los tags son útiles para búsquedas específicas más adelante
 
 **Guardar:**
-- Toca el botón **✓** (círculo azul, esquina superior derecha)
+- Toca el botón **Guardar** (azul, fijo en la parte inferior de la pantalla — se mantiene visible al hacer scroll)
 - El botón aparece gris/deshabilitado si el monto es 0 — debes ingresar un monto primero
-- Al guardar: vibración de confirmación + regresa al Dashboard
+- Al guardar: vibración de confirmación + regresa al Dashboard. En modo edición, actualiza el registro existente en lugar de crear uno nuevo.
+
+### Editar una transacción existente
+
+1. En el Dashboard, **desliza cualquier registro hacia la derecha** para revelar el botón azul de editar (ícono de lápiz)
+2. Toca el botón — se abre el mismo formulario ("Editar Gasto"/"Editar Ingreso") con monto, descripción, categoría, cuenta, fecha y tags ya prellenados
+3. Ajusta lo que necesites y toca **Guardar** — actualiza el registro (no crea uno nuevo)
 
 ---
 
@@ -462,11 +453,10 @@ La primera vez que abres la app, después de la pantalla de bienvenida, aparece 
 
 No tienes que salir del formulario para agregar una categoría nueva:
 
-1. En la pantalla **Nuevo Gasto / Nuevo Ingreso**, toca el selector **Categoría**
-2. En la grilla del selector, aparece el ítem **"Nueva"** con un ícono `+` al final
-3. Tócalo — el selector se cierra y se abre el modal de creación
-4. Elige emoji, color (slider) y nombre → **Guardar**
-5. La nueva categoría queda **autoseleccionada** en la transacción que estabas creando
+1. En la pantalla **Nuevo Gasto / Nuevo Ingreso**, en la lista horizontal de **Categoría** hay un ítem **"Nueva"** con un ícono `+` al final
+2. Tócalo — se abre directo el modal de creación (sin sheet intermedio)
+3. Elige emoji, color (slider) y nombre → **Guardar**
+4. La nueva categoría queda **autoseleccionada** en la transacción que estabas creando
 
 ### Editar categorías después
 
@@ -522,10 +512,10 @@ Perderás todos tus datos ya que están en el dispositivo. Antes de desinstalar,
 Toca el **+** del dock flotante → selecciona **Ingreso (verde)**. La pantalla mostrará "Nuevo Ingreso" y el monto aparecerá en verde con signo `+`.
 
 ### El NLP detectó mal la categoría, ¿qué hago?
-Simplemente toca el selector de **Categoría** (ícono circular en el formulario) y selecciona manualmente la correcta. Los cambios manuales siempre tienen prioridad.
+Simplemente toca la categoría correcta en la lista horizontal de **Categoría** del formulario. Los cambios manuales siempre tienen prioridad.
 
 ### ¿Puedo editar una transacción ya guardada?
-No. MyWallet no tiene edición de transacciones por diseño — simplifica la experiencia. Si cometiste un error, desliza izquierda sobre el registro para eliminarlo y créalo de nuevo con los datos correctos.
+Sí. Desliza el registro hacia la **derecha** en el Dashboard para revelar el botón azul de editar (ícono de lápiz) y ajusta lo que necesites — monto, descripción, categoría, cuenta o fecha. Si prefieres, también puedes deslizar hacia la izquierda para eliminarlo y crearlo de nuevo.
 
 ### La barra de mi categoría siempre está al 50%, ¿es un error?
 No. Cuando no tienes un presupuesto configurado para esa categoría, la barra se muestra al 50% de forma neutra (solo indica que tienes gastos en ella). Para que la barra sea informativa y muestre el % real consumido, configura un límite en **Configuración → Presupuesto por categoría** (toca la tarjeta para abrir el modal de configuración).
@@ -601,6 +591,7 @@ Una vez al mes:
 | **Long-press** | Mantener presionado ~0.4 segundos para activar acciones avanzadas. En la gráfica de categorías activa el popup de "Editar/Agregar presupuesto" + "Nueva transacción" |
 | **Tap detalle** | Toque corto en un registro de la lista para abrir el detalle completo (categoría, monto, cuenta, fecha, hora, descripción) |
 | **Swipe-to-delete** | Deslizar un item hacia la izquierda para revelar el botón de eliminar (transacciones y metas de ahorro) |
+| **Swipe-to-edit** | Deslizar una transacción del Dashboard hacia la **derecha** para revelar el botón azul de editar (ícono de lápiz) y abrir el formulario prellenado |
 | **Filtro por categoría** | Tap corto en una columna del CategoryChart filtra la lista a solo esa categoría. Se limpia con el botón Atrás del dispositivo o con un pull-down (deslizar la lista hacia abajo desde el tope) |
 | **Pull-down para limpiar filtro** | Gesto de deslizar la lista hacia abajo desde su posición inicial. NO recarga datos (no muestra spinner) — solo limpia el filtro de categoría activo |
 | **Ghost bar** | Línea fantasma punteada que aparece detrás del fill de una columna **con presupuesto** marcando el límite. Si te pasas del 100%, sigue indicando exactamente dónde estaba el presupuesto dentro de la barra excedida |

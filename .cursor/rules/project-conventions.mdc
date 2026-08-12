@@ -85,7 +85,7 @@ src/theme/          → Tokens de tema light/dark.
 ## Prohibiciones
 - NO usar `toLocaleString()` para moneda.
 - NO llamar APIs externas (todo offline).
-- NO implementar edición de transacciones (solo crear y eliminar).
+- ~~NO implementar edición de transacciones (solo crear y eliminar)~~ — revertido 2026-08-14 a pedido explícito del usuario: las transacciones SÍ son editables (`updateTransaction()` en `db.ts`/`useFinanceStore`, swipe derecho en `TransactionItem` → `active-expense.tsx?editId=<id>`).
 - NO hacer push automático a remoto.
 - NO almacenar datos bancarios reales (números de cuenta/tarjeta).
 - NO usar class components — solo funcionales con hooks.

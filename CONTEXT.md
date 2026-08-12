@@ -1195,7 +1195,7 @@ en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún
 - **Idioma UI:** Todo en español
 - **Datos:** 100% locales, sin nube
 - **Categorías:** Dinámicas y personalizables por el usuario (presets + custom). No hay categorías fijas hardcodeadas
-- **Edición de transacciones:** No se implementa (decisión de diseño)
+- **Edición de transacciones:** Implementada desde 2026-08-14 (`updateTransaction()` en `db.ts`/`useFinanceStore`, swipe derecho en `TransactionItem` → `active-expense.tsx?editId=<id>`). La vieja regla "solo crear y eliminar" se retiró a pedido explícito del usuario — ver gotcha en `AGENTS.md`
 - **Git:** Solo push manual; nunca push automático en CI
 - **Formato moneda:** Regex custom, nunca `toLocaleString()`
 - **Colores primarios hardcodeados:** Botones de acción primaria usan `#135BEC` fijo (no `t.accent`) para consistencia entre temas

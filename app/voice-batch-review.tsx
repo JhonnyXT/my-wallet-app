@@ -11,7 +11,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Modal,
   TextInput,
   Animated,
   PanResponder,
@@ -19,7 +18,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  TouchableWithoutFeedback,
   Alert,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,6 +29,8 @@ import {
   type PendingTransaction,
   type ManualAddItem,
 } from "@/src/store/useVoiceStore";
+import { BottomSheet } from "@/src/components/ui/BottomSheet";
+import { PressableScale } from "@/src/components/ui/PressableScale";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -89,70 +89,69 @@ function CategorySheet({
   const ACCENT = "#135BEC";
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)" }} />
-      </TouchableWithoutFeedback>
-      <View style={[catS.container, { backgroundColor: theme.surface }]}>
-        <View style={[catS.handle, { backgroundColor: theme.border }]} />
-        <View style={catS.header}>
-          <View>
-            <Text style={[catS.title, { color: theme.textSub }]}>CATEGORÍA</Text>
-            <Text style={[catS.subtitle, { color: theme.text }]}>
-              {isExpense ? "Elige el tipo de gasto" : "Elige el tipo de ingreso"}
-            </Text>
-          </View>
-          <TouchableOpacity onPress={onClose} hitSlop={12}>
-            <Text style={{ color: ACCENT, fontWeight: "600", fontSize: 15 }}>Cancelar</Text>
-          </TouchableOpacity>
+    <BottomSheet visible={visible} onClose={onClose} style={catS.container}>
+      <View style={catS.header}>
+        <View>
+          <Text style={[catS.title, { color: theme.textSub }]}>CATEGORÍA</Text>
+          <Text style={[catS.subtitle, { color: theme.text }]}>
+            {isExpense ? "Elige el tipo de gasto" : "Elige el tipo de ingreso"}
+          </Text>
         </View>
-        <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
-          <View style={catS.grid}>
-            {categories.map((cat) => {
-              const isSel = temp === cat.key;
-              return (
-                <TouchableOpacity
-                  key={cat.key}
-                  style={catS.item}
-                  onPress={() => setTemp(cat.key)}
-                  activeOpacity={0.7}
-                >
-                  <View style={catS.iconWrap}>
-                    <View style={[catS.iconBox, { backgroundColor: cat.colorBg }]}>
-                      <Text style={{ fontSize: 22 }}>{cat.key}</Text>
-                    </View>
-                    {isSel && (
-                      <View style={catS.checkBadge}>
-                        <Check size={10} color="#FFFFFF" strokeWidth={3} />
-                      </View>
-                    )}
-                  </View>
-                  <Text
-                    style={[
-                      catS.itemLabel,
-                      { color: isSel ? ACCENT : theme.text },
-                      isSel && { fontWeight: "700" },
-                    ]}
-                  >
-                    {cat.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </ScrollView>
-        <TouchableOpacity
-          style={[catS.confirmBtn, { backgroundColor: ACCENT }]}
+        <PressableScale
           onPress={() => {
-            onSelect(temp);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             onClose();
           }}
-          activeOpacity={0.85}
+          hitSlop={12}
         >
-          <Text style={catS.confirmText}>CONFIRMAR</Text>
-        </TouchableOpacity>
+          <Text style={{ color: ACCENT, fontWeight: "600", fontSize: 15 }}>Cancelar</Text>
+        </PressableScale>
       </View>
-    </Modal>
+      <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+        <View style={catS.grid}>
+          {categories.map((cat) => {
+            const isSel = temp === cat.key;
+            return (
+              <TouchableOpacity
+                key={cat.key}
+                style={catS.item}
+                onPress={() => setTemp(cat.key)}
+                activeOpacity={0.7}
+              >
+                <View style={catS.iconWrap}>
+                  <View style={[catS.iconBox, { backgroundColor: cat.colorBg }]}>
+                    <Text style={{ fontSize: 22 }}>{cat.key}</Text>
+                  </View>
+                  {isSel && (
+                    <View style={catS.checkBadge}>
+                      <Check size={10} color="#FFFFFF" strokeWidth={3} />
+                    </View>
+                  )}
+                </View>
+                <Text
+                  style={[
+                    catS.itemLabel,
+                    { color: isSel ? ACCENT : theme.text },
+                    isSel && { fontWeight: "700" },
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </ScrollView>
+      <PressableScale
+        style={[catS.confirmBtn, { backgroundColor: ACCENT }]}
+        onPress={() => {
+          onSelect(temp);
+          onClose();
+        }}
+      >
+        <Text style={catS.confirmText}>CONFIRMAR</Text>
+      </PressableScale>
+    </BottomSheet>
   );
 }
 
@@ -219,89 +218,79 @@ function EditItemSheet({
   if (!item) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)" }} />
-      </TouchableWithoutFeedback>
-      <KeyboardAvoidingView behavior="padding" style={{ backgroundColor: theme.surface }}>
-        <View style={[editS.container, { backgroundColor: theme.surface }]}>
-          <View style={[editS.handle, { backgroundColor: theme.border }]} />
-          <Text style={[editS.title, { color: theme.text }]}>Editar registro</Text>
+    <BottomSheet visible={visible} onClose={onClose} style={editS.container}>
+      <KeyboardAvoidingView behavior="padding">
+        <Text style={[editS.title, { color: theme.text }]}>Editar registro</Text>
 
-          {/* Toggle Gasto / Ingreso */}
-          <View style={editS.toggleRow}>
-            <TouchableOpacity
-              style={[editS.toggleBtn, isExpense && editS.toggleBtnExpenseActive]}
-              onPress={() => setIsExpense(true)}
-            >
-              <Text style={[editS.toggleText, isExpense && editS.toggleTextExpenseActive]}>
-                ↓ Gasto
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[editS.toggleBtn, !isExpense && editS.toggleBtnIncomeActive]}
-              onPress={() => setIsExpense(false)}
-            >
-              <Text style={[editS.toggleText, !isExpense && editS.toggleTextIncomeActive]}>
-                ↑ Ingreso
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Monto */}
-          <Text style={[editS.label, { color: theme.textSub }]}>MONTO</Text>
-          <View
-            style={[editS.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
-          >
-            <Text style={[editS.inputPrefix, { color: theme.textSub }]}>$</Text>
-            <TextInput
-              style={[editS.input, { color: theme.text }]}
-              value={amountStr}
-              onChangeText={(v) => setAmountStr(v.replace(/\D/g, ""))}
-              keyboardType="numeric"
-              placeholder="0"
-              placeholderTextColor={theme.textSub}
-              selectTextOnFocus
-            />
-          </View>
-
-          {/* Descripción */}
-          <Text style={[editS.label, { color: theme.textSub }]}>DESCRIPCIÓN</Text>
-          <View
-            style={[editS.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
-          >
-            <TextInput
-              style={[editS.input, { color: theme.text }]}
-              value={description}
-              onChangeText={setDesc}
-              placeholder="Describe el registro..."
-              placeholderTextColor={theme.textSub}
-            />
-          </View>
-
-          {/* Categoría */}
-          <Text style={[editS.label, { color: theme.textSub }]}>CATEGORÍA</Text>
+        {/* Toggle Gasto / Ingreso */}
+        <View style={editS.toggleRow}>
           <TouchableOpacity
-            style={[editS.catRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
-            onPress={() => setShowCat(true)}
-            activeOpacity={0.7}
+            style={[editS.toggleBtn, isExpense && editS.toggleBtnExpenseActive]}
+            onPress={() => setIsExpense(true)}
           >
-            <View style={[editS.catEmoji, { backgroundColor: catColor.bg }]}>
-              <Text style={{ fontSize: 20 }}>{catEmoji}</Text>
-            </View>
-            <Text style={[editS.catLabel, { color: theme.text }]}>{catName}</Text>
-            <ChevronRight size={18} color={theme.textSub} />
+            <Text style={[editS.toggleText, isExpense && editS.toggleTextExpenseActive]}>
+              ↓ Gasto
+            </Text>
           </TouchableOpacity>
-
-          {/* Guardar */}
           <TouchableOpacity
-            style={[editS.saveBtn, { backgroundColor: ACCENT }]}
-            onPress={handleSave}
-            activeOpacity={0.85}
+            style={[editS.toggleBtn, !isExpense && editS.toggleBtnIncomeActive]}
+            onPress={() => setIsExpense(false)}
           >
-            <Text style={editS.saveBtnText}>Guardar cambios</Text>
+            <Text style={[editS.toggleText, !isExpense && editS.toggleTextIncomeActive]}>
+              ↑ Ingreso
+            </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Monto */}
+        <Text style={[editS.label, { color: theme.textSub }]}>MONTO</Text>
+        <View
+          style={[editS.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
+        >
+          <Text style={[editS.inputPrefix, { color: theme.textSub }]}>$</Text>
+          <TextInput
+            style={[editS.input, { color: theme.text }]}
+            value={amountStr}
+            onChangeText={(v) => setAmountStr(v.replace(/\D/g, ""))}
+            keyboardType="numeric"
+            placeholder="0"
+            placeholderTextColor={theme.textSub}
+            selectTextOnFocus
+          />
+        </View>
+
+        {/* Descripción */}
+        <Text style={[editS.label, { color: theme.textSub }]}>DESCRIPCIÓN</Text>
+        <View
+          style={[editS.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
+        >
+          <TextInput
+            style={[editS.input, { color: theme.text }]}
+            value={description}
+            onChangeText={setDesc}
+            placeholder="Describe el registro..."
+            placeholderTextColor={theme.textSub}
+          />
+        </View>
+
+        {/* Categoría */}
+        <Text style={[editS.label, { color: theme.textSub }]}>CATEGORÍA</Text>
+        <TouchableOpacity
+          style={[editS.catRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
+          onPress={() => setShowCat(true)}
+          activeOpacity={0.7}
+        >
+          <View style={[editS.catEmoji, { backgroundColor: catColor.bg }]}>
+            <Text style={{ fontSize: 20 }}>{catEmoji}</Text>
+          </View>
+          <Text style={[editS.catLabel, { color: theme.text }]}>{catName}</Text>
+          <ChevronRight size={18} color={theme.textSub} />
+        </TouchableOpacity>
+
+        {/* Guardar */}
+        <PressableScale style={[editS.saveBtn, { backgroundColor: ACCENT }]} onPress={handleSave}>
+          <Text style={editS.saveBtnText}>Guardar cambios</Text>
+        </PressableScale>
       </KeyboardAvoidingView>
 
       <CategorySheet
@@ -316,7 +305,7 @@ function EditItemSheet({
         }}
         onClose={() => setShowCat(false)}
       />
-    </Modal>
+    </BottomSheet>
   );
 }
 
@@ -530,8 +519,9 @@ export default function VoiceBatchReview() {
     <SafeAreaView style={[st.root, { paddingTop: insets.top > 0 ? 0 : 8 }]}>
       {/* Header */}
       <View style={st.header}>
-        <TouchableOpacity
+        <PressableScale
           onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             clearPendingBatch();
             router.back();
           }}
@@ -539,7 +529,7 @@ export default function VoiceBatchReview() {
           style={st.backBtn}
         >
           <ChevronLeft size={26} color={theme.text} strokeWidth={2} />
-        </TouchableOpacity>
+        </PressableScale>
         <View style={st.headerText}>
           <Text style={[st.title, { color: theme.text }]}>Revisar registros</Text>
           <Text style={[st.subtitle, { color: theme.textSub }]}>
@@ -599,15 +589,14 @@ export default function VoiceBatchReview() {
             ? `  ·  Total gastos $ ${formatMoneyDisplay(totalExpense)}`
             : ""}
         </Text>
-        <TouchableOpacity
+        <PressableScale
           style={[st.saveBtn, { backgroundColor: items.length === 0 ? theme.border : ACCENT }]}
           onPress={handleSaveAll}
           disabled={items.length === 0 || saving}
-          activeOpacity={0.85}
         >
           <Check size={20} color="#FFFFFF" strokeWidth={2.5} />
           <Text style={st.saveBtnText}>{saving ? "Guardando..." : "Guardar todo"}</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       {/* Sheet de edición */}
@@ -743,18 +732,8 @@ const cardS = StyleSheet.create({
 
 const editS = StyleSheet.create({
   container: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingBottom: 32,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginTop: 12,
-    marginBottom: 18,
   },
   title: { fontSize: 18, fontWeight: "700", marginBottom: 18, letterSpacing: -0.4 },
   toggleRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
@@ -813,18 +792,8 @@ const editS = StyleSheet.create({
 
 const catS = StyleSheet.create({
   container: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingBottom: 28,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginTop: 12,
-    marginBottom: 16,
   },
   header: {
     flexDirection: "row",

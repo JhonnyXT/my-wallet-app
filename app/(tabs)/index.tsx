@@ -15,7 +15,7 @@ import {
 import Reanimated, { useAnimatedReaction, runOnJS } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Settings, Search, X, Hash, ArrowDown, ArrowUp } from "lucide-react-native";
+import { Settings, Search, X, Hash, ArrowDown, ArrowUp, Calendar } from "lucide-react-native";
 import { router } from "expo-router";
 import { scrollBottomPadding, DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
@@ -118,6 +118,7 @@ export default function DashboardScreen() {
     activeTotalForChart,
     activeBudget,
     allEmojis,
+    overBudgetAmount,
   } = useDashboardTotals({
     transactions,
     filteredTransactions,
@@ -220,6 +221,10 @@ export default function DashboardScreen() {
     [transactions, deleteTransaction],
   );
 
+  const handleEditTransaction = useCallback((tx: TransactionRow) => {
+    router.push(`/active-expense?editId=${tx.id}`);
+  }, []);
+
   const renderItem = useCallback(
     ({ item, index }: { item: TxRow; index: number }) => (
       <View style={styles.txItem}>
@@ -228,11 +233,12 @@ export default function DashboardScreen() {
           index={index}
           dimmed={false}
           onDelete={handleDeleteTransaction}
+          onEdit={handleEditTransaction}
           onDetail={handleDetail}
         />
       </View>
     ),
-    [handleDeleteTransaction, handleDetail, styles.txItem],
+    [handleDeleteTransaction, handleEditTransaction, handleDetail, styles.txItem],
   );
 
   // ── Derivados de estado ───────────────────────────────────────────────────
@@ -346,9 +352,22 @@ export default function DashboardScreen() {
           HEADER FIJO — siempre visible
           ══════════════════════════════════════════════════════════════ */}
       <View style={styles.headerOuter}>
+        {/* Selector de período: posición absoluta arriba a la izquierda */}
+        <View style={styles.headerPeriod}>
+          <FilterChips
+            period={quickLabel}
+            periodLabel={chipLabel !== quickLabel ? chipLabel : undefined}
+            onPeriodChange={(label) => setPeriodFilter({ type: "quick", label })}
+            onOpenMonthPicker={() => setMonthPickerOpen(true)}
+          />
+        </View>
+
         {/* Íconos: posición absoluta para no afectar el centrado del contenido */}
         <View style={styles.headerActions}>
           <NotificationBadgeBtn />
+          <Pressable style={styles.settingsBtn} onPress={() => setMonthPickerOpen(true)}>
+            <Calendar size={22} color={theme.text} strokeWidth={1.6} />
+          </Pressable>
           <View ref={getTourRef(TOUR_KEYS.SETTINGS_BTN)} collapsable={false}>
             <Pressable style={styles.settingsBtn} onPress={() => router.push("/settings")}>
               <Settings size={22} color={theme.text} strokeWidth={1.6} />
@@ -358,6 +377,17 @@ export default function DashboardScreen() {
 
         <View style={styles.headerLeft}>
           <Reanimated.View style={[styles.balanceSection, headerParallaxStyle as object]}>
+            {monthlyBudget > 0 &&
+              !isSearching &&
+              typeFilter === null &&
+              isCurrentPeriod &&
+              overBudgetAmount > 0 && (
+                <View style={styles.overBudgetBanner}>
+                  <Text style={styles.overBudgetText}>
+                    {formatBalance(overBudgetAmount)} sobre presupuesto
+                  </Text>
+                </View>
+              )}
             <Text style={styles.balanceLabel}>
               {isSearching
                 ? `BÚSQUEDA  ·  ${searchedTransactions.length} resultado${searchedTransactions.length !== 1 ? "s" : ""}`
@@ -431,12 +461,6 @@ export default function DashboardScreen() {
               </View>
             )}
           </Reanimated.View>
-          <FilterChips
-            period={quickLabel}
-            periodLabel={chipLabel !== quickLabel ? chipLabel : undefined}
-            onPeriodChange={(label) => setPeriodFilter({ type: "quick", label })}
-            onOpenMonthPicker={() => setMonthPickerOpen(true)}
-          />
         </View>
       </View>
 
@@ -615,6 +639,12 @@ function createStyles(t: AppTheme) {
       gap: 4,
       zIndex: 10,
     },
+    headerPeriod: {
+      position: "absolute",
+      top: 14,
+      left: 20,
+      zIndex: 10,
+    },
     headerLeft: {
       flexDirection: "column",
       gap: 10,
@@ -623,8 +653,15 @@ function createStyles(t: AppTheme) {
     settingsBtn: {
       width: 40,
       height: 40,
+      borderRadius: 9999,
       alignItems: "center",
       justifyContent: "center",
+      backgroundColor: t.isDark ? t.itemBg : t.surface,
+      shadowColor: "#000",
+      shadowOpacity: t.isDark ? 0 : 0.06,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: t.isDark ? 0 : 2,
     },
 
     // ── Balance ─────────────────────────────────────────────────────────────
@@ -651,13 +688,34 @@ function createStyles(t: AppTheme) {
     balanceNegative: {
       color: "#DC2626",
     },
+    overBudgetBanner: {
+      backgroundColor: t.isDark ? "rgba(220,38,38,0.18)" : "rgba(186,26,26,0.1)",
+      paddingHorizontal: 10,
+      paddingVertical: 3,
+      borderRadius: 999,
+    },
+    overBudgetText: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: "#DC2626",
+      letterSpacing: 0.2,
+    },
 
     // ── Pills ───────────────────────────────────────────────────────────────
+    // Contenedor redondeado exterior que agrupa los pills Gasto/Ingreso — "dos capas" tipo iOS
     pillsRow: {
       flexDirection: "row",
-      gap: 8,
+      gap: 6,
+      backgroundColor: t.isDark ? t.itemBg : t.surface,
+      borderRadius: 999,
+      padding: 5,
+      shadowColor: "#000",
+      shadowOpacity: t.isDark ? 0 : 0.06,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: t.isDark ? 0 : 2,
     },
-    // Base compartida
+    // Pill interno — capa de color sobre el contenedor
     pill: {
       flexDirection: "row",
       alignItems: "center",

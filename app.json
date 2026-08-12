@@ -53,7 +53,8 @@
         }
       ],
       "expo-sharing",
-      "./plugins/withAllowBackupDisabled"
+      "./plugins/withAllowBackupDisabled",
+      "./plugins/withDisableStartingWindowPreview"
     ],
     "experiments": {
       "typedRoutes": true

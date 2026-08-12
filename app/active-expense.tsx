@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Platform,
   KeyboardAvoidingView,
+  Keyboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -49,9 +50,12 @@ import { NewCategoryModal } from "@/app/category-onboarding";
 import { PaymentMethodsSection } from "@/app/settings";
 import type { UserCategory } from "@/src/constants/categoryPresets";
 import { processVoiceInput } from "@/src/utils/voiceParser";
+import { formatMoneyInput } from "@/src/utils/formatMoney";
+import { resolveCategory } from "@/src/utils/transactionFormatters";
 import { useTheme } from "@/src/context/ThemeContext";
 import { CalendarSheet } from "@/src/components/ui/CalendarSheet";
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
+import { PressableScale } from "@/src/components/ui/PressableScale";
 import type { AppTheme } from "@/src/theme";
 
 // ─── Colores de acción (fijos, no cambian con el tema) ─────────────────────────
@@ -119,10 +123,13 @@ export default function ActiveExpenseScreen() {
   const insets = useSafeAreaInsets();
   const store = useExpenseStore();
   const addTx = useFinanceStore((s) => s.addTransaction);
+  const updateTx = useFinanceStore((s) => s.updateTransaction);
   const theme = useTheme();
-  const { from } = useLocalSearchParams<{ from?: string }>();
+  const { from, editId } = useLocalSearchParams<{ from?: string; editId?: string }>();
   const fromBatchReview = from === "batch-review";
   const fromNotificationEdit = from === "notification-edit";
+  const editingId = editId ? Number(editId) : null;
+  const isEditMode = editingId !== null;
   const setPendingManualItem = useVoiceStore((s) => s.setPendingManualItem);
   // Si venimos de voice-batch-review o notification-edit, solo volvemos atrás al guardar
   const navigateAfterSave = () =>
@@ -133,6 +140,7 @@ export default function ActiveExpenseScreen() {
   const userCategories = useSettingsStore((s) => s.userCategories);
   const addUserCategory = useSettingsStore((s) => s.addUserCategory);
   const budgetByCategory = useSettingsStore((s) => s.budgetByCategory);
+  const savingsGoals = useSettingsStore((s) => s.savingsGoals);
   const transactions = useFinanceStore((s) => s.transactions);
 
   const expenseCatOptions = useMemo(
@@ -170,6 +178,40 @@ export default function ActiveExpenseScreen() {
   const amountInputRef = useRef<TextInput>(null);
   const noteRef = useRef<TextInput>(null);
 
+  // ─── Modo edición: prellenar con una transacción existente ────────────────
+  // Ref en vez de dependencia de `transactions` en el efecto: solo debe correr una
+  // vez al abrir la pantalla, nunca de nuevo mientras el usuario edita (la lista
+  // de transacciones cambia de referencia en cada carga y reiniciaría el form).
+  const editInitDone = useRef(false);
+  useEffect(() => {
+    if (!isEditMode || editInitDone.current) return;
+    const tx = transactions.find((t) => t.id === editingId);
+    if (!tx) return;
+    editInitDone.current = true;
+    const catName = resolveCategory(tx.category_emoji, userCategories, savingsGoals);
+    store.setFromVoice({
+      amount: Math.abs(tx.amount),
+      isExpense: tx.amount >= 0,
+      categoryEmoji: tx.category_emoji,
+      categoryName: catName,
+      date: "custom",
+      customDate: new Date(tx.date),
+      note: tx.description,
+      rawTranscript: "",
+      account: (tx.payment_method || "cash") as AccountType,
+      tags: tx.tags
+        ? (() => {
+            try {
+              return JSON.parse(tx.tags) as string[];
+            } catch {
+              return [];
+            }
+          })()
+        : [],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, editingId, transactions]);
+
   function handleNewCategoryCreated(cat: UserCategory) {
     addUserCategory(cat);
     store.setCategory(cat.emoji, cat.name);
@@ -196,14 +238,20 @@ export default function ActiveExpenseScreen() {
   const accent = isExpense ? RED : theme.isDark ? GREEN : "#15803D";
   const accentBg = isExpense ? "#FEF2F2" : "#F0FDF4";
   const accentText = isExpense ? "#B91C1C" : "#15803D";
-  const title = isExpense ? "Nuevo Gasto" : "Nuevo Ingreso";
+  const title = isEditMode
+    ? isExpense
+      ? "Editar Gasto"
+      : "Editar Ingreso"
+    : isExpense
+      ? "Nuevo Gasto"
+      : "Nuevo Ingreso";
 
   // ─── Parser reactivo: actualiza selectores en tiempo real ───────────────
   useEffect(() => {
-    // Edición de un item ya estructurado (notificación bancaria o batch de voz):
-    // los campos ya vienen correctos desde notification-review/voice-batch-review,
-    // no hay que re-parsear el texto libre y arriesgar sobreescribir el monto real.
-    if (fromBatchReview || fromNotificationEdit) return;
+    // Edición de un item ya estructurado (notificación bancaria, batch de voz, o una
+    // transacción existente): los campos ya vienen correctos, no hay que re-parsear
+    // el texto libre y arriesgar sobreescribir el monto/categoría reales.
+    if (fromBatchReview || fromNotificationEdit || isEditMode) return;
 
     const text = store.note?.trim() ?? "";
     if (text.length < 2) return;
@@ -228,19 +276,14 @@ export default function ActiveExpenseScreen() {
   }, [store.note]);
 
   function handleAmountTap() {
-    // Dígitos sin formatear mientras se edita: si insertáramos puntos de miles en
-    // cada tecla, el TextInput controlado reformatearía el string completo en cada
-    // cambio y el cursor saltaría al final en Android, impidiendo editar un dígito
-    // en medio del monto. Los puntos de miles se muestran de nuevo al salir del
-    // campo (handleAmountBlur), cuando vuelve a mostrarse como texto estático.
-    const current = store.amount > 0 ? String(Math.round(store.amount)) : "";
+    const current = store.amount > 0 ? formatMoneyInput(String(Math.round(store.amount))) : "";
     setAmountDisplay(current);
     setAmountEditing(true);
     setTimeout(() => amountInputRef.current?.focus(), 50);
   }
 
   function handleAmountChange(text: string) {
-    setAmountDisplay(text.replace(/\D/g, ""));
+    setAmountDisplay(formatMoneyInput(text));
   }
 
   function handleAmountBlur() {
@@ -271,21 +314,34 @@ export default function ActiveExpenseScreen() {
       return;
     }
 
-    // ── Flujo normal: guardar en la base de datos ─────────────────────────────
+    // ── Flujo normal: guardar en la base de datos (crear o actualizar) ─────────
     const txDate = store.date === "custom" && store.customDate ? store.customDate : new Date();
 
     const savedAmount = store.amount;
     const savedEmoji = store.categoryEmoji;
     const savedIsExp = isExpense;
+    const description = store.note || store.rawTranscript || (isExpense ? "Gasto" : "Ingreso");
 
-    await addTx(
-      isExpense ? store.amount : -store.amount,
-      store.note || store.rawTranscript || (isExpense ? "Gasto" : "Ingreso"),
-      store.categoryEmoji,
-      store.tags,
-      txDate,
-      store.account,
-    );
+    if (isEditMode && editingId !== null) {
+      await updateTx(
+        editingId,
+        isExpense ? store.amount : -store.amount,
+        description,
+        store.categoryEmoji,
+        store.tags,
+        txDate,
+        store.account,
+      );
+    } else {
+      await addTx(
+        isExpense ? store.amount : -store.amount,
+        description,
+        store.categoryEmoji,
+        store.tags,
+        txDate,
+        store.account,
+      );
+    }
 
     if (savedIsExp) {
       const budget = budgetByCategory[savedEmoji];
@@ -296,7 +352,10 @@ export default function ActiveExpenseScreen() {
           transactions
             .filter(
               (t) =>
-                t.amount > 0 && t.category_emoji === savedEmoji && t.date.startsWith(thisMonth),
+                t.amount > 0 &&
+                t.category_emoji === savedEmoji &&
+                t.date.startsWith(thisMonth) &&
+                (!isEditMode || t.id !== editingId),
             )
             .reduce((acc, t) => acc + t.amount, 0) + savedAmount;
 
@@ -310,6 +369,7 @@ export default function ActiveExpenseScreen() {
   }
 
   function handleClose() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     store.reset();
     navigateAfterSave();
   }
@@ -356,7 +416,7 @@ export default function ActiveExpenseScreen() {
     >
       {/* ── HEADER — solo botón atrás, título centrado ──────────────────────── */}
       <View style={[st.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity
+        <PressableScale
           onPress={handleClose}
           hitSlop={12}
           style={st.headerSideBtn}
@@ -364,7 +424,7 @@ export default function ActiveExpenseScreen() {
           accessibilityRole="button"
         >
           <X size={20} color={theme.textSub} strokeWidth={2} />
-        </TouchableOpacity>
+        </PressableScale>
         <Text style={st.headerTitle}>{title}</Text>
         <View style={st.headerSideBtn} />
       </View>
@@ -396,7 +456,6 @@ export default function ActiveExpenseScreen() {
                   returnKeyType="done"
                   placeholder="0"
                   placeholderTextColor={accent + "55"}
-                  selectTextOnFocus
                 />
               </View>
             ) : (
@@ -447,6 +506,20 @@ export default function ActiveExpenseScreen() {
         {/* ── Descripción + tags — solo visible al tocar la fila de arriba ── */}
         {descOpen && (
           <Animated.View entering={descEntering} exiting={descExiting} style={st.descPanel}>
+            <TouchableOpacity
+              style={[
+                st.descCloseBtn,
+                { backgroundColor: theme.isDark ? accent + "26" : accent + "16" },
+              ]}
+              onPress={() => {
+                Keyboard.dismiss();
+                setDescOpen(false);
+              }}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Check size={14} color={accent} strokeWidth={2.75} />
+            </TouchableOpacity>
             <TextInput
               ref={noteRef}
               value={store.note || store.rawTranscript}
@@ -456,7 +529,6 @@ export default function ActiveExpenseScreen() {
               placeholderTextColor={theme.textTertiary}
               placeholder={noteplaceholder}
               textAlignVertical="top"
-              onBlur={() => setDescOpen(false)}
             />
             <ScrollView
               horizontal
@@ -619,10 +691,9 @@ export default function ActiveExpenseScreen() {
           style={st.footerFade}
           pointerEvents="none"
         />
-        <TouchableOpacity
+        <PressableScale
           onPress={handleConfirm}
           disabled={store.amount <= 0}
-          activeOpacity={0.85}
           style={[st.saveBtn, store.amount <= 0 && st.saveBtnOff]}
           accessibilityLabel="Guardar"
           accessibilityRole="button"
@@ -640,7 +711,7 @@ export default function ActiveExpenseScreen() {
           >
             Guardar
           </Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       <NewCategoryModal
@@ -749,8 +820,8 @@ function buildS(t: AppTheme) {
       letterSpacing: -1,
       lineHeight: 48,
       minWidth: 60,
-      padding: 0,
-      includeFontPadding: false,
+      paddingVertical: 0,
+      paddingHorizontal: 4,
       textAlign: "center",
     },
 
@@ -780,9 +851,21 @@ function buildS(t: AppTheme) {
       backgroundColor: card,
       overflow: "hidden",
     },
+    descCloseBtn: {
+      position: "absolute",
+      top: 10,
+      right: 10,
+      zIndex: 1,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      alignItems: "center",
+      justifyContent: "center",
+    },
     transcriptInput: {
       minHeight: 72,
       padding: 16,
+      paddingRight: 44,
       fontSize: 15,
       fontWeight: "400",
       color: t.text,

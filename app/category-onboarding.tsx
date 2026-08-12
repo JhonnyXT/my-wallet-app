@@ -17,9 +17,11 @@ import {
   Platform,
   StatusBar,
   Dimensions,
+  PanResponder,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
@@ -27,23 +29,156 @@ import {
   EXPENSE_PRESETS,
   INCOME_PRESETS,
   CURATED_EMOJIS,
+  CATEGORY_EMOJI_VARIANTS,
   type UserCategory,
 } from "@/src/constants/categoryPresets";
 import { HueColorPicker } from "@/src/components/ui/HueColorPicker";
+import { PressableScale } from "@/src/components/ui/PressableScale";
 import { hueToColors } from "@/src/utils/colorUtils";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const CARD_GAP = 12;
 const CARD_W = (SCREEN_W - 48 - CARD_GAP * 2) / 3;
 
+// Presets "principales" mostrados en el onboarding — el resto de EXPENSE_PRESETS/
+// INCOME_PRESETS sigue existiendo (resuelve nombres/colores de categorías ya
+// guardadas y queda disponible vía "+ Añadir"), solo se oculta de esta grilla.
+const PRINCIPAL_EXPENSE_IDS = new Set([
+  "preset_shopping", // Compras
+  "preset_clothing", // Ropa
+  "preset_eating_out", // Comer afuera
+  "preset_home", // Hogar (en vez de Lujo)
+  "preset_car", // Vehículo
+  "preset_education", // Educación (en vez de Mascotas)
+]);
+const PRINCIPAL_INCOME_IDS = new Set([
+  "preset_salary",
+  "preset_freelance",
+  "preset_investments",
+  "preset_other_income",
+]);
+
+// ─── Tarjeta de categoría — deslizar el ícono cambia de variante de emoji ─────
+function CategoryTile({
+  cat,
+  active,
+  emojiIdx,
+  onChangeEmojiIdx,
+  onToggle,
+  theme,
+  st,
+}: {
+  cat: UserCategory;
+  active: boolean;
+  emojiIdx: number;
+  onChangeEmojiIdx: (next: number) => void;
+  onToggle: () => void;
+  theme: AppTheme;
+  st: ReturnType<typeof buildStyles>;
+}) {
+  const variants = CATEGORY_EMOJI_VARIANTS[cat.id];
+  const hasVariants = !!variants && variants.length > 1;
+  const displayEmoji = hasVariants ? variants[emojiIdx] : cat.emoji;
+  const [pressed, setPressed] = useState(false);
+
+  // PanResponder reclamando el toque desde onStartShouldSetPanResponder (no en el
+  // move): así el tap y el swipe responden igual de rápido que un TouchableOpacity
+  // normal, incluso en la primera interacción. onPanResponderTerminationRequest:true
+  // deja que el ScrollView padre se quede con el gesto si detecta scroll vertical.
+  //
+  // IMPORTANTE: se recrea en cada render (sin useRef) — envolverlo en useRef lo crea
+  // una sola vez y sus callbacks quedan con `emojiIdx` congelado al valor del primer
+  // render, por lo que el swipe siempre calculaba el próximo índice desde 0 en vez
+  // del índice actual (bug: se quedaba alternando entre el 1° y 2°/último emoji).
+  const pan = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onPanResponderTerminationRequest: () => true,
+    onPanResponderGrant: () => setPressed(true),
+    onPanResponderRelease: (_, g) => {
+      setPressed(false);
+      const isSwipe = hasVariants && Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy) * 1.3;
+      if (isSwipe) {
+        Haptics.selectionAsync();
+        if (g.dx < 0) onChangeEmojiIdx((emojiIdx + 1) % variants.length);
+        else onChangeEmojiIdx((emojiIdx - 1 + variants.length) % variants.length);
+      } else if (Math.abs(g.dx) < 10 && Math.abs(g.dy) < 10) {
+        onToggle();
+      }
+    },
+    onPanResponderTerminate: () => setPressed(false),
+  });
+
+  return (
+    <View style={st.card}>
+      <View
+        style={[
+          st.iconBox,
+          {
+            backgroundColor: active
+              ? theme.isDark
+                ? cat.colorAccent + "26"
+                : cat.colorBg + "99"
+              : theme.isDark
+                ? "#1E293B"
+                : "#F8FAFC",
+          },
+          active && { borderColor: cat.colorAccent + "80", borderWidth: 1.5 },
+          pressed && { opacity: 0.8 },
+        ]}
+        {...pan.panHandlers}
+      >
+        <View style={st.iconZone}>
+          <Text style={st.cardEmoji}>{displayEmoji}</Text>
+          {hasVariants && (
+            <View style={st.dotsRow}>
+              {variants.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    st.dot,
+                    {
+                      backgroundColor: theme.isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)",
+                    },
+                    i === emojiIdx && {
+                      backgroundColor: active ? cat.colorAccent : theme.textSub,
+                      width: 6,
+                      height: 6,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+        {active && (
+          <View style={[st.checkBadge, { backgroundColor: cat.colorAccent }]}>
+            <Text style={st.checkMark}>✓</Text>
+          </View>
+        )}
+      </View>
+      <Text
+        style={[st.cardLabel, { color: active ? cat.colorAccent : theme.textSub }]}
+        numberOfLines={1}
+      >
+        {cat.name}
+      </Text>
+    </View>
+  );
+}
+
 export default function CategoryOnboarding() {
   const theme = useTheme();
   const router = useRouter();
+  const params = useLocalSearchParams<{ edit?: string }>();
   const st = useMemo(() => buildStyles(theme), [theme]);
 
-  const { setUserCategories, completeCategories, userCategories, hasSelectedCategories } =
-    useSettingsStore();
-  const isEditing = hasSelectedCategories;
+  const { setUserCategories, completeCategories, userCategories } = useSettingsStore();
+  // "Editar" solo cuando se llega explícitamente desde Settings (?edit=1) — NO se
+  // infiere de hasSelectedCategories, porque ese flag ya queda en true apenas se
+  // guardan categorías la primera vez, antes de seguir al resto del onboarding
+  // (notification-onboarding → bank-selection-onboarding). Si se infiriera de ahí,
+  // volver atrás en el onboarding mostraría por error el modo "Editar categorías".
+  const isEditing = params.edit === "1";
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
     if (userCategories.length > 0) return new Set(userCategories.map((c) => c.id));
@@ -54,13 +189,22 @@ export default function CategoryOnboarding() {
   );
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<"expense" | "income">("expense");
+  const [emojiIndices, setEmojiIndices] = useState<Record<string, number>>({});
 
   const allExpense = useMemo(
-    () => [...EXPENSE_PRESETS, ...customCats.filter((c) => c.type === "expense")],
+    () =>
+      [
+        ...EXPENSE_PRESETS.filter((c) => PRINCIPAL_EXPENSE_IDS.has(c.id)),
+        ...customCats.filter((c) => c.type === "expense"),
+      ].sort((a, b) => a.name.localeCompare(b.name, "es")),
     [customCats],
   );
   const allIncome = useMemo(
-    () => [...INCOME_PRESETS, ...customCats.filter((c) => c.type === "income")],
+    () =>
+      [
+        ...INCOME_PRESETS.filter((c) => PRINCIPAL_INCOME_IDS.has(c.id)),
+        ...customCats.filter((c) => c.type === "income"),
+      ].sort((a, b) => a.name.localeCompare(b.name, "es")),
     [customCats],
   );
 
@@ -77,15 +221,30 @@ export default function CategoryOnboarding() {
 
   const handleSave = useCallback(() => {
     const all = [...EXPENSE_PRESETS, ...INCOME_PRESETS, ...customCats];
-    const chosen = all.filter((c) => selectedIds.has(c.id));
+    const chosen = all
+      .filter((c) => selectedIds.has(c.id))
+      .map((c) => {
+        const variants = CATEGORY_EMOJI_VARIANTS[c.id];
+        const idx = emojiIndices[c.id] ?? 0;
+        const emoji = variants && variants.length > 1 ? variants[idx] : c.emoji;
+        return emoji === c.emoji ? c : { ...c, emoji };
+      });
     setUserCategories(chosen);
     completeCategories();
     if (isEditing) {
       router.back();
     } else {
-      router.replace("/(tabs)");
+      router.push("/notification-onboarding");
     }
-  }, [selectedIds, customCats, setUserCategories, completeCategories, router, isEditing]);
+  }, [
+    selectedIds,
+    customCats,
+    emojiIndices,
+    setUserCategories,
+    completeCategories,
+    router,
+    isEditing,
+  ]);
 
   const handleCreateCategory = useCallback((cat: UserCategory) => {
     setCustomCats((prev) => [...prev, cat]);
@@ -104,31 +263,18 @@ export default function CategoryOnboarding() {
             {row.map((cat) => {
               const active = selectedIds.has(cat.id);
               return (
-                <TouchableOpacity
+                <CategoryTile
                   key={cat.id}
-                  activeOpacity={0.7}
-                  onPress={() => toggleSelect(cat.id)}
-                  style={[
-                    st.card,
-                    {
-                      backgroundColor: active ? cat.colorBg : theme.isDark ? "#1E293B" : "#F8FAFC",
-                    },
-                    active && { borderColor: cat.colorAccent, borderWidth: 2 },
-                  ]}
-                >
-                  <Text style={st.cardEmoji}>{cat.emoji}</Text>
-                  <Text
-                    style={[st.cardLabel, { color: active ? cat.colorAccent : theme.textSub }]}
-                    numberOfLines={1}
-                  >
-                    {cat.name}
-                  </Text>
-                  {active && (
-                    <View style={[st.checkBadge, { backgroundColor: cat.colorAccent }]}>
-                      <Text style={st.checkMark}>✓</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                  cat={cat}
+                  active={active}
+                  emojiIdx={emojiIndices[cat.id] ?? 0}
+                  onChangeEmojiIdx={(next) =>
+                    setEmojiIndices((prev) => ({ ...prev, [cat.id]: next }))
+                  }
+                  onToggle={() => toggleSelect(cat.id)}
+                  theme={theme}
+                  st={st}
+                />
               );
             })}
             {/* Fill empty slots */}
@@ -143,7 +289,7 @@ export default function CategoryOnboarding() {
                         setModalType(type);
                         setModalVisible(true);
                       }}
-                      style={[st.card, st.addCard]}
+                      style={[st.iconBox, st.addCard]}
                     >
                       <Text style={[st.addIcon, { color: theme.textSub }]}>+</Text>
                       <Text style={[st.addLabel, { color: theme.textSub }]}>Añadir</Text>
@@ -153,7 +299,7 @@ export default function CategoryOnboarding() {
                 return (
                   <View
                     key={`empty-${i}`}
-                    style={[st.card, { backgroundColor: "transparent", borderWidth: 0 }]}
+                    style={[st.iconBox, { backgroundColor: "transparent", borderWidth: 0 }]}
                   />
                 );
               })}
@@ -168,7 +314,7 @@ export default function CategoryOnboarding() {
                 setModalType(type);
                 setModalVisible(true);
               }}
-              style={[st.card, st.addCard]}
+              style={[st.iconBox, st.addCard]}
             >
               <Text style={[st.addIcon, { color: theme.textSub }]}>+</Text>
               <Text style={[st.addLabel, { color: theme.textSub }]}>Añadir</Text>
@@ -185,13 +331,15 @@ export default function CategoryOnboarding() {
 
       <ScrollView contentContainerStyle={st.scrollContent} showsVerticalScrollIndicator={false}>
         {isEditing && (
-          <TouchableOpacity
-            onPress={() => router.back()}
-            activeOpacity={0.7}
+          <PressableScale
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.back();
+            }}
             style={{ marginBottom: 12, flexDirection: "row", alignItems: "center" }}
           >
             <Text style={{ color: theme.accent, fontSize: 15, fontWeight: "600" }}>← Volver</Text>
-          </TouchableOpacity>
+          </PressableScale>
         )}
         <Text style={st.title}>{isEditing ? "Editar categorías" : "Elige tus categorías"}</Text>
         <Text style={st.subtitle}>
@@ -211,8 +359,7 @@ export default function CategoryOnboarding() {
 
       {/* Bottom CTA */}
       <View style={st.bottomBar}>
-        <TouchableOpacity
-          activeOpacity={0.85}
+        <PressableScale
           onPress={handleSave}
           disabled={selectedCount === 0}
           style={[st.saveBtn, selectedCount === 0 && { opacity: 0.4 }]}
@@ -220,7 +367,7 @@ export default function CategoryOnboarding() {
           <Text style={st.saveBtnText}>
             Guardar{selectedCount > 0 ? ` (${selectedCount})` : ""} →
           </Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       {/* Modal Nueva Categoría */}
@@ -228,7 +375,10 @@ export default function CategoryOnboarding() {
         visible={modalVisible}
         type={modalType}
         theme={theme}
-        onClose={() => setModalVisible(false)}
+        onClose={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setModalVisible(false);
+        }}
         onSave={handleCreateCategory}
       />
     </SafeAreaView>
@@ -296,9 +446,9 @@ export function NewCategoryModal({ visible, type, theme, onClose, onSave }: Moda
             <Pressable>
               <View style={ms.header}>
                 <Text style={ms.headerTitle}>Nueva Categoría</Text>
-                <TouchableOpacity onPress={onClose} activeOpacity={0.6}>
+                <PressableScale onPress={onClose}>
                   <Text style={ms.headerX}>✕</Text>
-                </TouchableOpacity>
+                </PressableScale>
               </View>
 
               {/* Emoji selector */}
@@ -339,17 +489,16 @@ export function NewCategoryModal({ visible, type, theme, onClose, onSave }: Moda
 
               {/* Buttons */}
               <View style={ms.btnRow}>
-                <TouchableOpacity onPress={onClose} activeOpacity={0.6} style={ms.cancelBtn}>
+                <PressableScale onPress={onClose} style={ms.cancelBtn}>
                   <Text style={[ms.cancelText, { color: theme.textSub }]}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </PressableScale>
+                <PressableScale
                   onPress={handleSave}
-                  activeOpacity={0.85}
                   disabled={!name.trim()}
                   style={[ms.okBtn, !name.trim() && { opacity: 0.4 }]}
                 >
                   <Text style={ms.okText}>Guardar</Text>
-                </TouchableOpacity>
+                </PressableScale>
               </View>
             </Pressable>
           </Animated.View>
@@ -376,18 +525,30 @@ function buildStyles(t: AppTheme) {
       letterSpacing: 0.5,
     },
     row: { flexDirection: "row", gap: CARD_GAP, marginBottom: CARD_GAP },
-    card: {
+    // Contenedor externo: solo da el ancho de columna, sin fondo/borde propios —
+    // el nombre de la categoría vive acá afuera, debajo de iconBox.
+    card: { width: CARD_W, alignItems: "center" },
+    iconBox: {
       width: CARD_W,
-      aspectRatio: 1,
-      borderRadius: 18,
+      aspectRatio: 0.92,
+      borderRadius: 20,
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1.5,
       borderColor: t.border,
       position: "relative",
     },
-    cardEmoji: { fontSize: 32, marginBottom: 6 },
-    cardLabel: { fontSize: 12, fontWeight: "600", textAlign: "center", paddingHorizontal: 4 },
+    iconZone: { alignItems: "center", justifyContent: "center", paddingVertical: 4 },
+    cardEmoji: { fontSize: 36, marginBottom: 8 },
+    cardLabel: {
+      fontSize: 12.5,
+      fontWeight: "700",
+      textAlign: "center",
+      paddingHorizontal: 4,
+      marginTop: 8,
+    },
+    dotsRow: { flexDirection: "row", gap: 3, marginBottom: 6 },
+    dot: { width: 4, height: 4, borderRadius: 2 },
     checkBadge: {
       position: "absolute",
       top: 8,

@@ -2,15 +2,17 @@
 
 El código en `origin` es, en la práctica, la versión "definitiva" del proyecto —
 por eso este comando existe separado de `/commit`: es la última oportunidad de
-asegurarse de que `AGENTS.md`, `CONTEXT.md`, `DOCUMENTATION.md` y
-`PRODUCT_REQUIREMENTS.md` describen lo que el código realmente hace, antes de
-que esos commits salgan del repo local.
+asegurarse de que `AGENTS.md`, `CONTEXT.md`, `DOCUMENTATION.md`,
+`PRODUCT_REQUIREMENTS.md` y las reglas de área en `.cursor/rules/*.mdc`
+describen lo que el código realmente hace, antes de que esos commits salgan
+del repo local.
 
 `/commit` ya revisa documentación por cada commit individual (Paso 3), pero es
 fácil que un cambio puntual documente `AGENTS.md` (gotcha técnico) y se olvide
-de `DOCUMENTATION.md` (comportamiento visible al usuario) o
-`PRODUCT_REQUIREMENTS.md` (si el cambio agrega/modifica una funcionalidad).
-Este comando revisa los 4 documentos juntos, en el conjunto completo de
+de `DOCUMENTATION.md` (comportamiento visible al usuario), `PRODUCT_REQUIREMENTS.md`
+(si el cambio agrega/modifica una funcionalidad), o de una convención nueva que
+debería quedar en `.cursor/rules/*.mdc` en vez de (o además de) `AGENTS.md`.
+Este comando revisa todos esos documentos juntos, en el conjunto completo de
 commits que se van a subir, no archivo por archivo.
 
 ## Instrucciones
@@ -35,7 +37,7 @@ git diff origin/<rama-actual>..HEAD --stat
 ```
 
 Invocar el subagente `generador-docs` con el rango completo de commits a
-subir (no un commit a la vez) para que audite los 4 documentos contra el
+subir (no un commit a la vez) para que audite estos documentos contra el
 código real:
 - `AGENTS.md` — stores, rutas, gotchas, deuda técnica, stack
 - `CONTEXT.md` — arquitectura, interfaces, flujos técnicos
@@ -43,6 +45,13 @@ código real:
   toca UI, permisos, mensajes o flujos que el usuario ve)
 - `PRODUCT_REQUIREMENTS.md` — si el cambio agrega, modifica o completa una
   historia de usuario
+- `.cursor/rules/*.mdc` (`database`/`ui-components`/`typescript-strict`/
+  `project-conventions`) — solo si el rango de commits introdujo o reemplazó
+  una **convención** reutilizable (no un hecho puntual de una pantalla), ej.
+  un componente base nuevo que cambia cómo se hacen los botones o los sheets
+  en toda la app. Estas son las reglas que `CLAUDE.md` enruta por área y que
+  Cursor carga por `globs` — es el "contexto" al que se refiere el nombre del
+  archivo, distinto de los hechos puntuales que van en `AGENTS.md`.
 
 ### Paso 3 — Mostrar y confirmar los cambios de documentación
 

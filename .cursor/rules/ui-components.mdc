@@ -32,6 +32,17 @@ const st = useMemo(() => buildStyles(theme), [theme]);
 | `accent` | `#135BEC` | `#4B82EF` |
 | `inputBg` | `#F1F5F9` | `#21262D` |
 
+### Capa aditiva de tokens (Card/ListRow/StackedScreenHeader…)
+
+Los componentes que portan el patrón de lista agrupada de Habit Tracker (`Card`, `SectionHeader`,
+`Divider`, `ListRow`, `ThemedText`, `PressableScale`, `StackedScreenHeader` en `src/components/ui/`)
+NO usan `useTheme()`/`AppTheme` — usan `useAppTokens()` de `src/theme/tokens.ts`, que expone
+tipografía (`largeTitle`/`headline`/`body`/`subheadline`/`footnote`/`sectionHeader`), `spacing`,
+`radius`, `motion` y colores anidados (`surface.*`, `text.*`, `border.default`, `accent.*`,
+`state.*`). Ambos sistemas coexisten a propósito — ver Gotcha en `AGENTS.md`. Si el componente que
+vas a crear/tocar ya usa uno de los dos, sigue ese; si es nuevo y encaja en el patrón de lista
+agrupada (Ajustes y sucesores), usa `useAppTokens()`.
+
 ## Patrón Stitch
 
 - Espacio negativo generoso: 24-32px padding en contenedores principales.
@@ -71,7 +82,28 @@ Referencia: `@/app/active-expense.tsx`, `@/app/voice-input.tsx`
 | Entrada de items | Reanimated `FadeInDown` | Listas de transacciones |
 | Layout transitions | Reanimated `LayoutAnimation` | Reordenar charts |
 | Swipe gestures | `Animated` de RN + PanResponder | TransactionItem |
-| Feedback táctil | `expo-haptics` | Guardar, seleccionar |
+| Feedback táctil | `expo-haptics` | Guardar, seleccionar, cancelar |
+| Feedback de presión | `PressableScale` (`@/src/components/ui/PressableScale`) | Botones de confirmar/crear/cancelar/cerrar |
+
+### Botones interactivos: `PressableScale`, no `TouchableOpacity`/`Pressable` planos
+
+Cualquier botón de confirmar, crear, cancelar o cerrar (X, atrás, Cancelar, Guardar, Confirmar)
+usa `PressableScale` — envuelve `Pressable` con un spring de escala (`tokens.motion.pressScale`/
+`spring.snappy` de `src/theme/tokens.ts`) en vez del dimming de opacidad plano de
+`activeOpacity`. El wrapper es solo de comportamiento: no impone estilos propios, así que no
+cambia la apariencia visual del botón (mismo `style` que ya tenías, mismos colores/sombras).
+`activeOpacity`/`TouchableOpacity` siguen siendo válidos para filas de lista o celdas de
+selección de baja frecuencia (emoji picker, chips) donde el feedback de escala no aporta.
+
+### Bottom sheets: `BottomSheet`, sin botón "X" propio
+
+Cualquier sheet que aparece desde abajo (`animationType="slide"`, `borderTopLeftRadius`/
+`borderTopRightRadius`, handle) usa `@/src/components/ui/BottomSheet` — ya trae tap-fuera-para-
+cerrar y swipe-down-para-cerrar desde el handle (`PanResponder`, ver implementación). No agregar
+un botón "X" de cierre: es redundante con el swipe. Si el sheet necesita una animación de entrada
+más elaborada que la de `BottomSheet` (spring custom, ver `FloatingInput.tsx`), no reemplazar el
+componente — replicar el mismo `PanResponder`/umbrales (`CLOSE_DISTANCE`/`CLOSE_VELOCITY`) sobre
+el handle en un `Animated.View` de RN core anidado dentro del wrapper de animación de entrada.
 
 ### Swipe pattern (PanResponder)
 

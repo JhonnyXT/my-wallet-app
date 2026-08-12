@@ -45,11 +45,10 @@ export function useDashboardScroll(
     };
   });
 
+  // Los pills de Gasto/Ingreso mantienen su color fijo al hacer scroll (sin fade de opacidad)
   const pillsParallaxStyle = useAnimatedStyle(() => {
     "worklet";
-    return {
-      opacity: interpolate(scrollY.value, [0, 80], [1, 0.45], Extrapolation.CLAMP),
-    };
+    return {};
   });
 
   // animationKey para re-animar barras cuando el filtro cambia

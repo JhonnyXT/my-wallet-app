@@ -85,6 +85,33 @@ export async function insertTransaction(
   };
 }
 
+export async function updateTransaction(
+  id: number,
+  amount: number,
+  description: string,
+  categoryEmoji: string,
+  tags: string[] = [],
+  date?: Date,
+  paymentMethod: string = "cash",
+): Promise<TransactionRow> {
+  const dateStr = localISOString(date ?? new Date());
+  const tagsStr = tags.length > 0 ? JSON.stringify(tags) : "";
+  const db = await getNativeDatabase();
+  await db.runAsync(
+    `UPDATE transactions SET amount = ?, description = ?, category_emoji = ?, date = ?, tags = ?, payment_method = ? WHERE id = ?`,
+    [amount, description, categoryEmoji, dateStr, tagsStr, paymentMethod, id],
+  );
+  return {
+    id,
+    amount,
+    description,
+    category_emoji: categoryEmoji,
+    date: dateStr,
+    tags: tagsStr,
+    payment_method: paymentMethod,
+  };
+}
+
 export async function deleteTransaction(id: number): Promise<void> {
   const db = await getNativeDatabase();
   await db.runAsync(`DELETE FROM transactions WHERE id = ?`, [id]);

@@ -190,7 +190,7 @@ export default function ChatScreen() {
   function closeDrawer() {
     drawerX.value = withTiming(DRAWER_W, {
       duration: 240,
-      easing: Easing.in(Easing.cubic),
+      easing: Easing.out(Easing.cubic),
     });
     setTimeout(() => {
       setShowHistory(false);

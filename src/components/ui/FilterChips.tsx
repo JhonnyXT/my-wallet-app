@@ -3,14 +3,7 @@
  * Un único chip que agrupa períodos rápidos + "Elegir mes específico".
  */
 import { useState, useMemo } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableWithoutFeedback,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import {
   CalendarCheck,
   Calendar,
@@ -22,6 +15,7 @@ import {
   ChevronRight,
 } from "lucide-react-native";
 import { useTheme } from "@/src/context/ThemeContext";
+import { BottomSheet } from "@/src/components/ui/BottomSheet";
 import type { AppTheme } from "@/src/theme";
 
 // ─── Opciones ─────────────────────────────────────────────────────────────────
@@ -59,70 +53,62 @@ function PeriodSheet({
   const theme = useTheme();
   const bs = useMemo(() => buildBs(theme), [theme]);
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={bs.backdrop} />
-      </TouchableWithoutFeedback>
-      <View style={bs.container}>
-        <View style={bs.handle} />
-        <Text style={bs.title}>Periodo</Text>
+    <BottomSheet visible={visible} onClose={onClose} style={bs.container}>
+      <Text style={bs.title}>Periodo</Text>
 
-        {periods.map((opt, i) => {
-          const Icon = PERIOD_ICONS[opt];
-          const isSel = opt === selected;
-          return (
-            <View key={opt}>
-              <TouchableOpacity
-                activeOpacity={0.6}
-                onPress={() => {
-                  onSelect(opt);
-                  onClose();
-                }}
-                style={bs.option}
-              >
-                <View style={bs.optionLeft}>
-                  <View style={[bs.iconBox, isSel && { backgroundColor: theme.accent + "18" }]}>
-                    {Icon && (
-                      <Icon
-                        size={18}
-                        color={isSel ? theme.accent : theme.textSub}
-                        strokeWidth={1.8}
-                      />
-                    )}
-                  </View>
-                  <Text
-                    style={[bs.optionText, isSel && { color: theme.accent, fontWeight: "700" }]}
-                  >
-                    {opt}
-                  </Text>
+      {periods.map((opt, i) => {
+        const Icon = PERIOD_ICONS[opt];
+        const isSel = opt === selected;
+        return (
+          <View key={opt}>
+            <TouchableOpacity
+              activeOpacity={0.6}
+              onPress={() => {
+                onSelect(opt);
+                onClose();
+              }}
+              style={bs.option}
+            >
+              <View style={bs.optionLeft}>
+                <View style={[bs.iconBox, isSel && { backgroundColor: theme.accent + "18" }]}>
+                  {Icon && (
+                    <Icon
+                      size={18}
+                      color={isSel ? theme.accent : theme.textSub}
+                      strokeWidth={1.8}
+                    />
+                  )}
                 </View>
-                {isSel && <Check size={16} color={theme.accent} strokeWidth={2.5} />}
-              </TouchableOpacity>
-              {i < periods.length - 1 && <View style={bs.sep} />}
-            </View>
-          );
-        })}
-
-        {/* Separador + elegir mes específico */}
-        <View style={bs.sep} />
-        <TouchableOpacity
-          activeOpacity={0.6}
-          onPress={() => {
-            onClose();
-            onOpenMonthPicker?.();
-          }}
-          style={bs.option}
-        >
-          <View style={bs.optionLeft}>
-            <View style={bs.iconBox}>
-              <CalendarDays size={18} color={theme.textSub} strokeWidth={1.8} />
-            </View>
-            <Text style={bs.optionText}>Elegir mes específico...</Text>
+                <Text style={[bs.optionText, isSel && { color: theme.accent, fontWeight: "700" }]}>
+                  {opt}
+                </Text>
+              </View>
+              {isSel && <Check size={16} color={theme.accent} strokeWidth={2.5} />}
+            </TouchableOpacity>
+            {i < periods.length - 1 && <View style={bs.sep} />}
           </View>
-          <ChevronRight size={16} color={theme.textSub} strokeWidth={2} />
-        </TouchableOpacity>
-      </View>
-    </Modal>
+        );
+      })}
+
+      {/* Separador + elegir mes específico */}
+      <View style={bs.sep} />
+      <TouchableOpacity
+        activeOpacity={0.6}
+        onPress={() => {
+          onClose();
+          onOpenMonthPicker?.();
+        }}
+        style={bs.option}
+      >
+        <View style={bs.optionLeft}>
+          <View style={bs.iconBox}>
+            <CalendarDays size={18} color={theme.textSub} strokeWidth={1.8} />
+          </View>
+          <Text style={bs.optionText}>Elegir mes específico...</Text>
+        </View>
+        <ChevronRight size={16} color={theme.textSub} strokeWidth={2} />
+      </TouchableOpacity>
+    </BottomSheet>
   );
 }
 
@@ -182,33 +168,8 @@ export function FilterChips({
 
 function buildBs(t: AppTheme) {
   return StyleSheet.create({
-    backdrop: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: "rgba(15,23,42,0.4)",
-    },
     container: {
-      position: "absolute",
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: t.surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
       paddingBottom: 36,
-      paddingTop: 12,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 20,
-      elevation: 24,
-    },
-    handle: {
-      width: 36,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: t.border,
-      alignSelf: "center",
-      marginBottom: 16,
     },
     title: {
       fontSize: 17,
@@ -254,12 +215,13 @@ function buildCh(t: AppTheme) {
     row: {
       flexDirection: "row",
       alignItems: "center",
+      alignSelf: "flex-start",
     },
     pill: {
       flexDirection: "row",
       alignItems: "center",
       gap: 5,
-      backgroundColor: t.surface,
+      backgroundColor: t.isDark ? t.itemBg : t.surface,
       borderRadius: 9999,
       borderWidth: 1.5,
       borderColor: t.border,

@@ -9,6 +9,7 @@ export interface BankConfig {
 }
 
 export const KNOWN_BANKS: BankConfig[] = [
+  { packageName: "com.google.android.apps.walletnfcrel", displayName: "Google Wallet" },
   { packageName: "co.com.bancolombia.personas.superapp", displayName: "Bancolombia" },
   { packageName: "com.nequi.MobileApp", displayName: "Nequi" },
   { packageName: "com.davivienda.daviviendaapp", displayName: "Davivienda" },

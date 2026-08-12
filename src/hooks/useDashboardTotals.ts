@@ -20,6 +20,7 @@ export interface UseDashboardTotalsReturn {
   incomeTotal: number;
   netBalance: number;
   budgetPct: number;
+  overBudgetAmount: number;
   categoryStats: CategoryStat[];
   incomeStats: CategoryStat[];
   totalExpenses: number;
@@ -64,15 +65,25 @@ export function useDashboardTotals({
   const netBalance = incomeTotal - expenseTotal;
 
   // ── Porcentaje de presupuesto mensual consumido ───────────────────────────
-  const budgetPct = useMemo(() => {
+  const monthlyExpense = useMemo(() => {
     if (monthlyBudget <= 0 || !isCurrentPeriod) return 0;
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const exp = transactions
+    return transactions
       .filter((t) => new Date(t.date) >= start && t.amount > 0)
       .reduce((s, t) => s + t.amount, 0);
-    return Math.min(Math.round((exp / monthlyBudget) * 100), 100);
   }, [transactions, monthlyBudget, isCurrentPeriod]);
+
+  const budgetPct = useMemo(() => {
+    if (monthlyBudget <= 0 || !isCurrentPeriod) return 0;
+    return Math.min(Math.round((monthlyExpense / monthlyBudget) * 100), 100);
+  }, [monthlyExpense, monthlyBudget, isCurrentPeriod]);
+
+  // ── Monto excedido del presupuesto mensual (sin capar a 100%) ────────────
+  const overBudgetAmount = useMemo(() => {
+    if (monthlyBudget <= 0 || !isCurrentPeriod) return 0;
+    return Math.max(monthlyExpense - monthlyBudget, 0);
+  }, [monthlyExpense, monthlyBudget, isCurrentPeriod]);
 
   // ── Estadísticas por categoría para la gráfica ───────────────────────────
   const categoryStats = useMemo(() => {
@@ -129,6 +140,7 @@ export function useDashboardTotals({
     incomeTotal,
     netBalance,
     budgetPct,
+    overBudgetAmount,
     categoryStats,
     incomeStats,
     totalExpenses,

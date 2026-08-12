@@ -408,13 +408,16 @@ function AnimatedBar({
   const localScrollY = useSharedValue(0);
   const sv = scrollY ?? localScrollY;
 
-  // Fill height = animación de entrada ∩ compresión por scroll
+  // Fill height = animación de entrada ∩ compresión por scroll.
+  // `fill` tiene height:MAX_BAR_H fijo (ver styles.fill) — acá solo escalamos
+  // en Y desde el fondo (transformOrigin:"bottom"), nunca animamos `height`.
   const fillHeightStyle = useAnimatedStyle(() => {
     "worklet";
     const ratio = interpolate(sv.value, [0, COMPRESS_END], [0, 1], Extrapolation.CLAMP);
     const minH = Math.min(fillH, MIN_FILL_H);
     const scrolledH = fillH - (fillH - minH) * ratio; // fillH → minH
-    return { height: Math.min(heightAnim.value, scrolledH) };
+    const targetH = Math.min(heightAnim.value, scrolledH);
+    return { transform: [{ scaleY: MAX_BAR_H > 0 ? targetH / MAX_BAR_H : 0 }] };
   });
 
   // Ghost: permanece visible hasta el 85% del scroll, solo desaparece al final
@@ -1029,12 +1032,16 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     zIndex: 2, // encima del fill (zIndex 0), debajo de labels (zIndex 5)
   },
-  // Barra de relleno — absolutamente posicionada en el fondo del column
+  // Barra de relleno — absolutamente posicionada en el fondo del column.
+  // Altura SIEMPRE fija a MAX_BAR_H: el crecimiento/compresión se anima con
+  // `transform: scaleY` (GPU-only), no con `height` (layout) — ver fillHeightStyle.
   fill: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
+    height: MAX_BAR_H,
+    transformOrigin: "bottom",
     borderRadius: RADIUS, // redondeado en las 4 esquinas
   },
   // Labels verticales: emoji + monto + % apilados al fondo del fill

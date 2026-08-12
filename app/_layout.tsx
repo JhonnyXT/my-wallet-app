@@ -45,6 +45,15 @@ export default function RootLayout() {
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (response?.notification.request.content.data?.screen === "notification-review") {
         router.push("/notification-review");
+      } else {
+        // Arranque en frío normal (ícono del launcher, no deep link): forzar
+        // siempre el dashboard como destino, nunca la última pantalla en la que
+        // el usuario estaba antes de que Android matara el proceso. Sin esto,
+        // en algunos dispositivos (confirmado en Samsung/OneUI) el Stack puede
+        // resolver su ruta inicial hacia la última pantalla visitada en vez de
+        // "(tabs)". Es invisible para el usuario: ocurre bajo el splash, que no
+        // hace fade out hasta que el bootstrap termine.
+        router.replace("/(tabs)");
       }
     });
 
@@ -61,6 +70,16 @@ export default function RootLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // El splash JS (<AnimatedSplash>) se monta de inmediato al renderizar (ver abajo,
+  // no depende de appReady), así que ya cubre el Stack antes de que el splash nativo
+  // se oculte — se puede ocultar el nativo apenas React pinta el primer frame, sin
+  // esperar a que termine el bootstrap (DB, notificaciones, etc.), que sigue en
+  // paralelo. Antes se ocultaba el splash nativo y solo DESPUÉS se montaba el splash
+  // JS (mismo efecto), dejando un hueco de uno o más frames donde se veía el Stack.
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
+
   useEffect(() => {
     async function bootstrap() {
       try {
@@ -73,7 +92,6 @@ export default function RootLayout() {
       } catch (e) {
         console.error("[bootstrap] Error al inicializar la app:", e);
       } finally {
-        await SplashScreen.hideAsync();
         setAppReady(true);
       }
     }
@@ -95,6 +113,20 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="category-onboarding"
+          options={{
+            animation: "fade",
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="notification-onboarding"
+          options={{
+            animation: "fade",
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="bank-selection-onboarding"
           options={{
             animation: "fade",
             headerShown: false,
@@ -143,7 +175,7 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
 
-      {appReady && !splashDone && <AnimatedSplash onFinish={() => setSplashDone(true)} />}
+      {!splashDone && <AnimatedSplash ready={appReady} onFinish={() => setSplashDone(true)} />}
     </ThemeProvider>
   );
 }

@@ -1,11 +1,23 @@
 {
   "version": 1,
   "skills": {
-    "apple-design": {
-      "source": "dickwu/apple-design-skill",
+    "animation-vocabulary": {
+      "source": "emilkowalski/skills",
       "sourceType": "github",
-      "skillPath": "SKILL.md",
-      "computedHash": "8ef2407bb66c759c110a55102e26646795fdcf67e6d8a49f035ee2d25afcd91b"
+      "skillPath": "skills/animation-vocabulary/SKILL.md",
+      "computedHash": "39319fc9a33c15be08666b3685f58666f042ff36bb902b7814c0834a5ba99df4"
+    },
+    "apple-design": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/apple-design/SKILL.md",
+      "computedHash": "8b94db67cb9edaad5f1501010804caa610131f1d2dfda0a27664b2e858deade3"
+    },
+    "emil-design-eng": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/emil-design-eng/SKILL.md",
+      "computedHash": "41b0a4dc1a27164fe297845a6c6850a39e9242c42c9be999967fcee9df2c5974"
     },
     "expo-react-native-performance": {
       "source": "pproenca/dot-skills",
@@ -19,11 +31,35 @@
       "skillPath": "expo-react-native-typescript/SKILL.md",
       "computedHash": "ef1a36e2a4e803d4e754eabea9b851221ee37b5c416256dbc9d2d1b333447f4b"
     },
+    "find-animation-opportunities": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/find-animation-opportunities/SKILL.md",
+      "computedHash": "8fb8492eb8fbed1313cb430b5831d925d9b8964ca24f3c41a6244cbd1fd98732"
+    },
     "finishing-a-development-branch": {
       "source": "obra/superpowers",
       "sourceType": "github",
       "skillPath": "skills/finishing-a-development-branch/SKILL.md",
       "computedHash": "aa2632ed96df59c36348bd8f8ec1ff0fb0c5cc68b60691834687bf4cedc6be3f"
+    },
+    "improve-animations": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/improve-animations/SKILL.md",
+      "computedHash": "eeb219a407e325b687af88db25771cc3018e3148245604112f5ac6990b6fd79c"
+    },
+    "pick-ui-library": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/pick-ui-library/SKILL.md",
+      "computedHash": "f8d4d2cf4677bf54b14f35f62a741add93541bfcb67863315a40164365161b49"
+    },
+    "prototype": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/prototype/SKILL.md",
+      "computedHash": "f246d1f47566481d9207e1aa574bdee5454257d862919a6591283e9af2f57eab"
     },
     "react-native": {
       "source": "jezweb/claude-skills",
@@ -36,6 +72,12 @@
       "sourceType": "github",
       "skillPath": "skills/react-native-best-practices/SKILL.md",
       "computedHash": "68a961f23c65fd9b4a85738afdf5ba32982cf66935bceb9031c97651e85fe7f9"
+    },
+    "review-animations": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/review-animations/SKILL.md",
+      "computedHash": "b9f669af5ae280c19a592a94611520335a81de25c88f225bf60ae4b2d66c8c7c"
     },
     "systematic-debugging": {
       "source": "obra/superpowers",

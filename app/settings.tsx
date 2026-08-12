@@ -12,6 +12,7 @@ import { Enter } from "@/src/components/ui/Enter";
 import { GuidedTour, type TourStep } from "@/src/components/ui/GuidedTour";
 import { HueColorPicker } from "@/src/components/ui/HueColorPicker";
 import { ListRow } from "@/src/components/ui/ListRow";
+import { PressableScale } from "@/src/components/ui/PressableScale";
 import { StackedScreenHeader } from "@/src/components/ui/StackedScreenHeader";
 import { ThemedText } from "@/src/components/ui/ThemedText";
 import { AUTO_DETECT_ENABLED_KEY, ALLOWED_BANKS_KEY } from "@/src/constants/banks";
@@ -36,6 +37,7 @@ import { KNOWN_BANKS } from "@/src/utils/notificationParser";
 import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import {
   Check,
@@ -392,12 +394,18 @@ function InputModal({
           />
           {isMoney && display.length > 0 && <Text style={s.modalMoneySuffix}>COP</Text>}
           <View style={s.modalBtns}>
-            <TouchableOpacity style={s.modalBtnCancel} onPress={onClose} activeOpacity={0.7}>
+            <PressableScale
+              style={s.modalBtnCancel}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onClose();
+              }}
+            >
               <Text style={s.modalBtnCancelText}>Cancelar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.modalBtnConfirm} onPress={handleConfirm} activeOpacity={0.7}>
+            </PressableScale>
+            <PressableScale style={s.modalBtnConfirm} onPress={handleConfirm}>
               <Text style={s.modalBtnConfirmText}>Guardar</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -716,19 +724,24 @@ function NuevaMetaModal({ visible, onClose }: { visible: boolean; onClose: () =>
 
           {/* Botones */}
           <View style={s.modalBtns}>
-            <TouchableOpacity style={s.modalBtnCancel} onPress={onClose} activeOpacity={0.7}>
+            <PressableScale
+              style={s.modalBtnCancel}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onClose();
+              }}
+            >
               <Text style={s.modalBtnCancelText}>Cancelar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </PressableScale>
+            <PressableScale
               style={canCreate ? s.modalBtnConfirm : s.modalBtnConfirmDisabled}
               onPress={handleCreate}
               disabled={!canCreate}
-              activeOpacity={0.7}
             >
               <Text style={canCreate ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>
                 Crear
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -863,19 +876,24 @@ function AbonarMetaModal({
 
           {/* Botones */}
           <View style={s.modalBtns}>
-            <TouchableOpacity style={s.modalBtnCancel} onPress={onClose} activeOpacity={0.7}>
+            <PressableScale
+              style={s.modalBtnCancel}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onClose();
+              }}
+            >
               <Text style={s.modalBtnCancelText}>Cancelar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </PressableScale>
+            <PressableScale
               style={abono > 0 ? s.modalBtnConfirm : s.modalBtnConfirmDisabled}
               onPress={handleAbonar}
               disabled={abono <= 0}
-              activeOpacity={0.7}
             >
               <Text style={abono > 0 ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>
                 Abonar
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -1136,9 +1154,14 @@ function EditCategoryModal({
                 <Text style={{ fontSize: 20, fontWeight: "700", color: theme.text }}>
                   Editar categoría
                 </Text>
-                <TouchableOpacity onPress={onClose} activeOpacity={0.6}>
+                <PressableScale
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    onClose();
+                  }}
+                >
                   <Text style={{ fontSize: 20, color: theme.textSub, padding: 4 }}>✕</Text>
-                </TouchableOpacity>
+                </PressableScale>
               </View>
 
               <Text
@@ -1235,18 +1258,19 @@ function EditCategoryModal({
               <View
                 style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12, marginTop: 24 }}
               >
-                <TouchableOpacity
-                  onPress={onClose}
-                  activeOpacity={0.6}
+                <PressableScale
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    onClose();
+                  }}
                   style={{ paddingVertical: 12, paddingHorizontal: 16 }}
                 >
                   <Text style={{ fontSize: 15, fontWeight: "600", color: theme.textSub }}>
                     Cancelar
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </PressableScale>
+                <PressableScale
                   onPress={handleSave}
-                  activeOpacity={0.85}
                   disabled={!name.trim()}
                   style={[
                     {
@@ -1259,7 +1283,7 @@ function EditCategoryModal({
                   ]}
                 >
                   <Text style={{ color: "#FFF", fontSize: 15, fontWeight: "700" }}>Guardar</Text>
-                </TouchableOpacity>
+                </PressableScale>
               </View>
             </Pressable>
           </View>
@@ -1520,15 +1544,14 @@ function AutoDetectSection() {
             ahorrar batería, lo que puede interrumpir la detección automática. Desactiva la
             optimización de batería para MyWallet en los ajustes del sistema.
           </Text>
-          <TouchableOpacity
+          <PressableScale
             style={[autoS.batteryBtn, { borderColor: tokens.colors.state.warning }]}
             onPress={() => Linking.openSettings()}
-            activeOpacity={0.7}
           >
             <Text style={[autoS.batteryBtnText, { color: tokens.colors.state.warning }]}>
               Abrir ajustes de batería
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
         </Reanimated.View>
       )}
 
@@ -1555,20 +1578,18 @@ function AutoDetectSection() {
               Se abrirá la configuración del sistema. Busca "MyWallet" y activa el acceso.
             </Text>
             <View style={s.modalBtns}>
-              <TouchableOpacity
+              <PressableScale
                 style={s.modalBtnCancel}
-                onPress={() => setShowPermDialog(false)}
-                activeOpacity={0.7}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowPermDialog(false);
+                }}
               >
                 <Text style={s.modalBtnCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={s.modalBtnConfirm}
-                onPress={handleOpenPermissionSettings}
-                activeOpacity={0.7}
-              >
+              </PressableScale>
+              <PressableScale style={s.modalBtnConfirm} onPress={handleOpenPermissionSettings}>
                 <Text style={s.modalBtnConfirmText}>Abrir ajustes</Text>
-              </TouchableOpacity>
+              </PressableScale>
             </View>
           </View>
         </Pressable>

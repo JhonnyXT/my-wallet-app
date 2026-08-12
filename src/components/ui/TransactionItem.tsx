@@ -1,23 +1,27 @@
-import { useRef, useMemo, useCallback } from "react";
+import { useRef, useState, useMemo, useCallback } from "react";
 import { View, Text, StyleSheet, Animated, PanResponder, TouchableOpacity } from "react-native";
 import * as Haptics from "expo-haptics";
 import AnimatedRN, { FadeInDown } from "react-native-reanimated";
-import { Trash2 } from "lucide-react-native";
+import { Trash2, Pencil } from "lucide-react-native";
 import type { TransactionRow } from "@/src/db/db";
 import { EMOJI_TO_CATEGORY_NAME, getCategoryColor } from "@/src/constants/theme";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import type { AppTheme } from "@/src/theme";
 
 // ─── Constantes del swipe ─────────────────────────────────────────────────────
-const DELETE_WIDTH = 72; // ancho del botón de eliminar
-const SWIPE_THRESH = 48; // mínimo para que se abra el botón
+const DELETE_WIDTH = 72; // ancho del botón de eliminar (revelado deslizando a la izquierda)
+const EDIT_WIDTH = 72; // ancho del botón de editar (revelado deslizando a la derecha)
+const SWIPE_THRESH = 48; // mínimo para que se abra un botón
+const CLOSE_THRESH = 20; // mínimo para cerrar un botón ya abierto
 
 interface TransactionItemProps {
   transaction: TransactionRow;
   index: number;
   dimmed?: boolean;
   onDelete?: (id: number) => void;
+  onEdit?: (tx: TransactionRow) => void;
   onDetail?: (tx: TransactionRow) => void;
 }
 
@@ -77,6 +81,7 @@ export function TransactionItem({
   index,
   dimmed = false,
   onDelete,
+  onEdit,
   onDetail,
 }: TransactionItemProps) {
   const theme = useTheme();
@@ -109,9 +114,10 @@ export function TransactionItem({
 
   const title = cleanDescription(rawDesc) || categoryName;
 
-  // ── Swipe to delete ──────────────────────────────────────────────────────────
+  // ── Swipe bidireccional: izquierda revela eliminar, derecha revela editar ──────
   const translateX = useRef(new Animated.Value(0)).current;
-  const isOpen = useRef(false);
+  const openSide = useRef<"delete" | "edit" | null>(null);
+  const [confirmVisible, setConfirmVisible] = useState(false);
 
   const spring = (toValue: number, cb?: () => void) =>
     Animated.spring(translateX, {
@@ -129,35 +135,62 @@ export function TransactionItem({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
       onPanResponderMove: (_, g) => {
         if (Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy)) {
-          const base = isOpen.current ? -DELETE_WIDTH : 0;
-          const next = Math.min(0, base + g.dx);
+          const base =
+            openSide.current === "delete"
+              ? -DELETE_WIDTH
+              : openSide.current === "edit"
+                ? EDIT_WIDTH
+                : 0;
+          const next = Math.max(-DELETE_WIDTH, Math.min(EDIT_WIDTH, base + g.dx));
           translateX.setValue(next);
         }
       },
       onPanResponderRelease: (_, g) => {
-        if (isOpen.current) {
-          if (g.dx > 20) {
-            isOpen.current = false;
+        if (openSide.current) {
+          if (
+            Math.abs(g.dx) > CLOSE_THRESH &&
+            Math.sign(g.dx) !== (openSide.current === "delete" ? -1 : 1)
+          ) {
+            openSide.current = null;
             spring(0);
           } else {
-            spring(-DELETE_WIDTH);
+            spring(openSide.current === "delete" ? -DELETE_WIDTH : EDIT_WIDTH);
           }
+        } else if (g.dx < -SWIPE_THRESH) {
+          openSide.current = "delete";
+          Haptics.selectionAsync();
+          spring(-DELETE_WIDTH);
+        } else if (g.dx > SWIPE_THRESH) {
+          openSide.current = "edit";
+          Haptics.selectionAsync();
+          spring(EDIT_WIDTH);
         } else {
-          if (g.dx < -SWIPE_THRESH) {
-            isOpen.current = true;
-            spring(-DELETE_WIDTH);
-          } else {
-            spring(0);
-          }
+          spring(0);
         }
       },
       onPanResponderTerminate: () => {
-        spring(isOpen.current ? -DELETE_WIDTH : 0);
+        spring(
+          openSide.current === "delete"
+            ? -DELETE_WIDTH
+            : openSide.current === "edit"
+              ? EDIT_WIDTH
+              : 0,
+        );
       },
     }),
   ).current;
 
-  function handleDelete() {
+  function handleClose() {
+    openSide.current = null;
+    spring(0);
+  }
+
+  function handleDeletePress() {
+    setConfirmVisible(true);
+  }
+
+  function handleConfirmDelete() {
+    setConfirmVisible(false);
     Animated.timing(translateX, {
       toValue: -400,
       duration: 220,
@@ -165,9 +198,15 @@ export function TransactionItem({
     }).start(() => onDelete?.(transaction.id));
   }
 
-  function handleClose() {
-    isOpen.current = false;
-    spring(0);
+  function handleCancelDelete() {
+    setConfirmVisible(false);
+    handleClose();
+  }
+
+  function handleEditPress() {
+    Haptics.selectionAsync();
+    handleClose();
+    onEdit?.(transaction);
   }
 
   return (
@@ -176,9 +215,20 @@ export function TransactionItem({
       style={[styles.wrapper, dimmed && styles.dimmed]}
     >
       <View style={styles.container}>
-        {/* Botón de eliminar — detrás del row */}
+        {/* Botón de editar — detrás del row, a la izquierda (revelado deslizando a la derecha) */}
+        <View style={styles.editContainer}>
+          <TouchableOpacity style={styles.editBtn} onPress={handleEditPress} activeOpacity={0.8}>
+            <Pencil size={18} color="#FFFFFF" strokeWidth={2.2} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Botón de eliminar — detrás del row, a la derecha (revelado deslizando a la izquierda) */}
         <View style={styles.deleteContainer}>
-          <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={handleDeletePress}
+            activeOpacity={0.8}
+          >
             <Trash2 size={20} color="#FFFFFF" strokeWidth={2} />
           </TouchableOpacity>
         </View>
@@ -192,7 +242,7 @@ export function TransactionItem({
           <TouchableOpacity
             activeOpacity={0.82}
             onPress={() => {
-              if (isOpen.current) {
+              if (openSide.current) {
                 handleClose();
                 return;
               }
@@ -219,24 +269,32 @@ export function TransactionItem({
                 {title}
               </Text>
               {tags.length > 0 && (
-                <View style={styles.tagsRow}>
-                  {tags.map((tag) => (
-                    <View key={tag} style={styles.tagPill}>
-                      <Text style={styles.tagText}>{tag}</Text>
-                    </View>
-                  ))}
-                </View>
+                <Text style={styles.tagsText} numberOfLines={1}>
+                  {tags.join("  ")}
+                </Text>
               )}
             </View>
 
-            {/* Monto */}
-            <Text style={[styles.amount, { color: amountColor }]}>
-              {amountSign}
-              {formatAmount(transaction.amount)}
-            </Text>
+            {/* Monto — pill */}
+            <View style={styles.amountPill}>
+              <Text style={[styles.amount, { color: amountColor }]}>
+                {amountSign}
+                {formatAmount(transaction.amount)}
+              </Text>
+            </View>
           </TouchableOpacity>
         </Animated.View>
       </View>
+
+      <ConfirmDialog
+        visible={confirmVisible}
+        variant="danger"
+        title="¿Eliminar transacción?"
+        message="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </AnimatedRN.View>
   );
 }
@@ -281,6 +339,25 @@ function createStyles(t: AppTheme) {
       height: 48,
       borderRadius: 9999,
       backgroundColor: "#EF4444",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    // Botón azul detrás, lado izquierdo
+    editContainer: {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      bottom: 0,
+      width: EDIT_WIDTH,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    editBtn: {
+      width: 48,
+      height: 48,
+      borderRadius: 9999,
+      backgroundColor: "#135BEC",
       alignItems: "center",
       justifyContent: "center",
     },
@@ -350,31 +427,24 @@ function createStyles(t: AppTheme) {
       lineHeight: 21,
       letterSpacing: -0.2,
     },
-    tagsRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 4,
-      marginTop: 2,
-    },
-    tagPill: {
-      backgroundColor: t.inputBg,
-      borderRadius: 9999,
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-    },
-    tagText: {
+    tagsText: {
       fontSize: 11,
-      fontWeight: "600",
+      fontWeight: "500",
       color: t.textSub,
       lineHeight: 16,
+      marginTop: 2,
+    },
+    amountPill: {
+      backgroundColor: t.pillNeutral,
+      borderRadius: 9999,
+      paddingVertical: 7,
+      paddingHorizontal: 12,
+      flexShrink: 0,
     },
     amount: {
-      fontSize: 15,
+      fontSize: 13,
       fontWeight: "700",
-      lineHeight: 21,
-      flexShrink: 0,
-      minWidth: 80,
-      textAlign: "right",
+      lineHeight: 17,
     },
   });
 }

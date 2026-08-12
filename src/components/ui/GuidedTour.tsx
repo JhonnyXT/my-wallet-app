@@ -20,6 +20,7 @@ import {
   Platform,
   type LayoutRectangle,
 } from "react-native";
+import { useReduceMotion } from "@/src/hooks/useReduceMotion";
 
 export interface TourStep {
   targetRef: React.RefObject<View | null>;
@@ -52,6 +53,7 @@ export function GuidedTour({
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const tooltipScale = useRef(new Animated.Value(0.92)).current;
   const [spotRect, setSpotRect] = useState<LayoutRectangle | null>(null);
+  const reduceMotion = useReduceMotion();
 
   const step = steps[currentStep];
 
@@ -72,16 +74,23 @@ export function GuidedTour({
     if (visible && step) {
       setSpotRect(null);
       fadeAnim.setValue(0);
-      tooltipScale.setValue(0.92);
+      tooltipScale.setValue(reduceMotion ? 1 : 0.92);
       const timer = setTimeout(measureTarget, 450);
       return () => clearTimeout(timer);
     } else {
       setSpotRect(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, currentStep, measureTarget]);
 
   useEffect(() => {
     if (visible && spotRect) {
+      // Reducir movimiento: mantener el fade, saltar directo el scale del tooltip.
+      if (reduceMotion) {
+        tooltipScale.setValue(1);
+        Animated.timing(fadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+        return;
+      }
       Animated.parallel([
         Animated.timing(fadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }),
         Animated.spring(tooltipScale, {
@@ -92,7 +101,7 @@ export function GuidedTour({
         }),
       ]).start();
     }
-  }, [visible, spotRect]);
+  }, [visible, spotRect, reduceMotion]);
 
   if (!visible || !step) return null;
 

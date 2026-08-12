@@ -1,18 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
-import {
-  View,
-  Text,
-  Modal,
-  TouchableWithoutFeedback,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Dimensions,
-} from "react-native";
-import { X } from "lucide-react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from "react-native";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
 import { queryMonthlyExpensesByYear, queryFirstTransactionYear } from "@/src/db/queries";
+import { BottomSheet } from "@/src/components/ui/BottomSheet";
+import { PressableScale } from "@/src/components/ui/PressableScale";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -124,114 +116,88 @@ export function MonthPickerModal({
   ];
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
-      {/* Wrapper flex: overlay arriba, sheet abajo */}
-      <View style={st.wrapper}>
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={st.overlayFlex} />
-        </TouchableWithoutFeedback>
-
-        {/* Sheet */}
-        <View style={st.sheet}>
-          {/* Handle */}
-          <View style={st.handle} />
-
-          {/* Header */}
-          <View style={st.header}>
-            <Text style={st.title}>Seleccionar periodo</Text>
-            <TouchableOpacity onPress={onClose} style={st.closeBtn} activeOpacity={0.7}>
-              <X size={15} color={theme.textSub} strokeWidth={2.2} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Pills de año */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={st.yearScroll}
-            contentContainerStyle={st.yearScrollContent}
-          >
-            <TouchableOpacity
-              style={[st.yearPill, draftYear === null && st.yearPillActive]}
-              onPress={() => selectYear(null)}
-              activeOpacity={0.75}
-            >
-              <Text style={[st.yearPillText, draftYear === null && st.yearPillActiveText]}>
-                Todo el tiempo
-              </Text>
-            </TouchableOpacity>
-
-            {availableYears.map((y) => (
-              <TouchableOpacity
-                key={y}
-                style={[st.yearPill, draftYear === y && st.yearPillActive]}
-                onPress={() => selectYear(y)}
-                activeOpacity={0.75}
-              >
-                <Text style={[st.yearPillText, draftYear === y && st.yearPillActiveText]}>{y}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Contenido: grid de meses o mensaje "Todo el tiempo" */}
-          {draftYear === null ? (
-            <View style={st.allTimeMsg}>
-              <Text style={st.allTimeMsgText}>Se mostrarán todas las transacciones</Text>
-            </View>
-          ) : (
-            <View style={st.monthGrid}>
-              {monthRows.map((row) => (
-                <View key={row[0]} style={st.monthRow}>
-                  {row.map((month) => {
-                    const isSel = draftMonth === month;
-                    const isFut = isFuture(month);
-                    const amount = monthlyTotals[month];
-
-                    return (
-                      <TouchableOpacity
-                        key={month}
-                        style={[
-                          st.monthCell,
-                          isSel && st.monthCellSelected,
-                          isFut && st.monthCellFuture,
-                        ]}
-                        onPress={() => selectMonth(month)}
-                        disabled={isFut}
-                        activeOpacity={0.72}
-                      >
-                        <Text style={[st.monthName, isSel && st.monthNameSelected]}>
-                          {MONTH_NAMES[month - 1]}
-                        </Text>
-                        {amount !== undefined ? (
-                          <Text style={[st.monthAmount, isSel && st.monthAmountSelected]}>
-                            {formatCompact(amount)}
-                          </Text>
-                        ) : null}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Botón Aplicar */}
-          <TouchableOpacity
-            style={st.applyBtn}
-            onPress={() => onApply(draftYear, draftMonth)}
-            activeOpacity={0.85}
-          >
-            <Text style={st.applyBtnText}>✓ Aplicar</Text>
-          </TouchableOpacity>
-        </View>
+    <BottomSheet visible={visible} onClose={onClose} style={st.sheet}>
+      {/* Header */}
+      <View style={st.header}>
+        <Text style={st.title}>Seleccionar periodo</Text>
       </View>
-    </Modal>
+
+      {/* Pills de año */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={st.yearScroll}
+        contentContainerStyle={st.yearScrollContent}
+      >
+        <TouchableOpacity
+          style={[st.yearPill, draftYear === null && st.yearPillActive]}
+          onPress={() => selectYear(null)}
+          activeOpacity={0.75}
+        >
+          <Text style={[st.yearPillText, draftYear === null && st.yearPillActiveText]}>
+            Todo el tiempo
+          </Text>
+        </TouchableOpacity>
+
+        {availableYears.map((y) => (
+          <TouchableOpacity
+            key={y}
+            style={[st.yearPill, draftYear === y && st.yearPillActive]}
+            onPress={() => selectYear(y)}
+            activeOpacity={0.75}
+          >
+            <Text style={[st.yearPillText, draftYear === y && st.yearPillActiveText]}>{y}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Contenido: grid de meses o mensaje "Todo el tiempo" */}
+      {draftYear === null ? (
+        <View style={st.allTimeMsg}>
+          <Text style={st.allTimeMsgText}>Se mostrarán todas las transacciones</Text>
+        </View>
+      ) : (
+        <View style={st.monthGrid}>
+          {monthRows.map((row) => (
+            <View key={row[0]} style={st.monthRow}>
+              {row.map((month) => {
+                const isSel = draftMonth === month;
+                const isFut = isFuture(month);
+                const amount = monthlyTotals[month];
+
+                return (
+                  <TouchableOpacity
+                    key={month}
+                    style={[
+                      st.monthCell,
+                      isSel && st.monthCellSelected,
+                      isFut && st.monthCellFuture,
+                    ]}
+                    onPress={() => selectMonth(month)}
+                    disabled={isFut}
+                    activeOpacity={0.72}
+                  >
+                    <Text style={[st.monthName, isSel && st.monthNameSelected]}>
+                      {MONTH_NAMES[month - 1]}
+                    </Text>
+                    {amount !== undefined ? (
+                      <Text style={[st.monthAmount, isSel && st.monthAmountSelected]}>
+                        {formatCompact(amount)}
+                      </Text>
+                    ) : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Botón Aplicar */}
+      <PressableScale style={st.applyBtn} onPress={() => onApply(draftYear, draftMonth)}>
+        <Text style={st.applyBtnText}>✓ Aplicar</Text>
+      </PressableScale>
+    </BottomSheet>
   );
 }
 
@@ -239,38 +205,11 @@ export function MonthPickerModal({
 
 function buildStyles(t: AppTheme) {
   return StyleSheet.create({
-    wrapper: {
-      flex: 1,
-      backgroundColor: "rgba(0,0,0,0.45)",
-    },
-    overlayFlex: {
-      flex: 1,
-    },
     sheet: {
-      backgroundColor: t.surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
       paddingHorizontal: SHEET_PAD,
-      paddingTop: 12,
       paddingBottom: 36,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 24,
-      elevation: 24,
-    },
-    handle: {
-      width: 36,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: t.border,
-      alignSelf: "center",
-      marginBottom: 16,
     },
     header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
       marginBottom: 20,
     },
     title: {
@@ -278,14 +217,6 @@ function buildStyles(t: AppTheme) {
       fontWeight: "700",
       color: t.text,
       letterSpacing: -0.3,
-    },
-    closeBtn: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: t.inputBg,
-      alignItems: "center",
-      justifyContent: "center",
     },
 
     // ── Años

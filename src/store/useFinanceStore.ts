@@ -2,6 +2,7 @@ import { create } from "zustand";
 import {
   insertTransaction,
   insertTransactionBatch,
+  updateTransaction as dbUpdateTransaction,
   deleteTransaction as dbDeleteTransaction,
   getAllTransactions,
   type TransactionRow,
@@ -34,6 +35,15 @@ interface FinanceState {
   ) => Promise<void>;
   /** Inserta múltiples transacciones en lote y retorna sus IDs para permitir "Deshacer todo" */
   addTransactionBatch: (items: BatchTransactionItem[]) => Promise<number[]>;
+  updateTransaction: (
+    id: number,
+    amount: number,
+    description: string,
+    categoryEmoji: string,
+    tags?: string[],
+    date?: Date,
+    paymentMethod?: string,
+  ) => Promise<void>;
   deleteTransaction: (id: number) => Promise<void>;
 
   getTotalBalance: () => number;
@@ -110,6 +120,22 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       await notifyIfBudgetExceeded(all, emoji);
     }
     return inserted.map((tx) => tx.id);
+  },
+
+  updateTransaction: async (
+    id,
+    amount,
+    description,
+    categoryEmoji,
+    tags = [],
+    date?,
+    paymentMethod = "cash",
+  ) => {
+    await dbUpdateTransaction(id, amount, description, categoryEmoji, tags, date, paymentMethod);
+    // Refresh completo: si la fecha cambió, el orden (DESC por fecha) también puede cambiar.
+    const all = await getAllTransactions();
+    set({ transactions: all });
+    if (amount > 0) await notifyIfBudgetExceeded(all, categoryEmoji);
   },
 
   deleteTransaction: async (id) => {

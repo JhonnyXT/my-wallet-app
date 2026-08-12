@@ -4,12 +4,14 @@ import {
   Text,
   Modal,
   Animated,
-  TouchableOpacity,
   TouchableWithoutFeedback,
   StyleSheet,
 } from "react-native";
 import { AlertTriangle, Trash2, Info } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useReduceMotion } from "@/src/hooks/useReduceMotion";
+import { PressableScale } from "@/src/components/ui/PressableScale";
 import type { AppTheme } from "@/src/theme";
 
 type DialogVariant = "danger" | "warning" | "info";
@@ -72,12 +74,25 @@ export function ConfirmDialog({
   const st = useMemo(() => buildStyles(theme), [theme]);
   const cfg = VARIANT_CONFIG[variant];
   const Icon = cfg.icon;
+  const reduceMotion = useReduceMotion();
 
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
+  function handleCancel() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onCancel();
+  }
+
   useEffect(() => {
     if (visible) {
+      // Reducir movimiento: mantener el fade (ayuda a entender que algo apareció),
+      // pero saltar directo el scale — es puro movimiento, sin valor de comprensión.
+      if (reduceMotion) {
+        scaleAnim.setValue(1);
+        Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+        return;
+      }
       Animated.parallel([
         Animated.spring(scaleAnim, {
           toValue: 1,
@@ -88,14 +103,14 @@ export function ConfirmDialog({
         Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
       ]).start();
     } else {
-      scaleAnim.setValue(0.85);
+      scaleAnim.setValue(reduceMotion ? 1 : 0.85);
       opacityAnim.setValue(0);
     }
-  }, [visible]);
+  }, [visible, reduceMotion]);
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onCancel}>
-      <TouchableWithoutFeedback onPress={onCancel}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={handleCancel}>
+      <TouchableWithoutFeedback onPress={handleCancel}>
         <Animated.View style={[st.backdrop, { opacity: opacityAnim }]}>
           <TouchableWithoutFeedback>
             <Animated.View
@@ -109,16 +124,15 @@ export function ConfirmDialog({
               <Text style={st.message}>{message}</Text>
 
               <View style={st.buttons}>
-                <TouchableOpacity activeOpacity={0.7} onPress={onCancel} style={st.cancelBtn}>
+                <PressableScale onPress={handleCancel} style={st.cancelBtn}>
                   <Text style={st.cancelText}>{cancelLabel}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  activeOpacity={0.8}
+                </PressableScale>
+                <PressableScale
                   onPress={onConfirm}
                   style={[st.confirmBtn, { backgroundColor: cfg.btnBg }]}
                 >
                   <Text style={[st.confirmText, { color: cfg.btnText }]}>{confirmLabel}</Text>
-                </TouchableOpacity>
+                </PressableScale>
               </View>
             </Animated.View>
           </TouchableWithoutFeedback>

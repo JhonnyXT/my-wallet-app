@@ -394,7 +394,7 @@ export const EXPENSE_PRESETS: UserCategory[] = [
   },
   {
     id: "preset_eating_out",
-    emoji: "🍽️",
+    emoji: "🍔",
     name: "Comer afuera",
     colorBg: "#FFE8D6",
     colorAccent: "#B45309",
@@ -496,3 +496,40 @@ export const INCOME_PRESETS: UserCategory[] = [
 
 /** Todos los presets disponibles para seleccionar en el onboarding */
 export const ALL_PRESETS: UserCategory[] = [...EXPENSE_PRESETS, ...INCOME_PRESETS];
+
+/**
+ * Variantes de emoji temáticas por categoría preset — solo para el onboarding
+ * (deslizar dentro de la tarjeta para elegir un ícono alternativo antes de
+ * confirmar la selección). El primer elemento siempre coincide con el `emoji`
+ * original del preset, así el índice 0 es 100% compatible con lo existente.
+ * No se usa en `UserCategory` (tipo compartido con la DB/stores) para no
+ * ampliar ese contrato — es una tabla de lookup aparte, por `id` de preset.
+ */
+export const CATEGORY_EMOJI_VARIANTS: Record<string, string[]> = {
+  // Gastos
+  preset_food: ["🍔", "🍕", "🌮", "🍜", "🍱"],
+  preset_transport: ["🚗", "🚕", "🚌", "🚲", "🛵"],
+  preset_home: ["🏠", "🏡", "🔑", "💡", "🛋️"],
+  preset_shopping: ["🛍️", "🛒", "👜", "🎒", "💳"],
+  preset_health: ["🏥", "💊", "🩺", "🦷", "💉"],
+  preset_entertainment: ["🎮", "🎬", "🎵", "🎪", "🎤"],
+  preset_education: ["🎓", "📚", "✏️", "📖", "🔬"],
+  preset_personal: ["👤", "💇", "💅", "🧴", "🪒"],
+  preset_clothing: ["👕", "👟", "👗", "🧥", "👖"],
+  preset_pets: ["🐾", "🐕", "🐈", "🐟", "🦜"],
+  preset_car: ["🚙", "🚗", "🔧", "⛽", "🧼"],
+  preset_luxury: ["💎", "⌚", "💍", "👑", "🕶️"],
+  preset_travel: ["✈️", "🧳", "🏖️", "🗺️", "🏔️"],
+  preset_subscriptions: ["📱", "💻", "📺", "🎧", "☁️"],
+  preset_sports: ["⚽", "🏀", "🎾", "🏊", "🚴"],
+  preset_coffee: ["☕", "🍵", "🧋", "🥤", "🍩"],
+  preset_gifts: ["🎁", "🎀", "🎉", "💝", "🪅"],
+  preset_eating_out: ["🍔", "🍕", "🍣", "🍽️", "🍰"],
+  // Ingresos
+  preset_salary: ["💼", "🏢", "💰", "📄", "🧾"],
+  preset_freelance: ["💻", "🖥️", "📊", "✍️", "🎨"],
+  preset_investments: ["📈", "📊", "💹", "🪙", "📉"],
+  preset_extra: ["🎁", "🎉", "💵", "🎊", "🪙"],
+  preset_business: ["🏢", "🏪", "📦", "🧾", "💵"],
+  preset_other_income: ["💰", "💵", "🪙", "💳", "🏦"],
+};

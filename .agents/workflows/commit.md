@@ -31,6 +31,23 @@ Para cada archivo modificado en el diff, preguntarse:
 Si hay algo desactualizado → actualizarlo **antes** de hacer el commit e incluirlo en el mismo commit (o invocar el subagente `generador-docs`).
 Si todo está al día → continuar al siguiente paso.
 
+**`CLAUDE.md` casi nunca se edita directo** — es un router delgado que importa `AGENTS.md`
+completo (`@AGENTS.md`) más una tabla que apunta a `.cursor/rules/*.mdc` según el área tocada
+(compartidas con Cursor, es el "contexto" que ese editor carga). Actualizar `AGENTS.md` ya
+actualiza lo que `CLAUDE.md` expone. Lo que sí hay que revisar aparte, porque `/commit` no lo
+toca en el paso de arriba, es si el diff **establece o cambia una convención** (no solo un hecho
+puntual del proyecto) que debería vivir en la regla de área correspondiente:
+- `.cursor/rules/database.mdc` — si se tocó `src/db/**` (esquema, migraciones, queries)
+- `.cursor/rules/ui-components.mdc` — si se tocó cualquier `**/*.tsx` (tema, tokens, animaciones,
+  gestos) y el patrón usado es nuevo o reemplaza uno documentado (ej. un componente base nuevo
+  como `PressableScale`/`BottomSheet`, un cambio de convención de motion)
+- `.cursor/rules/typescript-strict.mdc` — patrones de store o TypeScript strict nuevos
+- `.cursor/rules/project-conventions.mdc` — convenciones generales nuevas
+
+Un hecho puntual ("se agregó X pantalla") va en `AGENTS.md`; una convención reutilizable ("los
+botones interactivos usan `PressableScale`, no `TouchableOpacity` plano") va en la regla de área.
+Si no hay convención nueva, no hace falta tocar estos archivos.
+
 ### Paso 4 — Proponer mensaje de commit
 Formato observado en el historial real del proyecto (`git log --oneline`):
 ```

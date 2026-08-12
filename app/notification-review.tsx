@@ -24,6 +24,7 @@ import { formatMoneyDisplay } from "@/src/utils/formatMoney";
 import { guessCategoryEmoji } from "@/src/constants/theme";
 import { resolveCategory } from "@/src/utils/transactionFormatters";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
+import { PressableScale } from "@/src/components/ui/PressableScale";
 import type { AppTheme } from "@/src/theme";
 import type { UserCategory } from "@/src/constants/categoryPresets";
 import type { SavingsGoal } from "@/src/store/useSettingsStore";
@@ -151,6 +152,11 @@ export default function NotificationReviewScreen() {
     pendingItems.map((p) => pendingToReview(p, userCategories, savingsGoals)),
   );
 
+  function handleBack() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.back();
+  }
+
   useEffect(() => {
     const newIds = new Set(items.map((i) => i.id));
     const newOnes = pendingItems
@@ -268,9 +274,9 @@ export default function NotificationReviewScreen() {
     return (
       <SafeAreaView style={[s.root, { backgroundColor: theme.bg }]}>
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+          <PressableScale onPress={handleBack} hitSlop={12}>
             <ChevronLeft size={26} color={ACCENT} />
-          </TouchableOpacity>
+          </PressableScale>
           <View style={s.headerText}>
             <Text style={[s.headerTitle, { color: theme.text }]}>Revisar registros</Text>
             <Text style={[s.headerSub, { color: theme.textSub }]}>
@@ -285,13 +291,9 @@ export default function NotificationReviewScreen() {
             Las transacciones detectadas automaticamente desde tus notificaciones bancarias
             apareceran aqui.
           </Text>
-          <TouchableOpacity
-            style={[s.emptyBtn, { backgroundColor: ACCENT }]}
-            onPress={() => router.back()}
-            activeOpacity={0.85}
-          >
+          <PressableScale style={[s.emptyBtn, { backgroundColor: ACCENT }]} onPress={handleBack}>
             <Text style={s.emptyBtnText}>Entendido</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </SafeAreaView>
     );
@@ -302,9 +304,9 @@ export default function NotificationReviewScreen() {
     <SafeAreaView style={[s.root, { backgroundColor: theme.bg }]}>
       {/* Header — estilo Stitch */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+        <PressableScale onPress={handleBack} hitSlop={12}>
           <ChevronLeft size={26} color={ACCENT} />
-        </TouchableOpacity>
+        </PressableScale>
         <View style={s.headerText}>
           <Text style={[s.headerTitle, { color: theme.text }]}>Revisar registros</Text>
           <Text style={[s.headerSub, { color: theme.textSub }]}>
@@ -312,14 +314,14 @@ export default function NotificationReviewScreen() {
             {items.length !== 1 ? "s" : ""}
           </Text>
         </View>
-        <TouchableOpacity
+        <PressableScale
           onPress={() => setShowDiscardConfirm(true)}
           hitSlop={12}
           accessibilityLabel="Descartar todo"
           accessibilityRole="button"
         >
           <Trash2 size={20} color={theme.textSub} />
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       {/* Lista de tarjetas */}
@@ -353,14 +355,10 @@ export default function NotificationReviewScreen() {
           {items.length} REGISTRO{items.length !== 1 ? "S" : ""} · TOTAL ${" "}
           {formatMoneyDisplay(grandTotal)}
         </Text>
-        <TouchableOpacity
-          style={[s.saveBtn, { backgroundColor: ACCENT }]}
-          onPress={handleSaveAll}
-          activeOpacity={0.85}
-        >
+        <PressableScale style={[s.saveBtn, { backgroundColor: ACCENT }]} onPress={handleSaveAll}>
           <Check size={18} color="#fff" strokeWidth={3} />
           <Text style={s.saveBtnText}>Guardar todo</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       <ConfirmDialog

@@ -20,7 +20,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import Animated, {
@@ -36,6 +35,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { PressableScale } from "@/src/components/ui/PressableScale";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useVoiceStore } from "@/src/store/useVoiceStore";
@@ -363,6 +363,7 @@ export default function VoiceInputScreen() {
   }
 
   function handleClose() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     clearSilenceTimer();
     try {
       SpeechModule?.stop();
@@ -405,23 +406,18 @@ export default function VoiceInputScreen() {
               {"· Ningún audio sale de tu teléfono"}
             </Text>
             <View style={micDiscS.btns}>
-              <TouchableOpacity
+              <PressableScale
                 style={micDiscS.btnCancel}
                 onPress={() => {
                   setShowMicDisclosure(false);
                   handleClose();
                 }}
-                activeOpacity={0.7}
               >
                 <Text style={micDiscS.btnCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={micDiscS.btnConfirm}
-                onPress={handleMicDisclosureConfirm}
-                activeOpacity={0.7}
-              >
+              </PressableScale>
+              <PressableScale style={micDiscS.btnConfirm} onPress={handleMicDisclosureConfirm}>
                 <Text style={micDiscS.btnConfirmText}>Continuar</Text>
-              </TouchableOpacity>
+              </PressableScale>
             </View>
           </View>
         </View>
@@ -433,9 +429,9 @@ export default function VoiceInputScreen() {
 
       {/* ── Header: solo botón cerrar ─────────────────────────────── */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Pressable onPress={handleClose} style={styles.closeBtn} hitSlop={12}>
+        <PressableScale onPress={handleClose} style={styles.closeBtn} hitSlop={12}>
           <X size={20} color="rgba(255,255,255,0.7)" strokeWidth={2} />
-        </Pressable>
+        </PressableScale>
       </View>
 
       {/* ── Orb + Transcript ─────────────────────────────────────────── */}

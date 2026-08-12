@@ -6,21 +6,21 @@ import {
   TextInput,
   ScrollView,
   StyleSheet,
-  Modal,
-  TouchableWithoutFeedback,
   Platform,
   KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import Animated, { useReducedMotion, FadeInDown, FadeOutUp, Easing } from "react-native-reanimated";
 import {
   X,
   Check,
+  CheckCircle2,
   Plus,
-  Edit3,
   Calendar,
+  FileText,
   UtensilsCrossed,
-  Wallet,
   Car,
   Home,
   ShoppingBag,
@@ -31,27 +31,27 @@ import {
   Banknote,
   Landmark,
   CreditCard,
-  CalendarCheck,
-  CalendarPlus,
   Briefcase,
   Laptop2,
   TrendingUp,
   Gift,
   Building2,
 } from "lucide-react-native";
-import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
 
-import { useExpenseStore, DateOption, AccountType } from "@/src/store/useExpenseStore";
+import { useExpenseStore, AccountType } from "@/src/store/useExpenseStore";
 import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 
 import { checkAndNotifyBudget } from "@/src/services/notificationService";
 import { NewCategoryModal } from "@/app/category-onboarding";
+import { PaymentMethodsSection } from "@/app/settings";
 import type { UserCategory } from "@/src/constants/categoryPresets";
 import { processVoiceInput } from "@/src/utils/voiceParser";
 import { useTheme } from "@/src/context/ThemeContext";
+import { CalendarSheet } from "@/src/components/ui/CalendarSheet";
+import { BottomSheet } from "@/src/components/ui/BottomSheet";
 import type { AppTheme } from "@/src/theme";
 
 // ─── Colores de acción (fijos, no cambian con el tema) ─────────────────────────
@@ -59,11 +59,12 @@ const BLUE = "#135BEC";
 const RED = "#EF4444";
 const GREEN = "#22C55E";
 
+// Botón "Guardar" deshabilitado: en oscuro el gris claro pensado para modo claro
+// se ve "lavado" contra el fondo oscuro — override puntual solo para ese estado.
+const DARK_DISABLED_BG = "#334155";
+const DARK_DISABLED_TEXT = "#64748B";
+
 // ─── Opciones ─────────────────────────────────────────────────────────────────
-const DATE_OPTIONS: { key: DateOption; label: string }[] = [
-  { key: "today", label: "Hoy" },
-  { key: "custom", label: "Calendario" },
-];
 // Categorías se derivan dinámicamente del store (ya no hardcoded)
 const ACCOUNT_OPTIONS: { key: AccountType; label: string }[] = [
   { key: "cash", label: "Efectivo" },
@@ -99,295 +100,12 @@ const ACCOUNT_DETAILS: Record<AccountType, { Icon: LucideIcon; desc: string }> =
   credit: { Icon: CreditCard, desc: "Tarjeta de crédito" },
 };
 
-// ─── Iconos de fecha y recurrencia ────────────────────────────────────────────
-const DATE_ICONS: Record<string, LucideIcon> = {
-  today: CalendarCheck,
-  custom: CalendarPlus,
-};
-// ─── Sheet: lista genérica con icono izquierdo (fecha) ───────────────────────
-function ListSheet({
-  visible,
-  title,
-  options,
-  selected,
-  accent,
-  iconMap,
-  onSelect,
-  onClose,
-}: {
-  visible: boolean;
-  title: string;
-  options: { key: string; label: string }[];
-  selected: string;
-  accent: string;
-  iconMap: Record<string, LucideIcon>;
-  onSelect: (k: string) => void;
-  onClose: () => void;
-}) {
-  const theme = useTheme();
-  const sh = useMemo(() => buildSheet(theme), [theme]);
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={sh.backdrop} />
-      </TouchableWithoutFeedback>
-      <View style={sh.container}>
-        <View style={sh.handle} />
-        <Text style={sh.title}>{title}</Text>
-        {options.map((opt, i) => {
-          const Icon = iconMap[opt.key];
-          const isSel = opt.key === selected;
-          return (
-            <View key={opt.key}>
-              <TouchableOpacity
-                activeOpacity={0.6}
-                onPress={() => {
-                  onSelect(opt.key);
-                  onClose();
-                }}
-                style={sh.option}
-              >
-                <View style={sh.optionLeft}>
-                  <View style={[sh.optionIconBox, isSel && { backgroundColor: accent + "18" }]}>
-                    {Icon && (
-                      <Icon size={18} color={isSel ? accent : theme.textSub} strokeWidth={1.8} />
-                    )}
-                  </View>
-                  <Text style={[sh.optionText, isSel && { color: accent, fontWeight: "700" }]}>
-                    {opt.label}
-                  </Text>
-                </View>
-                {isSel && <Check size={16} color={accent} strokeWidth={2.5} />}
-              </TouchableOpacity>
-              {i < options.length - 1 && <View style={sh.sep} />}
-            </View>
-          );
-        })}
-      </View>
-    </Modal>
-  );
-}
-
-// ─── Sheet: CATEGORÍA — grid dinámico + botón CONFIRMAR ──────────────────────
-function CategorySheet({
-  visible,
-  selected,
-  accent,
-  isExpense,
-  categories,
-  onSelect,
-  onClose,
-  onCreateNew,
-}: {
-  visible: boolean;
-  selected: string;
-  accent: string;
-  isExpense: boolean;
-  categories: { key: string; label: string; colorBg: string; colorAccent: string }[];
-  onSelect: (k: string) => void;
-  onClose: () => void;
-  onCreateNew: () => void;
-}) {
-  const [temp, setTemp] = useState(selected);
-  useEffect(() => {
-    if (visible) setTemp(selected);
-  }, [visible, selected]);
-  const theme = useTheme();
-  const sh = useMemo(() => buildSheet(theme), [theme]);
-  const cs = useMemo(() => buildCatS(theme), [theme]);
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={sh.backdrop} />
-      </TouchableWithoutFeedback>
-      <View style={[sh.container, cs.container]}>
-        <View style={sh.handle} />
-        <View style={cs.header}>
-          <View>
-            <Text style={cs.title}>CATEGORÍA</Text>
-            <Text style={cs.subtitle}>
-              {isExpense ? "Elige el tipo de gasto" : "Elige el tipo de ingreso"}
-            </Text>
-          </View>
-          <TouchableOpacity onPress={onClose} hitSlop={12}>
-            <Text style={cs.cancel}>Cancelar</Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
-          <View style={[cs.grid, categories.length <= 5 && cs.gridIncome]}>
-            {categories.map((cat) => {
-              const info = CATEGORY_ICONS[cat.key];
-              const isSel = temp === cat.key;
-              return (
-                <TouchableOpacity
-                  key={cat.key}
-                  style={cs.item}
-                  onPress={() => setTemp(cat.key)}
-                  activeOpacity={0.7}
-                >
-                  <View style={cs.iconWrap}>
-                    <View style={[cs.iconBox, { backgroundColor: cat.colorBg }]}>
-                      {info ? (
-                        <info.Icon size={24} color={cat.colorAccent} strokeWidth={1.8} />
-                      ) : (
-                        <Text style={{ fontSize: 22 }}>{cat.key}</Text>
-                      )}
-                    </View>
-                    {isSel && (
-                      <View style={cs.checkBadge}>
-                        <Check size={10} color="#FFFFFF" strokeWidth={3} />
-                      </View>
-                    )}
-                  </View>
-                  <Text style={[cs.itemLabel, isSel && cs.itemLabelSelected]}>{cat.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-            {/* Ítem "Nueva categoría" */}
-            <TouchableOpacity
-              key="__new__"
-              style={cs.item}
-              onPress={onCreateNew}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  cs.iconBox,
-                  {
-                    backgroundColor: theme.inputBg,
-                    borderWidth: 1.5,
-                    borderColor: accent,
-                    borderStyle: "dashed",
-                  },
-                ]}
-              >
-                <Plus size={24} color={accent} strokeWidth={2.5} />
-              </View>
-              <Text style={[cs.itemLabel, { color: accent, fontWeight: "700" }]}>Nueva</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-        <TouchableOpacity
-          style={cs.confirmBtn}
-          onPress={() => {
-            onSelect(temp);
-            onClose();
-          }}
-          activeOpacity={0.85}
-        >
-          <Text style={cs.confirmText}>CONFIRMAR</Text>
-        </TouchableOpacity>
-      </View>
-    </Modal>
-  );
-}
-
-// ─── Sheet: CUENTA — lista con icono + descripción + checkmark ────────────────
+// ─── Iconos de tipo de cuenta ─────────────────────────────────────────────────
 const PAYMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   cash: Banknote,
   debit: CreditCard,
   savings: Landmark,
 };
-
-function AccountSheet({
-  visible,
-  selected,
-  accent,
-  options,
-  onSelect,
-  onClose,
-}: {
-  visible: boolean;
-  selected: string;
-  accent: string;
-  options: { key: string; label: string; type: string }[];
-  onSelect: (k: string) => void;
-  onClose: () => void;
-}) {
-  const theme = useTheme();
-  const sh = useMemo(() => buildSheet(theme), [theme]);
-  const as = useMemo(() => buildAccS(theme), [theme]);
-  const displayOptions =
-    options.length > 0
-      ? options
-      : ACCOUNT_OPTIONS.map((o) => ({ key: o.key, label: o.label, type: o.key }));
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={sh.backdrop} />
-      </TouchableWithoutFeedback>
-      <View style={sh.container}>
-        <View style={sh.handle} />
-        <Text style={[sh.title, { marginBottom: 8 }]}>Seleccionar Cuenta</Text>
-        {displayOptions.map((opt, i) => {
-          const Icon = PAYMENT_TYPE_ICONS[opt.type] ?? Banknote;
-          const isSel = opt.key === selected;
-          return (
-            <View key={opt.key}>
-              <TouchableOpacity
-                activeOpacity={0.6}
-                onPress={() => {
-                  onSelect(opt.key);
-                  onClose();
-                }}
-                style={as.row}
-              >
-                <View style={[as.iconBox, isSel && { backgroundColor: accent + "18" }]}>
-                  <Icon size={22} color={isSel ? accent : theme.textSub} strokeWidth={1.8} />
-                </View>
-                <View style={as.textBlock}>
-                  <Text style={[as.name, isSel && { color: accent, fontWeight: "700" }]}>
-                    {opt.label}
-                  </Text>
-                </View>
-                {isSel && <Check size={18} color={accent} strokeWidth={2.5} />}
-              </TouchableOpacity>
-              {i < displayOptions.length - 1 && <View style={sh.sep} />}
-            </View>
-          );
-        })}
-        {/* Ir a configuración para gestionar métodos */}
-        <TouchableOpacity
-          style={as.addRow}
-          activeOpacity={0.6}
-          onPress={() => {
-            onClose();
-            router.push("/settings");
-          }}
-        >
-          <Plus size={16} color={BLUE} strokeWidth={2} />
-          <Text style={as.addText}>Gestionar métodos de pago</Text>
-        </TouchableOpacity>
-      </View>
-    </Modal>
-  );
-}
-
-// ─── Selector icon-button: círculo + tipo (gris) + valor (negro bold) ────────
-function SelIconBtn({
-  icon,
-  fieldName,
-  value,
-  onPress,
-}: {
-  icon: React.ReactNode;
-  fieldName: string;
-  value: string;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  const st = useMemo(() => buildS(theme), [theme]);
-  return (
-    <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={st.selIconBtn}>
-      <View style={st.selIconCircle}>{icon}</View>
-      <Text style={st.selFieldName}>{fieldName}</Text>
-      <Text style={st.selValue} numberOfLines={1}>
-        {value}
-      </Text>
-    </TouchableOpacity>
-  );
-}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtCOP(n: number) {
@@ -443,11 +161,12 @@ export default function ActiveExpenseScreen() {
   );
 
   const [tagInput, setTagInput] = useState("");
-  const [activeSheet, setActiveSheet] = useState<"date" | "category" | "account" | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [descOpen, setDescOpen] = useState(false);
   const [amountEditing, setAmountEditing] = useState(false);
   const [amountDisplay, setAmountDisplay] = useState("");
   const [showNewCatModal, setShowNewCatModal] = useState(false);
+  const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false);
   const amountInputRef = useRef<TextInput>(null);
   const noteRef = useRef<TextInput>(null);
 
@@ -455,7 +174,19 @@ export default function ActiveExpenseScreen() {
     addUserCategory(cat);
     store.setCategory(cat.emoji, cat.name);
     setShowNewCatModal(false);
-    setActiveSheet(null);
+  }
+
+  // Respeta "reducir movimiento" del sistema: sin duración, aparece/desaparece directo.
+  const reducedMotion = useReducedMotion();
+  const descEntering = reducedMotion
+    ? undefined
+    : FadeInDown.duration(220).easing(Easing.out(Easing.cubic));
+  const descExiting = reducedMotion ? undefined : FadeOutUp.duration(160);
+
+  function toggleDesc() {
+    const opening = !descOpen;
+    setDescOpen(opening);
+    if (opening) setTimeout(() => noteRef.current?.focus(), 260);
   }
 
   const isExpense = store.isExpense;
@@ -475,18 +206,13 @@ export default function ActiveExpenseScreen() {
     if (fromBatchReview || fromNotificationEdit) return;
 
     const text = store.note?.trim() ?? "";
-
-    // Texto vacío → solo resetear el monto (NO tocar isExpense ni categoría)
-    if (!text) {
-      store.setAmount(0);
-      return;
-    }
     if (text.length < 2) return;
 
     const parsed = processVoiceInput(text);
 
-    // Monto: actualizar siempre que haya un número detectado
-    if (parsed.amount && parsed.amount > 0) store.setAmount(parsed.amount);
+    // El monto ya no se sincroniza desde el texto libre: tiene su propio campo
+    // editable (tap en el importe de la tarjeta) — sincronizarlo aquí también
+    // sobrescribiría en silencio un valor que el usuario ya fijó a mano.
 
     // Fecha: solo si se mencionó explícitamente (ayer, hoy, anteayer)
     if (parsed._dateDetected && parsed.date) store.setDate(parsed.date);
@@ -596,30 +322,23 @@ export default function ActiveExpenseScreen() {
     }
   }
 
-  const dateLabel =
-    store.date === "custom" && store.customDate
-      ? store.customDate.toLocaleDateString("es-CO", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        })
-      : (DATE_OPTIONS.find((o) => o.key === store.date)?.label ?? "Hoy");
-  const allCatOptions = [...expenseCatOptions, ...incomeCatOptions];
-  const catLabel =
-    allCatOptions.find((o) => o.key === store.categoryEmoji)?.label ?? store.categoryName;
-  const accountLabel =
-    paymentMethods.find((m) => m.id === store.account)?.name ??
-    ACCOUNT_OPTIONS.find((o) => o.key === store.account)?.label ??
-    "Efectivo";
+  const effectiveDate = store.date === "custom" && store.customDate ? store.customDate : new Date();
+  const dateLabel = effectiveDate.toLocaleDateString("es-CO", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  const accountOptions =
+    paymentMethods.length > 0
+      ? paymentMethods.map((m) => ({ key: m.id, label: m.name, type: m.type }))
+      : ACCOUNT_OPTIONS.map((o) => ({ key: o.key, label: o.label, type: o.key }));
   const displayTags = store.tags.length > 0 ? store.tags : SUGGESTED_TAGS;
   const displayAmt =
     store.amount > 0
       ? `${isExpense ? "−" : "+"} ${fmtCOP(store.amount)}`
       : `${isExpense ? "−" : "+"} $ 0`;
 
-  const noteplaceholder = isExpense
-    ? "Describe tu gasto aquí... ej: taxi 8500 ayer"
-    : "Describe tu ingreso aquí... ej: freelance 200 mil hoy";
+  const noteplaceholder = isExpense ? "Describe tu gasto aquí" : "Describe tu ingreso aquí";
 
   // Reduce el tamaño de fuente según cuántos dígitos tiene el monto
   const dynamicAmountStyle = (amt: number) => {
@@ -635,7 +354,7 @@ export default function ActiveExpenseScreen() {
       style={st.screen}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      {/* ── HEADER ────────────────────────────────────────────────────────── */}
+      {/* ── HEADER — solo botón atrás, título centrado ──────────────────────── */}
       <View style={[st.header, { paddingTop: insets.top + 10 }]}>
         <TouchableOpacity
           onPress={handleClose}
@@ -646,19 +365,8 @@ export default function ActiveExpenseScreen() {
         >
           <X size={20} color={theme.textSub} strokeWidth={2} />
         </TouchableOpacity>
-
         <Text style={st.headerTitle}>{title}</Text>
-
-        <TouchableOpacity
-          onPress={handleConfirm}
-          disabled={store.amount <= 0}
-          hitSlop={8}
-          style={[st.confirmBtn, store.amount <= 0 && st.confirmBtnOff]}
-          accessibilityLabel="Confirmar"
-          accessibilityRole="button"
-        >
-          <Check size={18} color="#FFFFFF" strokeWidth={2.5} />
-        </TouchableOpacity>
+        <View style={st.headerSideBtn} />
       </View>
 
       {/* ── CONTENIDO ─────────────────────────────────────────────────────── */}
@@ -668,168 +376,273 @@ export default function ActiveExpenseScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Monto */}
-        <View style={st.amountBlock}>
-          {amountEditing ? (
-            <View style={st.amountEditRow}>
-              <Text style={[st.amountSignText, { color: accent }]}>{isExpense ? "−" : "+"} $</Text>
-              <TextInput
-                ref={amountInputRef}
-                value={amountDisplay}
-                onChangeText={handleAmountChange}
-                onBlur={handleAmountBlur}
-                onSubmitEditing={handleAmountBlur}
-                keyboardType="number-pad"
-                style={[st.amountInput, { color: accent }, dynamicAmountStyle(store.amount)]}
-                returnKeyType="done"
-                placeholder="0"
-                placeholderTextColor={accent + "55"}
-                selectTextOnFocus
-              />
-            </View>
-          ) : (
-            <TouchableOpacity
-              onPress={handleAmountTap}
-              activeOpacity={0.7}
-              style={{ width: "100%" }}
-            >
-              <Text
-                style={[st.amountText, { color: accent }, dynamicAmountStyle(store.amount)]}
-                adjustsFontSizeToFit
-                numberOfLines={1}
-                minimumFontScale={0.5}
+        {/* ── TARJETA: importe + descripción + fecha ─────────────────────── */}
+        <View style={st.card}>
+          <Text style={st.cardLabel}>IMPORTE</Text>
+          <View style={st.amountBlock}>
+            {amountEditing ? (
+              <View style={st.amountEditRow}>
+                <Text style={[st.amountSignText, { color: accent }]}>
+                  {isExpense ? "−" : "+"} $
+                </Text>
+                <TextInput
+                  ref={amountInputRef}
+                  value={amountDisplay}
+                  onChangeText={handleAmountChange}
+                  onBlur={handleAmountBlur}
+                  onSubmitEditing={handleAmountBlur}
+                  keyboardType="number-pad"
+                  style={[st.amountInput, { color: accent }, dynamicAmountStyle(store.amount)]}
+                  returnKeyType="done"
+                  placeholder="0"
+                  placeholderTextColor={accent + "55"}
+                  selectTextOnFocus
+                />
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={handleAmountTap}
+                activeOpacity={0.7}
+                style={{ width: "100%" }}
               >
-                {displayAmt}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+                <Text
+                  style={[st.amountText, { color: accent }, dynamicAmountStyle(store.amount)]}
+                  adjustsFontSizeToFit
+                  numberOfLines={1}
+                  minimumFontScale={0.5}
+                >
+                  {displayAmt}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
-        {/* Selectores — fila de 3 iconos */}
-        <View style={st.selRow}>
-          <SelIconBtn
-            icon={<Calendar size={20} color={theme.textSub} strokeWidth={1.8} />}
-            fieldName="FECHA"
-            value={dateLabel}
-            onPress={() => setActiveSheet("date")}
-          />
-          <SelIconBtn
-            icon={<UtensilsCrossed size={20} color={theme.textSub} strokeWidth={1.8} />}
-            fieldName="CATEGORÍA"
-            value={catLabel}
-            onPress={() => setActiveSheet("category")}
-          />
-          <SelIconBtn
-            icon={<Wallet size={20} color={theme.textSub} strokeWidth={1.8} />}
-            fieldName="CUENTA"
-            value={accountLabel}
-            onPress={() => setActiveSheet("account")}
-          />
-        </View>
+          <View style={st.cardDivider} />
 
-        {/* Transcripción */}
-        <View style={st.transcriptBox}>
-          <TextInput
-            ref={noteRef}
-            value={store.note || store.rawTranscript}
-            onChangeText={store.setNote}
-            multiline
-            style={st.transcriptInput}
-            placeholderTextColor={theme.textTertiary}
-            placeholder={noteplaceholder}
-            textAlignVertical="top"
-            scrollEnabled={false}
-          />
-          {/* Lápiz edición — posición absoluta esquina inferior derecha */}
+          <TouchableOpacity style={st.cardRow} onPress={toggleDesc} activeOpacity={0.6}>
+            <FileText size={18} color={theme.textSub} strokeWidth={1.8} />
+            <Text
+              style={[
+                st.cardRowText,
+                !(store.note || store.rawTranscript) && { color: theme.textTertiary },
+              ]}
+              numberOfLines={1}
+            >
+              {store.note || store.rawTranscript || noteplaceholder}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={st.cardDivider} />
+
           <TouchableOpacity
-            onPress={() => noteRef.current?.focus()}
-            style={st.editIcon}
-            hitSlop={14}
-            accessibilityLabel="Editar descripción"
-            accessibilityRole="button"
+            style={st.cardRow}
+            onPress={() => setCalendarOpen(true)}
+            activeOpacity={0.6}
           >
-            <Edit3 size={16} color={theme.textTertiary} strokeWidth={1.8} />
+            <Calendar size={18} color={theme.textSub} strokeWidth={1.8} />
+            <Text style={st.cardRowText}>{dateLabel}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── TAGS ────────────────────────────────────────────────────────── */}
-        <View style={[st.tagsBar, { marginBottom: insets.bottom + 6 }]}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={st.tagsRow}
+        {/* ── Descripción + tags — solo visible al tocar la fila de arriba ── */}
+        {descOpen && (
+          <Animated.View entering={descEntering} exiting={descExiting} style={st.descPanel}>
+            <TextInput
+              ref={noteRef}
+              value={store.note || store.rawTranscript}
+              onChangeText={store.setNote}
+              multiline
+              style={st.transcriptInput}
+              placeholderTextColor={theme.textTertiary}
+              placeholder={noteplaceholder}
+              textAlignVertical="top"
+              onBlur={() => setDescOpen(false)}
+            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={st.tagsRow}
+              keyboardShouldPersistTaps="handled"
+            >
+              {displayTags.map((tag) => {
+                const on = store.tags.includes(tag);
+                return (
+                  <TouchableOpacity
+                    key={tag}
+                    activeOpacity={0.7}
+                    onPress={() => (on ? store.removeTag(tag) : store.addTag(tag))}
+                    style={[
+                      st.tagPill,
+                      on
+                        ? { backgroundColor: accentBg, borderColor: accentBg }
+                        : { backgroundColor: theme.bg, borderColor: theme.border },
+                    ]}
+                  >
+                    <Text style={[st.tagText, { color: on ? accentText : theme.textSub }]}>
+                      {tag}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+              <View style={st.tagInput}>
+                <Plus size={11} color={theme.textTertiary} strokeWidth={2} />
+                <TextInput
+                  value={tagInput}
+                  onChangeText={setTagInput}
+                  onSubmitEditing={handleAddTag}
+                  placeholder="tag"
+                  placeholderTextColor={theme.textTertiary}
+                  style={[st.tagInputText, { color: theme.text }]}
+                  returnKeyType="done"
+                  autoCapitalize="none"
+                />
+              </View>
+            </ScrollView>
+          </Animated.View>
+        )}
+
+        {/* ── CATEGORÍA — lista horizontal siempre visible ─────────────────── */}
+        <Text style={st.sectionLabel}>CATEGORÍA</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={st.catRow}
+        >
+          {(isExpense ? expenseCatOptions : incomeCatOptions).map((cat) => {
+            const info = CATEGORY_ICONS[cat.key];
+            const isSel = store.categoryEmoji === cat.key;
+            // En oscuro no usamos los pasteles de cat.colorBg/colorAccent (pensados para
+            // fondo claro, chocan contra el navy) — mismo tratamiento uniforme que Stitch:
+            // gris translúcido sin seleccionar, tinte del acento al seleccionar.
+            const iconBg = theme.isDark
+              ? isSel
+                ? accent + "33"
+                : "rgba(255,255,255,0.06)"
+              : cat.colorBg;
+            const iconColor = theme.isDark ? (isSel ? accent : theme.textSub) : cat.colorAccent;
+            return (
+              <TouchableOpacity
+                key={cat.key}
+                style={st.catItem}
+                onPress={() => store.setCategory(cat.key, cat.label)}
+                activeOpacity={0.7}
+              >
+                <View style={st.catIconWrap}>
+                  <View
+                    style={[
+                      st.catIconBox,
+                      { backgroundColor: iconBg },
+                      isSel && { borderWidth: 2, borderColor: accent },
+                    ]}
+                  >
+                    {info ? (
+                      <info.Icon size={22} color={iconColor} strokeWidth={1.8} />
+                    ) : (
+                      <Text style={{ fontSize: 20 }}>{cat.key}</Text>
+                    )}
+                  </View>
+                  {isSel && (
+                    <View style={[st.catCheckBadge, { backgroundColor: accent }]}>
+                      <Check size={10} color="#FFFFFF" strokeWidth={3} />
+                    </View>
+                  )}
+                </View>
+                <Text style={[st.catItemLabel, isSel && st.catItemLabelSelected]} numberOfLines={1}>
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+          <TouchableOpacity
+            style={st.catItem}
+            onPress={() => setShowNewCatModal(true)}
+            activeOpacity={0.7}
           >
-            {displayTags.map((tag) => {
-              const on = store.tags.includes(tag);
-              return (
-                <TouchableOpacity
-                  key={tag}
-                  activeOpacity={0.7}
-                  onPress={() => (on ? store.removeTag(tag) : store.addTag(tag))}
-                  style={[
-                    st.tagPill,
-                    on
-                      ? { backgroundColor: accentBg, borderColor: accentBg }
-                      : { backgroundColor: theme.surface, borderColor: theme.border },
-                  ]}
-                >
-                  <Text style={[st.tagText, { color: on ? accentText : theme.textSub }]}>
-                    {tag}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-            <View style={st.tagInput}>
-              <Plus size={11} color={theme.textTertiary} strokeWidth={2} />
-              <TextInput
-                value={tagInput}
-                onChangeText={setTagInput}
-                onSubmitEditing={handleAddTag}
-                placeholder="tag"
-                placeholderTextColor={theme.textTertiary}
-                style={[st.tagInputText, { color: theme.text }]}
-                returnKeyType="done"
-                autoCapitalize="none"
-              />
+            <View
+              style={[
+                st.catIconBox,
+                {
+                  backgroundColor: theme.isDark ? "rgba(255,255,255,0.06)" : theme.inputBg,
+                  borderWidth: 1.5,
+                  borderColor: accent,
+                  borderStyle: "dashed",
+                },
+              ]}
+            >
+              <Plus size={22} color={accent} strokeWidth={2.5} />
             </View>
-          </ScrollView>
+            <Text style={[st.catItemLabel, { color: accent, fontWeight: "700" }]}>Nueva</Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* ── CUENTA — lista vertical siempre visible ──────────────────────── */}
+        <Text style={st.sectionLabel}>CUENTA</Text>
+        <View style={st.accList}>
+          {accountOptions.map((opt, i) => {
+            const Icon = PAYMENT_TYPE_ICONS[opt.type] ?? Banknote;
+            const isSel = opt.key === store.account;
+            return (
+              <View key={opt.key}>
+                <TouchableOpacity
+                  activeOpacity={0.6}
+                  onPress={() => store.setAccount(opt.key as AccountType)}
+                  style={[st.accRow, isSel && { backgroundColor: accent + "14" }]}
+                >
+                  <View style={[st.accIconBox, isSel && { backgroundColor: accent + "22" }]}>
+                    <Icon size={20} color={isSel ? accent : theme.textSub} strokeWidth={1.8} />
+                  </View>
+                  <Text style={[st.accName, isSel && { color: accent, fontWeight: "700" }]}>
+                    {opt.label}
+                  </Text>
+                  {isSel && <CheckCircle2 size={18} color={accent} strokeWidth={2} />}
+                </TouchableOpacity>
+                {i < accountOptions.length - 1 && <View style={st.accSep} />}
+              </View>
+            );
+          })}
         </View>
+        <TouchableOpacity
+          style={st.accAddRow}
+          activeOpacity={0.6}
+          onPress={() => setPaymentMethodsOpen(true)}
+        >
+          <Plus size={16} color={theme.textSub} strokeWidth={2} />
+          <Text style={st.accAddText}>Gestionar métodos de pago</Text>
+        </TouchableOpacity>
       </ScrollView>
 
-      {/* ── BOTTOM SHEETS ─────────────────────────────────────────────────── */}
-      <ListSheet
-        visible={activeSheet === "date"}
-        title="Fecha"
-        options={DATE_OPTIONS}
-        selected={store.date}
-        accent={accent}
-        iconMap={DATE_ICONS}
-        onSelect={(k) => {
-          if (k === "custom") {
-            setShowDatePicker(true);
-          } else {
-            store.setDate(k as DateOption);
-          }
-        }}
-        onClose={() => setActiveSheet(null)}
-      />
-      <CategorySheet
-        visible={activeSheet === "category"}
-        selected={store.categoryEmoji}
-        accent={accent}
-        isExpense={isExpense}
-        categories={isExpense ? expenseCatOptions : incomeCatOptions}
-        onSelect={(k) => {
-          const c = allCatOptions.find((x) => x.key === k);
-          if (c) store.setCategory(c.key, c.label);
-          else store.setCategory(k, k);
-        }}
-        onClose={() => setActiveSheet(null)}
-        onCreateNew={() => {
-          setActiveSheet(null);
-          setTimeout(() => setShowNewCatModal(true), 320);
-        }}
-      />
+      {/* ── GUARDAR — fijo abajo, fácil de alcanzar con el pulgar ────────── */}
+      <View style={[st.footer, { paddingBottom: insets.bottom + 12 }]}>
+        <LinearGradient
+          colors={[theme.bg + "00", theme.bg, theme.bg]}
+          locations={[0, 0.45, 1]}
+          style={st.footerFade}
+          pointerEvents="none"
+        />
+        <TouchableOpacity
+          onPress={handleConfirm}
+          disabled={store.amount <= 0}
+          activeOpacity={0.85}
+          style={[st.saveBtn, store.amount <= 0 && st.saveBtnOff]}
+          accessibilityLabel="Guardar"
+          accessibilityRole="button"
+        >
+          <Check
+            size={18}
+            color={store.amount <= 0 && theme.isDark ? DARK_DISABLED_TEXT : "#FFFFFF"}
+            strokeWidth={3}
+          />
+          <Text
+            style={[
+              st.saveBtnText,
+              store.amount <= 0 && theme.isDark && { color: DARK_DISABLED_TEXT },
+            ]}
+          >
+            Guardar
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <NewCategoryModal
         visible={showNewCatModal}
         type={isExpense ? "expense" : "income"}
@@ -837,38 +650,39 @@ export default function ActiveExpenseScreen() {
         onClose={() => setShowNewCatModal(false)}
         onSave={handleNewCategoryCreated}
       />
-      <AccountSheet
-        visible={activeSheet === "account"}
-        selected={store.account}
+
+      <CalendarSheet
+        visible={calendarOpen}
+        selectedDate={effectiveDate}
         accent={accent}
-        options={paymentMethods.map((m) => ({ key: m.id, label: m.name, type: m.type }))}
-        onSelect={(k) => store.setAccount(k as AccountType)}
-        onClose={() => setActiveSheet(null)}
+        onSelect={(date) => store.setCustomDate(date)}
+        onClose={() => setCalendarOpen(false)}
       />
 
-      {/* ── DATE PICKER NATIVO ──────────────────────────────────────────── */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={store.customDate ?? new Date()}
-          mode="date"
-          display="default"
-          maximumDate={new Date()}
-          onChange={(event: DateTimePickerEvent, date?: Date) => {
-            setShowDatePicker(false);
-            if (event.type === "set" && date) {
-              store.setCustomDate(date);
-            }
-          }}
-        />
-      )}
+      {/* ── Métodos de pago — sheet inline, sin salir de la pantalla ────────── */}
+      <BottomSheet
+        visible={paymentMethodsOpen}
+        onClose={() => setPaymentMethodsOpen(false)}
+        style={{ paddingBottom: insets.bottom + 16, maxHeight: "80%" }}
+      >
+        <View style={st.pmHeader}>
+          <Text style={st.pmTitle}>Métodos de pago</Text>
+        </View>
+        <ScrollView style={st.pmScroll} showsVerticalScrollIndicator={false}>
+          <PaymentMethodsSection />
+        </ScrollView>
+      </BottomSheet>
     </KeyboardAvoidingView>
   );
 }
 
 // ─── Estilos dinámicos ────────────────────────────────────────────────────────
 function buildS(t: AppTheme) {
+  const bg = t.bg;
+  const card = t.surface;
+
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: t.bg },
+    screen: { flex: 1, backgroundColor: bg },
 
     header: {
       flexDirection: "row",
@@ -876,42 +690,48 @@ function buildS(t: AppTheme) {
       justifyContent: "space-between",
       paddingHorizontal: 24,
       paddingBottom: 14,
-      backgroundColor: t.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: t.border,
+      backgroundColor: bg,
     },
     headerSideBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
     headerTitle: { fontSize: 17, fontWeight: "700", color: t.text, letterSpacing: -0.4 },
-    confirmBtn: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
-      backgroundColor: BLUE,
-      alignItems: "center",
-      justifyContent: "center",
-      shadowColor: BLUE,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 6,
-    },
-    confirmBtnOff: { backgroundColor: "#CBD5E1", shadowOpacity: 0, elevation: 0 },
 
-    content: { flex: 1, backgroundColor: t.bg },
-    contentInner: { paddingHorizontal: 24, paddingBottom: 16 },
+    content: { flex: 1, backgroundColor: bg },
+    contentInner: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 140 },
+
+    // ── Tarjeta: importe + descripción + fecha ─────────────────────────────
+    card: {
+      backgroundColor: card,
+      borderRadius: 20,
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 4,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: t.isDark ? 0 : 0.04,
+      shadowRadius: 8,
+      elevation: t.isDark ? 0 : 2,
+    },
+    cardLabel: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: t.textSub,
+      textAlign: "center",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+    },
 
     amountBlock: {
       alignItems: "center",
       justifyContent: "center",
-      paddingTop: 28,
-      paddingBottom: 20,
+      paddingTop: 8,
+      paddingBottom: 14,
       width: "100%",
     },
     amountText: {
-      fontSize: 64,
+      fontSize: 42,
       fontWeight: "800",
-      letterSpacing: -2,
-      lineHeight: 72,
+      letterSpacing: -1,
+      lineHeight: 48,
       textAlign: "center",
       width: "100%",
     },
@@ -920,83 +740,63 @@ function buildS(t: AppTheme) {
       alignItems: "baseline",
       justifyContent: "center",
       gap: 4,
-      marginBottom: 16,
       width: "100%",
     },
-    amountSignText: { fontSize: 32, fontWeight: "700" },
+    amountSignText: { fontSize: 22, fontWeight: "700" },
     amountInput: {
-      fontSize: 64,
+      fontSize: 42,
       fontWeight: "800",
-      letterSpacing: -2,
-      lineHeight: 72,
-      minWidth: 80,
+      letterSpacing: -1,
+      lineHeight: 48,
+      minWidth: 60,
       padding: 0,
       includeFontPadding: false,
       textAlign: "center",
     },
 
-    selRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20, gap: 4 },
-    selIconBtn: { flex: 1, alignItems: "center", gap: 5 },
-    selIconCircle: {
-      width: 52,
-      height: 52,
-      borderRadius: 9999,
-      backgroundColor: t.surface,
+    cardDivider: { height: StyleSheet.hairlineWidth, backgroundColor: t.border },
+    cardRow: {
+      flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: t.isDark ? 0 : 0.08,
-      shadowRadius: 6,
-      elevation: t.isDark ? 0 : 3,
-      borderWidth: t.isDark ? 1 : 0,
-      borderColor: t.isDark ? t.border : "transparent",
+      gap: 12,
+      paddingVertical: 14,
     },
-    selFieldName: {
-      fontSize: 11,
-      fontWeight: "700",
-      color: t.textSub,
-      textAlign: "center",
-      letterSpacing: 0.8,
-      textTransform: "uppercase",
-    },
-    selValue: {
-      fontSize: 12,
-      fontWeight: "700",
+    cardRowText: {
+      fontSize: 15,
+      fontWeight: "500",
       color: t.text,
       textAlign: "center",
-      letterSpacing: -0.2,
+      flexShrink: 1,
+      maxWidth: "82%",
     },
 
-    transcriptBox: {
-      flex: 1,
-      borderRadius: 20,
-      borderWidth: 2,
-      borderStyle: "dashed",
+    // ── Panel colapsable descripción + tags ─────────────────────────────────
+    descPanel: {
+      marginTop: 12,
+      borderRadius: 16,
+      borderWidth: 1,
       borderColor: t.border,
-      backgroundColor: t.surface,
-      marginBottom: 4,
-      position: "relative",
+      backgroundColor: card,
+      overflow: "hidden",
     },
     transcriptInput: {
-      flex: 1,
-      padding: 20,
-      paddingBottom: 36,
-      fontSize: 17,
+      minHeight: 72,
+      padding: 16,
+      fontSize: 15,
       fontWeight: "400",
       color: t.text,
-      lineHeight: 26,
+      lineHeight: 22,
       backgroundColor: "transparent",
       textAlignVertical: "top",
     },
-    editIcon: { position: "absolute", right: 14, bottom: 12 },
-
-    tagsBar: {
-      marginTop: 16,
-      paddingTop: 6,
-      paddingBottom: 6,
+    tagsRow: {
+      paddingHorizontal: 16,
+      paddingBottom: 14,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
     },
-    tagsRow: { paddingHorizontal: 24, flexDirection: "row", alignItems: "center", gap: 8 },
     tagPill: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 9999, borderWidth: 1 },
     tagText: { fontSize: 12, fontWeight: "500" },
     tagInput: {
@@ -1005,106 +805,36 @@ function buildS(t: AppTheme) {
       gap: 4,
       paddingVertical: 7,
       paddingHorizontal: 12,
-      backgroundColor: t.surface,
+      backgroundColor: t.bg,
       borderRadius: 9999,
       borderWidth: 1,
       borderColor: t.border,
       borderStyle: "dashed",
     },
     tagInputText: { fontSize: 12, minWidth: 36, maxWidth: 80, padding: 0 },
-  });
-}
 
-// ─── Sheet base ───────────────────────────────────────────────────────────────
-function buildSheet(t: AppTheme) {
-  return StyleSheet.create({
-    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(15,23,42,0.5)" },
-    container: {
-      position: "absolute",
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: t.surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      paddingBottom: 36,
-      paddingTop: 12,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 20,
-      elevation: 24,
-    },
-    handle: {
-      width: 36,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: t.border,
-      alignSelf: "center",
-      marginBottom: 16,
-    },
-    title: {
-      fontSize: 17,
+    // ── Secciones categoría / cuenta ─────────────────────────────────────────
+    sectionLabel: {
+      fontSize: 11,
       fontWeight: "700",
-      color: t.text,
-      paddingHorizontal: 20,
-      marginBottom: 4,
+      color: t.textSub,
+      letterSpacing: 1,
+      textTransform: "uppercase",
+      marginTop: 24,
+      marginBottom: 12,
     },
-    sep: { height: StyleSheet.hairlineWidth, backgroundColor: t.border, marginHorizontal: 20 },
-    option: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingVertical: 14,
-      paddingHorizontal: 20,
-    },
-    optionLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-    optionIconBox: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      backgroundColor: t.inputBg,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    optionText: { fontSize: 15, color: t.text },
-  });
-}
 
-// ─── Estilos CategorySheet ────────────────────────────────────────────────────
-function buildCatS(t: AppTheme) {
-  return StyleSheet.create({
-    container: { paddingBottom: 28 },
-    header: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      paddingHorizontal: 20,
-      paddingBottom: 20,
-    },
-    title: { fontSize: 13, fontWeight: "900", color: t.text, letterSpacing: 1.5 },
-    subtitle: { fontSize: 12, color: t.textSub, marginTop: 2 },
-    cancel: { fontSize: 14, fontWeight: "600", color: t.textSub },
-    grid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      paddingHorizontal: 12,
-      gap: 4,
-      marginBottom: 20,
-    },
-    gridIncome: {
-      justifyContent: "center",
-    },
-    item: { width: "23%", alignItems: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 4 },
-    iconWrap: { position: "relative" },
-    iconBox: {
+    catRow: { flexDirection: "row", alignItems: "flex-start", gap: 16, paddingRight: 8 },
+    catItem: { width: 64, alignItems: "center", gap: 6 },
+    catIconWrap: { position: "relative" },
+    catIconBox: {
       width: 56,
       height: 56,
       borderRadius: 9999,
       alignItems: "center",
       justifyContent: "center",
     },
-    checkBadge: {
+    catCheckBadge: {
       position: "absolute",
       top: -2,
       right: -2,
@@ -1115,56 +845,86 @@ function buildCatS(t: AppTheme) {
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 2,
-      borderColor: t.surface,
+      // El círculo de categoría vive sobre el fondo de pantalla (no dentro de la
+      // tarjeta), así que el borde-recorte del badge debe calzar con `bg`, no `card`.
+      borderColor: bg,
     },
-    itemLabel: {
+    catItemLabel: {
       fontSize: 11,
       fontWeight: "600",
       color: t.textSub,
       textAlign: "center",
       letterSpacing: 0.1,
     },
-    itemLabelSelected: { color: t.text, fontWeight: "700" },
-    confirmBtn: {
-      marginHorizontal: 20,
-      paddingVertical: 16,
-      backgroundColor: t.text,
-      borderRadius: 14,
-      alignItems: "center",
-    },
-    confirmText: { fontSize: 14, fontWeight: "800", color: t.surface, letterSpacing: 1.2 },
-  });
-}
+    catItemLabelSelected: { color: t.text, fontWeight: "700" },
 
-// ─── Estilos AccountSheet ─────────────────────────────────────────────────────
-function buildAccS(t: AppTheme) {
-  return StyleSheet.create({
-    row: {
+    accList: {
+      backgroundColor: card,
+      borderRadius: 16,
+      borderWidth: t.isDark ? 1 : 0,
+      borderColor: t.border,
+      overflow: "hidden",
+    },
+    accRow: {
       flexDirection: "row",
       alignItems: "center",
       paddingVertical: 14,
-      paddingHorizontal: 20,
-      gap: 14,
+      paddingHorizontal: 16,
+      gap: 12,
     },
-    iconBox: {
-      width: 44,
-      height: 44,
-      borderRadius: 12,
+    accIconBox: {
+      width: 38,
+      height: 38,
+      borderRadius: 11,
       backgroundColor: t.inputBg,
       alignItems: "center",
       justifyContent: "center",
     },
-    textBlock: { flex: 1 },
-    name: { fontSize: 15, fontWeight: "600", color: t.text },
-    desc: { fontSize: 12, color: t.textSub, marginTop: 1 },
-    addRow: {
+    accName: { fontSize: 15, fontWeight: "600", color: t.text, flex: 1 },
+    accSep: { height: StyleSheet.hairlineWidth, backgroundColor: t.border, marginLeft: 66 },
+    accAddRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      paddingHorizontal: 20,
-      paddingTop: 12,
-      marginTop: 4,
+      paddingTop: 14,
+      paddingHorizontal: 4,
     },
-    addText: { fontSize: 14, fontWeight: "600", color: BLUE },
+    accAddText: { fontSize: 14, fontWeight: "600", color: t.text },
+
+    // ── Footer fijo: botón Guardar ───────────────────────────────────────────
+    footer: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingTop: 32,
+      paddingHorizontal: 24,
+    },
+    footerFade: { ...StyleSheet.absoluteFillObject },
+    saveBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingVertical: 16,
+      borderRadius: 28,
+      backgroundColor: BLUE,
+      shadowColor: BLUE,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+    saveBtnOff: {
+      backgroundColor: t.isDark ? DARK_DISABLED_BG : "#CBD5E1",
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+
+    // ── Sheet: Métodos de pago ──────────────────────────────────────────────
+    pmHeader: { paddingHorizontal: 20, paddingBottom: 12 },
+    pmTitle: { fontSize: 17, fontWeight: "700", color: t.text },
+    pmScroll: { paddingHorizontal: 4 },
   });
 }

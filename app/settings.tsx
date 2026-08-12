@@ -1,10 +1,19 @@
 /**
  * app/settings.tsx — Modal de Configuración
- * Diseño: Stitch "Professional Settings Interface"
+ * Diseño: lista agrupada (Card + SectionHeader + ListRow + Divider) sobre la capa
+ * aditiva de tokens (src/theme/tokens.ts) — puerto del patrón "menú de Ajustes" de
+ * Habit Tracker. Header de pantalla apilada (StackedScreenHeader) en vez de header
+ * nativo, título grande en el body.
  */
+import { BottomSheet } from "@/src/components/ui/BottomSheet";
+import { Card, SectionHeader, Divider } from "@/src/components/ui/Card";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
+import { Enter } from "@/src/components/ui/Enter";
 import { GuidedTour, type TourStep } from "@/src/components/ui/GuidedTour";
 import { HueColorPicker } from "@/src/components/ui/HueColorPicker";
+import { ListRow } from "@/src/components/ui/ListRow";
+import { StackedScreenHeader } from "@/src/components/ui/StackedScreenHeader";
+import { ThemedText } from "@/src/components/ui/ThemedText";
 import { AUTO_DETECT_ENABLED_KEY, ALLOWED_BANKS_KEY } from "@/src/constants/banks";
 import { CURATED_EMOJIS, type UserCategory } from "@/src/constants/categoryPresets";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -20,6 +29,7 @@ import {
   type SavingsGoal,
 } from "@/src/store/useSettingsStore";
 import type { AppTheme } from "@/src/theme";
+import { useAppTokens } from "@/src/theme/tokens";
 import { hexToHue, hueToColors } from "@/src/utils/colorUtils";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
 import { KNOWN_BANKS } from "@/src/utils/notificationParser";
@@ -29,7 +39,6 @@ import Constants from "expo-constants";
 import { router } from "expo-router";
 import {
   Check,
-  ChevronLeft,
   ChevronRight,
   CreditCard,
   Download,
@@ -61,6 +70,7 @@ import {
   View,
 } from "react-native";
 import RNAndroidNotificationListener from "react-native-android-notification-listener";
+import Reanimated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const APP_VERSION = Constants.expoConfig?.version ?? "1.0.0";
@@ -92,75 +102,6 @@ function formatCOP(value: number): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, ".")} COP`;
 }
 
-// ─── Componentes de sección ───────────────────────────────────────────────────
-
-function SectionHeader({ title }: { title: string }) {
-  const s = useStyles();
-  return <Text style={s.sectionHeader}>{title}</Text>;
-}
-
-function SettingRow({
-  icon,
-  label,
-  subtitle,
-  onPress,
-  rightElement,
-  danger = false,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  subtitle?: string;
-  onPress?: () => void;
-  rightElement?: React.ReactNode;
-  danger?: boolean;
-}) {
-  const s = useStyles();
-  return (
-    <TouchableOpacity
-      style={s.row}
-      onPress={onPress}
-      activeOpacity={onPress ? 0.65 : 1}
-      disabled={!onPress && !rightElement}
-    >
-      <View style={s.rowIcon}>{icon}</View>
-      <View style={s.rowText}>
-        <Text style={[s.rowLabel, danger && { color: "#DC2626" }]}>{label}</Text>
-        {subtitle ? <Text style={s.rowSub}>{subtitle}</Text> : null}
-      </View>
-      {rightElement ??
-        (onPress ? (
-          <ChevronRight size={16} color={s.rowSub.color as string} strokeWidth={2} />
-        ) : null)}
-    </TouchableOpacity>
-  );
-}
-
-// ─── Tarjeta de submenu (nombre + descripción → abre modal) ──────────────────
-
-function SubMenuCard({
-  icon,
-  label,
-  description,
-  onPress,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  description: string;
-  onPress: () => void;
-}) {
-  const s = useStyles();
-  return (
-    <TouchableOpacity style={s.subCard} onPress={onPress} activeOpacity={0.65}>
-      <View style={s.subCardIcon}>{icon}</View>
-      <View style={s.subCardText}>
-        <Text style={s.subCardLabel}>{label}</Text>
-        <Text style={s.subCardDesc}>{description}</Text>
-      </View>
-      <ChevronRight size={18} color={s.subCardDesc.color as string} strokeWidth={2} />
-    </TouchableOpacity>
-  );
-}
-
 // ─── Wrapper modal pantalla completa ─────────────────────────────────────────
 
 /** Sección de Alertas de Presupuesto con toggle + slider custom */
@@ -175,7 +116,7 @@ function BudgetAlertSection({
   onToggle: (v: boolean) => void;
   onThresholdChange: (v: number) => void;
 }) {
-  const theme = useTheme();
+  const tokens = useAppTokens();
   const THUMB = 28;
   const pct = Math.min(100, Math.max(0, threshold));
 
@@ -232,115 +173,113 @@ function BudgetAlertSection({
     }),
   ).current;
 
+  const alertColor = tokens.colors.state.danger;
+
   return (
-    <View style={{ marginBottom: 8 }}>
-      <View style={[bAS.card, { backgroundColor: theme.surface }]}>
-        {/* ── Toggle ─────────────────────────────────────────────────── */}
-        <View style={bAS.row}>
-          <View style={bAS.rowLeft}>
-            <Text style={bAS.bell}>🔔</Text>
-            <Text style={[bAS.label, { color: theme.text }]}>Alertas de presupuesto</Text>
-          </View>
-          <Switch
-            value={enabled}
-            onValueChange={onToggle}
-            trackColor={{ false: theme.inputBg, true: "#EF4444" }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
+    <View style={{ marginBottom: tokens.spacing.xs }}>
+      <Card padded={false}>
+        <ListRow
+          label="Alertas de presupuesto"
+          icon={<Text style={{ fontSize: 16 }}>🔔</Text>}
+          iconBg={alertColor}
+          right={
+            <Switch
+              value={enabled}
+              onValueChange={onToggle}
+              trackColor={{ false: tokens.colors.border.default, true: alertColor }}
+              thumbColor="#FFFFFF"
+            />
+          }
+        />
 
         {/* ── Slider — solo cuando activo ────────────────────────────── */}
         {enabled && (
-          <>
-            <View style={[bAS.sep, { backgroundColor: theme.border }]} />
+          <Reanimated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
+            <Divider />
+            <View style={{ padding: tokens.spacing.md, paddingTop: tokens.spacing.sm + 2 }}>
+              <View style={bAS.sliderRow}>
+                <ThemedText variant="subheadline" color="secondary">
+                  Umbral de alerta
+                </ThemedText>
+                <ThemedText variant="body" style={{ fontWeight: "700" }}>
+                  {liveValue}%
+                </ThemedText>
+              </View>
 
-            <View style={bAS.sliderRow}>
-              <Text style={[bAS.sliderLabel, { color: theme.textSub }]}>Umbral de alerta</Text>
-              <Text style={[bAS.sliderPct, { color: theme.text }]}>{liveValue}%</Text>
+              <View
+                {...pan.panHandlers}
+                style={bAS.trackOuter}
+                onLayout={(e) => {
+                  trackWRef.current = e.nativeEvent.layout.width;
+                  setTrackWState(e.nativeEvent.layout.width);
+                }}
+              >
+                <View style={[bAS.trackBg, { backgroundColor: tokens.colors.border.default }]} />
+
+                {trackWState > 0 && (
+                  <Animated.View
+                    style={[
+                      bAS.trackFill,
+                      {
+                        backgroundColor: alertColor,
+                        width: offset.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [THUMB / 2, usableW + THUMB / 2],
+                          extrapolate: "clamp",
+                        }),
+                      },
+                    ]}
+                  />
+                )}
+
+                {trackWState > 0 && (
+                  <Animated.View
+                    style={[
+                      bAS.thumb,
+                      {
+                        width: THUMB,
+                        height: THUMB,
+                        borderRadius: THUMB / 2,
+                        backgroundColor: "#FFFFFF",
+                        elevation: 4,
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.22,
+                        shadowRadius: 3,
+                        transform: [
+                          {
+                            translateX: offset.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0, usableW],
+                              extrapolate: "clamp",
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  />
+                )}
+              </View>
+
+              <ThemedText variant="footnote" color="secondary" style={{ marginTop: 2 }}>
+                {liveValue > 0
+                  ? `Te avisaré cuando alcances el ${liveValue}% del presupuesto de cada categoría.`
+                  : "Desliza para elegir el porcentaje de alerta. Se recomienda 80%."}
+              </ThemedText>
             </View>
-
-            <View
-              {...pan.panHandlers}
-              style={bAS.trackOuter}
-              onLayout={(e) => {
-                trackWRef.current = e.nativeEvent.layout.width;
-                setTrackWState(e.nativeEvent.layout.width);
-              }}
-            >
-              <View style={[bAS.trackBg, { backgroundColor: theme.inputBg }]} />
-
-              {trackWState > 0 && (
-                <Animated.View
-                  style={[
-                    bAS.trackFill,
-                    {
-                      backgroundColor: "#EF4444",
-                      width: offset.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [THUMB / 2, usableW + THUMB / 2],
-                        extrapolate: "clamp",
-                      }),
-                    },
-                  ]}
-                />
-              )}
-
-              {trackWState > 0 && (
-                <Animated.View
-                  style={[
-                    bAS.thumb,
-                    {
-                      width: THUMB,
-                      height: THUMB,
-                      borderRadius: THUMB / 2,
-                      backgroundColor: "#FFFFFF",
-                      elevation: 4,
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.22,
-                      shadowRadius: 3,
-                      transform: [
-                        {
-                          translateX: offset.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0, usableW],
-                            extrapolate: "clamp",
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                />
-              )}
-            </View>
-
-            <Text style={[bAS.hint, { color: theme.textSub }]}>
-              {liveValue > 0
-                ? `Te avisaré cuando alcances el ${liveValue}% del presupuesto de cada categoría.`
-                : "Desliza para elegir el porcentaje de alerta. Se recomienda 80%."}
-            </Text>
-          </>
+          </Reanimated.View>
         )}
-      </View>
+      </Card>
     </View>
   );
 }
 
 const bAS = StyleSheet.create({
-  card: { borderRadius: 16, padding: 16, marginBottom: 4 },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  rowLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
-  bell: { fontSize: 18 },
-  label: { fontSize: 15, fontWeight: "600" },
-  sep: { height: 1, marginVertical: 14 },
   sliderRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
-  sliderLabel: { fontSize: 13 },
-  sliderPct: { fontSize: 14, fontWeight: "700" },
   trackOuter: { height: 26, justifyContent: "center", marginBottom: 10, position: "relative" },
   trackBg: { height: 4, borderRadius: 2, position: "absolute", left: 0, right: 0 },
   trackFill: { height: 4, borderRadius: 2, position: "absolute", left: 0 },
   thumb: { position: "absolute" },
-  hint: { fontSize: 12, marginTop: 2, lineHeight: 17 },
 });
 
 function FullScreenModal({
@@ -355,7 +294,7 @@ function FullScreenModal({
   children: React.ReactNode;
 }) {
   const insets = useSafeAreaInsets();
-  const s = useStyles();
+  const tokens = useAppTokens();
   return (
     <Modal
       visible={visible}
@@ -363,18 +302,21 @@ function FullScreenModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={[s.safe, { paddingTop: 0 }]} edges={["top"]}>
-        <View style={s.header}>
-          <TouchableOpacity onPress={onClose} style={s.backBtn} hitSlop={12} activeOpacity={0.65}>
-            <ChevronLeft size={24} color={s.headerTitle.color as string} strokeWidth={2.5} />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>{title}</Text>
-        </View>
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: tokens.colors.surface.primary }}
+        edges={["top"]}
+      >
+        <StackedScreenHeader onBack={onClose} backAccessibilityLabel="Cerrar" />
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 40 }]}
+          contentContainerStyle={{
+            padding: tokens.spacing.md,
+            paddingBottom: insets.bottom + tokens.spacing.xl,
+            gap: tokens.spacing.md,
+          }}
           keyboardShouldPersistTaps="handled"
         >
+          <ThemedText variant="largeTitle">{title}</ThemedText>
           {children}
         </ScrollView>
       </SafeAreaView>
@@ -483,36 +425,32 @@ function SelectorModal<T extends string>({
   const s = useStyles();
   const theme = useTheme();
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={s.sheetBackdrop} onPress={onClose} />
-      <View style={s.sheet}>
-        <View style={s.sheetHandle} />
-        <Text style={s.sheetTitle}>{title}</Text>
-        {options.map((opt, i) => (
-          <View key={opt.key}>
-            <TouchableOpacity
-              style={s.sheetOption}
-              onPress={() => {
-                onSelect(opt.key);
-                onClose();
-              }}
-              activeOpacity={0.65}
+    <BottomSheet visible={visible} onClose={onClose} style={{ paddingBottom: 40 }}>
+      <Text style={s.sheetTitle}>{title}</Text>
+      {options.map((opt, i) => (
+        <View key={opt.key}>
+          <TouchableOpacity
+            style={s.sheetOption}
+            onPress={() => {
+              onSelect(opt.key);
+              onClose();
+            }}
+            activeOpacity={0.65}
+          >
+            <Text
+              style={[
+                s.sheetOptionText,
+                opt.key === selected && { color: theme.accent, fontWeight: "700" },
+              ]}
             >
-              <Text
-                style={[
-                  s.sheetOptionText,
-                  opt.key === selected && { color: theme.accent, fontWeight: "700" },
-                ]}
-              >
-                {opt.label}
-              </Text>
-              {opt.key === selected && <Check size={16} color={theme.accent} strokeWidth={2.5} />}
-            </TouchableOpacity>
-            {i < options.length - 1 && <View style={s.sheetSep} />}
-          </View>
-        ))}
-      </View>
-    </Modal>
+              {opt.label}
+            </Text>
+            {opt.key === selected && <Check size={16} color={theme.accent} strokeWidth={2.5} />}
+          </TouchableOpacity>
+          {i < options.length - 1 && <View style={s.sheetSep} />}
+        </View>
+      ))}
+    </BottomSheet>
   );
 }
 
@@ -524,8 +462,8 @@ const PAYMENT_TYPE_OPTIONS: { key: PaymentMethodType; label: string }[] = [
   { key: "savings", label: "🐷 Ahorros" },
 ];
 
-function PaymentMethodsSection() {
-  const s = useStyles();
+export function PaymentMethodsSection() {
+  const tokens = useAppTokens();
   const methods = useSettingsStore((s) => s.paymentMethods);
   const addMethod = useSettingsStore((s) => s.addPaymentMethod);
   const updateMethod = useSettingsStore((s) => s.updatePaymentMethod);
@@ -579,38 +517,50 @@ function PaymentMethodsSection() {
 
   return (
     <>
-      {methods.map((m, i) => (
-        <View key={m.id}>
-          <View style={s.payRow}>
-            <View style={s.payRowIcon}>
-              <Text style={s.payRowEmoji}>
-                {m.type === "cash" ? "💵" : m.type === "savings" ? "🐷" : "💳"}
-              </Text>
-            </View>
-            <View style={s.rowText}>
-              <Text style={s.rowLabel}>{m.name}</Text>
-              <Text style={s.rowSub}>{typeLabel(m.type)}</Text>
-            </View>
-            <TouchableOpacity onPress={() => openEdit(m)} style={s.payAction} hitSlop={8}>
-              <Pencil size={15} color={s.rowSub.color as string} strokeWidth={2} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => confirmDelete(m.id, m.name)}
-              style={s.payAction}
-              hitSlop={8}
-            >
-              <Trash2 size={15} color="#DC2626" strokeWidth={2} />
-            </TouchableOpacity>
+      <Card padded={false}>
+        {methods.map((m, i) => (
+          <View key={m.id}>
+            <ListRow
+              label={m.name}
+              detail={typeLabel(m.type)}
+              icon={
+                <Text style={{ fontSize: 15 }}>
+                  {m.type === "cash" ? "💵" : m.type === "savings" ? "🐷" : "💳"}
+                </Text>
+              }
+              iconBg={tokens.colors.text.secondary}
+              onPress={() => openEdit(m)}
+              accessibilityLabelOverride={`${m.name}, ${typeLabel(m.type)}`}
+              right={
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm }}
+                >
+                  <Pencil size={15} color={tokens.colors.text.secondary} strokeWidth={2} />
+                  <TouchableOpacity
+                    onPress={() => confirmDelete(m.id, m.name)}
+                    hitSlop={8}
+                    style={{ padding: 4 }}
+                  >
+                    <Trash2 size={15} color={tokens.colors.state.danger} strokeWidth={2} />
+                  </TouchableOpacity>
+                </View>
+              }
+            />
+            {i < methods.length - 1 && <Divider inset={tokens.spacing.md * 2 + 30} />}
           </View>
-          {i < methods.length - 1 && <View style={s.rowSep} />}
-        </View>
-      ))}
+        ))}
+      </Card>
 
       {/* Botón agregar */}
-      <TouchableOpacity style={s.addMethodBtn} onPress={openAdd} activeOpacity={0.7}>
-        <Plus size={16} color={s.addMethodText.color as string} strokeWidth={2.5} />
-        <Text style={s.addMethodText}>Agregar método</Text>
-      </TouchableOpacity>
+      <Card padded={false} style={{ marginTop: tokens.spacing.sm }}>
+        <ListRow
+          label="Agregar método"
+          icon={<Plus size={16} color="#FFFFFF" strokeWidth={2.5} />}
+          iconBg={tokens.colors.accent.default}
+          labelColor={tokens.colors.accent.default}
+          onPress={openAdd}
+        />
+      </Card>
 
       {/* Modal de nombre */}
       <InputModal
@@ -948,8 +898,7 @@ function SwipeableGoalItem({
   onDelete: () => void;
   onAbonar: () => void;
 }) {
-  const theme = useTheme();
-  const s = useStyles();
+  const tokens = useAppTokens();
 
   const pct =
     goal.targetAmount > 0 ? Math.min(100, (goal.savedAmount / goal.targetAmount) * 100) : 0;
@@ -998,12 +947,14 @@ function SwipeableGoalItem({
   }
 
   return (
-    <View
-      style={[swipeGoalSt.wrapper, { backgroundColor: theme.isDark ? theme.itemBg : "#FFFFFF" }]}
-    >
+    <View style={[swipeGoalSt.wrapper, { backgroundColor: tokens.colors.surface.secondary }]}>
       {/* Botón eliminar — detrás */}
       <View style={swipeGoalSt.deleteArea}>
-        <TouchableOpacity style={swipeGoalSt.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={[swipeGoalSt.deleteBtn, { backgroundColor: tokens.colors.state.danger }]}
+          onPress={handleDelete}
+          activeOpacity={0.8}
+        >
           <Trash2 size={20} color="#FFFFFF" strokeWidth={2} />
         </TouchableOpacity>
       </View>
@@ -1012,47 +963,50 @@ function SwipeableGoalItem({
       <Animated.View
         style={[
           swipeGoalSt.row,
-          { backgroundColor: theme.isDark ? theme.itemBg : "#FFFFFF", transform: [{ translateX }] },
+          { backgroundColor: tokens.colors.surface.secondary, transform: [{ translateX }] },
         ]}
         {...panResponder.panHandlers}
       >
         {done ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm + 2 }}>
             <Text style={{ fontSize: 28 }}>{goal.emoji}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: "700", color: "#059669" }}>
+              <ThemedText variant="headline" style={{ color: tokens.colors.state.success }}>
                 ¡Meta alcanzada!
-              </Text>
-              <Text style={{ fontSize: 13, color: theme.textSub, marginTop: 2 }}>
+              </ThemedText>
+              <ThemedText variant="footnote" color="secondary" style={{ marginTop: 2 }}>
                 Ahorro completado con éxito
-              </Text>
+              </ThemedText>
             </View>
             <Text style={{ fontSize: 22 }}>🎉</Text>
           </View>
         ) : (
           <>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm }}>
               <Text style={{ fontSize: 24 }}>{goal.emoji}</Text>
-              <Text style={{ flex: 1, fontSize: 15, fontWeight: "700", color: theme.text }}>
+              <ThemedText variant="headline" style={{ flex: 1 }}>
                 {goal.name}
-              </Text>
+              </ThemedText>
               <TouchableOpacity
+                // Botón primario fijo #135BEC (regla inmutable #8) — no varía con el tema.
                 style={{
                   backgroundColor: "#135BEC",
                   paddingHorizontal: 14,
                   paddingVertical: 6,
-                  borderRadius: 20,
+                  borderRadius: tokens.radius.full,
                 }}
                 onPress={onAbonar}
                 activeOpacity={0.75}
               >
-                <Text style={{ fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>Abonar</Text>
+                <ThemedText variant="footnote" style={{ color: "#FFFFFF", fontWeight: "700" }}>
+                  Abonar
+                </ThemedText>
               </TouchableOpacity>
             </View>
             <View
               style={{
                 height: 6,
-                backgroundColor: theme.inputBg,
+                backgroundColor: tokens.colors.surface.elevated,
                 borderRadius: 3,
                 overflow: "hidden",
               }}
@@ -1067,12 +1021,12 @@ function SwipeableGoalItem({
               />
             </View>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={{ fontSize: 12, color: theme.textSub }}>
+              <ThemedText variant="footnote" color="secondary">
                 {fmt(goal.savedAmount)} / {fmt(goal.targetAmount)}
-              </Text>
-              <Text style={{ fontSize: 12, fontWeight: "700", color: "#135BEC" }}>
+              </ThemedText>
+              <ThemedText variant="footnote" style={{ color: "#135BEC", fontWeight: "700" }}>
                 {Math.round(pct)}%
-              </Text>
+              </ThemedText>
             </View>
           </>
         )}
@@ -1106,7 +1060,6 @@ const swipeGoalSt = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 9999,
-    backgroundColor: "#EF4444",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1318,8 +1271,7 @@ function EditCategoryModal({
 
 // ─── Sección principal de metas ───────────────────────────────────────────────
 function SavingsGoalsSection() {
-  const s = useStyles();
-  const theme = useTheme();
+  const tokens = useAppTokens();
   const savingsGoals = useSettingsStore((st) => st.savingsGoals);
   const removeSavingsGoal = useSettingsStore((st) => st.removeSavingsGoal);
 
@@ -1330,20 +1282,25 @@ function SavingsGoalsSection() {
     <>
       {savingsGoals.length === 0 ? (
         /* ── Estado vacío ─────────────────────────────────────────────── */
-        <View style={[s.card, { padding: 24, alignItems: "center", gap: 10 }]}>
+        <Card style={{ alignItems: "center", gap: tokens.spacing.sm + 2 }}>
           <Text style={{ fontSize: 32 }}>🎯</Text>
-          <Text style={{ fontSize: 14, color: theme.textSub, textAlign: "center", lineHeight: 20 }}>
+          <ThemedText variant="subheadline" color="secondary" style={{ textAlign: "center" }}>
             Aún no tienes metas de ahorro{"\n"}define una y empieza hoy
-          </Text>
+          </ThemedText>
           <TouchableOpacity
             style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}
             onPress={() => setShowNuevaMeta(true)}
             activeOpacity={0.7}
           >
-            <Plus size={15} color={theme.accent} strokeWidth={2.5} />
-            <Text style={{ fontSize: 14, fontWeight: "600", color: theme.accent }}>Nueva meta</Text>
+            <Plus size={15} color={tokens.colors.accent.default} strokeWidth={2.5} />
+            <ThemedText
+              variant="subheadline"
+              style={{ color: tokens.colors.accent.default, fontWeight: "600" }}
+            >
+              Nueva meta
+            </ThemedText>
           </TouchableOpacity>
-        </View>
+        </Card>
       ) : (
         /* ── Lista de metas ───────────────────────────────────────────── */
         <>
@@ -1357,16 +1314,15 @@ function SavingsGoalsSection() {
           ))}
 
           {/* Botón nueva meta */}
-          <TouchableOpacity
-            style={[s.card, { flexDirection: "row", alignItems: "center", gap: 12, padding: 16 }]}
-            onPress={() => setShowNuevaMeta(true)}
-            activeOpacity={0.7}
-          >
-            <View style={[s.rowIcon]}>
-              <Plus size={18} color={theme.accent} strokeWidth={2.5} />
-            </View>
-            <Text style={{ fontSize: 15, fontWeight: "600", color: theme.accent }}>Nueva meta</Text>
-          </TouchableOpacity>
+          <Card padded={false}>
+            <ListRow
+              label="Nueva meta"
+              icon={<Plus size={16} color="#FFFFFF" strokeWidth={2.5} />}
+              iconBg={tokens.colors.accent.default}
+              labelColor={tokens.colors.accent.default}
+              onPress={() => setShowNuevaMeta(true)}
+            />
+          </Card>
         </>
       )}
 
@@ -1385,6 +1341,7 @@ function SavingsGoalsSection() {
 function AutoDetectSection() {
   const s = useStyles();
   const theme = useTheme();
+  const tokens = useAppTokens();
   const ACCENT = "#135BEC";
 
   const [enabled, setEnabled] = useState(false);
@@ -1484,47 +1441,52 @@ function AutoDetectSection() {
   return (
     <>
       {/* Toggle principal */}
-      <View style={s.card}>
-        <SettingRow
-          icon={<Text style={{ fontSize: 18 }}>🏦</Text>}
+      <Card padded={false}>
+        <ListRow
           label="Detectar transacciones"
-          subtitle={
+          icon={<Text style={{ fontSize: 15 }}>🏦</Text>}
+          iconBg={tokens.colors.text.secondary}
+          detail={
             !hasPermission
               ? "Requiere permiso de notificaciones"
               : enabled
                 ? `Activo · ${activeCount} banco${activeCount !== 1 ? "s" : ""}`
                 : "Desactivado"
           }
-          rightElement={
+          right={
             <Switch
               value={enabled}
               onValueChange={handleToggle}
-              trackColor={{ true: ACCENT, false: theme.border }}
-              thumbColor={enabled ? "#fff" : theme.textSub}
+              trackColor={{ true: ACCENT, false: tokens.colors.border.default }}
+              thumbColor={enabled ? "#fff" : tokens.colors.text.secondary}
             />
           }
         />
 
         {enabled && (
-          <>
-            <View style={s.rowSep} />
-            <SettingRow
-              icon={<Text style={{ fontSize: 18 }}>🏛️</Text>}
+          <Reanimated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
+            <Divider inset={tokens.spacing.md * 2 + 30} />
+            <ListRow
               label="Bancos activos"
-              subtitle={
+              icon={<Text style={{ fontSize: 15 }}>🏛️</Text>}
+              iconBg={tokens.colors.text.secondary}
+              detail={
                 allowedBanks.length === 0
                   ? "Todos los bancos compatibles"
                   : `${allowedBanks.length} seleccionado${allowedBanks.length !== 1 ? "s" : ""}`
               }
+              showChevron
               onPress={() => setShowBankSelector(true)}
             />
-          </>
+          </Reanimated.View>
         )}
-      </View>
+      </Card>
 
       {/* Info card: explicación de privacidad */}
       {enabled && (
-        <View
+        <Reanimated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(150)}
           style={[autoS.infoCard, { backgroundColor: ACCENT + "0D", borderColor: ACCENT + "30" }]}
         >
           <Text style={[autoS.infoTitle, { color: ACCENT }]}>🔒 Tu privacidad, protegida</Text>
@@ -1532,15 +1494,25 @@ function AutoDetectSection() {
             Solo se extrae el monto y comercio de cada notificación. Nunca se leen saldos, números
             de tarjeta ni datos personales. Todo se procesa localmente en tu dispositivo.
           </Text>
-        </View>
+        </Reanimated.View>
       )}
 
       {/* Info card: aviso de optimización de batería (Samsung y otros fabricantes
           matan procesos en background agresivamente, incluso el listener de
           notificaciones) */}
       {enabled && (
-        <View style={[autoS.infoCard, { backgroundColor: "#F59E0B0D", borderColor: "#F59E0B30" }]}>
-          <Text style={[autoS.infoTitle, { color: "#B45309" }]}>
+        <Reanimated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(150)}
+          style={[
+            autoS.infoCard,
+            {
+              backgroundColor: tokens.colors.state.warning + "0D",
+              borderColor: tokens.colors.state.warning + "30",
+            },
+          ]}
+        >
+          <Text style={[autoS.infoTitle, { color: tokens.colors.state.warning }]}>
             🔋 Evita que el sistema detenga la detección
           </Text>
           <Text style={[autoS.infoText, { color: theme.textSub }]}>
@@ -1549,15 +1521,15 @@ function AutoDetectSection() {
             optimización de batería para MyWallet en los ajustes del sistema.
           </Text>
           <TouchableOpacity
-            style={[autoS.batteryBtn, { borderColor: "#F59E0B" }]}
+            style={[autoS.batteryBtn, { borderColor: tokens.colors.state.warning }]}
             onPress={() => Linking.openSettings()}
             activeOpacity={0.7}
           >
-            <Text style={[autoS.batteryBtnText, { color: "#B45309" }]}>
+            <Text style={[autoS.batteryBtnText, { color: tokens.colors.state.warning }]}>
               Abrir ajustes de batería
             </Text>
           </TouchableOpacity>
-        </View>
+        </Reanimated.View>
       )}
 
       {/* Diálogo de permiso */}
@@ -1632,18 +1604,18 @@ function AutoDetectSection() {
                 return (
                   <TouchableOpacity
                     key={bank.packageName}
-                    style={[autoS.bankRow, { borderBottomColor: theme.border }]}
+                    style={[autoS.bankRow, { borderBottomColor: tokens.colors.border.default }]}
                     onPress={() => toggleBank(bank.packageName)}
                     activeOpacity={0.65}
                   >
-                    <Text style={{ flex: 1, fontSize: 15, fontWeight: "600", color: theme.text }}>
+                    <ThemedText variant="body" style={{ flex: 1, fontWeight: "600" }}>
                       {bank.displayName}
-                    </Text>
+                    </ThemedText>
                     <View
                       style={[
                         autoS.bankCheck,
                         {
-                          borderColor: isSelected ? ACCENT : theme.border,
+                          borderColor: isSelected ? ACCENT : tokens.colors.border.default,
                           backgroundColor: isSelected ? ACCENT : "transparent",
                         },
                       ]}
@@ -1714,8 +1686,8 @@ const autoS = StyleSheet.create({
 // ─── Screen principal ─────────────────────────────────────────────────────────
 
 export default function SettingsScreen() {
-  const s = useStyles();
   const theme = useTheme();
+  const tokens = useAppTokens();
   const insets = useSafeAreaInsets();
 
   const monthlyBudget = useSettingsStore((s) => s.monthlyBudget);
@@ -1852,103 +1824,139 @@ export default function SettingsScreen() {
     darkMode === "system" ? "Según el sistema" : darkMode === "light" ? "Claro" : "Oscuro";
 
   return (
-    <SafeAreaView style={s.safe} edges={["top"]}>
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity
-          ref={getTourRef(TOUR_KEYS.BACK_BTN)}
-          onPress={() => router.back()}
-          style={s.backBtn}
-          hitSlop={12}
-          activeOpacity={0.65}
-        >
-          <ChevronLeft size={24} color={s.headerTitle.color as string} strokeWidth={2.5} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Configuración</Text>
-      </View>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: tokens.colors.surface.primary }}
+      edges={["top"]}
+    >
+      <StackedScreenHeader onBack={() => router.back()} backRef={getTourRef(TOUR_KEYS.BACK_BTN)} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 40 }]}
+        contentContainerStyle={{
+          padding: tokens.spacing.md,
+          paddingBottom: insets.bottom + tokens.spacing.xl,
+          gap: tokens.spacing.lg,
+        }}
       >
+        <Enter index={0} screenId="settings">
+          <ThemedText variant="largeTitle">Configuración</ThemedText>
+        </Enter>
+
         {/* ── CONTROL FINANCIERO ───────────────────────────────────────── */}
-        <SectionHeader title="CONTROL FINANCIERO" />
-        <View style={s.card}>
-          <View ref={getTourRef(TOUR_KEYS.INCOME_ROW)} collapsable={false}>
-            <SettingRow
-              icon={<Wallet size={18} color="#059669" strokeWidth={1.8} />}
-              label="Ingreso mensual"
-              subtitle={incomeSubtitle}
-              onPress={() => setBudgetModal(true)}
-            />
-          </View>
-        </View>
+        <Enter index={1} screenId="settings">
+          <SectionHeader>CONTROL FINANCIERO</SectionHeader>
+          <Card padded={false}>
+            <View ref={getTourRef(TOUR_KEYS.INCOME_ROW)} collapsable={false}>
+              <ListRow
+                label="Ingreso mensual"
+                icon={<Wallet size={16} color="#FFFFFF" strokeWidth={2} />}
+                iconBg={tokens.colors.state.success}
+                detail={incomeSubtitle}
+                showChevron
+                onPress={() => setBudgetModal(true)}
+              />
+            </View>
+          </Card>
+        </Enter>
 
         {/* ── GESTIÓN ──────────────────────────────────────────────────── */}
-        <SectionHeader title="GESTIÓN" />
-        <SubMenuCard
-          icon={<LayoutGrid size={18} color="#059669" strokeWidth={1.8} />}
-          label="Categorías"
-          description={`${userCategories.length} categorías configuradas`}
-          onPress={() => setShowCategoriesModal(true)}
-        />
-        <View style={{ height: 8 }} />
-        <SubMenuCard
-          icon={<CreditCard size={18} color={theme.accent} strokeWidth={1.8} />}
-          label="Métodos de pago"
-          description="Gestiona tus cuentas y formas de pago"
-          onPress={() => setShowPaymentModal(true)}
-        />
-        <View style={{ height: 8 }} />
-        <SubMenuCard
-          icon={<PiggyBank size={18} color="#7C3AED" strokeWidth={1.8} />}
-          label="Presupuesto por categoría"
-          description="Configura límites de gasto para cada categoría"
-          onPress={() => setShowCatBudgetModal(true)}
-        />
+        <Enter index={2} screenId="settings">
+          <SectionHeader>GESTIÓN</SectionHeader>
+          <Card padded={false}>
+            <ListRow
+              label="Categorías"
+              icon={<LayoutGrid size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg={tokens.colors.state.success}
+              detail={`${userCategories.length} configuradas`}
+              showChevron
+              onPress={() => setShowCategoriesModal(true)}
+            />
+            <Divider inset={tokens.spacing.md * 2 + 30} />
+            <ListRow
+              label="Métodos de pago"
+              icon={<CreditCard size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg={tokens.colors.accent.default}
+              detail="Cuentas y formas de pago"
+              showChevron
+              onPress={() => setShowPaymentModal(true)}
+            />
+            <Divider inset={tokens.spacing.md * 2 + 30} />
+            <ListRow
+              label="Presupuesto por categoría"
+              icon={<PiggyBank size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg="#7C3AED"
+              detail="Límites de gasto"
+              showChevron
+              onPress={() => setShowCatBudgetModal(true)}
+            />
+          </Card>
+        </Enter>
 
         {/* ── METAS DE AHORRO ──────────────────────────────────────────── */}
-        <SectionHeader title="METAS DE AHORRO" />
-        <SavingsGoalsSection />
+        <Enter index={3} screenId="settings">
+          <SectionHeader>METAS DE AHORRO</SectionHeader>
+          <SavingsGoalsSection />
+        </Enter>
 
         {/* ── APARIENCIA ───────────────────────────────────────────────── */}
-        <SectionHeader title="APARIENCIA" />
-        <View style={s.card}>
-          <SettingRow
-            icon={<Moon size={18} color="#7C3AED" strokeWidth={1.8} />}
-            label="Modo oscuro"
-            subtitle={darkLabel}
-            onPress={() => setDarkSheet(true)}
-          />
-        </View>
+        <Enter index={4} screenId="settings">
+          <SectionHeader>APARIENCIA</SectionHeader>
+          <Card padded={false}>
+            <ListRow
+              label="Modo oscuro"
+              icon={<Moon size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg="#7C3AED"
+              detail={darkLabel}
+              showChevron
+              onPress={() => setDarkSheet(true)}
+            />
+          </Card>
+        </Enter>
 
         {/* ── DETECCIÓN AUTOMÁTICA ──────────────────────────────────────── */}
-        <SectionHeader title="DETECCIÓN AUTOMÁTICA" />
-        <AutoDetectSection />
+        <Enter index={5} screenId="settings">
+          <SectionHeader>DETECCIÓN AUTOMÁTICA</SectionHeader>
+          <AutoDetectSection />
+        </Enter>
 
         {/* ── SISTEMA ──────────────────────────────────────────────────── */}
-        <SectionHeader title="SISTEMA" />
-        <View style={s.card}>
-          <SettingRow
-            icon={<Download size={18} color={theme.textSub} strokeWidth={1.8} />}
-            label="Exportar datos"
-            subtitle="Descarga tus transacciones en CSV"
-            onPress={handleExport}
-          />
-          <View style={s.rowSep} />
-          <SettingRow
-            icon={<Trash2 size={18} color="#DC2626" strokeWidth={1.8} />}
-            label="Borrar historial de transacciones"
-            subtitle="Elimina todos los registros. Tu configuración se conserva"
-            onPress={handleClearData}
-            danger
-          />
-        </View>
+        <Enter index={6} screenId="settings">
+          <SectionHeader>SISTEMA</SectionHeader>
+          <Card padded={false}>
+            <ListRow
+              label="Exportar datos"
+              icon={<Download size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg={tokens.colors.text.secondary}
+              detail="CSV"
+              showChevron
+              onPress={handleExport}
+            />
+            <Divider inset={tokens.spacing.md * 2 + 30} />
+            <ListRow
+              label="Borrar historial de transacciones"
+              icon={<Trash2 size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg={tokens.colors.state.danger}
+              destructive
+              onPress={handleClearData}
+            />
+          </Card>
+          <ThemedText
+            variant="footnote"
+            color="secondary"
+            style={{ marginTop: tokens.spacing.sm, marginHorizontal: tokens.spacing.xs }}
+          >
+            Exportar genera un CSV con tus transacciones. Borrar historial elimina todos los
+            registros de ingresos y gastos; tu configuración, categorías y metas se conservan.
+          </ThemedText>
+        </Enter>
 
-        {/* Versión */}
-        <View style={s.versionRow}>
-          <Text style={s.versionText}>MYWALLET v{APP_VERSION}</Text>
-        </View>
+        {/* ── ACERCA DE ────────────────────────────────────────────────── */}
+        <Enter index={7} screenId="settings">
+          <SectionHeader>ACERCA DE</SectionHeader>
+          <Card padded={false}>
+            <ListRow label="Versión" detail={`v${APP_VERSION}`} />
+          </Card>
+        </Enter>
       </ScrollView>
 
       {/* ── Modales ───────────────────────────────────────────────────── */}
@@ -1982,9 +1990,7 @@ export default function SettingsScreen() {
         title="Métodos de pago"
         onClose={() => setShowPaymentModal(false)}
       >
-        <View style={s.card}>
-          <PaymentMethodsSection />
-        </View>
+        <PaymentMethodsSection />
       </FullScreenModal>
 
       {/* ── Modal pantalla completa: Categorías ─────────────────────── */}
@@ -1995,117 +2001,84 @@ export default function SettingsScreen() {
       >
         {/* Gastos */}
         {userCategories.filter((c) => c.type === "expense").length > 0 && (
-          <>
-            <Text
-              style={{
-                color: theme.textSub,
-                fontSize: 11,
-                fontWeight: "700",
-                letterSpacing: 1,
-                marginBottom: 8,
-                marginLeft: 4,
-              }}
-            >
-              GASTOS ({userCategories.filter((c) => c.type === "expense").length})
-            </Text>
-            <View style={s.card}>
+          <View>
+            <SectionHeader>{`GASTOS (${userCategories.filter((c) => c.type === "expense").length})`}</SectionHeader>
+            <Card padded={false}>
               {userCategories
                 .filter((c) => c.type === "expense")
                 .map((cat, i, arr) => (
                   <View key={cat.id}>
-                    <TouchableOpacity
-                      style={s.row}
+                    <ListRow
+                      label={cat.name}
+                      icon={<Text style={{ fontSize: 15 }}>{cat.emoji}</Text>}
+                      iconBg={cat.colorBg}
+                      detail={cat.isPreset ? "Predefinida" : "Personalizada"}
+                      right={
+                        <Pencil size={14} color={tokens.colors.text.secondary} strokeWidth={2} />
+                      }
                       onPress={() => {
                         setShowCategoriesModal(false);
                         setEditingCat(cat);
                       }}
-                      activeOpacity={0.65}
-                    >
-                      <View style={[s.rowIcon, { backgroundColor: cat.colorBg }]}>
-                        <Text style={{ fontSize: 18 }}>{cat.emoji}</Text>
-                      </View>
-                      <View style={s.rowText}>
-                        <Text style={s.rowLabel}>{cat.name}</Text>
-                        <Text style={s.rowSub}>
-                          {cat.isPreset ? "Predefinida" : "Personalizada"}
-                        </Text>
-                      </View>
-                      <Pencil size={14} color={theme.textSub} strokeWidth={2} />
-                    </TouchableOpacity>
-                    {i < arr.length - 1 && <View style={s.rowSep} />}
+                    />
+                    {i < arr.length - 1 && <Divider inset={tokens.spacing.md * 2 + 30} />}
                   </View>
                 ))}
-            </View>
-          </>
+            </Card>
+          </View>
         )}
 
         {/* Ingresos */}
         {userCategories.filter((c) => c.type === "income").length > 0 && (
-          <>
-            <Text
-              style={{
-                color: theme.textSub,
-                fontSize: 11,
-                fontWeight: "700",
-                letterSpacing: 1,
-                marginTop: 20,
-                marginBottom: 8,
-                marginLeft: 4,
-              }}
-            >
-              INGRESOS ({userCategories.filter((c) => c.type === "income").length})
-            </Text>
-            <View style={s.card}>
+          <View>
+            <SectionHeader>{`INGRESOS (${userCategories.filter((c) => c.type === "income").length})`}</SectionHeader>
+            <Card padded={false}>
               {userCategories
                 .filter((c) => c.type === "income")
                 .map((cat, i, arr) => (
                   <View key={cat.id}>
-                    <TouchableOpacity
-                      style={s.row}
+                    <ListRow
+                      label={cat.name}
+                      icon={<Text style={{ fontSize: 15 }}>{cat.emoji}</Text>}
+                      iconBg={cat.colorBg}
+                      detail={cat.isPreset ? "Predefinida" : "Personalizada"}
+                      right={
+                        <Pencil size={14} color={tokens.colors.text.secondary} strokeWidth={2} />
+                      }
                       onPress={() => {
                         setShowCategoriesModal(false);
                         setEditingCat(cat);
                       }}
-                      activeOpacity={0.65}
-                    >
-                      <View style={[s.rowIcon, { backgroundColor: cat.colorBg }]}>
-                        <Text style={{ fontSize: 18 }}>{cat.emoji}</Text>
-                      </View>
-                      <View style={s.rowText}>
-                        <Text style={s.rowLabel}>{cat.name}</Text>
-                        <Text style={s.rowSub}>
-                          {cat.isPreset ? "Predefinida" : "Personalizada"}
-                        </Text>
-                      </View>
-                      <Pencil size={14} color={theme.textSub} strokeWidth={2} />
-                    </TouchableOpacity>
-                    {i < arr.length - 1 && <View style={s.rowSep} />}
+                    />
+                    {i < arr.length - 1 && <Divider inset={tokens.spacing.md * 2 + 30} />}
                   </View>
                 ))}
-            </View>
-          </>
+            </Card>
+          </View>
         )}
 
         {/* Botón gestionar categorías */}
         <TouchableOpacity
           onPress={() => {
             setShowCategoriesModal(false);
-            router.push("/category-onboarding");
+            router.push("/category-onboarding?edit=1");
           }}
           activeOpacity={0.7}
           style={{
-            marginTop: 20,
             paddingVertical: 14,
-            borderRadius: 14,
+            borderRadius: tokens.radius.md,
             borderWidth: 1.5,
             borderStyle: "dashed",
-            borderColor: theme.border,
+            borderColor: tokens.colors.border.default,
             alignItems: "center",
           }}
         >
-          <Text style={{ color: theme.accent, fontSize: 14, fontWeight: "600" }}>
+          <ThemedText
+            variant="subheadline"
+            style={{ color: tokens.colors.accent.default, fontWeight: "600" }}
+          >
             + Gestionar categorías
-          </Text>
+          </ThemedText>
         </TouchableOpacity>
       </FullScreenModal>
 
@@ -2140,52 +2113,66 @@ export default function SettingsScreen() {
           onThresholdChange={setBudgetAlertThreshold}
         />
         {userCategories.filter((c) => c.type === "expense").length > 0 ? (
-          <View style={s.card}>
+          <Card padded={false}>
             {userCategories
               .filter((c) => c.type === "expense")
               .map((cat, i, arr) => {
                 const current = budgetByCategory[cat.emoji];
                 return (
                   <View key={cat.id}>
-                    <TouchableOpacity
-                      style={s.row}
+                    <ListRow
+                      label={cat.name}
+                      icon={<Text style={{ fontSize: 15 }}>{cat.emoji}</Text>}
+                      iconBg={cat.colorBg}
+                      accessibilityLabelOverride={`${cat.name}, ${current ? `Límite ${formatCOP(current)}` : "Sin límite"}`}
                       onPress={() => setCatBudgetEmoji(cat.emoji)}
-                      activeOpacity={0.65}
-                    >
-                      <View style={[s.rowIcon, { backgroundColor: cat.colorBg }]}>
-                        <Text style={{ fontSize: 18 }}>{cat.emoji}</Text>
-                      </View>
-                      <View style={s.rowText}>
-                        <Text style={s.rowLabel}>{cat.name}</Text>
-                        {current ? (
-                          <Text style={[s.rowSub, { color: theme.isDark ? "#22C55E" : "#15803D" }]}>
-                            Límite: {formatCOP(current)}
-                          </Text>
-                        ) : (
-                          <Text style={s.rowSub}>Sin límite</Text>
-                        )}
-                      </View>
-                      {current ? (
-                        <TouchableOpacity
-                          onPress={() => removeBudgetForCategory(cat.emoji)}
-                          hitSlop={14}
-                          style={{ padding: 4 }}
+                      right={
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: tokens.spacing.xs,
+                          }}
                         >
-                          <X size={14} color="#DC2626" strokeWidth={2.5} />
-                        </TouchableOpacity>
-                      ) : null}
-                      <ChevronRight size={16} color="#64748B" strokeWidth={2} />
-                    </TouchableOpacity>
-                    {i < arr.length - 1 && <View style={s.rowSep} />}
+                          {current ? (
+                            <ThemedText
+                              variant="body"
+                              style={{ color: tokens.colors.state.success }}
+                            >
+                              {formatCOP(current)}
+                            </ThemedText>
+                          ) : (
+                            <ThemedText variant="body" color="secondary">
+                              Sin límite
+                            </ThemedText>
+                          )}
+                          {current ? (
+                            <TouchableOpacity
+                              onPress={() => removeBudgetForCategory(cat.emoji)}
+                              hitSlop={14}
+                              style={{ padding: 4 }}
+                            >
+                              <X size={14} color={tokens.colors.state.danger} strokeWidth={2.5} />
+                            </TouchableOpacity>
+                          ) : null}
+                          <ChevronRight
+                            size={16}
+                            color={tokens.colors.text.secondary}
+                            strokeWidth={2}
+                          />
+                        </View>
+                      }
+                    />
+                    {i < arr.length - 1 && <Divider inset={tokens.spacing.md * 2 + 30} />}
                   </View>
                 );
               })}
-          </View>
+          </Card>
         ) : (
           <View style={{ alignItems: "center", paddingVertical: 32 }}>
-            <Text style={{ color: theme.textSub, fontSize: 14 }}>
+            <ThemedText variant="subheadline" color="secondary">
               No tienes categorías de gasto configuradas
-            </Text>
+            </ThemedText>
           </View>
         )}
       </FullScreenModal>
@@ -2363,9 +2350,6 @@ function buildStyles(t: AppTheme) {
       borderTopColor: t.border,
     },
     addMethodText: { fontSize: 14, fontWeight: "600", color: t.accent },
-
-    versionRow: { alignItems: "center", marginTop: 32 },
-    versionText: { fontSize: 12, color: t.textSub, letterSpacing: 1.5, fontWeight: "500" },
 
     subCard: {
       flexDirection: "row",

@@ -712,7 +712,7 @@ Definidos en `src/constants/categoryPresets.ts`:
 
 1. **Primera vez (onboarding):** Después del splash, aparece `category-onboarding.tsx` con grid de tarjetas seleccionables + botón "Añadir categoría" (`NewCategoryModal` con selector de emoji, `HueColorPicker` y nombre).
 2. **Desde Settings:** Sección "Mis categorías" muestra las elegidas y botón "Gestionar categorías" que reabre la misma pantalla en modo edición. Editar una categoría abre un modal con `HueColorPicker` para cambiar el color.
-3. **Inline desde Nuevo Gasto/Ingreso:** El `CategorySheet` en `active-expense.tsx` incluye un ítem "Nueva" (ícono `+`) al final de la grilla. Al tocarlo, cierra el sheet y abre `NewCategoryModal`; al guardar, la nueva categoría se persiste vía `addUserCategory()` y queda autoseleccionada en la transacción.
+3. **Inline desde Nuevo Gasto/Ingreso:** La lista horizontal de categoría en `active-expense.tsx` incluye un ítem "Nueva" (ícono `+`) al final. Al tocarlo abre `NewCategoryModal` directo (ya no hay un `CategorySheet` intermedio que cerrar — se eliminó en el rediseño 2026-08-12); al guardar, la nueva categoría se persiste vía `addUserCategory()` y queda autoseleccionada en la transacción.
 4. **No se puede saltar la selección:** El usuario debe elegir al menos 1 categoría en el onboarding.
 
 ### 10.4 Fuentes de verdad
@@ -853,22 +853,19 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - **Guided Tour:** integración con `GuidedTour` (5 pasos, solo primera vez). Refs de targets registrados en `tourRefs.ts`. El flujo alterna entre Dashboard y Settings. Persistido con `hasCompletedOnboarding` + `onboardingStep`
 - **Eliminado:** chip de categoría, estilos de metas de ahorro, ScrollView+map, banner in-app de presupuesto excedido (reemplazado por notificación push), todo el sistema de toasts.
 
-### Active Expense (`app/active-expense.tsx`)
-- Título dinámico: "Nuevo Gasto" / "Nuevo Ingreso"
-- Monto grande con tamaño adaptable (36-64px según dígitos)
-- Campo de descripción con NLP en tiempo real
-- Selectores: Fecha (Hoy / Calendario), Categoría (grid contextual con ítem "Nueva" para crear al vuelo), Cuenta
-- El método de pago (Cuenta) seleccionado se guarda en la transacción (campo `payment_method` en DB)
-- Tags sugeridos + custom
-- Botón ✓ para guardar (vibración + navegar atrás)
-- `adjustsFontSizeToFit` como fallback para montos enormes
-- **Param `?from=batch-review` / `?from=notification-edit`:** cuando la pantalla es abierta desde `voice-batch-review` o desde el botón ✏️ de `notification-review`, el flujo de guardar cambia (mismo tratamiento para ambos origenes, vía `fromBatchReview || fromNotificationEdit`):
-  - Lee `from` con `useLocalSearchParams<{ from?: string }>()`
-  - Al confirmar ✓: en lugar de `addTransaction` + `router.dismissAll()`, llama `setPendingManualItem({...})` + `store.reset()` + `router.back()`
-  - Esto devuelve los datos al store sin guardar en DB; `voice-batch-review`/`notification-review` los recoge con `useFocusEffect` y los agrega/actualiza en la lista de revisión
-  - Al cerrar ✗ también usa `router.back()` (no `router.dismissAll()`) para preservar la pantalla de revisión en la pila
-  - **Fix de bug (este rango):** el `useEffect` que reparsea `store.note` en tiempo real (NLP reactivo) ahora retorna temprano cuando `fromBatchReview || fromNotificationEdit` es `true` — antes, editar la descripción de un item ya estructurado (viniendo de `notification-review`) disparaba el parser de texto libre y podía sobreescribir el monto real ya extraído por `notificationParser` con uno mal interpretado del texto
-- **Edición del monto (UX):** tocar el monto activa `amountEditing` y muestra un `TextInput` con dígitos crudos sin puntos de miles (`amountDisplay`, filtrado con `.replace(/\D/g, "")` en cada tecla) — insertar puntos de miles en cada cambio reformatearía el string completo y el cursor saltaría al final en Android, impidiendo editar un dígito en medio del monto. Los puntos de miles reaparecen al perder el foco (`handleAmountBlur`), cuando el monto vuelve a mostrarse como texto estático con `fmtCOP()`
+### Active Expense (`app/active-expense.tsx`) — rediseñado 2026-08-12
+- Título dinámico: "Nuevo Gasto" / "Nuevo Ingreso". **Header solo con botón atrás (X)** — el botón de confirmar que antes vivía arriba a la derecha se movió al footer.
+- **Tarjeta única** (fondo `theme.surface`, sin borde) con tres filas:
+  - **Importe**: mismo mecanismo de edición in-place de siempre (tocar el monto activa `amountEditing`, `TextInput` con dígitos crudos vía `amountDisplay.replace(/\D/g, "")`, puntos de miles solo al perder foco con `fmtCOP()`) — no cambió la lógica, solo el tamaño (36-56px según dígitos, más chico que antes) para caber en la tarjeta.
+  - **Descripción**: fila con ícono + texto (placeholder corto "Describe tu gasto/ingreso aquí" en color atenuado cuando está vacío). Tocarla abre/cierra un panel colapsable debajo de la tarjeta (`descOpen`, animado con `FadeInDown`/`FadeOutUp` de Reanimated, respeta `useReducedMotion()`) con el `TextInput` multilínea + los tags sugeridos/custom — antes ambos estaban siempre visibles en un cuadro punteado permanente.
+  - **Fecha**: fila con ícono + fecha formateada. Tocarla abre `CalendarSheet` (`src/components/ui/CalendarSheet.tsx`, nuevo) — calendario mensual minimalista dibujado a mano, reemplaza el `DateTimePicker` nativo del sistema.
+- **Categoría**: ya no es un bottom sheet (`CategorySheet` se eliminó de este archivo) — es una lista horizontal siempre visible debajo de la tarjeta, con ítem "Nueva" al final para crear al vuelo. Selecciona al tap, sin confirmar.
+- **Cuenta**: tampoco es un bottom sheet (`AccountSheet` eliminado) — lista vertical siempre visible. Selecciona al tap. El método de pago (Cuenta) seleccionado se guarda en la transacción (campo `payment_method` en DB) igual que antes.
+- **"Gestionar métodos de pago"** ya no navega a `/settings` — abre un `BottomSheet` inline con `PaymentMethodsSection` (exportada desde `app/settings.tsx` y reutilizada aquí, mismo patrón que `NewCategoryModal` importada desde `category-onboarding.tsx`), sin salir de la pantalla.
+- Botón **Guardar** fijo abajo (footer con gradiente de desvanecido hacia el fondo, `expo-linear-gradient`) — vibración + navegar atrás, misma lógica de guardado que antes.
+- **Param `?from=batch-review` / `?from=notification-edit`:** sin cambios en el flujo (ver comportamiento previo) — lee `from` con `useLocalSearchParams`, al confirmar llama `setPendingManualItem({...})` + `store.reset()` + `router.back()` en vez de guardar en DB.
+- **El NLP reactivo (`useEffect` sobre `store.note`) ya NO toca el monto**: antes, si el texto libre contenía un número, `store.setAmount(parsed.amount)` lo sobreescribía en silencio, y borrar el texto lo reseteaba a 0 — comportamiento eliminado porque el monto ahora tiene su propio campo editable dedicado en la tarjeta y esa sincronización pisaba ediciones manuales del usuario. El parser sigue detectando fecha/categoría/tipo desde el texto libre igual que antes.
+- **`src/components/ui/BottomSheet.tsx` (nuevo):** wrapper reutilizable para bottom sheets — tap fuera del contenido y swipe-down desde el handle cierran el sheet (sin necesitar botón "X"). Usado por `CalendarSheet`, el sheet de "Métodos de pago" de esta pantalla, y `SelectorModal` de `app/settings.tsx`.
 
 ### Voice Input (`app/voice-input.tsx`)
 - Orb animado que indica estado de escucha

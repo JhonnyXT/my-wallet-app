@@ -17,7 +17,7 @@ Lee todo el código fuente relevante para generar documentación actualizada. An
 ### 2. Actualizar CONTEXT.md
 - Verificar que la estructura del proyecto coincide con el árbol real.
 - Verificar que todos los stores, componentes y utils están documentados.
-- Actualizar números de versión si cambiaron (`package.json`, `app.json`).
+- Actualizar números de versión si cambiaron (`package.json`, `app.config.ts`).
 
 ### 3. Actualizar DOCUMENTATION.md
 - Verificar que la guía de usuario refleja las funcionalidades actuales.

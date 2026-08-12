@@ -3,6 +3,10 @@
 Fuente única de `/build-apk` y `/arrancar` (son el mismo procedimiento: compilar el APK release e
 instalarlo por ADB en el dispositivo conectado).
 
+Este workflow no fija `APP_VARIANT` — construye el variant `dev` por defecto (`com.mywallet.app`,
+el mismo `applicationId` de siempre). Para `test`/`prod`, usar `npm run build:test` / `npm run
+eas:prod` (ver AGENTS.md → Build variants) en vez de este workflow.
+
 Antes de empezar, leer `.agents/snippets/entorno-android.md` para la configuración de `ANDROID_HOME`,
 las equivalencias bash/PowerShell y el workaround del daemon de `adb` en el sandbox.
 
@@ -57,4 +61,4 @@ Si falla con `INSTALL_FAILED_UPDATE_INCOMPATIBLE` o `App not installed`:
 
 ## Paso 5 — Confirmar
 
-Reportar al usuario que la app fue instalada exitosamente, con el número de versión del `app.json`.
+Reportar al usuario que la app fue instalada exitosamente, con el número de versión de `app.config.ts`.

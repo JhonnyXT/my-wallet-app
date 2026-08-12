@@ -663,7 +663,7 @@ addTransactionBatch() → se guardan en SQLite
 
 `react-native-android-notification-listener` declara `android:allowBackup="false"` en su propio `AndroidManifest.xml` (para que Android no incluya el contenido de notificaciones bancarias en el auto-backup a Google Drive), pero el manifest base generado por el template de Expo/RN trae `allowBackup="true"` por defecto — esto rompe el manifest merger de Gradle (`Attribute application@allowBackup value=(true) ... is also present at [:react-native-android-notification-listener] AndroidManifest.xml value=(false)`).
 
-Como `android/` está en `.gitignore` (se regenera con `expo prebuild`), un fix manual sobre el manifest se perdería en el próximo prebuild. Se resolvió con un config plugin local, `plugins/withAllowBackupDisabled.js` (usa `withAndroidManifest` de `@expo/config-plugins`), registrado como último plugin en `app.json → plugins`. Fuerza `allowBackup="false"` explícitamente (no `"true"`, que sería la otra forma de resolver el conflicto) porque es la opción más segura para una app que procesa texto de notificaciones bancarias, consistente con la regla de no almacenar datos bancarios sensibles.
+Como `android/` está en `.gitignore` (se regenera con `expo prebuild`), un fix manual sobre el manifest se perdería en el próximo prebuild. Se resolvió con un config plugin local, `plugins/withAllowBackupDisabled.js` (usa `withAndroidManifest` de `@expo/config-plugins`), registrado como último plugin en `app.config.ts → plugins` (antes `app.json`, migrado a `app.config.ts` el 2026-08-14 para soportar build variants — ver AGENTS.md). Fuerza `allowBackup="false"` explícitamente (no `"true"`, que sería la otra forma de resolver el conflicto) porque es la opción más segura para una app que procesa texto de notificaciones bancarias, consistente con la regla de no almacenar datos bancarios sensibles.
 
 Este bug estaba latente sin detectar porque nadie había corrido `expo prebuild -p android` + build real en este repo antes (detectado y corregido 2026-07-13).
 
@@ -1137,7 +1137,7 @@ actualice este link cuando sale una versión nueva de la app — es un paso manu
 en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún aviso.
 
 ### Configuración de teclado (Android)
-- `app.json` usa `softwareKeyboardLayoutMode: "resize"` para evitar que el teclado cubra contenido
+- `app.config.ts` usa `softwareKeyboardLayoutMode: "resize"` para evitar que el teclado cubra contenido
 - Pantallas principales (`active-expense`): `KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}` — Android lo maneja nativamente con `resize`
 - Modales (`settings`, `CategoryChart`, `NewCategoryModal`): `KeyboardAvoidingView behavior="padding"` explícito — necesario porque `resize` no aplica dentro de modales
 

@@ -23,11 +23,53 @@ npm install --legacy-peer-deps
 
 ### Arrancar en desarrollo
 ```bash
-npx expo start          # Metro bundler (escanea QR o presiona 'a' para Android)
-npx expo run:android    # Build + ejecución directa en dispositivo/emulador
+npm start                # Metro bundler, variant dev (escanea QR o presiona 'a' para Android)
+npm run android          # Build + ejecución directa en dispositivo/emulador, variant dev
 ```
 
-### Build de producción (APK release)
+### Build variants: dev / test / prod
+
+Patrón portado de `habit-tracker` (mismo repo hermano). Config dinámica en `app.config.ts` (ya
+no `app.json` estático) — una tabla `variants` define `name`/`package`/`scheme`/`iconBackground`
+por variant, seleccionado con la env var `APP_VARIANT` (`dev` por defecto si no se define). Un
+`APP_VARIANT` desconocido **lanza excepción** al resolver la config, no hay fallback silencioso.
+
+| Variant | `applicationId` | Para qué | Cómo se construye |
+|---|---|---|---|
+| `dev` | `com.mywallet.app` (el original — conserva los datos ya instalados) | Iterar día a día | Local, `npm run build:dev` (`assembleDebug`) |
+| `test` | `com.mywallet.app.test` | Probar un build "limpio" sin Metro, DB vacía | Local, `npm run build:test` (`assembleRelease`) |
+| `prod` | `com.mywallet` | La versión que se distribuye (GitHub Releases) | Solo EAS, `npm run eas:prod` — nunca local |
+
+Los tres se instalan **uno al lado del otro** en el mismo dispositivo (`applicationId` distinto =
+apps distintas para Android, cada una con su propia base de datos SQLite). El código de la app
+lee el variant desde `src/constants/appVariant.ts` (`appVariant`/`isDev`/`isTest`/`isProd`),
+nunca desde `process.env` directo (esa env var solo existe en el proceso de build de Node, no en
+runtime de la app).
+
+```bash
+npm run build:dev     # prebuild (incremental si no cambió el variant) + assembleDebug + adb install
+npm run build:test    # ídem con assembleRelease
+npm run eas:prod       # AAB/APK firmado con credenciales gestionadas por EAS, en la nube
+```
+
+`scripts/build-android.sh` (usado por `build:dev`/`build:test`) recuerda el último variant
+construido en `android/.last-variant` — solo fuerza `prebuild --clean` cuando el variant cambió
+(cambiar de variant obliga a un rebuild nativo completo porque el `applicationId` queda horneado
+en el proyecto nativo generado); reconstruir el mismo variant corre un `prebuild` incremental para
+no perder las cachés de Gradle/CMake. Si hay un dispositivo conectado (`adb get-state` responde),
+instala automáticamente; si no, deja el APK listo en `android/app/build/outputs/apk/...` para
+transferirlo manualmente (sin necesidad de mantener el cable/depuración USB activos).
+
+`prod` se rechaza explícitamente en local (`scripts/build-android.sh prod` sale con error): un
+`assembleRelease` local firmaría con la debug keystore y dispararía el bloqueo de Google Play
+Protect — el mismo problema que documenta la deuda técnica "Sin keystore de producción" más abajo.
+`eas build --profile prod` resuelve esto de raíz: EAS genera y gestiona una keystore de producción
+real por su cuenta (nunca se toca `keytool` a mano). Requiere `eas login` con la cuenta de Expo del
+proyecto (`owner: "jhonnyxt"` en `app.config.ts`) y consume cuota de build de esa cuenta — **no
+ejecutar sin que el usuario lo pida explícitamente**, es la última pieza del proceso de release
+(ver también el proceso manual de subir el APK a GitHub Releases, sección Landing page más abajo).
+
+### Build local directo (sin variants, referencia)
 ```bash
 cd android
 .\gradlew assembleRelease
@@ -39,6 +81,9 @@ Instalar vía ADB (PowerShell):
 $adb = "C:\Users\FAMILY\AppData\Local\Android\Sdk\platform-tools\adb.exe"
 & $adb install -r "android\app\build\outputs\apk\release\app-release.apk"
 ```
+Sin `APP_VARIANT` definida, resuelve al variant `dev` (mismo `applicationId` de siempre,
+`com.mywallet.app`) — este flujo directo con Gradle sigue funcionando exactamente igual que antes
+de los build variants, es lo que usan los workflows `/arrancar`/`/build-apk`/`/dev` existentes.
 
 ### Tests
 ```bash
@@ -215,8 +260,8 @@ my-wallet-app/
 
 - `package.json` `"main"` apunta a `index.js` (NO `expo-router/entry`) porque registra el HeadlessJS task para notificaciones bancarias.
 - `amount > 0` = gasto, `amount < 0` = ingreso (convención invertida vs lo usual).
-- `expo-sharing` está en dependencias pero NO se usa en código — se reemplazó por `Share` de react-native. No borrar porque `app.json` la tiene como plugin (B9).
-- ~~`expo-web-browser` y `expo-symbols` en package.json sin imports directos~~ — **resuelto** (B13): auditados y eliminados de `dependencies`. `expo-web-browser` no lo requería nada (ni código, ni plugin en `app.json`, ni otro paquete) — se fue por completo de `node_modules`. `expo-symbols` es dependencia dura de `expo-router` (para su feature `native-tabs`, que no usamos, y sin código nativo Android) — sigue instalado transitivamente sin que lo declaremos. Verificado con `expo-doctor`, `expo prebuild -p android --clean` + `assembleRelease` (build exitoso, sin referencias a `expo-web-browser` en el proyecto nativo generado).
+- `expo-sharing` está en dependencias pero NO se usa en código — se reemplazó por `Share` de react-native. No borrar porque `app.config.ts` la tiene como plugin (B9).
+- ~~`expo-web-browser` y `expo-symbols` en package.json sin imports directos~~ — **resuelto** (B13): auditados y eliminados de `dependencies`. `expo-web-browser` no lo requería nada (ni código, ni plugin en la config de Expo, ni otro paquete) — se fue por completo de `node_modules`. `expo-symbols` es dependencia dura de `expo-router` (para su feature `native-tabs`, que no usamos, y sin código nativo Android) — sigue instalado transitivamente sin que lo declaremos. Verificado con `expo-doctor`, `expo prebuild -p android --clean` + `assembleRelease` (build exitoso, sin referencias a `expo-web-browser` en el proyecto nativo generado).
 - `tsconfig.json` usa `paths: "@/*": ["./*"]` que mapea toda la raíz del proyecto. Suficiente para el setup de Expo Router; no restringir a `src/` sin verificar que no quiebra importaciones de `app/`, `assets/` etc. (B8).
 - ~~`useVoiceExpense.ts` en `src/features/voice/` está roto y sin uso~~ — **resuelto**: eliminado (sin importadores, usaba `useUIStore.openExpenseInput` inexistente).
 - ~~`ActionPills.tsx`, `CustomTabBar.tsx`, `AnimatedNumber.tsx` son componentes huérfanos~~ — **resuelto**: eliminados (verificado sin imports externos antes de borrar).
@@ -226,7 +271,7 @@ my-wallet-app/
 - `budgetNotifiedMonth` usa claves compuestas `"emoji:threshold"` / `"emoji:overspent"` para permitir 2 notificaciones por categoría por mes (al cruzar el umbral y al superar el 100%).
 - Deep link desde notificación push: `data: { screen: "notification-review" }` → listener en `_layout.tsx` con `addNotificationResponseReceivedListener` y `getLastNotificationResponseAsync` (para app cerrada).
 - **`Notifications.removeNotificationSubscription()` ya NO existe en `expo-notifications` (SDK 55)** — la API cambió: `addNotificationResponseReceivedListener()` devuelve un objeto `Subscription` con método propio `.remove()`. Usar `subscription.remove()` en el cleanup del `useEffect`, no la función estática antigua. Detectado por `tsc --noEmit` tras instalar dependencias (`app/_layout.tsx`), corregido en 2026-07-11.
-- **Conflicto de manifest Android: `allowBackup` entre la app y `react-native-android-notification-listener`.** El template base de Expo/RN genera `android:allowBackup="true"` en `AndroidManifest.xml`, pero la librería de notificaciones fuerza `allowBackup="false"` en la suya — el manifest merger de Gradle falla si no se resuelve. Como `android/` está en `.gitignore` (se regenera con `expo prebuild`), cualquier fix manual directo sobre el manifest se pierde en el próximo prebuild. Se resolvió con un **config plugin local** (`plugins/withAllowBackupDisabled.js`, registrado en `app.json:plugins`) que fuerza `allowBackup="false"` — no `true`, porque es la opción más segura para una app que procesa texto de notificaciones bancarias (consistente con la Regla inmutable #7, no datos bancarios sensibles: no tiene sentido bloquear eso en la DB y dejar que el sistema los respalde a la nube). Este bug estaba latente sin detectar porque nadie había corrido `expo prebuild -p android` + build real en este repo antes (2026-07-13).
+- **Conflicto de manifest Android: `allowBackup` entre la app y `react-native-android-notification-listener`.** El template base de Expo/RN genera `android:allowBackup="true"` en `AndroidManifest.xml`, pero la librería de notificaciones fuerza `allowBackup="false"` en la suya — el manifest merger de Gradle falla si no se resuelve. Como `android/` está en `.gitignore` (se regenera con `expo prebuild`), cualquier fix manual directo sobre el manifest se pierde en el próximo prebuild. Se resolvió con un **config plugin local** (`plugins/withAllowBackupDisabled.js`, registrado en `app.config.ts` → `plugins` (entonces `app.json`, migrado a `app.config.ts` el 2026-08-14 — ver Build variants)) que fuerza `allowBackup="false"` — no `true`, porque es la opción más segura para una app que procesa texto de notificaciones bancarias (consistente con la Regla inmutable #7, no datos bancarios sensibles: no tiene sentido bloquear eso en la DB y dejar que el sistema los respalde a la nube). Este bug estaba latente sin detectar porque nadie había corrido `expo prebuild -p android` + build real en este repo antes (2026-07-13).
 - **`src/utils/notificationParser.ts` ahora es una carpeta** (`src/utils/notificationParser/`), un módulo por responsabilidad: `types.ts`, `intentClassifier.ts` (clasifica `otp` / `security_alert` / `payment_reminder` / `marketing` / `app_update` / `possible_transaction` ANTES de intentar parsear nada — reemplaza el antiguo array plano `NOISE_PATTERNS`), `amountExtractor.ts`, `directionClassifier.ts`, `descriptionExtractor.ts`, `bankPatterns.ts` (un patrón por banco), `parseNotification.ts` (orquesta el pipeline, API pública) y `fixtures.ts` (casos reales/sintéticos con resultado esperado). El import externo `@/src/utils/notificationParser` sigue funcionando igual (resuelve a `index.ts`), ningún consumidor cambió.
   - Origen del refactor: Nu (y potencialmente cualquier banco) envía recordatorios de pago pendiente tipo "Tienes un pago por $X. Completa tu pago..." (ej. factura UNE-EPM aún no pagada) que antes se detectaban como gasto real solo por contener un monto y la palabra "pago". Ahora `intentClassifier` los clasifica como `payment_reminder` y se descartan antes de llegar a `bankPatterns`, para los 15 bancos de la whitelist, no solo Nu.
   - Al agregar un patrón nuevo: sumar el caso a `fixtures.ts` primero (con el resultado esperado), después ajustar `intentClassifier`/`bankPatterns`, y volver a verificar contra todos los fixtures — así un ajuste para un banco no rompe silenciosamente un caso ya resuelto de otro.
@@ -264,7 +309,7 @@ my-wallet-app/
 - [x] ~~Dependencias posiblemente no usadas: `expo-web-browser`, `expo-symbols`~~ — eliminadas de `dependencies` (ver B13 arriba)
 - [x] ~~Varios `as any` localizados (SpeechModule types, estilos porcentuales Reanimated)~~ — eliminados. `BudgetBar.tsx`: `as any` en `withTiming(...)` reemplazado por el cast específico `as \`${number}%\`` (el tipo real que espera `DimensionValue` de RN, no `string` genérico). `voice-input.tsx`: los callbacks de `SpeechModule.addListener` usaban `(e: any)`/`(event: any)` con una interfaz manual — se tipó con los overloads reales (`addListener(event: "error"|"result", ...)`) usando los tipos que ya exporta `expo-speech-recognition` (`ExpoSpeechRecognitionErrorEvent`, `ExpoSpeechRecognitionResultEvent`) vía `import type` (sin efecto en runtime, no rompe el guard de Expo Go). Verificado: `grep -rn "as any\|: any\b" app/ src/` vacío en todo el repo.
 - [x] ~~`.commit_msg.txt` reaparecía tracked en el repo (residuo del flujo `/commit` en PowerShell)~~ — eliminado del tracking y agregado a `.gitignore`
-- [ ] **Sin keystore de producción**: `android/app/build.gradle` firma el build type `release` con `signingConfigs.debug` (`debug.keystore`, alias `androiddebugkey`) porque no existe una keystore de producción real ni `keystore.properties` en el repo (correcto que no esté versionado, pero tampoco existe localmente). Un APK "release" firmado con clave de debug dispara bloqueos de Google Play Protect ("App blocked to protect your device") al instalarlo manualmente en el dispositivo — confirmado 2026-07-13. Pendiente: generar una keystore de producción real con `keytool` (el usuario debe generarla/resguardarla, no es algo para automatizar sin su decisión explícita) y conectarla al build vía un config plugin (mismo patrón que `plugins/withAllowBackupDisabled.js`, ya que `android/app/build.gradle` se pierde en cada `expo prebuild`). Mientras tanto: instalar con `adb install -r` evita el bloqueo de Play Protect (no pasa por el Instalador de Paquetes del sistema).
+- [ ] **Sin keystore de producción**: `android/app/build.gradle` firma el build type `release` con `signingConfigs.debug` (`debug.keystore`, alias `androiddebugkey`) porque no existe una keystore de producción real ni `keystore.properties` en el repo (correcto que no esté versionado, pero tampoco existe localmente). Un APK "release" firmado con clave de debug dispara bloqueos de Google Play Protect ("App blocked to protect your device") al instalarlo manualmente en el dispositivo — confirmado 2026-07-13. Mientras tanto: instalar con `adb install -r` evita el bloqueo de Play Protect (no pasa por el Instalador de Paquetes del sistema). **Camino de resolución ya disponible (2026-08-14, sin ejecutar todavía)**: `npm run eas:prod` (ver Build variants más arriba) construye el variant `prod` vía EAS Build, que genera y gestiona su propia keystore de producción real de forma automática — no requiere `keytool` manual ni un config plugin nuevo. Pendiente: que el usuario decida ejecutar `eas login` + `npm run eas:prod` cuando quiera el primer release real firmado.
 
 ---
 

@@ -6,6 +6,9 @@ dispositivo físico. **No** compila release: para eso está el workflow `build-a
 Antes de empezar, leer `.agents/snippets/entorno-android.md` (configuración de `ANDROID_HOME`,
 equivalencias bash/PowerShell, workaround del daemon de `adb`).
 
+Este workflow no fija `APP_VARIANT` — usa el variant `dev` por defecto (`com.mywallet.app`, ver
+AGENTS.md → Build variants).
+
 **Requisitos previos (solo la primera vez):**
 - Tener el APK **debug** instalado en el dispositivo (ver Paso 0)
 - Dispositivo conectado por USB o en la misma red WiFi
@@ -53,6 +56,6 @@ Solo en estos casos:
 - Se instaló un paquete nuevo con módulos nativos (`npm install <paquete>`)
 - Se modificó `AndroidManifest.xml`
 - Se modificaron archivos en `android/app/src/main/java/`
-- Cambios en `app.json` que afecten plugins nativos
+- Cambios en `app.config.ts` que afecten plugins nativos
 
 Para cambios de diseño, lógica, pantallas y componentes → **solo Metro, sin recompilar**.

@@ -4,7 +4,7 @@
  */
 import * as Notifications from "expo-notifications";
 import { Linking, Platform } from "react-native";
-import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { useSettingsStore, type Debt } from "@/src/store/useSettingsStore";
 import { formatCOP } from "@/src/utils/formatMoney";
 import { shortenDescription } from "@/src/utils/notificationParser/descriptionExtractor";
 
@@ -25,6 +25,7 @@ Notifications.setNotificationHandler({
 const CHANNEL_BUDGET = "budget-alerts";
 const CHANNEL_GOALS = "goal-alerts";
 const CHANNEL_BANK = "bank-transactions";
+const CHANNEL_DEBTS = "debt-reminders";
 
 async function ensureChannels() {
   if (Platform.OS !== "android") return;
@@ -40,6 +41,11 @@ async function ensureChannels() {
   });
   await Notifications.setNotificationChannelAsync(CHANNEL_BANK, {
     name: "Transacciones detectadas",
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: null,
+  });
+  await Notifications.setNotificationChannelAsync(CHANNEL_DEBTS, {
+    name: "Recordatorios de deudas",
     importance: Notifications.AndroidImportance.HIGH,
     sound: null,
   });
@@ -245,5 +251,72 @@ export async function notifyBankTransaction(
     });
   } catch (e) {
     if (__DEV__) console.error("[notifyBankTransaction] error:", e);
+  }
+}
+
+// ─── Recordatorio de pago de deuda ────────────────────────────────────────────
+
+/** Identificador estable por deuda — permite cancelar/reprogramar sin acumular duplicados. */
+function debtReminderId(debtId: string): string {
+  return `debt-reminder-${debtId}`;
+}
+
+/**
+ * Programa (o reprograma) el recordatorio mensual de pago de una deuda usando un
+ * trigger `MONTHLY` nativo (AlarmManager vía expo-notifications) — no depende de que
+ * la app esté corriendo, a diferencia del listener de notificaciones bancarias.
+ * Nota: si `dueDay` no existe en un mes dado (ej. 31 en febrero), ese mes no dispara
+ * — limitación del propio trigger MONTHLY del sistema, no un bug de la app.
+ * Llamar tras crear/editar una deuda; `cancelDebtReminder` tras liquidarla o borrarla.
+ */
+export async function scheduleDebtReminder(debt: Debt): Promise<void> {
+  if (!useSettingsStore.getState().notificationsEnabled) return;
+  try {
+    await ensureChannels();
+    await cancelDebtReminder(debt.id);
+    await Notifications.scheduleNotificationAsync({
+      identifier: debtReminderId(debt.id),
+      content: {
+        title: `Cuota de "${debt.name}" por vencer`,
+        body: `Recuerda pagar ${formatCOP(debt.monthlyPayment)} antes del día ${debt.dueDay}.`,
+        sound: true,
+        ...(Platform.OS === "android" && { channelId: CHANNEL_DEBTS }),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.MONTHLY,
+        day: debt.dueDay,
+        hour: 9,
+        minute: 0,
+      },
+    });
+  } catch (e) {
+    if (__DEV__) console.error("[scheduleDebtReminder] error:", e);
+  }
+}
+
+export async function cancelDebtReminder(debtId: string): Promise<void> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(debtReminderId(debtId));
+  } catch {
+    // No había recordatorio programado — nada que cancelar.
+  }
+}
+
+/** Llamar una sola vez, cuando el saldo de una deuda cruza a 0 con un abono. */
+export async function notifyDebtPaidOff(debtName: string, debtEmoji: string): Promise<void> {
+  if (!useSettingsStore.getState().notificationsEnabled) return;
+  try {
+    await ensureChannels();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "¡Deuda liquidada!",
+        body: `${debtEmoji} Terminaste de pagar "${debtName}". ¡Un paso más hacia tus metas!`,
+        sound: true,
+        ...(Platform.OS === "android" && { channelId: CHANNEL_DEBTS }),
+      },
+      trigger: null,
+    });
+  } catch (e) {
+    if (__DEV__) console.error("[notifyDebtPaidOff] error:", e);
   }
 }

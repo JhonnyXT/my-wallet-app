@@ -19,12 +19,16 @@ import { AUTO_DETECT_ENABLED_KEY, ALLOWED_BANKS_KEY } from "@/src/constants/bank
 import { CURATED_EMOJIS, type UserCategory } from "@/src/constants/categoryPresets";
 import { useTheme } from "@/src/context/ThemeContext";
 import {
+  cancelDebtReminder,
   checkAndNotifyGoalCompleted,
+  notifyDebtPaidOff,
   requestNotificationPermissions,
+  scheduleDebtReminder,
 } from "@/src/services/notificationService";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import {
   useSettingsStore,
+  type Debt,
   type PaymentMethod,
   type PaymentMethodType,
   type SavingsGoal,
@@ -40,15 +44,20 @@ import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import {
+  BatteryWarning,
   Check,
   ChevronRight,
   CreditCard,
   Download,
+  HandCoins,
+  Landmark,
   LayoutGrid,
   Moon,
   Pencil,
   PiggyBank,
   Plus,
+  Radar,
+  Target,
   Trash2,
   Wallet,
   X,
@@ -308,7 +317,7 @@ function FullScreenModal({
         style={{ flex: 1, backgroundColor: tokens.colors.surface.primary }}
         edges={["top"]}
       >
-        <StackedScreenHeader onBack={onClose} backAccessibilityLabel="Cerrar" />
+        <StackedScreenHeader onBack={onClose} backAccessibilityLabel="Cerrar" title={title} />
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
@@ -318,7 +327,6 @@ function FullScreenModal({
           }}
           keyboardShouldPersistTaps="handled"
         >
-          <ThemedText variant="largeTitle">{title}</ThemedText>
           {children}
         </ScrollView>
       </SafeAreaView>
@@ -554,7 +562,7 @@ export function PaymentMethodsSection() {
                 </View>
               }
             />
-            {i < methods.length - 1 && <Divider inset={tokens.spacing.md * 2 + 30} />}
+            {i < methods.length - 1 && <Divider inset={tokens.spacing.md * 2 + 34} />}
           </View>
         ))}
       </Card>
@@ -622,10 +630,20 @@ export function PaymentMethodsSection() {
 
 // ─── Popup: Nueva Meta ────────────────────────────────────────────────────────
 
-function NuevaMetaModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function NuevaMetaModal({
+  visible,
+  editTarget,
+  onClose,
+}: {
+  visible: boolean;
+  editTarget?: SavingsGoal | null;
+  onClose: () => void;
+}) {
   const s = useStyles();
   const theme = useTheme();
   const addSavingsGoal = useSettingsStore((st) => st.addSavingsGoal);
+  const editSavingsGoal = useSettingsStore((st) => st.editSavingsGoal);
+  const isEditing = !!editTarget;
 
   const [selectedEmoji, setSelectedEmoji] = useState("✈️");
   const [name, setName] = useState("");
@@ -636,20 +654,32 @@ function NuevaMetaModal({ visible, onClose }: { visible: boolean; onClose: () =>
       setSelectedEmoji("✈️");
       setName("");
       setTargetDisplay("");
+    } else if (editTarget) {
+      setSelectedEmoji(editTarget.emoji);
+      setName(editTarget.name);
+      setTargetDisplay(formatMoneyInput(String(editTarget.targetAmount)));
     }
-  }, [visible]);
+  }, [visible, editTarget]);
 
   const canCreate = name.trim().length > 0 && targetDisplay.replace(/\D/g, "").length > 0;
 
   const handleCreate = () => {
     const target = parseInt(targetDisplay.replace(/\D/g, ""), 10);
     if (!name.trim() || !target) return;
-    addSavingsGoal({
-      name: name.trim(),
-      emoji: selectedEmoji,
-      targetAmount: target,
-      savedAmount: 0,
-    });
+    if (isEditing && editTarget) {
+      editSavingsGoal(editTarget.id, {
+        name: name.trim(),
+        emoji: selectedEmoji,
+        targetAmount: target,
+      });
+    } else {
+      addSavingsGoal({
+        name: name.trim(),
+        emoji: selectedEmoji,
+        targetAmount: target,
+        savedAmount: 0,
+      });
+    }
     onClose();
   };
 
@@ -660,7 +690,7 @@ function NuevaMetaModal({ visible, onClose }: { visible: boolean; onClose: () =>
         <View style={[s.modalCard, { gap: 20 }]}>
           {/* Título */}
           <View style={{ gap: 3 }}>
-            <Text style={s.modalTitle}>Nueva Meta</Text>
+            <Text style={s.modalTitle}>{isEditing ? "Editar meta" : "Nueva Meta"}</Text>
             <Text style={s.rowSub}>Define tu próximo objetivo de ahorro</Text>
           </View>
 
@@ -739,7 +769,7 @@ function NuevaMetaModal({ visible, onClose }: { visible: boolean; onClose: () =>
               disabled={!canCreate}
             >
               <Text style={canCreate ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>
-                Crear
+                {isEditing ? "Guardar" : "Crear"}
               </Text>
             </PressableScale>
           </View>
@@ -903,16 +933,17 @@ function AbonarMetaModal({
 
 // ─── Sección: Metas de Ahorro ─────────────────────────────────────────────────
 
-// ─── Item de meta con swipe-to-delete ────────────────────────────────────────
-const DELETE_W = 72;
-const SWIPE_THRESH = 48;
+// ─── Item de meta — editar/eliminar explícitos (mismo patrón que Métodos de pago,
+// reemplaza el swipe-to-delete anterior) ───────────────────────────────────────
 
-function SwipeableGoalItem({
+function GoalItem({
   goal,
+  onEdit,
   onDelete,
   onAbonar,
 }: {
   goal: SavingsGoal;
+  onEdit: () => void;
   onDelete: () => void;
   onAbonar: () => void;
 }) {
@@ -927,166 +958,704 @@ function SwipeableGoalItem({
       .toString()
       .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 
-  const translateX = useRef(new Animated.Value(0)).current;
-  const isOpen = useRef(false);
-
-  const spring = (toValue: number) =>
-    Animated.spring(translateX, {
-      toValue,
-      useNativeDriver: true,
-      damping: 20,
-      stiffness: 200,
-    }).start();
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
-      onPanResponderMove: (_, g) => {
-        const base = isOpen.current ? -DELETE_W : 0;
-        translateX.setValue(Math.min(0, base + g.dx));
-      },
-      onPanResponderRelease: (_, g) => {
-        if (isOpen.current) {
-          g.dx > 20 ? ((isOpen.current = false), spring(0)) : spring(-DELETE_W);
-        } else {
-          if (g.dx < -SWIPE_THRESH) {
-            isOpen.current = true;
-            spring(-DELETE_W);
-          } else spring(0);
-        }
-      },
-    }),
-  ).current;
-
-  function handleDelete() {
-    Animated.timing(translateX, { toValue: -400, duration: 200, useNativeDriver: true }).start(() =>
-      onDelete(),
-    );
-  }
-
   return (
-    <View style={[swipeGoalSt.wrapper, { backgroundColor: tokens.colors.surface.secondary }]}>
-      {/* Botón eliminar — detrás */}
-      <View style={swipeGoalSt.deleteArea}>
-        <TouchableOpacity
-          style={[swipeGoalSt.deleteBtn, { backgroundColor: tokens.colors.state.danger }]}
-          onPress={handleDelete}
-          activeOpacity={0.8}
-        >
-          <Trash2 size={20} color="#FFFFFF" strokeWidth={2} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Contenido deslizable */}
-      <Animated.View
-        style={[
-          swipeGoalSt.row,
-          { backgroundColor: tokens.colors.surface.secondary, transform: [{ translateX }] },
-        ]}
-        {...panResponder.panHandlers}
-      >
-        {done ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm + 2 }}>
-            <Text style={{ fontSize: 28 }}>{goal.emoji}</Text>
-            <View style={{ flex: 1 }}>
-              <ThemedText variant="headline" style={{ color: tokens.colors.state.success }}>
-                ¡Meta alcanzada!
-              </ThemedText>
-              <ThemedText variant="footnote" color="secondary" style={{ marginTop: 2 }}>
-                Ahorro completado con éxito
-              </ThemedText>
-            </View>
-            <Text style={{ fontSize: 22 }}>🎉</Text>
+    <Card style={{ marginBottom: 8, gap: 10 }}>
+      {done ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm + 2 }}>
+          <Text style={{ fontSize: 28 }}>{goal.emoji}</Text>
+          <View style={{ flex: 1 }}>
+            <ThemedText variant="headline" style={{ color: tokens.colors.state.success }}>
+              ¡Meta alcanzada!
+            </ThemedText>
+            <ThemedText variant="footnote" color="secondary" style={{ marginTop: 2 }}>
+              Ahorro completado con éxito
+            </ThemedText>
           </View>
-        ) : (
-          <>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm }}>
-              <Text style={{ fontSize: 24 }}>{goal.emoji}</Text>
-              <ThemedText variant="headline" style={{ flex: 1 }}>
-                {goal.name}
-              </ThemedText>
-              <TouchableOpacity
-                // Botón primario fijo #135BEC (regla inmutable #8) — no varía con el tema.
-                style={{
-                  backgroundColor: "#135BEC",
-                  paddingHorizontal: 14,
-                  paddingVertical: 6,
-                  borderRadius: tokens.radius.full,
-                }}
-                onPress={onAbonar}
-                activeOpacity={0.75}
-              >
-                <ThemedText variant="footnote" style={{ color: "#FFFFFF", fontWeight: "700" }}>
-                  Abonar
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
+          <Text style={{ fontSize: 22 }}>🎉</Text>
+          <TouchableOpacity onPress={onDelete} hitSlop={8} style={{ padding: 4 }}>
+            <Trash2 size={16} color={tokens.colors.state.danger} strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm }}>
+            <Text style={{ fontSize: 24 }}>{goal.emoji}</Text>
+            <ThemedText variant="headline" style={{ flex: 1 }} numberOfLines={1}>
+              {goal.name}
+            </ThemedText>
+            <TouchableOpacity onPress={onEdit} hitSlop={8} style={{ padding: 4 }}>
+              <Pencil size={15} color={tokens.colors.text.secondary} strokeWidth={2} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onDelete} hitSlop={8} style={{ padding: 4 }}>
+              <Trash2 size={15} color={tokens.colors.state.danger} strokeWidth={2} />
+            </TouchableOpacity>
+          </View>
+          <View
+            style={{
+              height: 6,
+              backgroundColor: tokens.colors.surface.elevated,
+              borderRadius: 3,
+              overflow: "hidden",
+            }}
+          >
             <View
               style={{
                 height: 6,
-                backgroundColor: tokens.colors.surface.elevated,
+                width: `${pct}%` as `${number}%`,
+                backgroundColor: "#135BEC",
                 borderRadius: 3,
-                overflow: "hidden",
               }}
+            />
+          </View>
+          <View
+            style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+          >
+            <ThemedText variant="footnote" color="secondary">
+              {fmt(goal.savedAmount)} / {fmt(goal.targetAmount)} · {Math.round(pct)}%
+            </ThemedText>
+            <TouchableOpacity
+              // Botón primario fijo #135BEC (regla inmutable #7) — no varía con el tema.
+              style={{
+                backgroundColor: "#135BEC",
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                borderRadius: tokens.radius.full,
+              }}
+              onPress={onAbonar}
+              activeOpacity={0.75}
             >
-              <View
-                style={{
-                  height: 6,
-                  width: `${pct}%` as `${number}%`,
-                  backgroundColor: "#135BEC",
-                  borderRadius: 3,
-                }}
-              />
-            </View>
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <ThemedText variant="footnote" color="secondary">
-                {fmt(goal.savedAmount)} / {fmt(goal.targetAmount)}
+              <ThemedText variant="footnote" style={{ color: "#FFFFFF", fontWeight: "700" }}>
+                Abonar
               </ThemedText>
-              <ThemedText variant="footnote" style={{ color: "#135BEC", fontWeight: "700" }}>
-                {Math.round(pct)}%
-              </ThemedText>
-            </View>
-          </>
-        )}
-      </Animated.View>
-    </View>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+    </Card>
   );
 }
 
-const swipeGoalSt = StyleSheet.create({
-  wrapper: {
-    borderRadius: 16,
-    overflow: "hidden",
-    marginBottom: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  deleteArea: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: DELETE_W,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent",
-  },
-  deleteBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 9999,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  row: {
-    padding: 16,
-    gap: 10,
-    borderRadius: 16,
-  },
-});
+// ─── Sección: Deudas ───────────────────────────────────────────────────────────
+
+const DEBT_EMOJIS = ["💳", "🏦", "🚗", "🏠", "🎓", "📱", "🛍️", "💰", "🏥", "✈️"];
+const DEBT_COLOR = "#9F1239";
+
+// ─── Popup: Nueva Deuda ────────────────────────────────────────────────────────
+
+/** Grilla 1-31 para elegir el día del mes del recordatorio — a diferencia de
+ * CalendarSheet, no tiene mes/año ni deshabilita días futuros: la deuda se
+ * recuerda ese mismo día TODOS los meses, no es una fecha puntual. */
+function DayOfMonthSheet({
+  visible,
+  selected,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  selected: number;
+  onSelect: (day: number) => void;
+  onClose: () => void;
+}) {
+  const theme = useTheme();
+  const days = useMemo(() => Array.from({ length: 31 }, (_, i) => i + 1), []);
+
+  return (
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      style={{ paddingBottom: 36, paddingHorizontal: 20 }}
+    >
+      <Text
+        style={{
+          fontSize: 16,
+          fontWeight: "700",
+          color: theme.text,
+          textAlign: "center",
+          marginBottom: 16,
+        }}
+      >
+        Día de pago
+      </Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+        {days.map((day) => {
+          const isSel = day === selected;
+          return (
+            <TouchableOpacity
+              key={day}
+              style={{
+                width: `${100 / 7}%`,
+                aspectRatio: 1,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onPress={() => {
+                onSelect(day);
+                onClose();
+              }}
+              activeOpacity={0.6}
+            >
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: isSel ? theme.accent : "transparent",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: isSel ? "700" : "500",
+                    color: isSel ? "#FFFFFF" : theme.text,
+                  }}
+                >
+                  {day}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </BottomSheet>
+  );
+}
+
+function NuevaDeudaModal({
+  visible,
+  editTarget,
+  onClose,
+}: {
+  visible: boolean;
+  editTarget?: Debt | null;
+  onClose: () => void;
+}) {
+  const s = useStyles();
+  const theme = useTheme();
+  const addDebt = useSettingsStore((st) => st.addDebt);
+  const editDebt = useSettingsStore((st) => st.editDebt);
+  const isEditing = !!editTarget;
+
+  const [selectedEmoji, setSelectedEmoji] = useState(DEBT_EMOJIS[0]);
+  const [name, setName] = useState("");
+  const [totalDisplay, setTotalDisplay] = useState("");
+  const [paymentDisplay, setPaymentDisplay] = useState("");
+  const [dueDay, setDueDay] = useState(1);
+  const [daySheetOpen, setDaySheetOpen] = useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setSelectedEmoji(DEBT_EMOJIS[0]);
+      setName("");
+      setTotalDisplay("");
+      setPaymentDisplay("");
+      setDueDay(1);
+    } else if (editTarget) {
+      setSelectedEmoji(editTarget.emoji);
+      setName(editTarget.name);
+      setTotalDisplay(formatMoneyInput(String(editTarget.totalAmount)));
+      setPaymentDisplay(formatMoneyInput(String(editTarget.monthlyPayment)));
+      setDueDay(editTarget.dueDay);
+    }
+  }, [visible, editTarget]);
+
+  const canCreate = name.trim().length > 0 && totalDisplay.replace(/\D/g, "").length > 0;
+
+  const handleCreate = () => {
+    const totalAmount = parseInt(totalDisplay.replace(/\D/g, ""), 10);
+    const monthlyPayment = parseInt(paymentDisplay.replace(/\D/g, ""), 10) || 0;
+    if (!name.trim() || !totalAmount) return;
+
+    if (isEditing && editTarget) {
+      editDebt(editTarget.id, {
+        name: name.trim(),
+        emoji: selectedEmoji,
+        totalAmount,
+        monthlyPayment,
+        dueDay,
+      });
+      scheduleDebtReminder({
+        ...editTarget,
+        name: name.trim(),
+        emoji: selectedEmoji,
+        monthlyPayment,
+        dueDay,
+      });
+    } else {
+      const debt = addDebt({
+        name: name.trim(),
+        emoji: selectedEmoji,
+        totalAmount,
+        monthlyPayment,
+        dueDay,
+      });
+      scheduleDebtReminder(debt);
+    }
+    onClose();
+  };
+
+  return (
+    <>
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+        <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+          <View style={[s.modalCard, { gap: 20 }]}>
+            {/* Título */}
+            <View style={{ gap: 3 }}>
+              <Text style={s.modalTitle}>{isEditing ? "Editar deuda" : "Nueva deuda"}</Text>
+              <Text style={s.rowSub}>Registra una deuda para hacerle seguimiento</Text>
+            </View>
+
+            {/* Selector de emoji */}
+            <View style={{ gap: 8 }}>
+              <Text style={s.goalFieldLabel}>Icono de la deuda</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {DEBT_EMOJIS.map((e) => (
+                    <TouchableOpacity
+                      key={e}
+                      onPress={() => setSelectedEmoji(e)}
+                      activeOpacity={0.7}
+                      style={{
+                        width: 46,
+                        height: 46,
+                        borderRadius: 23,
+                        backgroundColor: selectedEmoji === e ? theme.accent + "22" : theme.inputBg,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderWidth: selectedEmoji === e ? 2 : 0,
+                        borderColor: selectedEmoji === e ? theme.accent : "transparent",
+                      }}
+                    >
+                      <Text style={{ fontSize: 22 }}>{e}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+
+            {/* Nombre */}
+            <View style={{ gap: 8 }}>
+              <Text style={s.goalFieldLabel}>Nombre de la deuda</Text>
+              <TextInput
+                style={s.modalInput}
+                value={name}
+                onChangeText={setName}
+                placeholder="Ej. Tarjeta de crédito"
+                placeholderTextColor={theme.textSub}
+                autoCapitalize="sentences"
+              />
+            </View>
+
+            {/* Monto total */}
+            <View style={{ gap: 8 }}>
+              <Text style={s.goalFieldLabel}>Monto total de la deuda</Text>
+              <View style={s.goalAmountRow}>
+                <Text style={s.goalAmountPrefix}>$ COP</Text>
+                <TextInput
+                  style={s.goalAmountInput}
+                  value={totalDisplay}
+                  onChangeText={(t) => setTotalDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
+                  placeholder="0"
+                  placeholderTextColor={theme.textSub}
+                  keyboardType="number-pad"
+                  textAlign="right"
+                />
+              </View>
+            </View>
+
+            {/* Cuota mensual + día de pago */}
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <View style={{ flex: 1, gap: 8 }}>
+                <Text style={s.goalFieldLabel}>Cuota mensual</Text>
+                <View style={s.goalAmountRow}>
+                  <Text style={s.goalAmountPrefix}>$</Text>
+                  <TextInput
+                    style={s.goalAmountInput}
+                    value={paymentDisplay}
+                    onChangeText={(t) => setPaymentDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
+                    placeholder="0"
+                    placeholderTextColor={theme.textSub}
+                    keyboardType="number-pad"
+                    textAlign="right"
+                  />
+                </View>
+              </View>
+              <View style={{ width: 100, gap: 8 }}>
+                <Text style={s.goalFieldLabel}>Día de pago</Text>
+                <TouchableOpacity
+                  style={s.goalAmountRow}
+                  onPress={() => setDaySheetOpen(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[s.goalAmountInput, { textAlign: "right" }]}>{dueDay}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Botones */}
+            <View style={s.modalBtns}>
+              <PressableScale
+                style={s.modalBtnCancel}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onClose();
+                }}
+              >
+                <Text style={s.modalBtnCancelText}>Cancelar</Text>
+              </PressableScale>
+              <PressableScale
+                style={canCreate ? s.modalBtnConfirm : s.modalBtnConfirmDisabled}
+                onPress={handleCreate}
+                disabled={!canCreate}
+              >
+                <Text style={canCreate ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>
+                  {isEditing ? "Guardar" : "Crear"}
+                </Text>
+              </PressableScale>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+      <DayOfMonthSheet
+        visible={daySheetOpen}
+        selected={dueDay}
+        onSelect={setDueDay}
+        onClose={() => setDaySheetOpen(false)}
+      />
+    </>
+  );
+}
+
+// ─── Popup: Abonar a Deuda ─────────────────────────────────────────────────────
+
+function AbonarDeudaModal({
+  debt,
+  visible,
+  onClose,
+}: {
+  debt: Debt | null;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const s = useStyles();
+  const theme = useTheme();
+  const tokens = useAppTokens();
+  const updateDebtBalance = useSettingsStore((st) => st.updateDebtBalance);
+  const addTransaction = useFinanceStore((st) => st.addTransaction);
+
+  const [abonoDisplay, setAbonoDisplay] = useState("");
+
+  useEffect(() => {
+    if (!visible) setAbonoDisplay("");
+  }, [visible]);
+
+  if (!debt) return null;
+
+  const abono = parseInt(abonoDisplay.replace(/\D/g, ""), 10) || 0;
+  const projectedRemaining = Math.max(0, debt.remainingAmount - abono);
+
+  const fmt = (v: number) =>
+    `$${Math.round(v)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+
+  const handleAbonar = async () => {
+    if (abono <= 0 || !debt) return;
+    await addTransaction(abono, `Pago de ${debt.name}`, debt.emoji, ["#deuda"]);
+    updateDebtBalance(debt.id, projectedRemaining);
+
+    if (projectedRemaining <= 0) {
+      cancelDebtReminder(debt.id);
+      notifyDebtPaidOff(debt.name, debt.emoji);
+    }
+
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <View style={[s.modalCard, { gap: 16 }]}>
+          {/* Título */}
+          <View style={{ gap: 3 }}>
+            <Text style={s.modalTitle}>Pagar deuda</Text>
+            <Text style={s.rowSub}>
+              {debt.emoji} {debt.name}
+            </Text>
+          </View>
+
+          {/* Campo de monto */}
+          <View style={[s.goalAmountRow, { paddingVertical: 4 }]}>
+            <Text style={[s.goalAmountPrefix, { fontSize: 20, fontWeight: "700" }]}>$</Text>
+            <TextInput
+              style={[s.goalAmountInput, { fontSize: 28, fontWeight: "800", letterSpacing: -0.5 }]}
+              value={abonoDisplay}
+              onChangeText={(t) => setAbonoDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
+              placeholder="0"
+              placeholderTextColor={theme.textSub}
+              keyboardType="number-pad"
+              autoFocus
+              textAlign="right"
+            />
+            <Text style={[s.goalAmountPrefix, { marginLeft: 6 }]}>COP</Text>
+          </View>
+
+          {/* Saldo proyectado */}
+          <View style={{ gap: 6 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text style={s.goalFieldLabel}>SALDO RESTANTE</Text>
+              <Text style={s.goalFieldLabel}>DEUDA TOTAL</Text>
+            </View>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text style={{ fontSize: 14, fontWeight: "600", color: theme.text }}>
+                {fmt(projectedRemaining)}
+              </Text>
+              <Text style={{ fontSize: 14, fontWeight: "600", color: theme.text }}>
+                {fmt(debt.totalAmount)}
+              </Text>
+            </View>
+            {projectedRemaining <= 0 && abono > 0 && (
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "700",
+                  color: tokens.colors.state.success,
+                  textAlign: "center",
+                }}
+              >
+                ¡Con este abono liquidas la deuda!
+              </Text>
+            )}
+          </View>
+
+          {/* Botones */}
+          <View style={s.modalBtns}>
+            <PressableScale
+              style={s.modalBtnCancel}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onClose();
+              }}
+            >
+              <Text style={s.modalBtnCancelText}>Cancelar</Text>
+            </PressableScale>
+            <PressableScale
+              style={abono > 0 ? s.modalBtnConfirm : s.modalBtnConfirmDisabled}
+              onPress={handleAbonar}
+              disabled={abono <= 0}
+            >
+              <Text style={abono > 0 ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>
+                Pagar
+              </Text>
+            </PressableScale>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─── Item de deuda con swipe-to-delete (mismo patrón que SwipeableGoalItem) ────
+
+// ─── Item de deuda — editar/eliminar explícitos (mismo patrón que Métodos de pago) ──
+
+function DebtItem({
+  debt,
+  onEdit,
+  onDelete,
+  onAbonar,
+}: {
+  debt: Debt;
+  onEdit: () => void;
+  onDelete: () => void;
+  onAbonar: () => void;
+}) {
+  const tokens = useAppTokens();
+
+  const paidAmount = debt.totalAmount - debt.remainingAmount;
+  const pct = debt.totalAmount > 0 ? Math.min(100, (paidAmount / debt.totalAmount) * 100) : 0;
+  const done = debt.remainingAmount <= 0;
+
+  const fmt = (v: number) =>
+    `$${Math.round(v)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+
+  return (
+    <Card style={{ marginBottom: 8, gap: 10 }}>
+      {done ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm + 2 }}>
+          <Text style={{ fontSize: 28 }}>{debt.emoji}</Text>
+          <View style={{ flex: 1 }}>
+            <ThemedText variant="headline" style={{ color: tokens.colors.state.success }}>
+              ¡Deuda liquidada!
+            </ThemedText>
+            <ThemedText variant="footnote" color="secondary" style={{ marginTop: 2 }}>
+              Ya no debes nada por este concepto
+            </ThemedText>
+          </View>
+          <Text style={{ fontSize: 22 }}>🎉</Text>
+          <TouchableOpacity onPress={onDelete} hitSlop={8} style={{ padding: 4 }}>
+            <Trash2 size={16} color={tokens.colors.state.danger} strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm }}>
+            <Text style={{ fontSize: 24 }}>{debt.emoji}</Text>
+            <ThemedText variant="headline" style={{ flex: 1 }} numberOfLines={1}>
+              {debt.name}
+            </ThemedText>
+            <TouchableOpacity onPress={onEdit} hitSlop={8} style={{ padding: 4 }}>
+              <Pencil size={15} color={tokens.colors.text.secondary} strokeWidth={2} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onDelete} hitSlop={8} style={{ padding: 4 }}>
+              <Trash2 size={15} color={tokens.colors.state.danger} strokeWidth={2} />
+            </TouchableOpacity>
+          </View>
+          <View
+            style={{
+              height: 6,
+              backgroundColor: tokens.colors.surface.elevated,
+              borderRadius: 3,
+              overflow: "hidden",
+            }}
+          >
+            <View
+              style={{
+                height: 6,
+                width: `${pct}%` as `${number}%`,
+                backgroundColor: DEBT_COLOR,
+                borderRadius: 3,
+              }}
+            />
+          </View>
+          <View
+            style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+          >
+            <View style={{ gap: 2 }}>
+              <ThemedText variant="footnote" color="secondary">
+                Saldo: {fmt(debt.remainingAmount)} / {fmt(debt.totalAmount)}
+              </ThemedText>
+              <ThemedText variant="footnote" color="secondary">
+                Cuota {fmt(debt.monthlyPayment)} · día {debt.dueDay}
+              </ThemedText>
+            </View>
+            <TouchableOpacity
+              style={{
+                backgroundColor: DEBT_COLOR,
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                borderRadius: tokens.radius.full,
+              }}
+              onPress={onAbonar}
+              activeOpacity={0.75}
+            >
+              <ThemedText variant="footnote" style={{ color: "#FFFFFF", fontWeight: "700" }}>
+                Pagar
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+    </Card>
+  );
+}
+
+// ─── Sección principal de deudas ───────────────────────────────────────────────
+
+function DebtsSection() {
+  const tokens = useAppTokens();
+  const debts = useSettingsStore((st) => st.debts);
+  const removeDebt = useSettingsStore((st) => st.removeDebt);
+
+  const [showNuevaDeuda, setShowNuevaDeuda] = useState(false);
+  const [editDebt, setEditDebt] = useState<Debt | null>(null);
+  const [abonarDebt, setAbonarDebt] = useState<Debt | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ id: string; name: string } | null>(null);
+
+  return (
+    <>
+      {debts.length === 0 ? (
+        /* ── Estado vacío ─────────────────────────────────────────────── */
+        <Card style={{ alignItems: "center", gap: tokens.spacing.sm + 2 }}>
+          <Text style={{ fontSize: 32 }}>💳</Text>
+          <ThemedText variant="subheadline" color="secondary" style={{ textAlign: "center" }}>
+            Aún no tienes deudas registradas{"\n"}agrégalas para controlarlas y salir de ellas
+          </ThemedText>
+          <TouchableOpacity
+            style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}
+            onPress={() => setShowNuevaDeuda(true)}
+            activeOpacity={0.7}
+          >
+            <Plus size={15} color={tokens.colors.accent.default} strokeWidth={2.5} />
+            <ThemedText
+              variant="subheadline"
+              style={{ color: tokens.colors.accent.default, fontWeight: "600" }}
+            >
+              Nueva deuda
+            </ThemedText>
+          </TouchableOpacity>
+        </Card>
+      ) : (
+        /* ── Lista de deudas ──────────────────────────────────────────── */
+        <>
+          {debts.map((debt) => (
+            <DebtItem
+              key={debt.id}
+              debt={debt}
+              onEdit={() => setEditDebt(debt)}
+              onDelete={() => setDeleteDialog({ id: debt.id, name: debt.name })}
+              onAbonar={() => setAbonarDebt(debt)}
+            />
+          ))}
+
+          {/* Botón nueva deuda */}
+          <Card padded={false}>
+            <ListRow
+              label="Nueva deuda"
+              icon={<Plus size={16} color="#FFFFFF" strokeWidth={2.5} />}
+              iconBg={tokens.colors.accent.default}
+              labelColor={tokens.colors.accent.default}
+              onPress={() => setShowNuevaDeuda(true)}
+            />
+          </Card>
+        </>
+      )}
+
+      <NuevaDeudaModal visible={showNuevaDeuda} onClose={() => setShowNuevaDeuda(false)} />
+      <NuevaDeudaModal
+        visible={!!editDebt}
+        editTarget={editDebt}
+        onClose={() => setEditDebt(null)}
+      />
+      <AbonarDeudaModal
+        debt={abonarDebt}
+        visible={!!abonarDebt}
+        onClose={() => setAbonarDebt(null)}
+      />
+
+      <ConfirmDialog
+        visible={!!deleteDialog}
+        variant="danger"
+        title="Eliminar deuda"
+        message={`¿Seguro que quieres eliminar "${deleteDialog?.name ?? ""}"?`}
+        confirmLabel="Eliminar"
+        onConfirm={() => {
+          if (deleteDialog) {
+            cancelDebtReminder(deleteDialog.id);
+            removeDebt(deleteDialog.id);
+          }
+          setDeleteDialog(null);
+        }}
+        onCancel={() => setDeleteDialog(null)}
+      />
+    </>
+  );
+}
 
 // ─── Modal para editar categoría ──────────────────────────────────────────────
 function EditCategoryModal({
@@ -1300,7 +1869,9 @@ function SavingsGoalsSection() {
   const removeSavingsGoal = useSettingsStore((st) => st.removeSavingsGoal);
 
   const [showNuevaMeta, setShowNuevaMeta] = useState(false);
+  const [editGoal, setEditGoal] = useState<SavingsGoal | null>(null);
   const [abonarGoal, setAbonarGoal] = useState<SavingsGoal | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ id: string; name: string } | null>(null);
 
   return (
     <>
@@ -1329,10 +1900,11 @@ function SavingsGoalsSection() {
         /* ── Lista de metas ───────────────────────────────────────────── */
         <>
           {savingsGoals.map((goal) => (
-            <SwipeableGoalItem
+            <GoalItem
               key={goal.id}
               goal={goal}
-              onDelete={() => removeSavingsGoal(goal.id)}
+              onEdit={() => setEditGoal(goal)}
+              onDelete={() => setDeleteDialog({ id: goal.id, name: goal.name })}
               onAbonar={() => setAbonarGoal(goal)}
             />
           ))}
@@ -1351,16 +1923,37 @@ function SavingsGoalsSection() {
       )}
 
       <NuevaMetaModal visible={showNuevaMeta} onClose={() => setShowNuevaMeta(false)} />
+      <NuevaMetaModal
+        visible={!!editGoal}
+        editTarget={editGoal}
+        onClose={() => setEditGoal(null)}
+      />
       <AbonarMetaModal
         goal={abonarGoal}
         visible={!!abonarGoal}
         onClose={() => setAbonarGoal(null)}
+      />
+
+      <ConfirmDialog
+        visible={!!deleteDialog}
+        variant="danger"
+        title="Eliminar meta"
+        message={`¿Seguro que quieres eliminar "${deleteDialog?.name ?? ""}"?`}
+        confirmLabel="Eliminar"
+        onConfirm={() => {
+          if (deleteDialog) removeSavingsGoal(deleteDialog.id);
+          setDeleteDialog(null);
+        }}
+        onCancel={() => setDeleteDialog(null)}
       />
     </>
   );
 }
 
 // ─── Sección: Detección automática de transacciones ──────────────────────────
+
+const DETECT_COLOR = "#0D9488";
+const BANKS_COLOR = "#EA580C";
 
 function AutoDetectSection() {
   const s = useStyles();
@@ -1464,12 +2057,14 @@ function AutoDetectSection() {
 
   return (
     <>
-      {/* Toggle principal */}
+      {/* Toggle principal + filas condicionales, todo en una sola tarjeta agrupada
+          (antes cada fila era su propia tarjeta con borde — se fusionó a pedido
+          del usuario, la tarjeta con borde queda a nivel de sección, no por fila). */}
       <Card padded={false}>
         <ListRow
           label="Detectar transacciones"
-          icon={<Text style={{ fontSize: 15 }}>🏦</Text>}
-          iconBg={tokens.colors.text.secondary}
+          icon={<Radar size={16} color="#FFFFFF" strokeWidth={2} />}
+          iconBg={DETECT_COLOR}
           detail={
             !hasPermission
               ? "Requiere permiso de notificaciones"
@@ -1489,11 +2084,11 @@ function AutoDetectSection() {
 
         {enabled && (
           <Reanimated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
-            <Divider inset={tokens.spacing.md * 2 + 30} />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
             <ListRow
               label="Bancos activos"
-              icon={<Text style={{ fontSize: 15 }}>🏛️</Text>}
-              iconBg={tokens.colors.text.secondary}
+              icon={<Landmark size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg={BANKS_COLOR}
               detail={
                 allowedBanks.length === 0
                   ? "Todos los bancos compatibles"
@@ -1504,56 +2099,24 @@ function AutoDetectSection() {
             />
           </Reanimated.View>
         )}
+
+        {/* Acceso directo a ajustes de batería — evita que el sistema mate la detección
+            en background (Samsung/Xiaomi/Huawei...). Antes eran dos tarjetas con párrafos
+            explicativos; se redujo a una fila de acción para no saturar la pantalla. */}
+        {enabled && (
+          <Reanimated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
+            <Divider inset={tokens.spacing.md * 2 + 34} />
+            <ListRow
+              label="Optimización de batería"
+              icon={<BatteryWarning size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg={tokens.colors.state.warning}
+              detail="Evita interrupciones"
+              showChevron
+              onPress={() => Linking.openSettings()}
+            />
+          </Reanimated.View>
+        )}
       </Card>
-
-      {/* Info card: explicación de privacidad */}
-      {enabled && (
-        <Reanimated.View
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(150)}
-          style={[autoS.infoCard, { backgroundColor: ACCENT + "0D", borderColor: ACCENT + "30" }]}
-        >
-          <Text style={[autoS.infoTitle, { color: ACCENT }]}>🔒 Tu privacidad, protegida</Text>
-          <Text style={[autoS.infoText, { color: theme.textSub }]}>
-            Solo se extrae el monto y comercio de cada notificación. Nunca se leen saldos, números
-            de tarjeta ni datos personales. Todo se procesa localmente en tu dispositivo.
-          </Text>
-        </Reanimated.View>
-      )}
-
-      {/* Info card: aviso de optimización de batería (Samsung y otros fabricantes
-          matan procesos en background agresivamente, incluso el listener de
-          notificaciones) */}
-      {enabled && (
-        <Reanimated.View
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(150)}
-          style={[
-            autoS.infoCard,
-            {
-              backgroundColor: tokens.colors.state.warning + "0D",
-              borderColor: tokens.colors.state.warning + "30",
-            },
-          ]}
-        >
-          <Text style={[autoS.infoTitle, { color: tokens.colors.state.warning }]}>
-            🔋 Evita que el sistema detenga la detección
-          </Text>
-          <Text style={[autoS.infoText, { color: theme.textSub }]}>
-            Algunos fabricantes (Samsung, Xiaomi, Huawei...) detienen apps en segundo plano para
-            ahorrar batería, lo que puede interrumpir la detección automática. Desactiva la
-            optimización de batería para MyWallet en los ajustes del sistema.
-          </Text>
-          <PressableScale
-            style={[autoS.batteryBtn, { borderColor: tokens.colors.state.warning }]}
-            onPress={() => Linking.openSettings()}
-          >
-            <Text style={[autoS.batteryBtnText, { color: tokens.colors.state.warning }]}>
-              Abrir ajustes de batería
-            </Text>
-          </PressableScale>
-        </Reanimated.View>
-      )}
 
       {/* Diálogo de permiso */}
       <Modal
@@ -1668,24 +2231,6 @@ function AutoDetectSection() {
 }
 
 const autoS = StyleSheet.create({
-  infoCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 14,
-    marginTop: 8,
-    gap: 4,
-  },
-  infoTitle: { fontSize: 13, fontWeight: "700", marginBottom: 4 },
-  infoText: { fontSize: 12, lineHeight: 18 },
-  batteryBtn: {
-    marginTop: 8,
-    alignSelf: "flex-start",
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  batteryBtnText: { fontSize: 12, fontWeight: "700" },
   bankRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1715,6 +2260,8 @@ export default function SettingsScreen() {
   const darkMode = useSettingsStore((s) => s.darkMode);
   const budgetByCategory = useSettingsStore((s) => s.budgetByCategory);
   const userCategories = useSettingsStore((s) => s.userCategories);
+  const savingsGoals = useSettingsStore((s) => s.savingsGoals);
+  const debts = useSettingsStore((s) => s.debts);
 
   const setMonthlyBudget = useSettingsStore((s) => s.setMonthlyBudget);
   const setDarkMode = useSettingsStore((s) => s.setDarkMode);
@@ -1750,6 +2297,8 @@ export default function SettingsScreen() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCatBudgetModal, setShowCatBudgetModal] = useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+  const [showGoalsModal, setShowGoalsModal] = useState(false);
+  const [showDebtsModal, setShowDebtsModal] = useState(false);
   const [editingCat, setEditingCat] = useState<UserCategory | null>(null);
 
   const [clearDataDialog, setClearDataDialog] = useState(false);
@@ -1849,7 +2398,11 @@ export default function SettingsScreen() {
       style={{ flex: 1, backgroundColor: tokens.colors.surface.primary }}
       edges={["top"]}
     >
-      <StackedScreenHeader onBack={() => router.back()} backRef={getTourRef(TOUR_KEYS.BACK_BTN)} />
+      <StackedScreenHeader
+        onBack={() => router.back()}
+        backRef={getTourRef(TOUR_KEYS.BACK_BTN)}
+        title="Configuración"
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -1859,12 +2412,8 @@ export default function SettingsScreen() {
           gap: tokens.spacing.lg,
         }}
       >
-        <Enter index={0} screenId="settings">
-          <ThemedText variant="largeTitle">Configuración</ThemedText>
-        </Enter>
-
         {/* ── CONTROL FINANCIERO ───────────────────────────────────────── */}
-        <Enter index={1} screenId="settings">
+        <Enter index={0} screenId="settings">
           <SectionHeader>CONTROL FINANCIERO</SectionHeader>
           <Card padded={false}>
             <View ref={getTourRef(TOUR_KEYS.INCOME_ROW)} collapsable={false}>
@@ -1881,7 +2430,7 @@ export default function SettingsScreen() {
         </Enter>
 
         {/* ── GESTIÓN ──────────────────────────────────────────────────── */}
-        <Enter index={2} screenId="settings">
+        <Enter index={1} screenId="settings">
           <SectionHeader>GESTIÓN</SectionHeader>
           <Card padded={false}>
             <ListRow
@@ -1892,7 +2441,7 @@ export default function SettingsScreen() {
               showChevron
               onPress={() => setShowCategoriesModal(true)}
             />
-            <Divider inset={tokens.spacing.md * 2 + 30} />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
             <ListRow
               label="Métodos de pago"
               icon={<CreditCard size={16} color="#FFFFFF" strokeWidth={2} />}
@@ -1901,7 +2450,7 @@ export default function SettingsScreen() {
               showChevron
               onPress={() => setShowPaymentModal(true)}
             />
-            <Divider inset={tokens.spacing.md * 2 + 30} />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
             <ListRow
               label="Presupuesto por categoría"
               icon={<PiggyBank size={16} color="#FFFFFF" strokeWidth={2} />}
@@ -1910,17 +2459,43 @@ export default function SettingsScreen() {
               showChevron
               onPress={() => setShowCatBudgetModal(true)}
             />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
+            <ListRow
+              label="Metas de ahorro"
+              icon={<Target size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg="#DB2777"
+              detail={
+                savingsGoals.length === 0
+                  ? "Sin metas"
+                  : `${savingsGoals.length} meta${savingsGoals.length !== 1 ? "s" : ""}`
+              }
+              showChevron
+              onPress={() => setShowGoalsModal(true)}
+            />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
+            <ListRow
+              label="Deudas"
+              icon={<HandCoins size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg={DEBT_COLOR}
+              detail={
+                debts.length === 0
+                  ? "Sin deudas"
+                  : `${debts.length} deuda${debts.length !== 1 ? "s" : ""}`
+              }
+              showChevron
+              onPress={() => setShowDebtsModal(true)}
+            />
           </Card>
         </Enter>
 
-        {/* ── METAS DE AHORRO ──────────────────────────────────────────── */}
-        <Enter index={3} screenId="settings">
-          <SectionHeader>METAS DE AHORRO</SectionHeader>
-          <SavingsGoalsSection />
+        {/* ── DETECCIÓN AUTOMÁTICA ──────────────────────────────────────── */}
+        <Enter index={2} screenId="settings">
+          <SectionHeader>DETECCIÓN AUTOMÁTICA</SectionHeader>
+          <AutoDetectSection />
         </Enter>
 
         {/* ── APARIENCIA ───────────────────────────────────────────────── */}
-        <Enter index={4} screenId="settings">
+        <Enter index={3} screenId="settings">
           <SectionHeader>APARIENCIA</SectionHeader>
           <Card padded={false}>
             <ListRow
@@ -1934,14 +2509,8 @@ export default function SettingsScreen() {
           </Card>
         </Enter>
 
-        {/* ── DETECCIÓN AUTOMÁTICA ──────────────────────────────────────── */}
-        <Enter index={5} screenId="settings">
-          <SectionHeader>DETECCIÓN AUTOMÁTICA</SectionHeader>
-          <AutoDetectSection />
-        </Enter>
-
         {/* ── SISTEMA ──────────────────────────────────────────────────── */}
-        <Enter index={6} screenId="settings">
+        <Enter index={4} screenId="settings">
           <SectionHeader>SISTEMA</SectionHeader>
           <Card padded={false}>
             <ListRow
@@ -1952,7 +2521,7 @@ export default function SettingsScreen() {
               showChevron
               onPress={handleExport}
             />
-            <Divider inset={tokens.spacing.md * 2 + 30} />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
             <ListRow
               label="Borrar historial de transacciones"
               icon={<Trash2 size={16} color="#FFFFFF" strokeWidth={2} />}
@@ -1972,7 +2541,7 @@ export default function SettingsScreen() {
         </Enter>
 
         {/* ── ACERCA DE ────────────────────────────────────────────────── */}
-        <Enter index={7} screenId="settings">
+        <Enter index={5} screenId="settings">
           <SectionHeader>ACERCA DE</SectionHeader>
           <Card padded={false}>
             <ListRow label="Versión" detail={`v${APP_VERSION}`} />
@@ -2014,6 +2583,24 @@ export default function SettingsScreen() {
         <PaymentMethodsSection />
       </FullScreenModal>
 
+      {/* ── Modal pantalla completa: Metas de ahorro ─────────────────── */}
+      <FullScreenModal
+        visible={showGoalsModal}
+        title="Metas de ahorro"
+        onClose={() => setShowGoalsModal(false)}
+      >
+        <SavingsGoalsSection />
+      </FullScreenModal>
+
+      {/* ── Modal pantalla completa: Deudas ──────────────────────────── */}
+      <FullScreenModal
+        visible={showDebtsModal}
+        title="Deudas"
+        onClose={() => setShowDebtsModal(false)}
+      >
+        <DebtsSection />
+      </FullScreenModal>
+
       {/* ── Modal pantalla completa: Categorías ─────────────────────── */}
       <FullScreenModal
         visible={showCategoriesModal}
@@ -2042,7 +2629,7 @@ export default function SettingsScreen() {
                         setEditingCat(cat);
                       }}
                     />
-                    {i < arr.length - 1 && <Divider inset={tokens.spacing.md * 2 + 30} />}
+                    {i < arr.length - 1 && <Divider inset={tokens.spacing.md * 2 + 34} />}
                   </View>
                 ))}
             </Card>
@@ -2071,7 +2658,7 @@ export default function SettingsScreen() {
                         setEditingCat(cat);
                       }}
                     />
-                    {i < arr.length - 1 && <Divider inset={tokens.spacing.md * 2 + 30} />}
+                    {i < arr.length - 1 && <Divider inset={tokens.spacing.md * 2 + 34} />}
                   </View>
                 ))}
             </Card>
@@ -2184,7 +2771,7 @@ export default function SettingsScreen() {
                         </View>
                       }
                     />
-                    {i < arr.length - 1 && <Divider inset={tokens.spacing.md * 2 + 30} />}
+                    {i < arr.length - 1 && <Divider inset={tokens.spacing.md * 2 + 34} />}
                   </View>
                 );
               })}

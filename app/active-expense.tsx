@@ -21,22 +21,9 @@ import {
   Plus,
   Calendar,
   FileText,
-  UtensilsCrossed,
-  Car,
-  Home,
-  ShoppingBag,
-  HeartPulse,
-  Gamepad2,
-  GraduationCap,
-  User,
   Banknote,
   Landmark,
   CreditCard,
-  Briefcase,
-  Laptop2,
-  TrendingUp,
-  Gift,
-  Building2,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 
@@ -77,25 +64,7 @@ const ACCOUNT_OPTIONS: { key: AccountType; label: string }[] = [
 ];
 const SUGGESTED_TAGS = ["#viaje", "#trabajo", "#comida", "#salud", "#ocio"];
 
-// ─── Iconos de categoría (lucide) con paleta Stitch ───────────────────────────
 type LucideIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
-const CATEGORY_ICONS: Record<string, { Icon: LucideIcon; color: string; bg: string }> = {
-  // Gastos
-  "🍔": { Icon: UtensilsCrossed, color: "#D2601A", bg: "#FFE8D6" },
-  "🚗": { Icon: Car, color: "#1565C0", bg: "#D6EFFF" },
-  "🏠": { Icon: Home, color: "#D97706", bg: "#FEF3C7" },
-  "🛍️": { Icon: ShoppingBag, color: "#C2185B", bg: "#FEE2E2" },
-  "🏥": { Icon: HeartPulse, color: "#C62828", bg: "#FCE4EC" },
-  "🎮": { Icon: Gamepad2, color: "#6D28D9", bg: "#EDE9FE" },
-  "🎓": { Icon: GraduationCap, color: "#059669", bg: "#D1FAE5" },
-  "👤": { Icon: User, color: "#475569", bg: "#F1F5F9" },
-  // Ingresos
-  "💼": { Icon: Briefcase, color: "#1D4ED8", bg: "#DBEAFE" },
-  "💻": { Icon: Laptop2, color: "#4338CA", bg: "#E0E7FF" },
-  "📈": { Icon: TrendingUp, color: "#059669", bg: "#D1FAE5" },
-  "🎁": { Icon: Gift, color: "#B45309", bg: "#FEF3C7" },
-  "🏢": { Icon: Building2, color: "#374151", bg: "#F3F4F6" },
-};
 
 // ─── Info extra de cuentas ────────────────────────────────────────────────────
 const ACCOUNT_DETAILS: Record<AccountType, { Icon: LucideIcon; desc: string }> = {
@@ -269,9 +238,10 @@ export default function ActiveExpenseScreen() {
     if (parsed._categoryDetected && parsed.categoryEmoji && parsed.categoryName)
       store.setCategory(parsed.categoryEmoji, parsed.categoryName);
 
-    // Tipo ingreso/gasto: solo si hay palabras clave explícitas
-    // (no se cambia si el usuario abrió la pantalla como ingreso)
-    if (parsed.isExpense !== undefined) store.setIsExpense(parsed.isExpense);
+    // Tipo ingreso/gasto: ya NO se detecta desde el texto libre — el usuario ya
+    // eligió el tipo al abrir la pantalla (o con los pills gasto/ingreso), y
+    // cambiarlo solo porque el texto contiene una palabra clave era sorpresivo
+    // (ej. escribir "recibí un descuento" podía voltear un gasto a ingreso).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.note]);
 
@@ -301,6 +271,8 @@ export default function ActiveExpenseScreen() {
     if (fromBatchReview || fromNotificationEdit) {
       const catName =
         userCategories.find((c) => c.emoji === store.categoryEmoji)?.name ?? store.categoryEmoji;
+      const editedDate =
+        store.date === "custom" && store.customDate ? store.customDate : new Date();
       setPendingManualItem({
         amount: store.amount,
         description: store.note || store.rawTranscript || (isExpense ? "Gasto" : "Ingreso"),
@@ -308,6 +280,7 @@ export default function ActiveExpenseScreen() {
         categoryName: catName,
         isExpense,
         paymentMethod: store.account ?? "cash",
+        date: editedDate.toISOString(),
       });
       store.reset();
       router.back();
@@ -452,7 +425,11 @@ export default function ActiveExpenseScreen() {
                   onBlur={handleAmountBlur}
                   onSubmitEditing={handleAmountBlur}
                   keyboardType="number-pad"
-                  style={[st.amountInput, { color: accent }, dynamicAmountStyle(store.amount)]}
+                  style={[
+                    st.amountInput,
+                    { color: accent },
+                    dynamicAmountStyle(parseFloat(amountDisplay.replace(/\D/g, "")) || 0),
+                  ]}
                   returnKeyType="done"
                   placeholder="0"
                   placeholderTextColor={accent + "55"}
@@ -581,17 +558,16 @@ export default function ActiveExpenseScreen() {
           contentContainerStyle={st.catRow}
         >
           {(isExpense ? expenseCatOptions : incomeCatOptions).map((cat) => {
-            const info = CATEGORY_ICONS[cat.key];
             const isSel = store.categoryEmoji === cat.key;
-            // En oscuro no usamos los pasteles de cat.colorBg/colorAccent (pensados para
-            // fondo claro, chocan contra el navy) — mismo tratamiento uniforme que Stitch:
-            // gris translúcido sin seleccionar, tinte del acento al seleccionar.
+            // En oscuro no usamos los pasteles de cat.colorBg (pensados para fondo claro,
+            // chocan contra el navy) — gris translúcido sin seleccionar, tinte del acento
+            // al seleccionar. El ícono siempre es el emoji real que el usuario eligió en
+            // el onboarding (o al crear/editar la categoría), nunca un ícono genérico.
             const iconBg = theme.isDark
               ? isSel
                 ? accent + "33"
                 : "rgba(255,255,255,0.06)"
               : cat.colorBg;
-            const iconColor = theme.isDark ? (isSel ? accent : theme.textSub) : cat.colorAccent;
             return (
               <TouchableOpacity
                 key={cat.key}
@@ -607,11 +583,7 @@ export default function ActiveExpenseScreen() {
                       isSel && { borderWidth: 2, borderColor: accent },
                     ]}
                   >
-                    {info ? (
-                      <info.Icon size={22} color={iconColor} strokeWidth={1.8} />
-                    ) : (
-                      <Text style={{ fontSize: 20 }}>{cat.key}</Text>
-                    )}
+                    <Text style={{ fontSize: 24 }}>{cat.key}</Text>
                   </View>
                   {isSel && (
                     <View style={[st.catCheckBadge, { backgroundColor: accent }]}>
@@ -764,7 +736,7 @@ function buildS(t: AppTheme) {
       backgroundColor: bg,
     },
     headerSideBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
-    headerTitle: { fontSize: 17, fontWeight: "700", color: t.text, letterSpacing: -0.4 },
+    headerTitle: { fontSize: 20, fontWeight: "700", color: t.text, letterSpacing: -0.4 },
 
     content: { flex: 1, backgroundColor: bg },
     contentInner: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 140 },

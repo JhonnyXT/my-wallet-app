@@ -63,6 +63,8 @@ export default function DashboardScreen() {
   const setExpenseCategory = useExpenseStore((s) => s.setCategory);
   const paymentMethods = useSettingsStore((s) => s.paymentMethods);
   const savingsGoals = useSettingsStore((s) => s.savingsGoals);
+  const debts = useSettingsStore((s) => s.debts);
+  const totalDebt = useMemo(() => debts.reduce((sum, d) => sum + d.remainingAmount, 0), [debts]);
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   // ── Detalle de transacción (long-press) ──────────────────────────────────
@@ -399,6 +401,15 @@ export default function DashboardScreen() {
               style={[styles.balanceAmount, netBalance < 0 && styles.balanceNegative]}
             />
 
+            {/* Patrimonio neto: balance de caja menos el saldo pendiente de deudas.
+                Solo se muestra si hay deudas activas, para no agregar ruido cuando
+                la sección "Deudas" de Ajustes está vacía. */}
+            {totalDebt > 0 && !isSearching && typeFilter === null && (
+              <Text style={styles.netWorthText}>
+                Patrimonio neto: {formatBalance(netBalance - totalDebt)}
+              </Text>
+            )}
+
             {/* ── Banner: categoría excedida — eliminado; se usa notificación push ── */}
 
             <Reanimated.View style={[styles.pillsRow, pillsParallaxStyle as object]}>
@@ -687,6 +698,13 @@ function createStyles(t: AppTheme) {
     },
     balanceNegative: {
       color: "#DC2626",
+    },
+    netWorthText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: t.textSub,
+      textAlign: "center",
+      marginTop: -4,
     },
     overBudgetBanner: {
       backgroundColor: t.isDark ? "rgba(220,38,38,0.18)" : "rgba(186,26,26,0.1)",

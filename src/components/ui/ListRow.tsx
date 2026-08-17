@@ -65,9 +65,9 @@ export function ListRow({
       {icon ? (
         <View
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: tokens.radius.sm,
+            width: 34,
+            height: 34,
+            borderRadius: tokens.radius.full,
             backgroundColor: iconBg ?? tokens.colors.text.secondary,
             alignItems: "center",
             justifyContent: "center",

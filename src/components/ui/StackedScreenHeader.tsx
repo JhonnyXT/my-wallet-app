@@ -1,8 +1,9 @@
 import type { ReactNode, Ref } from "react";
 import { View, type View as RNView } from "react-native";
-import { ChevronLeft } from "lucide-react-native";
+import { ArrowLeft } from "lucide-react-native";
 import { useAppTokens } from "@/src/theme/tokens";
 import { PressableScale } from "@/src/components/ui/PressableScale";
+import { ThemedText } from "@/src/components/ui/ThemedText";
 
 export interface StackedScreenHeaderAction {
   icon: ReactNode;
@@ -15,37 +16,31 @@ export interface StackedScreenHeaderProps {
   backAccessibilityLabel?: string;
   backRef?: Ref<RNView>;
   action?: StackedScreenHeaderAction;
+  title: string;
 }
 
 /**
- * Header de pantalla apilada (B.2): dos botones circulares (atrás / acción opcional),
- * sin header nativo. El título grande vive en el body del scroll, no aquí.
+ * Barra de app estilo Material: flecha llana + título en la misma fila (sin botón
+ * flotante circular ni título grande duplicado en el body — ese patrón era el look
+ * "large title" de iOS que se reemplazó por este).
  */
 export function StackedScreenHeader({
   onBack,
   backAccessibilityLabel = "Volver",
   backRef,
   action,
+  title,
 }: StackedScreenHeaderProps) {
   const tokens = useAppTokens();
-
-  const buttonStyle = {
-    width: 40,
-    height: 40,
-    borderRadius: tokens.radius.full,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    backgroundColor: tokens.colors.surface.secondary,
-  };
 
   return (
     <View
       style={{
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
-        paddingHorizontal: tokens.spacing.md,
-        paddingTop: tokens.spacing.md,
+        gap: tokens.spacing.sm,
+        paddingHorizontal: tokens.spacing.sm,
+        paddingVertical: tokens.spacing.sm,
       }}
     >
       <PressableScale
@@ -53,17 +48,19 @@ export function StackedScreenHeader({
         onPress={onBack}
         accessibilityRole="button"
         accessibilityLabel={backAccessibilityLabel}
-        style={buttonStyle}
+        style={{ padding: tokens.spacing.sm, borderRadius: tokens.radius.full }}
       >
-        <ChevronLeft size={20} color={tokens.colors.accent.default} />
+        <ArrowLeft size={22} color={tokens.colors.text.primary} strokeWidth={2} />
       </PressableScale>
-
+      <ThemedText variant="headline" style={{ flex: 1, fontSize: 20, lineHeight: 25 }}>
+        {title}
+      </ThemedText>
       {action ? (
         <PressableScale
           onPress={action.onPress}
           accessibilityRole="button"
           accessibilityLabel={action.accessibilityLabel}
-          style={buttonStyle}
+          style={{ padding: tokens.spacing.sm, borderRadius: tokens.radius.full }}
         >
           {action.icon}
         </PressableScale>

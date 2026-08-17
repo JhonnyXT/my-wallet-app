@@ -41,6 +41,8 @@ type ReviewItem = {
   paymentMethod: string;
   bankName: string;
   confidence: "high" | "medium" | "low";
+  /** ISO — la fecha real en que se detectó la notificación, no la de hoy. */
+  date: string;
 };
 
 function pendingToReview(
@@ -63,6 +65,7 @@ function pendingToReview(
     paymentMethod: "credit",
     bankName: item.bankName,
     confidence: item.confidence,
+    date: item.detectedAt,
   };
 }
 
@@ -189,6 +192,7 @@ export default function NotificationReviewScreen() {
                   categoryEmoji: pendingManualItem.categoryEmoji,
                   categoryName: pendingManualItem.categoryName,
                   paymentMethod: pendingManualItem.paymentMethod,
+                  date: pendingManualItem.date ?? i.date,
                 }
               : i,
           ),
@@ -206,6 +210,7 @@ export default function NotificationReviewScreen() {
           paymentMethod: pendingManualItem.paymentMethod,
           bankName: "Manual",
           confidence: "high",
+          date: pendingManualItem.date ?? new Date().toISOString(),
         };
         setItems((prev) => [newItem, ...prev]);
       }
@@ -216,11 +221,14 @@ export default function NotificationReviewScreen() {
 
   const handleEdit = useCallback(
     (item: ReviewItem) => {
-      // Pre-popular useExpenseStore con los datos actuales del item
+      // Pre-popular useExpenseStore con los datos actuales del item — incluida la
+      // fecha real de detección, no la de hoy (bug reportado: se abría siempre
+      // con la fecha actual sin importar cuándo llegó la notificación).
       expenseStore.setIsExpense(item.isExpense);
       expenseStore.setAmount(item.amount);
       expenseStore.setNote(item.description);
       expenseStore.setCategory(item.categoryEmoji, item.categoryName);
+      expenseStore.setCustomDate(new Date(item.date));
       setEditingItemId(item.id);
       router.push("/active-expense?from=notification-edit");
     },
@@ -254,7 +262,7 @@ export default function NotificationReviewScreen() {
       description: item.description,
       categoryEmoji: item.categoryEmoji,
       paymentMethod: item.paymentMethod,
-      date: new Date(),
+      date: new Date(item.date),
     }));
 
     try {

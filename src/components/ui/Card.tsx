@@ -7,7 +7,11 @@ export interface CardProps extends ViewProps {
   padded?: boolean;
 }
 
-/** Contenedor de tarjeta (lista agrupada). `padded={false}` cuando envuelve ListRow. */
+/**
+ * Contenedor de tarjeta (lista agrupada). `padded={false}` cuando envuelve ListRow.
+ * Borde visible (1.5px, `border.default`) — mismo lenguaje que el pill de `FilterChips`
+ * y los botones circulares del header del Dashboard, portado a Ajustes.
+ */
 export function Card({ variant = "card", padded = true, style, ...rest }: CardProps) {
   const tokens = useAppTokens();
 
@@ -18,6 +22,8 @@ export function Card({ variant = "card", padded = true, style, ...rest }: CardPr
           backgroundColor:
             variant === "card" ? tokens.colors.surface.secondary : tokens.colors.surface.elevated,
           borderRadius: tokens.radius.lg,
+          borderWidth: 1.5,
+          borderColor: tokens.colors.border.default,
           padding: padded ? tokens.spacing.md : 0,
           overflow: "hidden",
         },

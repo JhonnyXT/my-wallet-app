@@ -6,6 +6,7 @@
  *   - budgetSlice:         presupuesto mensual y por categoría
  *   - paymentsSlice:       métodos de pago
  *   - goalsSlice:          metas de ahorro
+ *   - debtsSlice:          deudas y su saldo pendiente
  *   - prefsSlice:          preferencias visuales (tema, nombre)
  *   - notificationsSlice:  configuración de notificaciones del sistema
  *
@@ -26,12 +27,13 @@ import {
   type PaymentMethodType,
 } from "./slices/paymentsSlice";
 import { createGoalsSlice, type GoalsSlice, type SavingsGoal } from "./slices/goalsSlice";
+import { createDebtsSlice, type DebtsSlice, type Debt } from "./slices/debtsSlice";
 import { createPrefsSlice, type PrefsSlice, type DarkModeOption } from "./slices/prefsSlice";
 import { createNotificationsSlice, type NotificationsSlice } from "./slices/notificationsSlice";
 
 // ─── Re-exportar tipos públicos (sin cambios para los importadores) ────────────
 
-export type { DarkModeOption, PaymentMethodType, PaymentMethod, SavingsGoal };
+export type { DarkModeOption, PaymentMethodType, PaymentMethod, SavingsGoal, Debt };
 
 // ─── Tipo combinado del store ─────────────────────────────────────────────────
 
@@ -39,6 +41,7 @@ export type SettingsState = CategoriesSlice &
   BudgetSlice &
   PaymentsSlice &
   GoalsSlice &
+  DebtsSlice &
   PrefsSlice &
   NotificationsSlice;
 
@@ -65,6 +68,7 @@ export const useSettingsStore = create<SettingsState>()(
       ...createBudgetSlice(...a),
       ...createPaymentsSlice(...a),
       ...createGoalsSlice(...a),
+      ...createDebtsSlice(...a),
       ...createPrefsSlice(...a),
       ...createNotificationsSlice(...a),
     }),

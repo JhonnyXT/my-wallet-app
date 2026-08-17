@@ -2,7 +2,12 @@
 
 > **Propósito:** Este documento es la referencia técnica completa del proyecto. Cualquier desarrollador, IA o colaborador que lea este archivo tendrá TODO el contexto necesario para desarrollar, modificar o extender la aplicación sin perder consistencia.
 >
-> **Última actualización:** 2026-07-22 | **Versión:** 1.5.0
+> **Última actualización:** 2026-08-17 | **Versión:** 1.5.0
+>
+> Nota de cobertura: este documento se actualiza incrementalmente por sesión de trabajo — algunas
+> secciones (ej. pantallas de onboarding `notification-onboarding.tsx`/`bank-selection-onboarding.tsx`,
+> o el detalle completo de la capa de tokens `src/theme/tokens.ts`) pueden tener menor profundidad
+> que `AGENTS.md`, que es la fuente más al día para gotchas puntuales.
 
 ---
 
@@ -139,7 +144,7 @@ my-wallet-app/
 │   │   ├── useExpenseStore.ts       # Formulario gasto/ingreso en curso
 │   │   ├── useNotificationStore.ts  # Cola persistida (AsyncStorage) de transacciones detectadas de notificaciones bancarias
 │   │   ├── useSettingsStore.ts      # Config usuario (persist AsyncStorage) + flags de notificaciones
-│   │   │   └── slices/               # 6 slices por dominio: categories, budget, payments, goals, prefs, notifications
+│   │   │   └── slices/               # 7 slices por dominio: categories, budget, payments, goals, debts, prefs, notifications
 │   │   ├── useUIStore.ts            # Estado de UI (búsqueda, filtro por categoría, overlay NLP)
 │   │   └── useVoiceStore.ts         # Estado de reconocimiento de voz
 │   │
@@ -306,9 +311,10 @@ interface ActiveExpense {
 **Patrón:** Estado efímero del formulario en curso. Se resetea al guardar/cerrar.
 
 ### useSettingsStore (persistido en AsyncStorage)
-Internamente organizado en 6 slices por dominio en `src/store/slices/` (`categoriesSlice`,
-`budgetSlice`, `paymentsSlice`, `goalsSlice`, `prefsSlice`, `notificationsSlice`), combinados en un
-único store con `SettingsState = CategoriesSlice & BudgetSlice & PaymentsSlice & GoalsSlice & PrefsSlice & NotificationsSlice`.
+Internamente organizado en 7 slices por dominio en `src/store/slices/` (`categoriesSlice`,
+`budgetSlice`, `paymentsSlice`, `goalsSlice`, `debtsSlice`, `prefsSlice`, `notificationsSlice`),
+combinados en un único store con
+`SettingsState = CategoriesSlice & BudgetSlice & PaymentsSlice & GoalsSlice & DebtsSlice & PrefsSlice & NotificationsSlice`.
 La API pública es idéntica a la de un store plano — ningún importador externo cambia.
 ```typescript
 {
@@ -317,6 +323,7 @@ La API pública es idéntica a la de un store plano — ningún importador exter
   budgetByCategory: Record<string, number>  // emoji → monto límite
   paymentMethods: PaymentMethod[]
   savingsGoals: SavingsGoal[]
+  debts: Debt[]
   darkMode: "system" | "light" | "dark"
   hasCompletedOnboarding: boolean   // true tras completar o saltar el Guided Tour
   onboardingStep: number            // paso actual del tour (0-4)
@@ -332,6 +339,26 @@ setNotificationsEnabled(val: boolean): void
 markBudgetNotified(emoji: string): void
 markGoalNotified(id: string): void
 clearExpiredBudgetNotifications(): void  // limpia entradas de meses anteriores al arrancar la app
+
+// goalsSlice
+addSavingsGoal(goal): void
+updateSavingsGoal(id, saved): void        // flujo "Abonar" — solo el monto ahorrado
+editSavingsGoal(id, updates): void        // edita nombre/emoji/monto objetivo, no el ahorro acumulado
+removeSavingsGoal(id): void
+
+// debtsSlice (nuevo)
+interface Debt {
+  id: string; name: string; emoji: string
+  totalAmount: number       // monto original, referencia fija
+  remainingAmount: number   // saldo pendiente, baja con cada abono hasta 0
+  monthlyPayment: number    // cuota mínima, solo informativa
+  dueDay: number            // 1-31, día del recordatorio mensual
+  createdAt: string
+}
+addDebt(debt): Debt                       // remainingAmount = totalAmount si no se pasa
+updateDebtBalance(id, remaining): void    // flujo "Pagar" — solo el saldo pendiente
+editDebt(id, updates): void               // edita nombre/emoji/monto total/cuota/día, no el saldo
+removeDebt(id): void
 ```
 
 El presupuesto es siempre mensual. No existen helpers de período — los montos se usan directamente.
@@ -825,12 +852,39 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Solo visible si `monthlyBudget > 0`
 - Usa `monthlyBudget` directamente (presupuesto siempre mensual)
 
+### Capa aditiva de tokens (`src/theme/tokens.ts`) y componentes que la usan
+Puerto del sistema de diseño de Habit Tracker. Coexiste con `AppTheme`/`useTheme()` sin
+reemplazarlo — solo los componentes de patrón "lista agrupada" (Ajustes y sucesores) usan
+`useAppTokens()`: expone tipografía (`largeTitle`/`headline`/`body`/`subheadline`/`footnote`/
+`sectionHeader`), `spacing` (`xxs`…`xxl`), `radius`, `motion` (`spring.default`/`spring.snappy`/
+`pressScale`) y colores anidados `surface.primary/secondary/elevated`, `text.primary/secondary/accent`,
+`border.default`, `accent.default/subtle`, `state.success/warning/danger/dangerSubtle`.
+
+- **`Card`** (`src/components/ui/Card.tsx`): contenedor de lista agrupada. `borderWidth: 1.5` +
+  `border.default` (mismo lenguaje que el pill "Este mes" de `FilterChips`). `padded={false}`
+  cuando envuelve `ListRow`. Exporta también `SectionHeader` y `Divider`.
+- **`ListRow`**: fila de lista agrupada — ícono circular (34px, `radius.full`) + label + detail/chevron
+  o un slot `right?: ReactNode` que reemplaza detail+chevron por un control custom (`Switch`,
+  botones editar/eliminar). `labelColor?` sobreescribe el color del label sin marcarlo
+  `destructive` (ej. accent en "Agregar…"). `detail` tiene `numberOfLines={1}` + `maxWidth: 120` +
+  `flexShrink: 0`, y `label` tiene `numberOfLines={1}` — sin esto un `detail` largo le roba casi
+  todo el ancho al `label` (bug detectado en dispositivo físico real).
+- **`StackedScreenHeader`**: barra de app estilo **Material** (flecha llana `ArrowLeft` + título
+  en la misma fila) — reemplazó la variante original estilo iOS (botón circular flotante +
+  `ChevronLeft` + large title duplicado en el body), eliminada del componente. Prop `title`
+  obligatoria.
+- **`ThemedText`** / **`PressableScale`**: texto y wrapper de presión (spring de escala,
+  `motion.pressScale`/`spring.snappy`) sobre la misma capa de tokens.
+- Usados hoy en: `app/settings.tsx` (pantalla completa), `CalendarSheet`, `BottomSheet`,
+  `active-expense.tsx` (botones de confirmar/cancelar vía `PressableScale`).
+
 ---
 
 ## 12. Pantallas y Rutas
 
 ### Dashboard (`app/(tabs)/index.tsx`)
 - Balance neto (tipografía 38px, weight 800)
+- **Patrimonio neto** *(nuevo, 2026-08-17)*: línea bajo el balance, `netBalance - totalDebt` (suma de `remainingAmount` de `useSettingsStore.debts`) con `formatBalance` (conserva el signo). Solo visible si `totalDebt > 0` (hay deudas activas) y no hay búsqueda/filtro de tipo activos.
 - Pills inline (Gastos/Ingresos) con toggle por tipo
 - Barra de presupuesto inline (condicional: `monthlyBudget > 0`, sin filtro de tipo, solo período actual). Usa `monthlyBudget` directamente (presupuesto siempre mensual)
 - FilterChips — un solo chip de período con `periodLabel` y `onOpenMonthPicker`. Por defecto muestra "Este mes"
@@ -864,8 +918,12 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - **"Gestionar métodos de pago"** ya no navega a `/settings` — abre un `BottomSheet` inline con `PaymentMethodsSection` (exportada desde `app/settings.tsx` y reutilizada aquí, mismo patrón que `NewCategoryModal` importada desde `category-onboarding.tsx`), sin salir de la pantalla.
 - Botón **Guardar** fijo abajo (footer con gradiente de desvanecido hacia el fondo, `expo-linear-gradient`) — vibración + navegar atrás, misma lógica de guardado que antes.
 - **Param `?from=batch-review` / `?from=notification-edit`:** sin cambios en el flujo (ver comportamiento previo) — lee `from` con `useLocalSearchParams`, al confirmar llama `setPendingManualItem({...})` + `store.reset()` + `router.back()` en vez de guardar en DB.
-- **El NLP reactivo (`useEffect` sobre `store.note`) ya NO toca el monto**: antes, si el texto libre contenía un número, `store.setAmount(parsed.amount)` lo sobreescribía en silencio, y borrar el texto lo reseteaba a 0 — comportamiento eliminado porque el monto ahora tiene su propio campo editable dedicado en la tarjeta y esa sincronización pisaba ediciones manuales del usuario. El parser sigue detectando fecha/categoría/tipo desde el texto libre igual que antes.
-- **`src/components/ui/BottomSheet.tsx` (nuevo):** wrapper reutilizable para bottom sheets — tap fuera del contenido y swipe-down desde el handle cierran el sheet (sin necesitar botón "X"). Usado por `CalendarSheet`, el sheet de "Métodos de pago" de esta pantalla, y `SelectorModal` de `app/settings.tsx`.
+- **El NLP reactivo (`useEffect` sobre `store.note`) ya NO toca el monto**: antes, si el texto libre contenía un número, `store.setAmount(parsed.amount)` lo sobreescribía en silencio, y borrar el texto lo reseteaba a 0 — comportamiento eliminado porque el monto ahora tiene su propio campo editable dedicado en la tarjeta y esa sincronización pisaba ediciones manuales del usuario. El parser sigue detectando fecha/categoría igual que antes; **ya no detecta el tipo ingreso/gasto** desde el texto libre (`store.setIsExpense` se quitó del efecto) — el usuario ya eligió el tipo al abrir la pantalla, cambiarlo por una palabra clave suelta era sorpresivo.
+- **Emoji real de la categoría, sin sustituto vectorial**: se eliminó la tabla `CATEGORY_ICONS` que reemplazaba el emoji elegido en onboarding por un ícono genérico de Lucide para ~13 emojis "conocidos" — ahora la lista de categorías (horizontal) siempre muestra `cat.key` (el emoji real).
+- **Modo edición (`?editId=<id>`)**: además de `batch-review`/`notification-edit`, la pantalla soporta editar una transacción ya guardada. `useLocalSearchParams` lee `editId`; un `useRef` (`editInitDone`) evita que el `useEffect` de prellenado corra más de una vez (la lista `transactions` cambia de referencia constantemente y reiniciaría el formulario a mitad de edición). Al guardar, llama `updateTransaction()` (`useFinanceStore`) en vez de `addTransaction()`; el título cambia a "Editar Gasto"/"Editar Ingreso". El parser NLP reactivo se desactiva igual que en `batch-review`/`notification-edit` (los datos ya vienen estructurados).
+- **Tres bugs corregidos en la tarjeta IMPORTE (2026-08-14):** (1) el tamaño de fuente dinámico (`dynamicAmountStyle`) leía `store.amount` (valor ya confirmado) en vez de `amountDisplay` (lo que se teclea en vivo) — con montos grandes no se achicaba a tiempo; (2) se quitó `selectTextOnFocus` del `TextInput` del monto — en Android reseleccionaba todo el texto en momentos inesperados (típicamente cerca del 3er dígito) y el siguiente dígito sobrescribía en vez de insertarse; (3) se quitó `includeFontPadding: false` (recortaba el primer glifo, ej. el "1" de "1.000"), reemplazado por `paddingHorizontal: 4`.
+- **Panel de descripción/tags**: se quitó `onBlur` del `TextInput` de la nota (cerraba el panel al tocar el input de tags, otro `TextInput` del mismo panel, antes de que el tag recibiera el toque). Ahora solo cierra al volver a tocar la fila de descripción o con un botón ✓ nuevo en la esquina superior derecha del panel (`Keyboard.dismiss()` + `setDescOpen(false)`).
+- **`src/components/ui/BottomSheet.tsx`:** wrapper reutilizable para bottom sheets — tap fuera del contenido y swipe-down desde el handle cierran el sheet (sin necesitar botón "X"). Usado por `CalendarSheet`, el sheet de "Métodos de pago" de esta pantalla, y `SelectorModal`/`DayOfMonthSheet` de `app/settings.tsx`.
 
 ### Voice Input (`app/voice-input.tsx`)
 - Orb animado que indica estado de escucha
@@ -887,24 +945,78 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - **Footer sticky:** `"N registros · Total $ X"` + botón azul `"Guardar todo"`. Al confirmar: `addTransactionBatch(items)` → `clearPendingBatch()` → `router.dismissAll()`. En caso de error, `Alert.alert` nativo
 - Si `pendingBatch` está vacío al montar (p.ej. llegó por error), hace `router.back()` inmediatamente
 
-### Settings (`app/settings.tsx`)
-- **Control financiero (orden de opciones):**
-  1. **Ingreso mensual** — cuánto dinero dispones al mes
-- Métodos de pago → modal full-screen
-- Presupuesto por categoría → modal full-screen
-- **Metas de ahorro:** `NuevaMetaModal` (crear), `AbonarMetaModal` (abonar), `SavingsGoalsSection` con `SwipeableGoalItem` (swipe-to-delete izquierda revela botón papelera rojo). Al abonar a una meta, se crea automáticamente una transacción de gasto con el emoji de la meta, descripción "Abono a [nombre]" y tag #ahorro
-- Apariencia → selector dark mode
-- **Detección automática** *(nuevo en v1.5.0)*: sección con componente `AutoDetectSection`:
-  - Toggle para activar/desactivar la captura de notificaciones bancarias
-  - Al activar sin permiso: muestra diálogo explicativo centrado → abre ajustes del sistema con `RNAndroidNotificationListener.requestPermission()`
-  - Selector de bancos: lista todos los 15 bancos de la whitelist; si no se selecciona ninguno, usa todos
-  - Card informativa de privacidad (azul tenue): explica que solo se extrae monto y comercio
-  - Card de optimización de batería (ámbar, visible solo con la detección activa): botón "Abrir ajustes de batería" — ver sección 9b
-  - Configuración persiste en `AsyncStorage` con claves `mywallet-auto-detect-enabled` y `mywallet-auto-detect-banks`
-- Sistema: exportar CSV, limpiar datos
+### Bank Selection Onboarding (`app/bank-selection-onboarding.tsx`) — fix de navegación 2026-08-17
+Último paso de la cadena de onboarding (`category-onboarding` → `notification-onboarding` →
+`bank-selection-onboarding`, cada paso con `router.push` para que el botón atrás funcione).
+`goToApp()` ahora hace `router.dismissAll()` **antes** de `router.replace("/(tabs)")`. Causa raíz
+del bug: `_layout.tsx` hace `router.replace("/category-onboarding")` al iniciar el onboarding
+(reemplazando `(tabs)` como raíz del stack); sin el `dismissAll()` previo, la pila quedaba
+`[category-onboarding, notification-onboarding, (tabs)]` — un `router.dismissAll()` posterior en
+cualquier otra pantalla (ej. al guardar un gasto desde `active-expense.tsx`) te devolvía a
+`category-onboarding` en vez del dashboard. `dismissAll()` primero colapsa la pila a su base y
+luego el `replace` deja `(tabs)` como única pantalla.
+
+### Settings (`app/settings.tsx`) — rediseño Material 2026-08-17
+Migrado de un lenguaje visual estilo iOS (header con botón circular flotante + `ChevronLeft` +
+large title en el body) a Material/Android: `StackedScreenHeader` ahora exige `title` y renderiza
+una barra tipo Material (flecha llana `ArrowLeft` + título inline en la misma fila) — la variante
+iOS anterior del componente se eliminó por completo. `Card` (`src/components/ui/Card.tsx`) ahora
+lleva `borderWidth: 1.5` + `border.default` (mismo lenguaje que el pill "Este mes" de
+`FilterChips`). `ListRow` cambió el badge de icono de cuadrado redondeado (30px, `radius.sm`) a
+círculo completo (34px, `radius.full`).
+
+**Secciones, en orden** (todas sobre la capa de tokens, `Card` + `SectionHeader` + `ListRow` +
+`Divider` — ver sección 11b):
+1. **CONTROL FINANCIERO** — Ingreso mensual (chevron → `InputModal`)
+2. **GESTIÓN** — una sola `Card` con 5 filas separadas por `Divider` (no una tarjeta por fila,
+   se probó y se revirtió a pedido del usuario): Categorías, Métodos de pago, Presupuesto por
+   categoría, **Metas de ahorro** (ya no inline en la pantalla principal — ahora abre su propio
+   `FullScreenModal`, mismo patrón que las otras filas de esta sección) y **Deudas** *(nuevo)*.
+3. **DETECCIÓN AUTOMÁTICA** — `AutoDetectSection`
+4. **APARIENCIA** — Modo oscuro
+5. **SISTEMA** — Exportar datos, Borrar historial
+6. **ACERCA DE** — Versión
+
+Colores de icono por fila se mantienen (no monocromáticos, se probó y se revirtió): verde
+(Ingreso/Categorías), azul acento (Métodos de pago), morado `#7C3AED` (Presupuesto/Modo oscuro),
+rosa `#DB2777` (Metas), rojo oscuro `#9F1239` (Deudas), rojo (Borrar historial), gris (resto).
+
+- **Metas de ahorro:** `NuevaMetaModal` (crear/editar — ganó `editSavingsGoal`, separado de
+  `updateSavingsGoal` que solo maneja el abono), `AbonarMetaModal` (abonar), `SavingsGoalsSection`
+  con `GoalItem` — **editar/eliminar explícitos** (ícono ✏️ + 🗑️ en la tarjeta), ya no
+  `SwipeableGoalItem` con swipe-to-delete. Al abonar a una meta, se crea automáticamente una
+  transacción de gasto con el emoji de la meta, descripción "Abono a [nombre]" y tag #ahorro.
+- **Deudas** *(nuevo, `src/store/slices/debtsSlice.ts`)*: `DebtsSection` con `DebtItem` (mismo
+  patrón editar/eliminar explícitos que Metas), `NuevaDeudaModal` (crear/editar: emoji, nombre,
+  monto total, cuota mensual, día de pago), `AbonarDeudaModal` (pagar — crea una transacción de
+  gasto con tag `#deuda` y reduce `remainingAmount`). El día de pago se elige con
+  `DayOfMonthSheet` (grilla 1-31, sin mes/año — a diferencia de `CalendarSheet`, es un día que se
+  repite todos los meses, no una fecha puntual). Al crear/editar una deuda se programa un
+  recordatorio con `scheduleDebtReminder()` (trigger `MONTHLY` nativo de `expo-notifications`,
+  dispara en `dueDay` a las 9am — primera vez que este proyecto usa un trigger programado por
+  fecha, todo lo anterior era disparo inmediato `trigger: null`; si `dueDay` no existe en un mes
+  dado, ej. 31 en febrero, ese mes no dispara). Al liquidar (`remainingAmount` llega a 0):
+  `cancelDebtReminder()` + `notifyDebtPaidOff()`. Canal Android propio: `debt-reminders`.
+  Integración con el Dashboard: línea "Patrimonio neto" bajo el balance (`netBalance - totalDebt`,
+  solo visible si hay deudas activas y no hay búsqueda/filtro activos).
+- **Detección automática**: sección con componente `AutoDetectSection`, ahora fusionada en una
+  sola `Card` agrupada (antes cada fila era su propia tarjeta con borde, se revirtió):
+  - Toggle para activar/desactivar la captura de notificaciones bancarias, con ícono `Radar`
+    (`#0D9488`) reemplazando el emoji 🏦 anterior.
+  - Al activar sin permiso: muestra diálogo explicativo centrado → abre ajustes del sistema con
+    `RNAndroidNotificationListener.requestPermission()`.
+  - Fila "Bancos activos" (solo visible con la detección activa) con ícono `Landmark`
+    (`#EA580C`, reemplaza el emoji 🏛️) → abre el selector de los 15 bancos de la whitelist; si no
+    se selecciona ninguno, usa todos.
+  - Fila única "Optimización de batería" (ícono `BatteryWarning`, chevron → `Linking.openSettings()`)
+    reemplaza las dos tarjetas de texto largo anteriores (privacidad + batería) — se quitó el
+    párrafo explicativo de privacidad para no saturar la pantalla.
+  - Configuración persiste en `AsyncStorage` con claves `mywallet-auto-detect-enabled` y
+    `mywallet-auto-detect-banks`.
+- Sistema: exportar CSV, limpiar datos.
 - **Exportar CSV:** usa `Share` de `react-native`. No usa `expo-sharing` ni `expo-file-system`.
-- **Confirmaciones:** Todas las alertas usan `ConfirmDialog` (componente custom con animación y variantes)
-- **Guided Tour:** paso 2 hace spotlight en la fila "Ingreso mensual"; paso 3 hace spotlight en el botón ← (volver)
+- **Confirmaciones:** Todas las alertas usan `ConfirmDialog` (componente custom con animación y variantes).
+- **Guided Tour:** paso 2 hace spotlight en la fila "Ingreso mensual"; paso 3 hace spotlight en el botón ← (volver).
 
 ### Notification Review (`app/notification-review.tsx`) *(nuevo en v1.5.0)*
 - Pantalla fullscreen modal para revisar transacciones detectadas automáticamente desde notificaciones bancarias
@@ -917,7 +1029,8 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - **Botón 🗑️ del header ("Descartar todo")** → `handleDiscardAll()`: vacía `items` y llama `clearAll()` del store — a diferencia del borrado individual, **sí** pide confirmación vía `ConfirmDialog` (mismo componente que usa `settings.tsx`/`chat.tsx`), porque perder toda la cola de una vez es una acción más costosa
 - **Footer sticky:** `"N REGISTROS · TOTAL $ X"` (letras espaciadas) + botón pill azul "Guardar todo"
 - **Estado vacío:** icono 🔕, mensaje explicativo, botón "Entendido"
-- Al guardar: `addTransactionBatch(items)` (con `date: new Date()`) + `clearAll()` (store) + `router.back()`. En caso de error, `Alert.alert` nativo
+- **Fecha real de detección (fix 2026-08-17)**: `ReviewItem` tiene un campo `date` (ISO), poblado desde `PendingNotificationItem.detectedAt` — antes se perdía al mapear a `ReviewItem` y todo se guardaba con la fecha de hoy. `handleSaveAll` ahora guarda cada transacción con `new Date(item.date)`; `handleEdit` llama `expenseStore.setCustomDate(new Date(item.date))` antes de navegar a `active-expense.tsx`, así el editor abre con la fecha real detectada. `ManualAddItem` (`useVoiceStore.ts`) ganó un campo opcional `date?: string` para no perder la fecha al ir y volver de `active-expense.tsx` en este flujo de edición.
+- Al guardar: `addTransactionBatch(items)` (cada item con su propia `date`, ya no `new Date()` fija) + `clearAll()` (store) + `router.back()`. En caso de error, `Alert.alert` nativo
 
 ---
 
@@ -1147,7 +1260,8 @@ en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún
 
 ### Al notificar al usuario
 - **No usar toasts in-app**: el sistema de toasts (`useToastStore`, `ToastContainer`, `ToastBanner`) fue eliminado. La UI no muestra notificaciones efímeras dentro de la app.
-- **Eventos relevantes** (presupuesto excedido, meta cumplida, transacción detectada): usar push notifications del sistema vía `notificationService.ts` (`checkAndNotifyBudget`, `checkAndNotifyGoalCompleted`, `notifyBankTransaction`).
+- **Eventos relevantes** (presupuesto excedido, meta cumplida, transacción detectada, cuota de deuda por vencer/deuda liquidada): usar push notifications del sistema vía `notificationService.ts` (`checkAndNotifyBudget`, `checkAndNotifyGoalCompleted`, `notifyBankTransaction`, `scheduleDebtReminder`/`cancelDebtReminder`/`notifyDebtPaidOff`).
+- **4 canales Android (API 26+)**: `budget-alerts`, `goal-alerts`, `bank-transactions`, `debt-reminders` *(nuevo)*. `scheduleDebtReminder()` es la primera función del proyecto en usar un trigger programado por fecha (`SchedulableTriggerInputTypes.MONTHLY`, no `trigger: null` de disparo inmediato) — dispara todos los meses en el `dueDay` de la deuda a las 9am; si ese día no existe en un mes (ej. 31 en febrero), ese mes no dispara (limitación del propio trigger `MONTHLY`, no un bug).
 - **Errores críticos** que el usuario debe ver (fallo al guardar, etc.): usar `Alert.alert(title, message)` nativo de React Native.
 - **Confirmaciones destructivas** (borrar datos, eliminar): usar `ConfirmDialog` (componente existente).
 

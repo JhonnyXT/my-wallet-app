@@ -151,7 +151,20 @@ export default function BankSelectionOnboarding() {
     });
   }, []);
 
-  const goToApp = useCallback(() => router.replace("/(tabs)"), [router]);
+  // El flujo de onboarding llega aquí con la pila [category-onboarding,
+  // notification-onboarding, bank-selection-onboarding] (cada paso hace `push`,
+  // no `replace`, para que el botón "atrás" de cada pantalla funcione). Un
+  // `replace` simple aquí solo reemplaza este último escalón, dejando
+  // "(tabs)" apilado ENCIMA de category-onboarding/notification-onboarding en
+  // vez de como raíz — el siguiente `router.dismissAll()` (ej. al guardar un
+  // gasto) volvía a category-onboarding en lugar del dashboard. `dismissAll()`
+  // primero colapsa la pila a su base (category-onboarding, la ruta que
+  // reemplazó a "(tabs)" al iniciar el onboarding) y luego el `replace` deja
+  // "(tabs)" como única pantalla.
+  const goToApp = useCallback(() => {
+    router.dismissAll();
+    router.replace("/(tabs)");
+  }, [router]);
 
   const handleSave = useCallback(async () => {
     if (selected.size === 0) {

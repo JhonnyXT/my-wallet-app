@@ -43,6 +43,22 @@ tipografía (`largeTitle`/`headline`/`body`/`subheadline`/`footnote`/`sectionHea
 vas a crear/tocar ya usa uno de los dos, sigue ese; si es nuevo y encaja en el patrón de lista
 agrupada (Ajustes y sucesores), usa `useAppTokens()`.
 
+#### Convención Material de esta capa (2026-08-17)
+
+Estos componentes siguen un lenguaje Material/Android, no iOS — no reintroducir el patrón iOS al
+extenderlos:
+- **`StackedScreenHeader`**: barra con flecha llana (`ArrowLeft`) + título inline en la misma
+  fila, `title` obligatoria. No existe (ni debe reintroducirse) la variante con botón circular
+  flotante + `ChevronLeft` + large title duplicado en el body del scroll — se probó y se
+  eliminó del componente.
+- **`Card`**: siempre con `borderWidth: 1.5` + `border.default` visible (mismo lenguaje que el
+  pill "Este mes" de `FilterChips`), no solo un fondo plano sin borde.
+- **`ListRow`**: el badge de icono es un círculo completo (`radius.full`, 34px), no un cuadrado
+  redondeado.
+- **Secciones con varias opciones relacionadas van en una sola `Card` con `Divider` entre
+  filas**, no una `Card` bordeada por cada fila individual — ya se probó ese patrón (una tarjeta
+  por opción) y se revirtió a pedido explícito del usuario.
+
 ## Patrón Stitch
 
 - Espacio negativo generoso: 24-32px padding en contenedores principales.

@@ -345,6 +345,10 @@ Toca el ícono de **lupa (🔍)** en el dock flotante. Una barra de búsqueda ap
 
 Accede tocando ⚙️ en la esquina superior derecha del Dashboard.
 
+La pantalla está organizada en secciones, en este orden: **Control financiero** (Ingreso
+mensual) → **Gestión** (Categorías, Métodos de pago, Presupuesto por categoría, Metas de
+ahorro, Deudas) → **Detección automática** → **Apariencia** → **Sistema** → **Acerca de**.
+
 ### Control Financiero
 Opciones visibles directamente en la pantalla de ajustes (en este orden):
 
@@ -368,14 +372,28 @@ Toca la tarjeta "Presupuesto por categoría" para abrir el panel:
 - Toca **✗** para quitar el límite de una categoría
 - Activa las alertas visuales en la gráfica del Dashboard
 
-### Metas de ahorro
-Gestiona tus metas desde la sección "Metas de ahorro":
-- **Crear meta:** Toca el botón **"+ Nueva meta"** → ingresa nombre, emoji, monto objetivo
+### Metas de ahorro *(abre modal de pantalla completa)*
+Toca la fila "Metas de ahorro" (dentro de Gestión) para abrir el panel:
+- **Crear meta:** Toca **"Nueva meta"** → ingresa nombre, emoji, monto objetivo
+- **Editar:** Toca el ícono ✏️ sobre la meta para cambiar nombre, emoji o monto objetivo (no toca lo ya ahorrado)
 - **Abonar:** Toca el botón **"Abonar"** sobre la meta para agregar dinero al progreso
 - **Ver progreso:** Barra de progreso visual con monto acumulado / objetivo
-- **Eliminar:** **Desliza la meta hacia la izquierda** para revelar el botón de papelera rojo, luego tócalo para confirmar
+- **Eliminar:** Toca el ícono 🗑️ sobre la meta — pide confirmación antes de borrarla
 
 > ℹ️ Al abonar a una meta, se registra automáticamente como **gasto** en el Dashboard (con el emoji de la meta, descripción "Abono a [nombre]" y tag `#ahorro`). Esto descuenta el dinero de tu balance disponible.
+
+### Deudas *(abre modal de pantalla completa, nuevo)*
+Toca la fila "Deudas" (dentro de Gestión) para abrir el panel:
+- **Crear deuda:** Toca **"Nueva deuda"** → ingresa nombre, emoji, monto total de la deuda, cuota mensual y el **día del mes** en que se recuerda pagarla (se repite todos los meses, no es una fecha puntual)
+- **Editar:** Toca el ícono ✏️ sobre la deuda para cambiar cualquiera de esos datos (no toca el saldo pendiente)
+- **Pagar:** Toca el botón **"Pagar"** sobre la deuda para registrar un abono y reducir el saldo pendiente
+- **Ver progreso:** Barra de progreso visual con saldo pendiente / monto total. Al llegar a $0, la tarjeta muestra "¡Deuda liquidada!"
+- **Eliminar:** Toca el ícono 🗑️ sobre la deuda — pide confirmación antes de borrarla
+- **Recordatorio automático:** si tienes las notificaciones activas, recibes un aviso push cada mes en el día de pago elegido ("Cuota de '[nombre]' por vencer"). Al liquidar la deuda por completo recibes otra notificación de felicitación y el recordatorio mensual se cancela solo.
+
+> ℹ️ Al pagar una deuda, se registra automáticamente como **gasto** en el Dashboard (con el emoji de la deuda, descripción "Pago de [nombre]" y tag `#deuda`). Esto descuenta el dinero de tu balance disponible.
+
+> 💡 Si tienes deudas activas, el Dashboard muestra una línea adicional **"Patrimonio neto"** bajo el balance neto: tu balance disponible menos el saldo pendiente de todas tus deudas.
 
 ### Apariencia
 - **Modo oscuro:** Sistema (sigue el tema del dispositivo) / Claro / Oscuro
@@ -414,7 +432,8 @@ Puedes elegir **solo algunos bancos** tocando la opción "Bancos activos". Si no
 **¿Cómo funciona la revisión?**
 Cuando se detecta una transacción, aparece un **badge rojo 🔔** sobre el ícono de configuración en el Dashboard. Tócalo para abrir la pantalla de revisión:
 - Cada transacción muestra el banco, la descripción, el monto
-- Puedes **editar** la transacción (monto, descripción, categoría, tipo)
+- La fecha guardada es la fecha real en que llegó la notificación bancaria, no el día en que la revisas
+- Puedes **editar** la transacción (monto, descripción, categoría, tipo, fecha)
 - Puedes **eliminar** una transacción con el ícono de papelera 🗑️ junto al de editar
 - Puedes **descartar todas de una vez** con el ícono de papelera 🗑️ del encabezado — pide confirmación antes de vaciar la cola
 - Cuando todo está listo, toca **"Guardar todo"**
@@ -489,6 +508,8 @@ MyWallet usa **exclusivamente notificaciones del sistema (push)** para los event
 | **Presupuesto superado** | Cuando superas el 100% del presupuesto de una categoría — segunda notificación tras la del umbral |
 | **Meta de ahorro cumplida** | Cuando el monto acumulado de una meta llega al objetivo |
 | **Transacción detectada** | Cuando MyWallet identifica una transacción en una notificación bancaria. Al tocarla, te lleva directo a la pantalla de revisión |
+| **Cuota de deuda por vencer** *(nuevo)* | Cada mes, en el día de pago que definiste para una deuda |
+| **Deuda liquidada** *(nuevo)* | Cuando el saldo pendiente de una deuda llega a $0 |
 
 ### Permisos
 La primera vez que actives "Alertas de presupuesto" o "Detección automática", el sistema te pedirá permiso para mostrar notificaciones. Si rechazas con "No volver a preguntar", la app abre la configuración del sistema para que lo actives manualmente.
@@ -590,8 +611,10 @@ Una vez al mes:
 | **Ghost bar** | Barra de categoría sin gastos. Aparece gris para recordarte que existe esa categoría |
 | **Long-press** | Mantener presionado ~0.4 segundos para activar acciones avanzadas. En la gráfica de categorías activa el popup de "Editar/Agregar presupuesto" + "Nueva transacción" |
 | **Tap detalle** | Toque corto en un registro de la lista para abrir el detalle completo (categoría, monto, cuenta, fecha, hora, descripción) |
-| **Swipe-to-delete** | Deslizar un item hacia la izquierda para revelar el botón de eliminar (transacciones y metas de ahorro) |
+| **Swipe-to-delete** | Deslizar una transacción del Dashboard hacia la izquierda para revelar el botón de eliminar. Metas de ahorro y deudas usan en cambio íconos ✏️/🗑️ explícitos en la tarjeta, no swipe |
 | **Swipe-to-edit** | Deslizar una transacción del Dashboard hacia la **derecha** para revelar el botón azul de editar (ícono de lápiz) y abrir el formulario prellenado |
+| **Deuda** | Registro de una deuda (tarjeta de crédito, préstamo, etc.) con monto total, saldo pendiente, cuota mensual y día de pago recurrente. Se gestiona en Ajustes → Deudas |
+| **Patrimonio neto** | Balance neto menos el saldo pendiente de todas tus deudas activas. Aparece bajo el balance en el Dashboard solo si tienes deudas registradas |
 | **Filtro por categoría** | Tap corto en una columna del CategoryChart filtra la lista a solo esa categoría. Se limpia con el botón Atrás del dispositivo o con un pull-down (deslizar la lista hacia abajo desde el tope) |
 | **Pull-down para limpiar filtro** | Gesto de deslizar la lista hacia abajo desde su posición inicial. NO recarga datos (no muestra spinner) — solo limpia el filtro de categoría activo |
 | **Ghost bar** | Línea fantasma punteada que aparece detrás del fill de una columna **con presupuesto** marcando el límite. Si te pasas del 100%, sigue indicando exactamente dónde estaba el presupuesto dentro de la barra excedida |

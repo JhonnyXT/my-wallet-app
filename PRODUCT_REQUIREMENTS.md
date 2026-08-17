@@ -30,7 +30,8 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Filtro de período | Un solo chip: período rápido (Hoy/Semana/Quincena/Mes/Año/Todo) + "Elegir mes específico" | ✅ Implementado |
 | Selector de mes/año | Modal con grid de meses, montos por mes, pills de año | ✅ Implementado |
 | Gráfica de Categorías | Barras verticales con scroll horizontal, ghost tracks, alertas por color | ✅ Implementado |
-| Lista de Transacciones | `FlatList` con items tipo tarjeta (fondo blanco + sombra en modo claro) y swipe-to-delete | ✅ Implementado |
+| Lista de Transacciones | `FlatList` con items tipo tarjeta (fondo blanco + sombra en modo claro), swipe izquierda elimina (con confirmación), swipe derecha edita | ✅ Implementado |
+| Patrimonio neto | Línea bajo el balance neto (`netBalance - totalDebt`), solo visible si hay deudas activas registradas en Ajustes → Deudas | ✅ Implementado |
 | Dock Flotante | FAB micrófono, botón +, lupa — reemplaza tab bar | ✅ Implementado |
 | Detalle de transacción | Modal centrado estilo Stitch al hacer **tap** en un item: emoji, monto, categoría, tipo, cuenta, fecha, hora (12h), descripción, tags | ✅ Implementado |
 | Animación scroll de gráfica | Las barras se comprimen progresivamente al hacer scroll (Reanimated `interpolate`). Las etiquetas hacen crossfade de vertical a horizontal compacto. Gráfica y lista en scroll unificado (`FlatList` + `ListHeaderComponent`) | ✅ Implementado |
@@ -68,10 +69,12 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Ingreso mensual | Cuánto dinero se tiene disponible al mes para gastar. 0 = sin presupuesto | ✅ Implementado |
 | Métodos de pago | Agregar/editar/eliminar (modal full-screen) | ✅ Implementado |
 | Presupuesto por categoría | Límite por cada categoría de gasto del usuario (modal full-screen) | ✅ Implementado |
-| Metas de ahorro | Crear/abonar/eliminar metas; eliminar deslizando a la izquierda (swipe-to-delete). Al abonar se crea transacción de gasto automáticamente (con emoji de la meta, tag #ahorro) | ✅ Implementado |
+| Metas de ahorro | Crear/editar/abonar/eliminar metas (modal full-screen); editar/eliminar con íconos explícitos ✏️/🗑️, ya no swipe-to-delete. Al abonar se crea transacción de gasto automáticamente (con emoji de la meta, tag #ahorro) | ✅ Implementado |
+| Deudas *(nuevo)* | Crear/editar/pagar/eliminar deudas (modal full-screen): nombre, emoji, monto total, cuota mensual, día de pago recurrente. Al pagar se crea transacción de gasto automáticamente (tag #deuda) y se reduce el saldo pendiente. Recordatorio push mensual en el día de pago; notificación al liquidar la deuda | ✅ Implementado |
 | Apariencia | Sistema / Claro / Oscuro (dark mode completo) | ✅ Implementado |
 | Exportar datos | CSV con columnas id/fecha/tipo/descripcion/categoria/monto/metodo_pago/tags. Compartido con `Share` nativo de React Native (sin módulos externos) | ✅ Implementado |
 | Limpiar datos | Elimina todas las transacciones (con confirmación vía diálogo custom animado) | ✅ Implementado |
+| Diseño Material (2026-08-17) | Header con flecha llana + título inline (reemplaza el header estilo iOS con botón circular flotante), tarjetas con borde visible, íconos de fila circulares, secciones reordenadas (Control financiero → Gestión → Detección automática → Apariencia → Sistema → Acerca de) | ✅ Implementado |
 
 ### 2.7 Sistema de Notificaciones (dos capas)
 
@@ -79,11 +82,12 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
-| Servicio | `src/services/notificationService.ts` — `requestNotificationPermissions`, `checkAndNotifyBudget`, `checkAndNotifyGoalCompleted` | ✅ Implementado |
+| Servicio | `src/services/notificationService.ts` — `requestNotificationPermissions`, `checkAndNotifyBudget`, `checkAndNotifyGoalCompleted`, `scheduleDebtReminder`/`cancelDebtReminder`/`notifyDebtPaidOff` *(deudas, nuevo)* | ✅ Implementado |
 | Permiso | Se solicita la primera vez que el usuario configura un presupuesto por categoría (vía `ConfirmDialog` previo) | ✅ Implementado |
 | Anti-duplicación presupuesto | `budgetNotifiedMonth: Record<string, string>` en `useSettingsStore` — una sola notificación por categoría por mes | ✅ Implementado |
 | Anti-duplicación metas | `goalNotifiedIds: string[]` en `useSettingsStore` — una sola notificación por meta | ✅ Implementado |
 | Limpieza automática | `clearExpiredBudgetNotifications()` se ejecuta en el bootstrap de la app (`app/_layout.tsx`) para limpiar flags de meses anteriores | ✅ Implementado |
+| Recordatorio de deudas *(nuevo)* | `scheduleDebtReminder()` usa un trigger `MONTHLY` nativo de `expo-notifications` (primer trigger programado por fecha del proyecto, todo lo demás es disparo inmediato) — dispara en el `dueDay` de la deuda a las 9am; se cancela solo al liquidar la deuda | ✅ Implementado |
 
 #### Capa 2 — Banners in-app
 

@@ -17,6 +17,9 @@ export type ManualAddItem = {
   categoryName: string;
   isExpense: boolean;
   paymentMethod: string;
+  /** ISO. Solo lo usa el flujo notification-edit, para no perder la fecha real
+   * detectada de la notificación bancaria al editar el ítem antes de guardar. */
+  date?: string;
 };
 
 interface VoiceState {

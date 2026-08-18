@@ -66,6 +66,15 @@ En `queries.ts` usar el mismo patrón `localISO()` para parámetros de comparaci
 - SQL SIEMPRE con placeholders `?` y arrays de parámetros. NUNCA concatenar strings de usuario.
 - No incluir lógica de negocio en la capa de DB — eso pertenece a los stores.
 
+## Queries con rango de fechas opcional
+
+Para queries agregadas que aceptan un rango de fechas opcional (ver `DateRange`/
+`queryCategoryMonthlyAverages` en `queries.ts`), seguir el mismo patrón: `{ from?: string; to?:
+string }` con strings ISO de `localISOString()`, cláusulas `AND date >= ?`/`AND date <= ?`
+agregadas condicionalmente al SQL solo si el campo está presente, y `undefined` = sin límite (no
+usar un rango "todo el tiempo" hardcodeado como valor por defecto dentro de la query — que la
+ausencia de `range` sea explícitamente "sin filtro").
+
 ## Organización de archivos
 
 | Archivo | Responsabilidad |

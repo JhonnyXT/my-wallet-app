@@ -2,7 +2,7 @@
 
 > **Propósito:** Este documento es la referencia técnica completa del proyecto. Cualquier desarrollador, IA o colaborador que lea este archivo tendrá TODO el contexto necesario para desarrollar, modificar o extender la aplicación sin perder consistencia.
 >
-> **Última actualización:** 2026-08-17 | **Versión:** 1.5.0
+> **Última actualización:** 2026-08-18 | **Versión:** 1.5.0
 >
 > Nota de cobertura: este documento se actualiza incrementalmente por sesión de trabajo — algunas
 > secciones (ej. pantallas de onboarding `notification-onboarding.tsx`/`bank-selection-onboarding.tsx`,
@@ -96,6 +96,7 @@ my-wallet-app/
 │   ├── _layout.tsx               # Root: ThemeProvider, initDB, Stack
 │   ├── +not-found.tsx            # 404
 │   ├── active-expense.tsx        # Modal: nuevo gasto/ingreso
+│   ├── reports.tsx               # Modal "Promedios": promedio mensual histórico por categoría + tendencia
 │   ├── settings.tsx              # Modal: configuración (incluye sección Detección automática)
 │   ├── voice-input.tsx           # Modal: entrada por voz
 │   ├── voice-batch-review.tsx    # Modal: revisión de transacciones multi-voz
@@ -111,6 +112,7 @@ my-wallet-app/
 │   │   ├── BudgetBar.tsx         # Barra de progreso presupuesto
 │   │   ├── CategoryChart.tsx     # Gráfica de categorías (barras + animaciones scroll)
 │   │   ├── ConfirmDialog.tsx     # Diálogo de confirmación reutilizable (danger/warning/info)
+│   │   ├── DateRangeSheet.tsx    # Calendario de rango (desde-hasta) dibujado a mano, usado por reports.tsx
 │   │   ├── GuidedTour.tsx        # Overlay de onboarding paso a paso con spotlight
 │   │   ├── FilterChips.tsx       # Chip de período + "Elegir mes específico"
 │   │   ├── FloatingDock.tsx      # Dock flotante + FAB micrófono
@@ -252,6 +254,7 @@ Stack
 ├── notification-review      → Modal slide_from_bottom (revisión de transacciones detectadas de notif. bancarias)
 ├── active-expense           → Modal slide_from_bottom
 ├── settings                 → Modal slide_from_bottom
+├── reports                  → Modal slide_from_bottom ("Promedios")
 └── +not-found               → 404
 ```
 
@@ -260,6 +263,7 @@ Stack
 El dock reemplaza la barra de tabs nativa. Contiene:
 - Botón **+** → Menú popup (Gasto/Ingreso) → navega a `active-expense`
 - **Lupa** → activa modo búsqueda en `FloatingInputOverlay`
+- **Gráfica** (`ChartColumn`) → navega a `/reports` (`handleReports()`)
 - **Micrófono FAB** → navega a `voice-input`
 
 ### Modales
@@ -482,6 +486,8 @@ CREATE TABLE IF NOT EXISTS transactions (
 | `queryPrevWeekTotal()` | Total semana anterior |
 | `queryMonthlyExpensesByYear(year)` | Mapa `{mes: totalGastos}` para los 12 meses de un año (query única con GROUP BY) |
 | `queryFirstTransactionYear()` | Año de la primera transacción registrada (para pills de año dinámicos) |
+| `queryCategoryMonthlyAverages(type, range?)` | Promedio mensual histórico por categoría (`{months, items: CategoryAverage[]}`). `months` = meses distintos con actividad (de cualquier categoría) dentro del rango — denominador compartido, no uno por categoría (evita inflar categorías esporádicas). `range?: DateRange` acota la ventana; usada por `app/reports.tsx` |
+| `queryMonthlyTotalsInRange(type, from, to)` | Total mensual (gasto/ingreso) entre dos fechas, meses calendario completos, incluye meses en $0 sin huecos. Usada por la tarjeta "Tendencia" de `app/reports.tsx` |
 
 ### Reglas de base de datos
 - Siempre usar `localISOString()` para fechas (evita desfase UTC)
@@ -814,6 +820,17 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Animación: `animationType="slide"` nativo del Modal (sin Reanimated en el sheet para evitar conflictos de touch)
 - Dark mode: pill año activo usa `t.accent` en oscuro, `#0F172A` en claro
 
+### DateRangeSheet *(nuevo, rediseñado 2026-08-18)*
+- Calendario de selección de **rango** (desde–hasta) dibujado a mano, igual patrón que `CalendarSheet` (grid mensual sin librería externa, fade entre meses con Reanimated) — pero para dos fechas, no una.
+- **Selección de dos toques:** el primer tap fija el inicio, el segundo el fin; si el segundo tap es anterior al inicio, reinicia el inicio en vez de fijar un fin inválido.
+- **Accesos rápidos** ("3 meses" / "6 meses" / "1 año"): llenan el rango y llaman `onApply` de inmediato, sin pasar por el grid.
+- **Resumen "Desde / Hasta"** siempre visible arriba del grid con las fechas formateadas.
+- **Render del rango — barra continua tipo pill/cápsula (2026-08-18, reemplaza el diseño original de círculos sueltos):** cada día en rango pinta un `View` "connector" de posición absoluta (`s.connector`) detrás del dígito, con `backgroundColor: accent.default` sólido y texto blanco en **todo** el rango (inicio, fin e intermedios sin distinción de tono — se probó `accent.subtle` para los días intermedios y se descartó a pedido del usuario). El connector se redondea (`borderRadius: 999`, vía `s.connectorRoundLeft`/`s.connectorRoundRight`) solo en los extremos reales: el día de inicio/fin (`isStart`/`isEnd`), el borde de fila al cruzar de semana (`col === 0`/`col === 6`), o cuando la celda vecina en el grid es `null` (mes anterior/siguiente fuera de vista — sin esto el primer/último día visible de un rango multi-mes, ej. "1 año", quedaba con una esquina cuadrada pegada a celdas vacías). El resto de las uniones internas quedan cuadradas, para que se lea como una sola franja continua y no como celdas independientes. `dayCircle` (el contenedor del número, sin fondo propio) usa tamaño relativo (`width: "76%"`, `aspectRatio: 1`), no un círculo fijo de 36×36 como en la primera iteración.
+- **Validación de mínimo 2 meses:** `isValidRange = rangeStart && rangeEnd ? !isSameMonth(rangeStart, rangeEnd) : false`. Motivo: la tarjeta "Tendencia" es un gráfico de barras mensuales — con un rango dentro del mismo mes se vería una sola barra flotando sin nada que comparar; se decidió prevenir el caso en el selector en vez de rediseñar el gráfico para 1 barra. El botón "Aplicar" queda deshabilitado (con spring `withSpring(0.97, ...)` de escala) y cambia su texto a "Elige un rango de al menos 2 meses" cuando el rango elegido cae dentro de un mismo mes.
+- Botón "Aplicar" con spring de `tokens.motion.spring.snappy`, habilitado solo con ambas fechas elegidas y rango válido (≥2 meses); navegación de mes con flechas (mes futuro deshabilitado).
+- Usa `useAppTokens()` (capa de tokens), no `AppTheme`/`useTheme()` legacy que usa `CalendarSheet` — dos calendarios distintos con casos de uso distintos: `CalendarSheet` = fecha puntual de una transacción; `DateRangeSheet` = rango para acotar un gráfico.
+- Único consumidor: `app/reports.tsx`, tarjeta "Tendencia".
+
 ### ConfirmDialog
 - Componente reutilizable que reemplaza `Alert.alert` nativo con un diálogo minimalista y animado
 - **3 variantes:** `danger` (icono papelera rojo), `warning` (triángulo ámbar), `info` (icono azul informativo)
@@ -1032,6 +1049,17 @@ rosa `#DB2777` (Metas), rojo oscuro `#9F1239` (Deudas), rojo (Borrar historial),
 - **Fecha real de detección (fix 2026-08-17)**: `ReviewItem` tiene un campo `date` (ISO), poblado desde `PendingNotificationItem.detectedAt` — antes se perdía al mapear a `ReviewItem` y todo se guardaba con la fecha de hoy. `handleSaveAll` ahora guarda cada transacción con `new Date(item.date)`; `handleEdit` llama `expenseStore.setCustomDate(new Date(item.date))` antes de navegar a `active-expense.tsx`, así el editor abre con la fecha real detectada. `ManualAddItem` (`useVoiceStore.ts`) ganó un campo opcional `date?: string` para no perder la fecha al ir y volver de `active-expense.tsx` en este flujo de edición.
 - Al guardar: `addTransactionBatch(items)` (cada item con su propia `date`, ya no `new Date()` fija) + `clearAll()` (store) + `router.back()`. En caso de error, `Alert.alert` nativo
 
+### Reports (`app/reports.tsx`) — "Promedios" *(nuevo)*
+- Pantalla de un solo propósito: promedio de gasto/ingreso mensual histórico por categoría — capacidad que no existía en ningún otro lugar de la app (el Dashboard solo muestra totales del período filtrado, nunca un promedio a través del historial). Deliberadamente **sin filtro de período global**; se evaluó y se descartó.
+- **Header:** `StackedScreenHeader` con título "Promedios".
+- **Toggle Gastos/Ingresos (rediseñado 2026-08-18):** contenedor exterior con `borderWidth: 1.5` + `tokens.colors.border.default` (mismo lenguaje que el pill "Este mes" de `FilterChips`), no solo fondo `elevated` plano. El segmento activo ya no usa `accent.default` genérico — reutiliza los mismos colores por tipo que los pills "↓ Gasto / ↑ Ingreso" del Dashboard (`app/(tabs)/index.tsx`, estilos `pillExpenseActive`/`pillIncomeActive`): rojo (`bg: "#FEE2E2"`, `text: "#E53E3E"`) para Gastos, verde (`bg: "#DCFCE7"`, `text: "#16A34A"`) para Ingresos, en una constante local `SEGMENT_COLORS` dentro de `reports.tsx` — mismos valores hardcodeados que el Dashboard, sin token compartido todavía (ver Deuda técnica).
+- **Card "hero":** título "Promedio mensual" + subtítulo según el toggle, dos filas de estadística (categoría top con emoji vía `HeroStatRow`, "Analizados: N meses") y un anillo/dona SVG (`react-native-svg`, `Circle` con `strokeDasharray`/`strokeDashoffset`) que muestra el promedio total en el centro y cuyo relleno representa la proporción de la categoría top sobre el total.
+- **Tarjetas secundarias (#2 y #3):** `SecondaryStatCard` lado a lado con barra de progreso relativa a la categoría top; se ocultan si hay menos de 3 categorías con datos.
+- **Card "Tendencia":** gráfico de barras mensuales scrollable horizontal (`queryMonthlyTotalsInRange`) — el único control de período de la pantalla, acotado a esta tarjeta. Chip "N meses ▾" abre `DateRangeSheet`; rango por defecto = últimos 6 meses calendario.
+- **Card "Ranking de categorías":** lista completa (`AverageRow`) ordenada de mayor a menor promedio mensual, con emoji, nombre, monto `/mes` y barra de progreso proporcional a la categoría top. Estado vacío: "Aún no hay suficiente historial para calcular promedios."
+- Fuente de datos: `queryCategoryMonthlyAverages(type)` (sin `range`, todo el historial) para hero/secundarias/ranking; `queryMonthlyTotalsInRange(type, from, to)` solo para "Tendencia".
+- Decisiones descartadas durante el desarrollo (no reintroducir sin justificación nueva): una vista "Detalle" con tabla de transacciones por categoría (redundante con `CategoryChart` del Dashboard) y un filtro de período global arriba de toda la pantalla.
+
 ---
 
 ## 13. Formato de Moneda (COP)
@@ -1242,6 +1270,13 @@ clonar/editar el HTML.
 - `BlurView` no funciona consistentemente en emuladores Android
 - `Appearance.setColorScheme(null)` causa crash en Android — fue removido
 - `PanResponder` puede interferir con scroll horizontal si no se configura correctamente
+
+### Colores de gasto/ingreso duplicados sin token compartido
+`app/(tabs)/index.tsx` (`pillExpenseActive`/`pillIncomeActive`) y `app/reports.tsx`
+(`SEGMENT_COLORS`) definen los mismos cuatro valores hardcodeados (rojo `#FEE2E2`/`#E53E3E`, verde
+`#DCFCE7`/`#16A34A`) en dos archivos distintos, sin un token compartido en `src/theme/tokens.ts`.
+Consistente hoy porque se copiaron a mano, pero un cambio de paleta futuro requeriría tocar ambos
+lugares — no es bloqueante, solo una oportunidad de consolidación pendiente.
 
 ### Proceso manual sin automatizar: link de descarga de la landing (`docs/index.html`)
 El botón "Descargar APK" de la landing pública (GitHub Pages) apunta a un asset fijo de un GitHub

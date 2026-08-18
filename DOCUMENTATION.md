@@ -23,7 +23,8 @@ MyWallet es tu aplicación personal de control financiero. Diseñada para ser **
 7. [Configuración (Settings)](#7-configuración-settings)
 8. [Categorías de gasto e ingreso](#8-categorías-de-gasto-e-ingreso)
 9. [Sistema de notificaciones](#9-sistema-de-notificaciones)
-10. [Preguntas frecuentes y recomendaciones](#10-preguntas-frecuentes-y-recomendaciones)
+10. [Promedios (Reportes)](#10-promedios-reportes)
+11. [Preguntas frecuentes y recomendaciones](#11-preguntas-frecuentes-y-recomendaciones)
 
 ---
 
@@ -521,7 +522,28 @@ Cuando hay un error que requiere tu atención (por ejemplo, no se pudo guardar u
 
 ---
 
-## 10. Preguntas Frecuentes y Recomendaciones
+## 10. Promedios (Reportes)
+
+MyWallet incluye una pantalla dedicada a responder "¿en qué gasto o gano más, en promedio?" — algo distinto de la gráfica del Dashboard, que solo muestra totales del período que tengas filtrado en ese momento.
+
+### Cómo acceder
+Toca el ícono de **gráfica** (📊) en el dock flotante, junto a la lupa. Se abre la pantalla **"Promedios"**.
+
+### Qué muestra
+1. **Gastos / Ingresos:** un toggle arriba te deja alternar entre ver el promedio de tus gastos o de tus ingresos.
+2. **Tarjeta principal:** el promedio mensual general (todo tu historial, sin importar el período que tengas filtrado en el Dashboard), tu categoría con mayor promedio y cuántos meses se analizaron. A la derecha, un anillo muestra qué porción de tu promedio total corresponde a esa categoría top.
+3. **Categorías #2 y #3:** dos tarjetas con las siguientes categorías del ranking (si tienes al menos 3 categorías con datos).
+4. **Tendencia:** un gráfico de barras con el total gastado/recibido mes a mes. Toca el chip **"N meses ▾"** para elegir el rango de fechas que quieres ver en este gráfico — accesos rápidos de 3/6/12 meses, o elige un rango personalizado tocando el calendario (el rango completo entre el día de inicio y el de fin se resalta como una sola franja continua). Este es el único filtro de período de la pantalla y solo afecta esta tarjeta. El rango personalizado debe abarcar **al menos 2 meses distintos** — si eliges dos días dentro del mismo mes, el botón "Aplicar" se deshabilita (el gráfico de barras no tiene sentido con un solo mes para comparar).
+5. **Ranking de categorías:** la lista completa, de mayor a menor promedio mensual, con una barra de progreso relativa a la categoría top.
+
+> ℹ️ El promedio siempre se calcula sobre **todo tu historial** (a diferencia del resto de la app, que respeta el período que tengas filtrado en el Dashboard) — esto es intencional: un promedio recortado a "este mes" dejaría de ser un promedio útil.
+
+### Si no tienes suficiente historial
+Si aún no hay transacciones, verás el mensaje "Aún no hay suficiente historial para calcular promedios" en el ranking.
+
+---
+
+## 11. Preguntas Frecuentes y Recomendaciones
 
 ### ¿Mis datos están seguros?
 Sí. **Todo se almacena localmente en tu dispositivo** en una base de datos SQLite. La app no envía ningún dato a servidores externos ni requiere internet para funcionar.
@@ -628,6 +650,7 @@ Una vez al mes:
 || **Multi-transacción por voz** | Cuando dices varios montos en un mismo input de voz, la app los detecta y navega a la pantalla "Revisar registros" donde puedes editar, eliminar o agregar más antes de guardar el lote |
 || **Revisar registros** | Pantalla de revisión del lote multi-voz o de transacciones detectadas. Tarjetas editables por swipe/edición, botón "Guardar todo" y opción "Añadir registro manual" que lleva al formulario y regresa sin guardar aún en DB |
 || **CSV** | Formato de exportación de datos (Comma-Separated Values). Abre en Excel o Google Sheets como tabla con todas tus transacciones |
+| **Promedios** | Pantalla accesible desde el ícono de gráfica del dock flotante. Muestra el promedio mensual histórico de gasto/ingreso por categoría (siempre sobre todo tu historial, no el período filtrado del Dashboard), con un ranking completo y una tarjeta de tendencia mensual con rango de fechas elegible |
 
 ---
 

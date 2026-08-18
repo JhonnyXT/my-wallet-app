@@ -6,7 +6,7 @@
 import { useState, useMemo } from "react";
 import { View, Pressable, StyleSheet, Modal, Text, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Plus, Search, Mic, X, ArrowUp, ArrowDown } from "lucide-react-native";
+import { Plus, Search, Mic, X, ArrowUp, ArrowDown, ChartColumn } from "lucide-react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -80,6 +80,11 @@ export function FloatingDock() {
     }
   }
 
+  async function handleReports() {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push("/reports");
+  }
+
   async function handleMic() {
     micScale.value = withSequence(
       withSpring(0.88, { damping: 10 }),
@@ -118,6 +123,16 @@ export function FloatingDock() {
             android_ripple={{ color: "transparent" }}
           >
             <Search size={22} color={searchOpen ? "#2D5BFF" : theme.text} strokeWidth={2} />
+          </Pressable>
+
+          <Pressable
+            onPress={handleReports}
+            style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
+            android_ripple={{ color: "transparent" }}
+            accessibilityRole="button"
+            accessibilityLabel="Reportes"
+          >
+            <ChartColumn size={22} color={theme.text} strokeWidth={1.8} />
           </Pressable>
         </View>
 
@@ -190,6 +205,16 @@ export function FloatingDock() {
               style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
             >
               <Search size={22} color={theme.text} strokeWidth={2} />
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                handleClose();
+                handleReports();
+              }}
+              style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
+            >
+              <ChartColumn size={22} color={theme.text} strokeWidth={1.8} />
             </Pressable>
           </View>
 

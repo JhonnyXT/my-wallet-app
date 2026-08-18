@@ -139,6 +139,127 @@ export async function queryMonthlyExpensesByYear(year: number): Promise<Record<n
   return result;
 }
 
+export interface CategoryAverage {
+  emoji: string;
+  total: number;
+  count: number;
+  avgMonthly: number;
+}
+
+export interface CategoryAveragesResult {
+  /** Meses distintos con actividad en toda la historia de la app — denominador común de avgMonthly. */
+  months: number;
+  items: CategoryAverage[];
+}
+
+export interface DateRange {
+  /** ISO local (localISOString) — límite inferior inclusive. `undefined` = sin límite. */
+  from?: string;
+  /** ISO local (localISOString) — límite superior inclusive. `undefined` = sin límite. */
+  to?: string;
+}
+
+/**
+ * Promedio mensual histórico por categoría (gasto o ingreso), usado por la pantalla
+ * de Reportes ("Promedios"). El denominador es el mismo para todas las categorías
+ * (meses distintos con AL MENOS una transacción, sin importar de qué categoría) —
+ * evita inflar el promedio de categorías esporádicas con pocos meses activos propios.
+ *
+ * `range` acota la ventana de cálculo (presets de N meses hacia atrás, o un rango
+ * personalizado desde/hasta elegido por el usuario). `undefined` usa todo el historial.
+ * El denominador sigue siendo "meses distintos con actividad" DENTRO de esa ventana, no
+ * el tamaño fijo de la ventana — así un mes sin movimientos no infla el promedio de las
+ * categorías vecinas.
+ */
+export async function queryCategoryMonthlyAverages(
+  type: "expense" | "income",
+  range?: DateRange,
+): Promise<CategoryAveragesResult> {
+  const db = await getDb();
+
+  const clauses: string[] = [];
+  const rangeParams: string[] = [];
+  if (range?.from) {
+    clauses.push("date >= ?");
+    rangeParams.push(range.from);
+  }
+  if (range?.to) {
+    clauses.push("date <= ?");
+    rangeParams.push(range.to);
+  }
+  const rangeClause = clauses.length > 0 ? `AND ${clauses.join(" AND ")}` : "";
+
+  const monthsRow = await db.getFirstAsync<{ months: number | null }>(
+    `SELECT COUNT(DISTINCT strftime('%Y-%m', date)) as months FROM transactions WHERE 1=1 ${rangeClause}`,
+    rangeParams,
+  );
+  const months = Math.max(monthsRow?.months ?? 0, 1);
+
+  const amountExpr = type === "expense" ? "amount" : "ABS(amount)";
+  const whereClause = type === "expense" ? "amount > 0" : "amount < 0";
+  const rows = await db.getAllAsync<{ category_emoji: string; total: number; count: number }>(
+    `SELECT category_emoji, SUM(${amountExpr}) as total, COUNT(*) as count
+     FROM transactions
+     WHERE ${whereClause} ${rangeClause}
+     GROUP BY category_emoji`,
+    rangeParams,
+  );
+
+  const items = rows
+    .map((r) => ({
+      emoji: r.category_emoji,
+      total: r.total,
+      count: r.count,
+      avgMonthly: r.total / months,
+    }))
+    .sort((a, b) => b.avgMonthly - a.avgMonthly);
+
+  return { months, items };
+}
+
+export interface MonthlyTotal {
+  year: number;
+  month: number; // 1-12
+  total: number;
+}
+
+/**
+ * Total mensual (gasto o ingreso) entre `from` y `to` (ambos inclusive, meses calendario
+ * completos), incluyendo meses sin movimientos (total 0) para que el gráfico de tendencia
+ * tenga huecos reales, no meses saltados. Usado por la tarjeta "Tendencia" de Reportes —
+ * `from`/`to` vienen del selector de rango con calendario (o de sus accesos rápidos).
+ */
+export async function queryMonthlyTotalsInRange(
+  type: "expense" | "income",
+  from: Date,
+  to: Date,
+): Promise<MonthlyTotal[]> {
+  const db = await getDb();
+  const rangeStart = localISO(new Date(from.getFullYear(), from.getMonth(), 1));
+  const rangeEnd = localISO(new Date(to.getFullYear(), to.getMonth() + 1, 0, 23, 59, 59));
+
+  const amountExpr = type === "expense" ? "amount" : "ABS(amount)";
+  const whereClause = type === "expense" ? "amount > 0" : "amount < 0";
+  const rows = await db.getAllAsync<{ ym: string; total: number }>(
+    `SELECT strftime('%Y-%m', date) as ym, SUM(${amountExpr}) as total
+     FROM transactions
+     WHERE ${whereClause} AND date >= ? AND date <= ?
+     GROUP BY ym`,
+    [rangeStart, rangeEnd],
+  );
+  const totals = new Map(rows.map((r) => [r.ym, r.total]));
+
+  const result: MonthlyTotal[] = [];
+  const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
+  const last = new Date(to.getFullYear(), to.getMonth(), 1);
+  while (cursor <= last) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+    result.push({ year: cursor.getFullYear(), month: cursor.getMonth() + 1, total: totals.get(key) ?? 0 });
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return result;
+}
+
 export async function queryFirstTransactionYear(): Promise<number> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ min_date: string | null }>(

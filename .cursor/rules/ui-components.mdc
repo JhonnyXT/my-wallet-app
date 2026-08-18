@@ -121,6 +121,23 @@ más elaborada que la de `BottomSheet` (spring custom, ver `FloatingInput.tsx`),
 componente — replicar el mismo `PanResponder`/umbrales (`CLOSE_DISTANCE`/`CLOSE_VELOCITY`) sobre
 el handle en un `Animated.View` de RN core anidado dentro del wrapper de animación de entrada.
 
+### Calendarios: dibujados a mano, sin librería externa
+
+`CalendarSheet.tsx` (fecha puntual) y `DateRangeSheet.tsx` (rango desde–hasta) son el patrón de
+referencia para cualquier selector de fecha nuevo: grid mensual de 7 columnas generado a mano
+(`buildMonthGrid`), sin dependencia externa de calendario, con fade entre meses vía Reanimated y
+días futuros deshabilitados. No usar `@react-native-community/datetimepicker` para selectores de
+fecha nuevos en pantallas propias de la app (sigue instalado, pero es el picker nativo del SO que
+este patrón reemplazó). Elegir cuál según el caso: una sola fecha con selección-y-cierre inmediato
+→ seguir el patrón de `CalendarSheet`; un rango con confirmación explícita ("Aplicar") y accesos
+rápidos → seguir el patrón de `DateRangeSheet`. En un selector de **rango**, pintar el tramo
+seleccionado como una barra/pill continua (un `View` "connector" de posición absoluta detrás de
+cada día en rango, redondeado solo en los extremos reales del rango — inicio/fin, borde de fila al
+cruzar de semana, o celda vecina vacía de otro mes fuera de vista), no como círculos sueltos por
+día — así se lee como una sola franja en vez de celdas independientes. Todo el rango (inicio, fin
+e intermedios) usa el mismo color sólido de acento con texto blanco, sin diferenciar los extremos
+con un tono más oscuro.
+
 ### Swipe pattern (PanResponder)
 
 ```typescript

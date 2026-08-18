@@ -32,7 +32,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Gráfica de Categorías | Barras verticales con scroll horizontal, ghost tracks, alertas por color | ✅ Implementado |
 | Lista de Transacciones | `FlatList` con items tipo tarjeta (fondo blanco + sombra en modo claro), swipe izquierda elimina (con confirmación), swipe derecha edita | ✅ Implementado |
 | Patrimonio neto | Línea bajo el balance neto (`netBalance - totalDebt`), solo visible si hay deudas activas registradas en Ajustes → Deudas | ✅ Implementado |
-| Dock Flotante | FAB micrófono, botón +, lupa — reemplaza tab bar | ✅ Implementado |
+| Dock Flotante | FAB micrófono, botón +, lupa, gráfica (→ `/reports`) — reemplaza tab bar | ✅ Implementado |
 | Detalle de transacción | Modal centrado estilo Stitch al hacer **tap** en un item: emoji, monto, categoría, tipo, cuenta, fecha, hora (12h), descripción, tags | ✅ Implementado |
 | Animación scroll de gráfica | Las barras se comprimen progresivamente al hacer scroll (Reanimated `interpolate`). Las etiquetas hacen crossfade de vertical a horizontal compacto. Gráfica y lista en scroll unificado (`FlatList` + `ListHeaderComponent`) | ✅ Implementado |
 | Odómetro de valores | `RollingNumber`: cada dígito tiene su columna 0-9 animada con Reanimated. Separadores de miles COP con fade-in/out. Usado en Balance neto + Pills de gastos/ingresos | ✅ Implementado |
@@ -248,6 +248,16 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 9.4 | Como usuario, quiero renombrar una conversación manteniendo presionado su nombre en el historial | ✅ |
 | HU 9.5 | Como usuario, quiero que borrar una conversación pida confirmación explícita, porque perder todo el historial de esa conversación es irreversible | ✅ *(agregado en este rango — antes se borraba sin confirmar)* |
 | HU 9.6 | Como usuario, quiero iniciar una conversación nueva sin perder las anteriores | ✅ |
+
+### Épica 10: Promedios / Reportes *(nuevo)*
+
+| ID | Historia | Estado |
+|----|---------|--------|
+| HU 10.1 | Como usuario, quiero ver el promedio mensual histórico de gasto por categoría, para saber en qué gasto más en promedio a lo largo del tiempo (no solo en el período que tenga filtrado en el Dashboard) | ✅ |
+| HU 10.2 | Como usuario, quiero el mismo promedio mensual histórico pero para mis ingresos por categoría | ✅ |
+| HU 10.3 | Como usuario, quiero ver un ranking completo de mis categorías ordenado de mayor a menor promedio mensual | ✅ |
+| HU 10.4 | Como usuario, quiero ver la tendencia de mis gastos/ingresos totales mes a mes en un gráfico de barras, eligiendo el rango de fechas que quiero analizar | ✅ |
+| HU 10.5 | Como usuario, quiero acceder a esta pantalla de promedios desde el dock flotante, sin tener que buscarla dentro de Ajustes | ✅ |
 
 ---
 

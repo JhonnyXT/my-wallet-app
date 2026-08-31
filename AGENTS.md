@@ -16,10 +16,14 @@ Aplicación personal de control financiero para Android. 100% offline, datos en 
 ```bash
 npm install
 ```
-Si hay conflictos de peer deps (React 19 vs librerías con peer React 18):
-```bash
-npm install --legacy-peer-deps
-```
+Conflictos de peer deps (React 19 vs. librerías con peer React 18, ej.
+`react-native-android-notification-listener@5.0.1`) ya no requieren el flag a mano — `.npmrc`
+en la raíz fija `legacy-peer-deps=true` para todo install, `npm install` y `npm ci` incluidos.
+Esto importa especialmente para EAS Build (ver Build variants más abajo): corre `npm ci
+--include=dev` sin flags propias, así que sin el `.npmrc` el build falla en la fase "Install
+dependencies" con `ERESOLVE` — detectado 2026-08-31 en el primer build de EAS del variant
+`test`, resuelto agregando el archivo (antes el flag era solo una instrucción manual para
+`npm install` local, nunca cubría `npm ci` en CI).
 
 ### Arrancar en desarrollo
 ```bash

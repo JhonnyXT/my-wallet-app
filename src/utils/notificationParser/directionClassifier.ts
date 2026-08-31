@@ -52,6 +52,7 @@ export function classifyDirection(text: string): {
     "transferencia recibida",
     "llegaron",
     "te enviaron",
+    "te envió",
     "transferencia entrante",
     "crédito",
     "credito",

@@ -47,7 +47,13 @@ export const DAVIVIENDA_PATTERN: BankPattern = {
 
 export const NU_PATTERN: BankPattern = {
   matches: (title, text) =>
-    /(enviaste|recibiste|pagaste|compra|transferencia|\$[\d.,]+)/i.test(title + " " + text),
+    // Nu también notifica transferencias entrantes de otros bancos sin "$"
+    // y en tercera persona ("Bancolombia te envió 2.653.381,00") — el monto
+    // sin símbolo pero con separadores de miles ("2.653.381,00" / "45.000")
+    // también cuenta como señal válida, no solo "$[\d.,]+".
+    /(enviaste|envió|recibiste|pagaste|compra|transferencia|\$[\d.,]+|\b\d{1,3}(?:\.\d{3})+(?:,\d{2})?\b)/i.test(
+      title + " " + text,
+    ),
   parse: (title, text, bank) => {
     const combined = title + " " + text;
     const amount = extractAmount(combined);

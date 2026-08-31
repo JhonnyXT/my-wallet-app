@@ -38,6 +38,14 @@ export const NOTIFICATION_FIXTURES: NotificationFixture[] = [
     expected: { kind: "parsed", amount: 12000, isExpense: true },
   },
   {
+    label:
+      "Nu — transferencia entrante de otro banco, sin '$' ni 'recibiste' (SÍ debe registrarse como ingreso)",
+    packageName: "com.nu.production",
+    title: "Nu",
+    text: "Bancolombia te envió 2.653.381,00.",
+    expected: { kind: "parsed", amount: 2653381, isExpense: false },
+  },
+  {
     label: "Nequi — transferencia recibida (SÍ debe registrarse como ingreso)",
     packageName: "com.nequi.MobileApp",
     title: "Te enviaron plata",

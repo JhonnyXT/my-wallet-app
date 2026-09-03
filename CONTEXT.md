@@ -2,7 +2,7 @@
 
 > **Propósito:** Este documento es la referencia técnica completa del proyecto. Cualquier desarrollador, IA o colaborador que lea este archivo tendrá TODO el contexto necesario para desarrollar, modificar o extender la aplicación sin perder consistencia.
 >
-> **Última actualización:** 2026-08-18 | **Versión:** 1.5.0
+> **Última actualización:** 2026-09-02 | **Versión:** 1.5.0
 >
 > Nota de cobertura: este documento se actualiza incrementalmente por sesión de trabajo — algunas
 > secciones (ej. pantallas de onboarding `notification-onboarding.tsx`/`bank-selection-onboarding.tsx`,
@@ -427,11 +427,18 @@ reset(): void  // limpia todo incluyendo pendingBatch y pendingManualItem
 //                       rawTitle, rawText, confidence: "high"|"medium"|"low", detectedAt }
 
 // Acciones
-addPendingItem(item: ParsedTransaction): void   // agrega a la cola, evita duplicados (<2 min mismo banco+monto)
+addPendingItem(item: ParsedTransaction): string  // agrega a la cola (o retorna el id del duplicado si no agregó nada), evita duplicados (<2 min mismo banco+monto)
 removePendingItem(id: string): void
 clearAll(): void
+
+// Export adicional (no es parte del store, función standalone en el mismo archivo)
+getPendingItemAfterHydration(id: string): Promise<PendingNotificationItem | undefined>
 ```
 **Importante:** Este store **sí se persiste** en AsyncStorage (`persist` + `partialize` sobre `pendingItems`, clave `"notification-pending-queue"`), justamente para sobrevivir cold starts: cuando el HeadlessJS task detecta una transacción con la app cerrada, el item sigue disponible al abrirla. Lo que nunca ocurre automáticamente es la escritura en la base de datos — un item solo pasa a `transactions` si el usuario lo confirma en `notification-review.tsx`.
+
+**`addPendingItem()` devuelve el id agregado (2026-09-02)** — antes no devolvía nada. `notificationHeadlessTask.ts` pasa ese id a `notifyBankTransaction()` (nuevo parámetro opcional `itemId`), que lo mete en `data.itemId` del payload de la notificación push, para que `app/_layout.tsx` pueda resolver el destino del deep link (ver sección 9b).
+
+**`getPendingItemAfterHydration(id)` (2026-09-02):** como el `persist` de este store rehidrata desde AsyncStorage de forma asíncrona, y el listener de deep link de `_layout.tsx` puede correr en un cold start antes de que termine, esta función espera `persist.onFinishHydration()` (con timeout de seguridad de 1.5s) antes de buscar el item — sin esto, el primer tap tras un cold start podía fallar en encontrar el item aunque sí estuviera guardado.
 
 ### Regla crítica de stores
 - **NUNCA** mezclar lógica de servidor/API en los stores (la app es offline)
@@ -640,20 +647,28 @@ parseNotification(packageName, title, text)
       pago pendiente tipo "Tienes un pago por $X. Completa tu pago..." que NO
       son transacciones confirmadas, aunque mencionen un monto]
     ↓ extrae monto, tipo (gasto/ingreso) y descripción
-useNotificationStore.addPendingItem(parsed) — agrega a la cola (dedup <2 min)
+itemId = useNotificationStore.addPendingItem(parsed) — agrega a la cola (dedup <2 min), retorna el id
     ↓
-notifyBankTransaction(amount, description, bankName, isExpense)
+notifyBankTransaction(amount, description, bankName, isExpense, itemId)
     → Push notification del sistema: título "Nuevo gasto detectado — Nubank" (sin monto),
       cuerpo "$140.000 · Compra en Éxito" (monto + etiqueta corta de la acción,
       via shortenDescription() — no la descripción completa)
-    → data: { screen: "notification-review" } para deep link
+    → data: { screen: "notification-review", itemId } para deep link
     ↓ [usuario toca la notificación push]
-_layout.tsx addNotificationResponseReceivedListener → router.push("/notification-review")
-    ↓  [o bien: usuario toca el badge 🔔 en el dashboard]
+_layout.tsx addNotificationResponseReceivedListener/getLastNotificationResponseAsync
+    → resolveBankNotificationTarget(data) decide el destino:
+      - Si itemId sigue siendo el ÚNICO pendiente en la cola (2026-09-02, deep link directo):
+        prefillExpenseFromPendingItem() carga useExpenseStore (descripción, categoría adivinada,
+        fecha real, cuenta "savings") y router.push("/active-expense?from=notification-detect&notifId=<id>")
+        — el usuario solo revisa y confirma, sin pasar por la lista
+      - Si hay 2+ pendientes o el item ya no existe: router.push("/notification-review") (comportamiento de siempre)
+    ↓  [o bien: usuario toca el badge 🔔 en el dashboard → siempre va a la lista]
 app/notification-review.tsx — lista de transacciones para revisar/editar/descartar
     ↓ [usuario confirma]
 addTransactionBatch() → se guardan en SQLite
 ```
+
+**Modo `notification-detect` en `active-expense.tsx` (2026-09-02, no confundir con `notification-edit`):** a diferencia de `notification-edit` (que solo defiere vía `pendingManualItem` esperando que `notification-review.tsx` lo recoja), `notification-detect` guarda directo en SQLite (mismo camino que crear una transacción nueva) y, tras guardar con éxito, saca el item de la cola (`removePendingItem(notifId)`) para que no reaparezca duplicado. Cerrar con la X no descarta el item de la cola — sigue disponible vía el badge 🔔.
 
 ### src/utils/notificationParser/ — Diseño (carpeta, un módulo por responsabilidad)
 - **Whitelist de 15 bancos colombianos** (`src/constants/banks.ts`): Bancolombia, Nequi, Davivienda, DaviPlata, BBVA, Bco. Occidente, Bco. Popular, AV Villas, Nu, Lulo Bank, Scotiabank Colpatria, Rappi, Tpaga, Bco. Bogotá, Itaú
@@ -666,6 +681,7 @@ addTransactionBatch() → se guardan en SQLite
 - **`fixtures.ts`** — 9 casos reales/sintéticos con resultado esperado, cubiertos uno a uno por `parseNotification.test.ts` (Jest, `it.each`)
 - **Score de confianza**: `"high"` (keyword explícita) / `"medium"` (heurística, incluye siempre `GENERIC_PATTERN`) / `"low"`
 - **Privacidad**: `rawTitle` limitado a 100 chars, `rawText` a 200 chars. Saldos, números de tarjeta y datos personales son descartados.
+- **`parseNotification(packageName, title, text, postedAt?: Date)` (4º parámetro nuevo, 2026-09-02)**: `postedAt` (default `new Date()`, así fixtures/tests no necesitan tocarse) se usa para `detectedAt` en vez de "ahora". Causa raíz: `NotificationListenerService` de Android **re-entrega notificaciones ya existentes** cada vez que el servicio se reconecta (frecuente por el ANR de batería documentado en AGENTS.md) — sin este parámetro, cualquier notificación bancaria que siguiera en la bandeja se reprocesaba con `detectedAt = ahora` una y otra vez, y la fecha al editar un ítem detectado siempre mostraba el día actual. `RawNotification.time` (`notificationHeadlessTask.ts`) es el `StatusBarNotification.postTime` real de Android (ms desde epoch) — el campo ya existía sin usar; ahora se parsea a `Date` y se pasa como `postedAt`.
 - **Confidence-aware push**: `notifyBankTransaction()` (`notificationService.ts`) redacta el título distinto según `confidence` — `"detectado"` (asertivo) solo con `high`; a confirmar (`"¿...?"`) con `medium`/`low`. El título es una etiqueta corta (tipo + banco, ej. "Nuevo gasto detectado — Bancolombia") sin el monto; el cuerpo usa el monto + `shortenDescription(description, isExpense)` (ej. "$45.000 · Compra en RAPPI CO"), que reduce la descripción completa a "verbo + preposición + contraparte" — el verbo lo decide `isExpense` (no la keyword del banco, ambigua entre bancos/direcciones), la contraparte se extrae de la última frase preposicional del texto. La descripción **completa** original no se pierde: sigue en `ParsedTransaction.description` y es la nota prellenada al editar el ítem (botón ✏️) en `notification-review.tsx`. El item siempre requiere confirmación manual antes de guardarse en SQLite.
 
 ### Configuración en AndroidManifest.xml (verificado contra el manifest fusionado real, 2026-07-13)
@@ -877,9 +893,13 @@ reemplazarlo — solo los componentes de patrón "lista agrupada" (Ajustes y suc
 `pressScale`) y colores anidados `surface.primary/secondary/elevated`, `text.primary/secondary/accent`,
 `border.default`, `accent.default/subtle`, `state.success/warning/danger/dangerSubtle`.
 
-- **`Card`** (`src/components/ui/Card.tsx`): contenedor de lista agrupada. `borderWidth: 1.5` +
-  `border.default` (mismo lenguaje que el pill "Este mes" de `FilterChips`). `padded={false}`
-  cuando envuelve `ListRow`. Exporta también `SectionHeader` y `Divider`.
+- **`Card`** (`src/components/ui/Card.tsx`): contenedor de lista agrupada. **Sin borde** (2026-09-02:
+  el `borderWidth: 1.5` + `border.default` que había ganado en el rediseño Material se quitó a
+  pedido explícito del usuario — se veía como un aro blanco/gris alrededor de cada tarjeta en tema
+  oscuro) — se distingue del fondo solo por color de relleno (`surface.secondary` vs `surface.primary`)
+  y esquinas redondeadas. El pill "Este mes" de `FilterChips` y el toggle de `reports.tsx` conservan
+  su borde propio (son controles inline, no `Card`). `padded={false}` cuando envuelve `ListRow`.
+  Exporta también `SectionHeader` y `Divider`.
 - **`ListRow`**: fila de lista agrupada — ícono circular (34px, `radius.full`) + label + detail/chevron
   o un slot `right?: ReactNode` que reemplaza detail+chevron por un control custom (`Switch`,
   botones editar/eliminar). `labelColor?` sobreescribe el color del label sin marcarlo
@@ -901,7 +921,8 @@ reemplazarlo — solo los componentes de patrón "lista agrupada" (Ajustes y suc
 
 ### Dashboard (`app/(tabs)/index.tsx`)
 - Balance neto (tipografía 38px, weight 800)
-- **Patrimonio neto** *(nuevo, 2026-08-17)*: línea bajo el balance, `netBalance - totalDebt` (suma de `remainingAmount` de `useSettingsStore.debts`) con `formatBalance` (conserva el signo). Solo visible si `totalDebt > 0` (hay deudas activas) y no hay búsqueda/filtro de tipo activos.
+- **"BALANCE NETO" siempre sobre todo el historial (2026-09-02, pedido explícito del usuario)**: `useDashboardTotals.ts` ganó `allTimeNetBalance` — mismo cálculo que `netBalance` (ingresos − gastos) pero sobre `transactions` sin filtrar por período, en vez de `typeFilteredTransactions`/`searchedTransactions` (las mismas transacciones ya acotadas por `FilterChips` que alimentan la gráfica). Antes, al cambiar de mes (o si el mes nuevo aún no tenía movimientos) el balance se iba a $0 en vez de seguir mostrando la plata real disponible. El Dashboard usa `allTimeNetBalance` para "BALANCE NETO" y "Patrimonio neto" **excepto durante una búsqueda** (`isSearching`), donde se mantiene `netBalance` (neto de los resultados encontrados, intencional — la etiqueta ya dice "BÚSQUEDA · N resultados"). Los pills "↓ Gasto / ↑ Ingreso" (`incomeTotal`/`expenseTotal`) siguen acotados al período — es un cambio deliberadamente distinto del balance.
+- **Patrimonio neto** *(nuevo, 2026-08-17)*: línea bajo el balance, `allTimeNetBalance - totalDebt` (suma de `remainingAmount` de `useSettingsStore.debts`) con `formatBalance` (conserva el signo). Solo visible si `totalDebt > 0` (hay deudas activas) y no hay búsqueda/filtro de tipo activos.
 - Pills inline (Gastos/Ingresos) con toggle por tipo
 - Barra de presupuesto inline (condicional: `monthlyBudget > 0`, sin filtro de tipo, solo período actual). Usa `monthlyBudget` directamente (presupuesto siempre mensual)
 - FilterChips — un solo chip de período con `periodLabel` y `onOpenMonthPicker`. Por defecto muestra "Este mes"
@@ -935,6 +956,7 @@ reemplazarlo — solo los componentes de patrón "lista agrupada" (Ajustes y suc
 - **"Gestionar métodos de pago"** ya no navega a `/settings` — abre un `BottomSheet` inline con `PaymentMethodsSection` (exportada desde `app/settings.tsx` y reutilizada aquí, mismo patrón que `NewCategoryModal` importada desde `category-onboarding.tsx`), sin salir de la pantalla.
 - Botón **Guardar** fijo abajo (footer con gradiente de desvanecido hacia el fondo, `expo-linear-gradient`) — vibración + navegar atrás, misma lógica de guardado que antes.
 - **Param `?from=batch-review` / `?from=notification-edit`:** sin cambios en el flujo (ver comportamiento previo) — lee `from` con `useLocalSearchParams`, al confirmar llama `setPendingManualItem({...})` + `store.reset()` + `router.back()` en vez de guardar en DB.
+- **Param `?from=notification-detect&notifId=<id>` (nuevo, 2026-09-02):** modo distinto de `notification-edit` — el formulario llega prellenado desde `app/_layout.tsx` (`prefillExpenseFromPendingItem()`, ver sección 9b) cuando el usuario toca una notificación push y esa es la **única** transacción pendiente. Al confirmar, guarda directo en SQLite (mismo camino que crear una transacción nueva, no pasa por `pendingManualItem`) y luego llama `removePendingItem(notifId)` para sacar el item de la cola y evitar duplicados. Cerrar con la X no descarta el item — sigue disponible vía el badge 🔔 del Dashboard.
 - **El NLP reactivo (`useEffect` sobre `store.note`) ya NO toca el monto**: antes, si el texto libre contenía un número, `store.setAmount(parsed.amount)` lo sobreescribía en silencio, y borrar el texto lo reseteaba a 0 — comportamiento eliminado porque el monto ahora tiene su propio campo editable dedicado en la tarjeta y esa sincronización pisaba ediciones manuales del usuario. El parser sigue detectando fecha/categoría igual que antes; **ya no detecta el tipo ingreso/gasto** desde el texto libre (`store.setIsExpense` se quitó del efecto) — el usuario ya eligió el tipo al abrir la pantalla, cambiarlo por una palabra clave suelta era sorpresivo.
 - **Emoji real de la categoría, sin sustituto vectorial**: se eliminó la tabla `CATEGORY_ICONS` que reemplazaba el emoji elegido en onboarding por un ícono genérico de Lucide para ~13 emojis "conocidos" — ahora la lista de categorías (horizontal) siempre muestra `cat.key` (el emoji real).
 - **Modo edición (`?editId=<id>`)**: además de `batch-review`/`notification-edit`, la pantalla soporta editar una transacción ya guardada. `useLocalSearchParams` lee `editId`; un `useRef` (`editInitDone`) evita que el `useEffect` de prellenado corra más de una vez (la lista `transactions` cambia de referencia constantemente y reiniciaría el formulario a mitad de edición). Al guardar, llama `updateTransaction()` (`useFinanceStore`) en vez de `addTransaction()`; el título cambia a "Editar Gasto"/"Editar Ingreso". El parser NLP reactivo se desactiva igual que en `batch-review`/`notification-edit` (los datos ya vienen estructurados).
@@ -983,16 +1005,21 @@ lleva `borderWidth: 1.5` + `border.default` (mismo lenguaje que el pill "Este me
 círculo completo (34px, `radius.full`).
 
 **Secciones, en orden** (todas sobre la capa de tokens, `Card` + `SectionHeader` + `ListRow` +
-`Divider` — ver sección 11b):
+`Divider` — ver sección 11b). Reordenadas de nuevo 2026-09-02 (ver abajo):
 1. **CONTROL FINANCIERO** — Ingreso mensual (chevron → `InputModal`)
 2. **GESTIÓN** — una sola `Card` con 5 filas separadas por `Divider` (no una tarjeta por fila,
    se probó y se revirtió a pedido del usuario): Categorías, Métodos de pago, Presupuesto por
    categoría, **Metas de ahorro** (ya no inline en la pantalla principal — ahora abre su propio
    `FullScreenModal`, mismo patrón que las otras filas de esta sección) y **Deudas** *(nuevo)*.
-3. **DETECCIÓN AUTOMÁTICA** — `AutoDetectSection`
-4. **APARIENCIA** — Modo oscuro
-5. **SISTEMA** — Exportar datos, Borrar historial
-6. **ACERCA DE** — Versión
+3. **DETECCIÓN AUTOMÁTICA** — `AutoDetectSection` (solo "Detectar transacciones" + "Bancos activos")
+4. **SISTEMA** — Modo oscuro, Exportar datos, Borrar historial de transacciones, Versión
+
+**Fusión de secciones (2026-09-02, pedido explícito del usuario):** las antiguas secciones
+independientes APARIENCIA (Modo oscuro), SISTEMA (Exportar/Borrar) y ACERCA DE (Versión) ya no
+existen como tales — se fusionaron en una sola sección **SISTEMA** con las 4 filas en ese orden.
+También se eliminó la fila "Optimización de batería" (`Linking.openSettings()`) de Detección
+Automática — el problema de fondo (el sistema puede matar el listener en background, ver ANR en
+AGENTS.md) sigue existiendo, solo se quitó el atajo de UI.
 
 Colores de icono por fila se mantienen (no monocromáticos, se probó y se revirtió): verde
 (Ingreso/Categorías), azul acento (Métodos de pago), morado `#7C3AED` (Presupuesto/Modo oscuro),
@@ -1025,11 +1052,12 @@ rosa `#DB2777` (Metas), rojo oscuro `#9F1239` (Deudas), rojo (Borrar historial),
   - Fila "Bancos activos" (solo visible con la detección activa) con ícono `Landmark`
     (`#EA580C`, reemplaza el emoji 🏛️) → abre el selector de los 15 bancos de la whitelist; si no
     se selecciona ninguno, usa todos.
-  - Fila única "Optimización de batería" (ícono `BatteryWarning`, chevron → `Linking.openSettings()`)
-    reemplaza las dos tarjetas de texto largo anteriores (privacidad + batería) — se quitó el
-    párrafo explicativo de privacidad para no saturar la pantalla.
   - Configuración persiste en `AsyncStorage` con claves `mywallet-auto-detect-enabled` y
     `mywallet-auto-detect-banks`.
+  - **Fila "Optimización de batería" eliminada (2026-09-02, pedido explícito del usuario):** el
+    ícono `BatteryWarning` y el import de `Linking` se removieron de `settings.tsx` por quedar sin
+    uso. Ya no hay atajo de UI a `Linking.openSettings()` para excluir la app de la optimización de
+    batería del fabricante; el problema de fondo (ver ANR intermitente en AGENTS.md) sigue latente.
 - Sistema: exportar CSV, limpiar datos.
 - **Exportar CSV:** usa `Share` de `react-native`. No usa `expo-sharing` ni `expo-file-system`.
 - **Confirmaciones:** Todas las alertas usan `ConfirmDialog` (componente custom con animación y variantes).
@@ -1048,6 +1076,7 @@ rosa `#DB2777` (Metas), rojo oscuro `#9F1239` (Deudas), rojo (Borrar historial),
 - **Estado vacío:** icono 🔕, mensaje explicativo, botón "Entendido"
 - **Fecha real de detección (fix 2026-08-17)**: `ReviewItem` tiene un campo `date` (ISO), poblado desde `PendingNotificationItem.detectedAt` — antes se perdía al mapear a `ReviewItem` y todo se guardaba con la fecha de hoy. `handleSaveAll` ahora guarda cada transacción con `new Date(item.date)`; `handleEdit` llama `expenseStore.setCustomDate(new Date(item.date))` antes de navegar a `active-expense.tsx`, así el editor abre con la fecha real detectada. `ManualAddItem` (`useVoiceStore.ts`) ganó un campo opcional `date?: string` para no perder la fecha al ir y volver de `active-expense.tsx` en este flujo de edición.
 - Al guardar: `addTransactionBatch(items)` (cada item con su propia `date`, ya no `new Date()` fija) + `clearAll()` (store) + `router.back()`. En caso de error, `Alert.alert` nativo
+- **Cuenta por defecto cambió de "credit" (Tarjeta) a "savings" (Ahorros) (2026-09-02, pedido explícito del usuario):** `pendingToReview()` (fallback usado si se guarda el lote sin editar ningún ítem) y `handleEdit()` (ahora llama `expenseStore.setAccount("savings")`, antes no seteaba cuenta — el selector quedaba con lo de una edición anterior) quedaron consistentes con `prefillExpenseFromPendingItem()` de `app/_layout.tsx` (mismo default en el flujo directo `notification-detect`). Si los métodos de pago del usuario son personalizados y ninguno tiene id `"savings"`, el selector queda sin nada resaltado — aceptado, no se intenta cubrir ese caso.
 
 ### Reports (`app/reports.tsx`) — "Promedios" *(nuevo)*
 - Pantalla de un solo propósito: promedio de gasto/ingreso mensual histórico por categoría — capacidad que no existía en ningún otro lugar de la app (el Dashboard solo muestra totales del período filtrado, nunca un promedio a través del historial). Deliberadamente **sin filtro de período global**; se evaluó y se descartó.
@@ -1257,7 +1286,6 @@ clonar/editar el HTML.
 | `useLocalNLP.ts` | NLP local para consultas del chat; sin uso activo |
 
 ### Limitaciones funcionales (por diseño)
-- **Edición de transacciones:** No existe. Solo se puede eliminar y recrear. Decisión de diseño intencional — simplifica la UX.
 - **Búsqueda por voz:** El flujo directo voz → FloatingInput está parcialmente conectado; `useUIStore` expone `openExpenseInput` pero falta conectar el trigger desde el FloatingDock.
 - **Sincronización metas-transacciones:** Si el usuario elimina una transacción de abono desde el Dashboard, el `savedAmount` de la meta NO se actualiza automáticamente (son independientes). Aceptable para la v1.
 

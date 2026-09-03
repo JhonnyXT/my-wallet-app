@@ -59,10 +59,10 @@ function pendingToReview(
     categoryEmoji,
     categoryName: resolveCategory(categoryEmoji, userCategories, savingsGoals),
     isExpense: item.isExpense,
-    // Detectada desde una notificación bancaria: nunca es efectivo — "credit"
-    // (id por defecto de "Tarjeta") es el fallback más cercano a la realidad;
-    // el usuario puede corregirlo a "Ahorros" u otro método con el botón ✏️.
-    paymentMethod: "credit",
+    // Detectada desde una notificación bancaria: nunca es efectivo — "savings"
+    // (id por defecto de "Ahorros") es el fallback más cercano a la realidad,
+    // a pedido del usuario (2026-09-02); se puede corregir con el botón ✏️.
+    paymentMethod: "savings",
     bankName: item.bankName,
     confidence: item.confidence,
     date: item.detectedAt,
@@ -229,6 +229,9 @@ export default function NotificationReviewScreen() {
       expenseStore.setNote(item.description);
       expenseStore.setCategory(item.categoryEmoji, item.categoryName);
       expenseStore.setCustomDate(new Date(item.date));
+      // Detectada desde notificación bancaria: nunca es efectivo — "savings" (Ahorros)
+      // es el default más cercano a la realidad, a pedido del usuario (2026-09-02).
+      expenseStore.setAccount("savings");
       setEditingItemId(item.id);
       router.push("/active-expense?from=notification-edit");
     },

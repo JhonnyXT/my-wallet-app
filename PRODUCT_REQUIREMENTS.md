@@ -23,7 +23,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
-| Balance Neto | Tipografía grande: `Ingresos - Gastos` del período | ✅ Implementado |
+| Balance Neto | Tipografía grande: `Ingresos - Gastos` sobre **todo el historial** (no el período/mes filtrado en la gráfica) — excepto durante una búsqueda, donde muestra el neto de los resultados encontrados | ✅ Implementado |
 | Pills Gastos/Ingresos | Filtran toda la vista por tipo (rojo suave / verde suave) | ✅ Implementado |
 | Barra de Presupuesto | Progreso del gasto vs presupuesto mensual | ✅ Implementado |
 | Estado "período vacío" | Si no hay transacciones en el período actual: barras fantasma (opacity 0.18) + "Nuevo mes, ¡comienza ahora!". Período pasado sin datos: "Sin registros en este período" | ✅ Implementado |
@@ -71,10 +71,12 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Presupuesto por categoría | Límite por cada categoría de gasto del usuario (modal full-screen) | ✅ Implementado |
 | Metas de ahorro | Crear/editar/abonar/eliminar metas (modal full-screen); editar/eliminar con íconos explícitos ✏️/🗑️, ya no swipe-to-delete. Al abonar se crea transacción de gasto automáticamente (con emoji de la meta, tag #ahorro) | ✅ Implementado |
 | Deudas *(nuevo)* | Crear/editar/pagar/eliminar deudas (modal full-screen): nombre, emoji, monto total, cuota mensual, día de pago recurrente. Al pagar se crea transacción de gasto automáticamente (tag #deuda) y se reduce el saldo pendiente. Recordatorio push mensual en el día de pago; notificación al liquidar la deuda | ✅ Implementado |
-| Apariencia | Sistema / Claro / Oscuro (dark mode completo) | ✅ Implementado |
+| Modo oscuro | Sistema / Claro / Oscuro (dark mode completo) — fila dentro de la sección "Sistema" | ✅ Implementado |
 | Exportar datos | CSV con columnas id/fecha/tipo/descripcion/categoria/monto/metodo_pago/tags. Compartido con `Share` nativo de React Native (sin módulos externos) | ✅ Implementado |
 | Limpiar datos | Elimina todas las transacciones (con confirmación vía diálogo custom animado) | ✅ Implementado |
-| Diseño Material (2026-08-17) | Header con flecha llana + título inline (reemplaza el header estilo iOS con botón circular flotante), tarjetas con borde visible, íconos de fila circulares, secciones reordenadas (Control financiero → Gestión → Detección automática → Apariencia → Sistema → Acerca de) | ✅ Implementado |
+| Diseño Material (2026-08-17) | Header con flecha llana + título inline (reemplaza el header estilo iOS con botón circular flotante), íconos de fila circulares, secciones reordenadas (Control financiero → Gestión → Detección automática → Sistema) | ✅ Implementado |
+| Sección "Sistema" fusionada (2026-09-02) | Las secciones antes independientes Apariencia (Modo oscuro), Sistema (Exportar/Borrar) y Acerca de (Versión) se unieron en una sola sección "Sistema" con las 4 filas juntas | ✅ Implementado |
+| Tarjetas sin borde (2026-09-02) | `Card` perdió el `borderWidth` que había ganado en el rediseño Material — se distingue del fondo solo por color de relleno | ✅ Implementado |
 
 ### 2.7 Sistema de Notificaciones (dos capas)
 
@@ -156,7 +158,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | ID | Historia | Estado |
 |----|---------|--------|
-| HU 2.1 | Como usuario, quiero ver mi balance neto (ingresos - gastos) con tipografía grande y clara | ✅ |
+| HU 2.1 | Como usuario, quiero ver mi balance neto (ingresos - gastos) con tipografía grande y clara, siempre sobre todo mi historial (no solo el mes que esté filtrando en la gráfica) | ✅ |
 | HU 2.2 | Como usuario, quiero una barra de progreso que compare mis gastos con mi presupuesto mensual | ✅ |
 | HU 2.3 | Como usuario, quiero filtrar por período (hoy, semana, mes, año, todo, o mes/año específico) | ✅ |
 | HU 2.4 | Como usuario, quiero una gráfica de barras que muestre cuánto gasté en cada categoría con alertas visuales | ✅ |
@@ -200,7 +202,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 7.1 | Como usuario, quiero recibir una notificación en mi teléfono cuando alcanzo el umbral configurado del presupuesto de una categoría (default 80%), incluso si la app está en segundo plano | ✅ |
 | HU 7.2 | Como usuario, quiero recibir una notificación cuando completo una meta de ahorro | ✅ |
 | HU 7.3 | Como usuario, quiero que la app me pida permiso de notificaciones antes de activarlas, no de forma intrusiva al abrir la app | ✅ |
-| HU 7.4 | Como usuario, quiero recibir una notificación push cuando se detecta una transacción bancaria nueva, y al tocarla la app me lleve a la pantalla de revisión de transacciones pendientes | ✅ |
+| HU 7.4 | Como usuario, quiero recibir una notificación push cuando se detecta una transacción bancaria nueva, y al tocarla la app me lleve a revisarla | ✅ Si es la única pendiente, va directo al formulario prellenado (`active-expense`, 2026-09-02); si hay 2+ pendientes, va a la lista de revisión completa |
 | HU 7.5 | Como usuario, quiero poder activar/desactivar las alertas de presupuesto y configurar el umbral de alerta (porcentaje) en Ajustes | ✅ |
 | HU 7.6 | Como usuario, quiero recibir una segunda notificación si supero el 100% del presupuesto (después de la del umbral) para tomar acción inmediata | ✅ |
 | HU 7.7 | Como usuario, no quiero que la app me sature con avisos efímeros dentro de la pantalla — los eventos relevantes vienen como notificaciones del sistema; los errores críticos usan un diálogo nativo (`Alert.alert`) | ✅ |
@@ -234,7 +236,8 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 8.7 | Como usuario, quiero elegir qué bancos quiero que la app monitoree, para no recibir transacciones de cuentas que no me interesan | ✅ |
 | HU 8.8 | Como usuario, quiero que la detección de notificaciones respete mi privacidad: solo el monto y el comercio, nunca saldos ni números de tarjeta | ✅ |
 | HU 8.9 | Como usuario, quiero que la app NO detecte como transacción real un recordatorio de pago pendiente de factura ("Tienes un pago por $X. Completa tu pago...") que todavía no he confirmado | ✅ |
-| HU 8.10 | Como usuario, quiero que la app me explique cómo evitar que el sistema operativo detenga la detección en background (optimización de batería del fabricante), con acceso directo a esos ajustes | ✅ |
+| HU 8.10 | Como usuario, quiero que la app me explique cómo evitar que el sistema operativo detenga la detección en background (optimización de batería del fabricante), con acceso directo a esos ajustes | ⚠️ Revertida en parte (2026-09-02): se quitó de la UI la fila "Optimización de batería" (`Linking.openSettings()`) a pedido del usuario — la limitación de fondo sigue existiendo, documentada en `DOCUMENTATION.md`/`AGENTS.md`, pero ya no hay atajo dentro de la app |
+| HU 8.11 *(nuevo, 2026-09-02)* | Como usuario, quiero que al tocar una notificación de transacción detectada, si es la única pendiente, la app me lleve directo al formulario ya prellenado en vez de pasar por la lista de revisión, para ahorrarme un paso | ✅ |
 
 ### Épica 9: Chat NLP (Experimental)
 
@@ -285,7 +288,7 @@ Las categorías se pueden crear desde **tres contextos**:
 
 1. **Onboarding** — primera apertura de la app, tarjeta "+" con bordes punteados en la grilla
 2. **Settings > Gestionar categorías** — misma pantalla de onboarding reutilizable
-3. **Inline desde Nuevo Gasto/Ingreso** — ítem "Nueva" (ícono `+`) al final del `CategorySheet`; al guardar la nueva categoría queda autoseleccionada sin salir del formulario de transacción
+3. **Inline desde Nuevo Gasto/Ingreso** — ítem "Nueva" (ícono `+`) al final de la lista horizontal de categorías (ya no hay un `CategorySheet` intermedio, eliminado en el rediseño 2026-08-12); al guardar la nueva categoría queda autoseleccionada sin salir del formulario de transacción
 
 ### 4.6 Onboarding de Categorías
 
@@ -428,4 +431,4 @@ Las categorías se pueden crear desde **tres contextos**:
 
 ---
 
-*Documento de requerimientos actualizado para MyWallet v1.4.0 — Marzo 2026*
+*Documento de requerimientos actualizado para MyWallet v1.5.0 — Septiembre 2026*

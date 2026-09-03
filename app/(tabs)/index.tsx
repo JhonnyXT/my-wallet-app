@@ -115,6 +115,7 @@ export default function DashboardScreen() {
     expenseTotal,
     incomeTotal,
     netBalance,
+    allTimeNetBalance,
     budgetPct,
     activeStats,
     activeTotalForChart,
@@ -395,10 +396,18 @@ export default function DashboardScreen() {
                 ? `BÚSQUEDA  ·  ${searchedTransactions.length} resultado${searchedTransactions.length !== 1 ? "s" : ""}`
                 : "BALANCE NETO"}
             </Text>
+            {/* Fuera de una búsqueda, el balance es SIEMPRE sobre todo el historial
+                (allTimeNetBalance), no el del período/mes que esté viendo la gráfica —
+                sino al cambiar de mes (o si el mes nuevo aún no tiene transacciones)
+                se veía $0 en vez de la plata real que la persona tiene. Durante una
+                búsqueda sigue siendo el neto de los resultados encontrados. */}
             <RollingNumber
-              value={Math.abs(netBalance)}
+              value={Math.abs(isSearching ? netBalance : allTimeNetBalance)}
               prefix="$"
-              style={[styles.balanceAmount, netBalance < 0 && styles.balanceNegative]}
+              style={[
+                styles.balanceAmount,
+                (isSearching ? netBalance : allTimeNetBalance) < 0 && styles.balanceNegative,
+              ]}
             />
 
             {/* Patrimonio neto: balance de caja menos el saldo pendiente de deudas.
@@ -406,7 +415,7 @@ export default function DashboardScreen() {
                 la sección "Deudas" de Ajustes está vacía. */}
             {totalDebt > 0 && !isSearching && typeFilter === null && (
               <Text style={styles.netWorthText}>
-                Patrimonio neto: {formatBalance(netBalance - totalDebt)}
+                Patrimonio neto: {formatBalance(allTimeNetBalance - totalDebt)}
               </Text>
             )}
 

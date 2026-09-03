@@ -198,9 +198,12 @@ export async function checkAndNotifyGoalCompleted(
  * El texto se ajusta según `confidence` (viene de `parseNotification`): con
  * confianza `high` se afirma como un hecho ("detectado"); con `medium`/`low`
  * se redacta como algo a confirmar ("posible") para no sonar más seguro de lo
- * que el parser realmente está. En ambos casos el item queda en la cola de
- * `notification-review` y nunca se guarda en el historial sin que el usuario
- * lo confirme ahí.
+ * que el parser realmente está. El item queda en la cola de `useNotificationStore`
+ * y nunca se guarda en el historial sin que el usuario lo confirme — ya sea en
+ * `notification-review.tsx` (varios items pendientes) o directo en
+ * `active-expense.tsx` prellenado (2026-09-02, ver `app/_layout.tsx`: si al tocar
+ * la notificación este `itemId` sigue siendo el único pendiente, salta la lista y
+ * abre el formulario ya cargado con monto/categoría/fecha).
  *
  * El título es una etiqueta corta (tipo + banco), sin el monto. El cuerpo usa
  * el monto + una etiqueta corta de la acción (`shortenDescription`, ej.
@@ -217,6 +220,7 @@ export async function notifyBankTransaction(
   bankName: string,
   isExpense: boolean,
   confidence: "high" | "medium" | "low" = "high",
+  itemId?: string,
 ): Promise<void> {
   try {
     await ensureChannels();
@@ -244,7 +248,9 @@ export async function notifyBankTransaction(
         title,
         body,
         sound: true,
-        data: { screen: "notification-review" },
+        // `itemId` permite a app/_layout.tsx ir directo a active-expense prellenado
+        // cuando este es el único item pendiente en la cola — ver getPendingItemAfterHydration.
+        data: { screen: "notification-review", itemId },
         ...(Platform.OS === "android" && { channelId: CHANNEL_BANK }),
       },
       trigger: null,

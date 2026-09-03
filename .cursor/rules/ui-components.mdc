@@ -51,8 +51,13 @@ extenderlos:
   fila, `title` obligatoria. No existe (ni debe reintroducirse) la variante con botón circular
   flotante + `ChevronLeft` + large title duplicado en el body del scroll — se probó y se
   eliminó del componente.
-- **`Card`**: siempre con `borderWidth: 1.5` + `border.default` visible (mismo lenguaje que el
-  pill "Este mes" de `FilterChips`), no solo un fondo plano sin borde.
+- **`Card`**: **sin borde** (2026-09-02 — se probó `borderWidth: 1.5` + `border.default`, mismo
+  lenguaje que el pill "Este mes" de `FilterChips`, y se revirtió a pedido explícito del usuario:
+  se veía como un aro blanco/gris alrededor de cada tarjeta en tema oscuro). Se distingue del
+  fondo solo por color de relleno (`surface.secondary` vs `surface.primary`) y esquinas
+  redondeadas. No reintroducir el borde sin que el usuario lo pida de nuevo. Controles inline que
+  no son `Card` (el pill "Este mes" de `FilterChips`, el toggle de `reports.tsx`) sí conservan su
+  borde propio — no confundir ambos casos.
 - **`ListRow`**: el badge de icono es un círculo completo (`radius.full`, 34px), no un cuadrado
   redondeado.
 - **Secciones con varias opciones relacionadas van en una sola `Card` con `Divider` entre

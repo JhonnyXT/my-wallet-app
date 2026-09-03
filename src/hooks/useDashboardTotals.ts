@@ -19,6 +19,7 @@ export interface UseDashboardTotalsReturn {
   expenseTotal: number;
   incomeTotal: number;
   netBalance: number;
+  allTimeNetBalance: number;
   budgetPct: number;
   overBudgetAmount: number;
   categoryStats: CategoryStat[];
@@ -63,6 +64,20 @@ export function useDashboardTotals({
   }, [isSearching, searchedTransactions, typeFilteredTransactions]);
 
   const netBalance = incomeTotal - expenseTotal;
+
+  // Balance REAL de la persona — siempre sobre todo el historial, sin importar el
+  // período que esté viendo en la gráfica/lista. `netBalance` (arriba) queda acotado
+  // al filtro de período (y, durante una búsqueda, al resultado de esa búsqueda —
+  // eso sí es intencional, "neto de lo que encontraste"), así que al cambiar de mes
+  // — o cuando el mes nuevo todavía no tiene transacciones — se iba a $0 en vez de
+  // seguir mostrando cuánta plata tiene la persona en realidad. Pedido explícito del
+  // usuario (2026-09-02): el Dashboard usa este valor para "BALANCE NETO"/"Patrimonio
+  // neto" en vez de `netBalance` cuando no está buscando.
+  const allTimeNetBalance = useMemo(() => {
+    const income = transactions.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+    const expense = transactions.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+    return income - expense;
+  }, [transactions]);
 
   // ── Porcentaje de presupuesto mensual consumido ───────────────────────────
   const monthlyExpense = useMemo(() => {
@@ -139,6 +154,7 @@ export function useDashboardTotals({
     expenseTotal,
     incomeTotal,
     netBalance,
+    allTimeNetBalance,
     budgetPct,
     overBudgetAmount,
     categoryStats,

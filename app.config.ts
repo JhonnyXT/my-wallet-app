@@ -52,7 +52,13 @@ const config: ExpoConfig = {
   splash: {
     image: "./assets/images/splash-icon.png",
     resizeMode: "contain",
-    backgroundColor: current.iconBackground,
+    // Fijo, NUNCA current.iconBackground: este es el splash nativo de Android que se
+    // ve antes de que cargue JS, y debe coincidir con el fondo de AnimatedSplash.tsx
+    // (también #135BEC fijo) para que se vea como una sola transición continua. Si
+    // usara el color por variant (naranja dev / morado test / azul prod, pensado para
+    // distinguir el ícono del launcher) se vería un flash del color "equivocado" antes
+    // del splash real — justo el bug reportado 2026-09-02.
+    backgroundColor: "#135BEC",
   },
   ios: {
     supportsTablet: false,

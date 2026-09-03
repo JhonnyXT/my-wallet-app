@@ -44,7 +44,6 @@ import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import {
-  BatteryWarning,
   Check,
   ChevronRight,
   CreditCard,
@@ -67,7 +66,6 @@ import {
   Animated,
   AppState,
   KeyboardAvoidingView,
-  Linking,
   Modal,
   PanResponder,
   Pressable,
@@ -2099,23 +2097,6 @@ function AutoDetectSection() {
             />
           </Reanimated.View>
         )}
-
-        {/* Acceso directo a ajustes de batería — evita que el sistema mate la detección
-            en background (Samsung/Xiaomi/Huawei...). Antes eran dos tarjetas con párrafos
-            explicativos; se redujo a una fila de acción para no saturar la pantalla. */}
-        {enabled && (
-          <Reanimated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
-            <Divider inset={tokens.spacing.md * 2 + 34} />
-            <ListRow
-              label="Optimización de batería"
-              icon={<BatteryWarning size={16} color="#FFFFFF" strokeWidth={2} />}
-              iconBg={tokens.colors.state.warning}
-              detail="Evita interrupciones"
-              showChevron
-              onPress={() => Linking.openSettings()}
-            />
-          </Reanimated.View>
-        )}
       </Card>
 
       {/* Diálogo de permiso */}
@@ -2300,6 +2281,21 @@ export default function SettingsScreen() {
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [showDebtsModal, setShowDebtsModal] = useState(false);
   const [editingCat, setEditingCat] = useState<UserCategory | null>(null);
+  const [deleteCatDialog, setDeleteCatDialog] = useState<{ id: string; name: string } | null>(
+    null,
+  );
+  // Impide dejar un tipo (gasto/ingreso) sin ninguna categoría activa — mismo criterio
+  // que "Debes tener al menos un método de pago activo" en Métodos de pago.
+  const [minCatAlert, setMinCatAlert] = useState<"expense" | "income" | null>(null);
+
+  function confirmDeleteCategory(cat: UserCategory) {
+    const sameTypeCount = userCategories.filter((c) => c.type === cat.type).length;
+    if (sameTypeCount <= 1) {
+      setMinCatAlert(cat.type);
+      return;
+    }
+    setDeleteCatDialog({ id: cat.id, name: cat.name });
+  }
 
   const [clearDataDialog, setClearDataDialog] = useState(false);
   const [exportErrorDialog, setExportErrorDialog] = useState(false);
@@ -2494,9 +2490,12 @@ export default function SettingsScreen() {
           <AutoDetectSection />
         </Enter>
 
-        {/* ── APARIENCIA ───────────────────────────────────────────────── */}
+        {/* ── SISTEMA ──────────────────────────────────────────────────── */}
+        {/* Fusiona lo que antes eran 3 secciones separadas (Apariencia, Sistema,
+            Acerca de) en una sola, a pedido del usuario (2026-09-02) — Modo oscuro
+            y Versión no ameritaban su propia sección con una sola fila cada una. */}
         <Enter index={3} screenId="settings">
-          <SectionHeader>APARIENCIA</SectionHeader>
+          <SectionHeader>SISTEMA</SectionHeader>
           <Card padded={false}>
             <ListRow
               label="Modo oscuro"
@@ -2506,13 +2505,7 @@ export default function SettingsScreen() {
               showChevron
               onPress={() => setDarkSheet(true)}
             />
-          </Card>
-        </Enter>
-
-        {/* ── SISTEMA ──────────────────────────────────────────────────── */}
-        <Enter index={4} screenId="settings">
-          <SectionHeader>SISTEMA</SectionHeader>
-          <Card padded={false}>
+            <Divider inset={tokens.spacing.md * 2 + 34} />
             <ListRow
               label="Exportar datos"
               icon={<Download size={16} color="#FFFFFF" strokeWidth={2} />}
@@ -2529,6 +2522,8 @@ export default function SettingsScreen() {
               destructive
               onPress={handleClearData}
             />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
+            <ListRow label="Versión" detail={`v${APP_VERSION}`} />
           </Card>
           <ThemedText
             variant="footnote"
@@ -2538,14 +2533,6 @@ export default function SettingsScreen() {
             Exportar genera un CSV con tus transacciones. Borrar historial elimina todos los
             registros de ingresos y gastos; tu configuración, categorías y metas se conservan.
           </ThemedText>
-        </Enter>
-
-        {/* ── ACERCA DE ────────────────────────────────────────────────── */}
-        <Enter index={5} screenId="settings">
-          <SectionHeader>ACERCA DE</SectionHeader>
-          <Card padded={false}>
-            <ListRow label="Versión" detail={`v${APP_VERSION}`} />
-          </Card>
         </Enter>
       </ScrollView>
 
@@ -2622,7 +2609,24 @@ export default function SettingsScreen() {
                       iconBg={cat.colorBg}
                       detail={cat.isPreset ? "Predefinida" : "Personalizada"}
                       right={
-                        <Pencil size={14} color={tokens.colors.text.secondary} strokeWidth={2} />
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: tokens.spacing.sm,
+                          }}
+                        >
+                          <Pencil size={14} color={tokens.colors.text.secondary} strokeWidth={2} />
+                          <TouchableOpacity
+                            onPress={() => confirmDeleteCategory(cat)}
+                            hitSlop={8}
+                            style={{ padding: 4 }}
+                            accessibilityLabel={`Eliminar categoría ${cat.name}`}
+                            accessibilityRole="button"
+                          >
+                            <Trash2 size={14} color={tokens.colors.state.danger} strokeWidth={2} />
+                          </TouchableOpacity>
+                        </View>
                       }
                       onPress={() => {
                         setShowCategoriesModal(false);
@@ -2651,7 +2655,24 @@ export default function SettingsScreen() {
                       iconBg={cat.colorBg}
                       detail={cat.isPreset ? "Predefinida" : "Personalizada"}
                       right={
-                        <Pencil size={14} color={tokens.colors.text.secondary} strokeWidth={2} />
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: tokens.spacing.sm,
+                          }}
+                        >
+                          <Pencil size={14} color={tokens.colors.text.secondary} strokeWidth={2} />
+                          <TouchableOpacity
+                            onPress={() => confirmDeleteCategory(cat)}
+                            hitSlop={8}
+                            style={{ padding: 4 }}
+                            accessibilityLabel={`Eliminar categoría ${cat.name}`}
+                            accessibilityRole="button"
+                          >
+                            <Trash2 size={14} color={tokens.colors.state.danger} strokeWidth={2} />
+                          </TouchableOpacity>
+                        </View>
                       }
                       onPress={() => {
                         setShowCategoriesModal(false);
@@ -2842,6 +2863,29 @@ export default function SettingsScreen() {
         confirmLabel="Entendido"
         onConfirm={() => setExportErrorDialog(false)}
         onCancel={() => setExportErrorDialog(false)}
+      />
+
+      <ConfirmDialog
+        visible={!!deleteCatDialog}
+        variant="danger"
+        title="Eliminar categoría"
+        message={`¿Seguro que quieres eliminar "${deleteCatDialog?.name ?? ""}"? Las transacciones ya registradas con esta categoría no se modifican.`}
+        confirmLabel="Eliminar"
+        onConfirm={() => {
+          if (deleteCatDialog) useSettingsStore.getState().removeUserCategory(deleteCatDialog.id);
+          setDeleteCatDialog(null);
+        }}
+        onCancel={() => setDeleteCatDialog(null)}
+      />
+
+      <ConfirmDialog
+        visible={!!minCatAlert}
+        variant="info"
+        title="No es posible"
+        message={`Debes tener al menos una categoría de ${minCatAlert === "income" ? "ingreso" : "gasto"} activa.`}
+        confirmLabel="Entendido"
+        onConfirm={() => setMinCatAlert(null)}
+        onCancel={() => setMinCatAlert(null)}
       />
 
       {/* Guided Tour — usa Modal interno, siempre encima de todo */}

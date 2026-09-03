@@ -27,3 +27,27 @@ describe("parseNotification — fixtures reales", () => {
     }
   });
 });
+
+describe("parseNotification — postedAt (StatusBarNotification.postTime real)", () => {
+  it("usa postedAt para detectedAt en vez de 'ahora', cuando se pasa explícitamente", () => {
+    const fixture = NOTIFICATION_FIXTURES.find((f) => f.expected.kind === "parsed")!;
+    const postedAt = new Date(2026, 0, 15, 10, 30, 0); // 15 ene 2026, 10:30am — no "ahora"
+
+    const result = parseNotification(fixture.packageName, fixture.title, fixture.text, postedAt);
+
+    expect(result).not.toBeNull();
+    expect(result!.detectedAt).toBe("2026-01-15T10:30:00.000");
+  });
+
+  it("sin postedAt, sigue usando 'ahora' (compatibilidad — el listener puede re-entregar sin postTime válido)", () => {
+    const fixture = NOTIFICATION_FIXTURES.find((f) => f.expected.kind === "parsed")!;
+    // localISOString trunca a segundos (".000"), así que la comparación también lo hace.
+    const beforeSec = Math.floor(Date.now() / 1000);
+
+    const result = parseNotification(fixture.packageName, fixture.title, fixture.text);
+
+    expect(result).not.toBeNull();
+    const detectedSec = Math.floor(new Date(result!.detectedAt).getTime() / 1000);
+    expect(detectedSec).toBeGreaterThanOrEqual(beforeSec);
+  });
+});

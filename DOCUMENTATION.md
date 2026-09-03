@@ -64,9 +64,11 @@ Los presupuestos por categoría activan las alertas visuales en la gráfica:
 Es la pantalla que verás al abrir la app. Está organizada en secciones de arriba a abajo:
 
 ### Balance Neto
-- **Número grande:** `Ingresos del período - Gastos del período`
-- Si es **positivo** → te sobra dinero ese período
-- Si es **negativo** → gastaste más de lo que ingresó
+- **Número grande:** `Ingresos totales - Gastos totales`, sobre **todo tu historial** — no cambia aunque filtres por mes/año en la gráfica de abajo, es tu plata real en este momento.
+- Si es **positivo** → tenés más de lo que has gastado
+- Si es **negativo** → has gastado más de lo que ha entrado
+- **Durante una búsqueda** es la única excepción: el número pasa a mostrar el neto de los resultados encontrados (la etiqueta cambia a "BÚSQUEDA · N resultados" para que quede claro que no es tu balance total).
+- Los pills "↓ Gastos / ↑ Ingresos" de abajo sí muestran el total **del período que estés viendo** — son cosas distintas a propósito: el Balance Neto es "cuánta plata tenés", los pills son "cuánto gastaste/ingresaste este mes".
 
 ### Pills de tipo (↓ Gastos / ↑ Ingresos)
 - **Sin selección (por defecto):** La lista y la gráfica muestran todos los movimientos
@@ -348,7 +350,8 @@ Accede tocando ⚙️ en la esquina superior derecha del Dashboard.
 
 La pantalla está organizada en secciones, en este orden: **Control financiero** (Ingreso
 mensual) → **Gestión** (Categorías, Métodos de pago, Presupuesto por categoría, Metas de
-ahorro, Deudas) → **Detección automática** → **Apariencia** → **Sistema** → **Acerca de**.
+ahorro, Deudas) → **Detección automática** → **Sistema** (Modo oscuro, Exportar datos,
+Borrar historial, Versión).
 
 ### Control Financiero
 Opciones visibles directamente en la pantalla de ajustes (en este orden):
@@ -396,10 +399,6 @@ Toca la fila "Deudas" (dentro de Gestión) para abrir el panel:
 
 > 💡 Si tienes deudas activas, el Dashboard muestra una línea adicional **"Patrimonio neto"** bajo el balance neto: tu balance disponible menos el saldo pendiente de todas tus deudas.
 
-### Apariencia
-- **Modo oscuro:** Sistema (sigue el tema del dispositivo) / Claro / Oscuro
-- El modo oscuro se aplica en **todas las pantallas** de la app: Dashboard, Nuevo Gasto/Ingreso, Historial, Configuración y todos los modales
-
 ### Alertas de presupuesto *(nuevo)*
 
 Configura cuándo y cómo recibir notificaciones push relacionadas con tus presupuestos por categoría:
@@ -431,27 +430,32 @@ Bancolombia, Nequi, Davivienda, DaviPlata, BBVA, Banco de Occidente, Banco Popul
 Puedes elegir **solo algunos bancos** tocando la opción "Bancos activos". Si no seleccionas ninguno, se usarán todos.
 
 **¿Cómo funciona la revisión?**
-Cuando se detecta una transacción, aparece un **badge rojo 🔔** sobre el ícono de configuración en el Dashboard. Tócalo para abrir la pantalla de revisión:
-- Cada transacción muestra el banco, la descripción, el monto
-- La fecha guardada es la fecha real en que llegó la notificación bancaria, no el día en que la revisas
-- Puedes **editar** la transacción (monto, descripción, categoría, tipo, fecha)
-- Puedes **eliminar** una transacción con el ícono de papelera 🗑️ junto al de editar
-- Puedes **descartar todas de una vez** con el ícono de papelera 🗑️ del encabezado — pide confirmación antes de vaciar la cola
-- Cuando todo está listo, toca **"Guardar todo"**
+Cuando se detecta una transacción, aparece un **badge rojo 🔔** sobre el ícono de configuración en el Dashboard, y además recibes una notificación push (si activaste el permiso).
+
+- **Si es la única transacción pendiente**, tocar la notificación push te lleva **directo al formulario** ("Nuevo Gasto"/"Nuevo Ingreso") con el monto, la categoría y la fecha real de detección ya cargados — solo revisa y toca **✓** para guardar. Cerrar sin guardar no la descarta: sigue disponible en el badge 🔔.
+- **Si hay más de una pendiente**, la notificación te lleva a la pantalla de revisión (o tocá el badge 🔔 en cualquier momento para verlas todas):
+  - Cada transacción muestra el banco, la descripción, el monto
+  - La fecha guardada es la fecha real en que llegó la notificación bancaria, no el día en que la revisas
+  - Puedes **editar** la transacción (monto, descripción, categoría, tipo, fecha)
+  - Puedes **eliminar** una transacción con el ícono de papelera 🗑️ junto al de editar
+  - Puedes **descartar todas de una vez** con el ícono de papelera 🗑️ del encabezado — pide confirmación antes de vaciar la cola
+  - Cuando todo está listo, toca **"Guardar todo"**
 
 **¿Qué datos se procesan?**
 Solo el monto y el nombre del comercio. Nunca se lee el saldo disponible, números de tarjeta ni datos personales. Todo el procesamiento ocurre localmente en tu dispositivo.
 
 **Si la detección deja de funcionar en background**
-Con la detección activa, verás una tarjeta con el botón **"Abrir ajustes de batería"**. Algunos fabricantes (Samsung, Xiaomi, Huawei...) detienen apps en segundo plano para ahorrar batería, lo que puede interrumpir la detección aunque el permiso siga activo. Tócalo y, en Ajustes → Batería, elige "Sin restricciones" para MyWallet.
+Algunos fabricantes (Samsung, Xiaomi, Huawei...) detienen apps en segundo plano para ahorrar batería, lo que puede interrumpir la detección aunque el permiso siga activo. Si notas que se te escapan transacciones, entra manualmente a Ajustes del sistema → Batería → MyWallet y elige "Sin restricciones".
 
 > ⚠️ Si reinstalas la app (por ejemplo al actualizar manualmente el APK), Android revoca automáticamente el acceso a notificaciones — es normal, solo repite los pasos de activación de arriba.
 
 ### Sistema
 | Opción | Qué hace |
 |--------|---------|
+| Modo oscuro | Sistema (sigue el tema del dispositivo) / Claro / Oscuro — se aplica en **todas las pantallas** de la app |
 | Exportar datos | Genera un CSV con todas tus transacciones (id, fecha, tipo, descripción, categoría, monto, método de pago, tags) y abre el diálogo nativo del sistema para compartirlo (email, WhatsApp, Drive, copiar, etc.) |
 | Borrar historial de transacciones | ⚠️ **Acción irreversible.** Elimina todos los registros de ingresos y gastos. Tu configuración (categorías, presupuestos, metas) se conserva intacta. Muestra un diálogo de confirmación antes de proceder |
+| Versión | Solo informativa — la versión instalada de la app |
 
 ---
 
@@ -570,7 +574,7 @@ Toca (tap corto) sobre cualquier columna de la gráfica. La gráfica se ocultar�
 Toca el chip de período (ej: "Este mes") → al fondo de la lista toca **"📅 Elegir mes específico..."** → selecciona el año y luego el mes → toca **✓ Aplicar**. Toda la pantalla (balance, gráfica y lista) se actualiza para mostrar solo ese período.
 
 ### ¿Cómo activo el modo oscuro?
-Ve a **Configuración → Apariencia** y selecciona la opción que prefieras:
+Ve a **Configuración → Sistema → Modo oscuro** y selecciona la opción que prefieras:
 - **Sistema:** sigue automáticamente el tema del teléfono
 - **Claro:** siempre en modo claro
 - **Oscuro:** siempre en modo oscuro
@@ -625,7 +629,7 @@ Una vez al mes:
 |---------|-------------|
 | **Gasto** | Dinero que sale de tu bolsillo. Monto positivo en la base de datos |
 | **Ingreso** | Dinero que entra (salario, freelance, etc.). Monto negativo en la base de datos |
-| **Balance Neto** | Ingresos − Gastos del período seleccionado |
+| **Balance Neto** | Ingresos − Gastos de todo tu historial (no cambia con el período que estés filtrando) |
 | **Período** | Ventana de tiempo para filtrar: Hoy, Esta semana, Este mes, un mes/año específico, etc. |
 | **NLP** | Procesamiento de Lenguaje Natural — la tecnología que entiende tu texto libre |
 | **Tag** | Etiqueta personalizada para organizar transacciones (ej: `#viaje`, `#trabajo`) |

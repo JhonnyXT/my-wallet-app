@@ -11,11 +11,21 @@ import type { ParsedTransaction } from "./types";
  *   - la notificación se clasifica como ruido (OTP, alerta de seguridad,
  *     recordatorio de pago pendiente, publicidad, actualización de app)
  *   - no se puede extraer un monto válido
+ *
+ * `postedAt`: momento real en que Android posteó la notificación (StatusBarNotification.postTime,
+ * expuesto por react-native-android-notification-listener como `notification.time` — ver
+ * notificationHeadlessTask.ts). Por defecto usa "ahora" si no se pasa (tests/fixtures no lo
+ * necesitan). Pasarlo explícitamente es importante: el listener de Android puede re-entregar
+ * notificaciones YA EXISTENTES al reconectar el servicio (ej. tras el ANR/kill de batería ya
+ * documentado en AGENTS.md para Samsung/OneUI) — sin `postedAt`, cada reconexión reescribiría
+ * `detectedAt` a "ahora", mostrando siempre la fecha actual al editar el ítem sin importar cuándo
+ * llegó la transacción real.
  */
 export function parseNotification(
   packageName: string,
   title: string,
   text: string,
+  postedAt: Date = new Date(),
 ): ParsedTransaction | null {
   // 1. Verificar whitelist
   if (!BANK_PACKAGE_NAMES.has(packageName)) return null;
@@ -50,7 +60,7 @@ export function parseNotification(
     rawTitle: title.substring(0, 100), // limitado a 100 chars para no almacenar saldos largos
     rawText: text.substring(0, 200), // limitado para privacidad
     confidence: result.confidence ?? "medium",
-    detectedAt: localISOString(),
+    detectedAt: localISOString(postedAt),
   };
 }
 

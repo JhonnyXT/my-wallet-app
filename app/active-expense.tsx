@@ -31,6 +31,8 @@ import { useExpenseStore, AccountType } from "@/src/store/useExpenseStore";
 import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { useNotificationStore } from "@/src/store/useNotificationStore";
+import { localISOString } from "@/src/db/db";
 
 import { checkAndNotifyBudget } from "@/src/services/notificationService";
 import { NewCategoryModal } from "@/app/category-onboarding";
@@ -94,15 +96,26 @@ export default function ActiveExpenseScreen() {
   const addTx = useFinanceStore((s) => s.addTransaction);
   const updateTx = useFinanceStore((s) => s.updateTransaction);
   const theme = useTheme();
-  const { from, editId } = useLocalSearchParams<{ from?: string; editId?: string }>();
+  const { from, editId, notifId } = useLocalSearchParams<{
+    from?: string;
+    editId?: string;
+    notifId?: string;
+  }>();
   const fromBatchReview = from === "batch-review";
   const fromNotificationEdit = from === "notification-edit";
+  // Vino directo de tocar la notificación bancaria (un solo item pendiente, sin pasar
+  // por la lista de revisión) — a diferencia de notification-edit, acá SÍ hay que
+  // guardar en la base de datos de una (ver handleConfirm) y sacar el item de la cola.
+  const fromNotificationDetect = from === "notification-detect";
   const editingId = editId ? Number(editId) : null;
   const isEditMode = editingId !== null;
   const setPendingManualItem = useVoiceStore((s) => s.setPendingManualItem);
-  // Si venimos de voice-batch-review o notification-edit, solo volvemos atrás al guardar
+  const removePendingNotification = useNotificationStore((s) => s.removePendingItem);
+  // Si venimos de voice-batch-review o notification-edit/-detect, solo volvemos atrás al guardar
   const navigateAfterSave = () =>
-    fromBatchReview || fromNotificationEdit ? router.back() : router.dismissAll();
+    fromBatchReview || fromNotificationEdit || fromNotificationDetect
+      ? router.back()
+      : router.dismissAll();
   const st = useMemo(() => buildS(theme), [theme]);
 
   const paymentMethods = useSettingsStore((s) => s.paymentMethods);
@@ -220,7 +233,7 @@ export default function ActiveExpenseScreen() {
     // Edición de un item ya estructurado (notificación bancaria, batch de voz, o una
     // transacción existente): los campos ya vienen correctos, no hay que re-parsear
     // el texto libre y arriesgar sobreescribir el monto/categoría reales.
-    if (fromBatchReview || fromNotificationEdit || isEditMode) return;
+    if (fromBatchReview || fromNotificationEdit || fromNotificationDetect || isEditMode) return;
 
     const text = store.note?.trim() ?? "";
     if (text.length < 2) return;
@@ -280,7 +293,7 @@ export default function ActiveExpenseScreen() {
         categoryName: catName,
         isExpense,
         paymentMethod: store.account ?? "cash",
-        date: editedDate.toISOString(),
+        date: localISOString(editedDate),
       });
       store.reset();
       router.back();
@@ -337,12 +350,19 @@ export default function ActiveExpenseScreen() {
       }
     }
 
+    // Ya se guardó en la DB directo (sin pasar por notification-review): sacar el
+    // item de la cola de pendientes para que no vuelva a aparecer duplicado.
+    if (fromNotificationDetect && notifId) removePendingNotification(notifId);
+
     store.reset();
     navigateAfterSave();
   }
 
   function handleClose() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Cerrar sin guardar una transacción detectada NO debe descartarla de la cola —
+    // el usuario puede querer revisarla después desde notification-review; solo se
+    // saca de la cola cuando efectivamente se guarda (arriba, en handleConfirm).
     store.reset();
     navigateAfterSave();
   }

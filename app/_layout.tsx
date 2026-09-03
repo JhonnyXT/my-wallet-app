@@ -7,9 +7,17 @@ import * as Notifications from "expo-notifications";
 import { initDatabase } from "@/src/db/db";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { useExpenseStore } from "@/src/store/useExpenseStore";
+import {
+  useNotificationStore,
+  getPendingItemAfterHydration,
+  type PendingNotificationItem,
+} from "@/src/store/useNotificationStore";
 import { ThemeProvider } from "@/src/context/ThemeContext";
 import { AnimatedSplash } from "@/src/components/ui/AnimatedSplash";
 import { light, dark } from "@/src/theme";
+import { guessCategoryEmoji } from "@/src/constants/theme";
+import { resolveCategory } from "@/src/utils/transactionFormatters";
 
 import "../global.css";
 
@@ -20,6 +28,51 @@ export const unstable_settings = {
 };
 
 SplashScreen.preventAutoHideAsync();
+
+/** Prellena useExpenseStore con los datos de un item detectado — mismo criterio
+ *  que `notification-review.tsx` (`pendingToReview`/`handleEdit`): descripción =
+ *  texto del banco o su nombre, categoría adivinada por palabras clave, fecha real
+ *  de detección (no "hoy"). */
+function prefillExpenseFromPendingItem(item: PendingNotificationItem) {
+  const { userCategories, savingsGoals } = useSettingsStore.getState();
+  const description = item.description || item.bankName;
+  const categoryEmoji = guessCategoryEmoji(description, userCategories);
+  const categoryName = resolveCategory(categoryEmoji, userCategories, savingsGoals);
+  const expense = useExpenseStore.getState();
+  expense.setIsExpense(item.isExpense);
+  expense.setAmount(item.amount);
+  expense.setNote(description);
+  expense.setCategory(categoryEmoji, categoryName);
+  expense.setCustomDate(new Date(item.detectedAt));
+  // Detectada desde notificación bancaria: nunca es efectivo — "savings" (Ahorros)
+  // es el default más cercano a la realidad, a pedido del usuario (2026-09-02).
+  expense.setAccount("savings");
+}
+
+/**
+ * Resuelve a dónde navegar al tocar una notificación de transacción bancaria.
+ * Si el `itemId` de la notificación sigue siendo el ÚNICO pendiente en la cola,
+ * salta la lista de revisión y va directo al formulario ya prellenado — menos
+ * fricción para el caso común (una sola transacción a la vez). Si hay más de un
+ * item pendiente (llegaron más notificaciones sin revisar mientras tanto) o el
+ * item ya no existe (se guardó/descartó desde otro lado), cae al comportamiento
+ * de siempre: la lista de revisión completa — ahí sí hace falta ver todas para
+ * saber a cuál corresponde cada una.
+ */
+async function resolveBankNotificationTarget(
+  data: Record<string, unknown> | undefined,
+): Promise<`/active-expense?from=notification-detect&notifId=${string}` | "/notification-review"> {
+  const itemId = typeof data?.itemId === "string" ? data.itemId : undefined;
+  if (itemId) {
+    const item = await getPendingItemAfterHydration(itemId);
+    const { pendingItems } = useNotificationStore.getState();
+    if (item && pendingItems.length === 1) {
+      prefillExpenseFromPendingItem(item);
+      return `/active-expense?from=notification-detect&notifId=${item.id}`;
+    }
+  }
+  return "/notification-review";
+}
 
 export default function RootLayout() {
   const loadTransactions = useFinanceStore((s) => s.loadTransactions);
@@ -42,9 +95,12 @@ export default function RootLayout() {
 
   useEffect(() => {
     // Tap en notificación mientras la app estaba cerrada/en background
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response?.notification.request.content.data?.screen === "notification-review") {
-        router.push("/notification-review");
+    Notifications.getLastNotificationResponseAsync().then(async (response) => {
+      const data = response?.notification.request.content.data as
+        | Record<string, unknown>
+        | undefined;
+      if (data?.screen === "notification-review") {
+        router.push(await resolveBankNotificationTarget(data));
       } else {
         // Arranque en frío normal (ícono del launcher, no deep link): forzar
         // siempre el dashboard como destino, nunca la última pantalla en la que
@@ -58,11 +114,16 @@ export default function RootLayout() {
     });
 
     // Tap en notificación con la app en foreground o background
-    notifListenerRef.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      if (response.notification.request.content.data?.screen === "notification-review") {
-        router.push("/notification-review");
-      }
-    });
+    notifListenerRef.current = Notifications.addNotificationResponseReceivedListener(
+      async (response) => {
+        const data = response.notification.request.content.data as
+          | Record<string, unknown>
+          | undefined;
+        if (data?.screen === "notification-review") {
+          router.push(await resolveBankNotificationTarget(data));
+        }
+      },
+    );
 
     return () => {
       notifListenerRef.current?.remove();

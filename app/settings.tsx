@@ -49,6 +49,7 @@ import {
   CreditCard,
   Download,
   HandCoins,
+  Info,
   Landmark,
   LayoutGrid,
   Moon,
@@ -2051,8 +2052,6 @@ function AutoDetectSection() {
     [allowedBanks],
   );
 
-  const activeCount = allowedBanks.length === 0 ? KNOWN_BANKS.length : allowedBanks.length;
-
   return (
     <>
       {/* Toggle principal + filas condicionales, todo en una sola tarjeta agrupada
@@ -2063,13 +2062,6 @@ function AutoDetectSection() {
           label="Detectar transacciones"
           icon={<Radar size={16} color="#FFFFFF" strokeWidth={2} />}
           iconBg={DETECT_COLOR}
-          detail={
-            !hasPermission
-              ? "Requiere permiso de notificaciones"
-              : enabled
-                ? `Activo · ${activeCount} banco${activeCount !== 1 ? "s" : ""}`
-                : "Desactivado"
-          }
           right={
             <Switch
               value={enabled}
@@ -2087,11 +2079,6 @@ function AutoDetectSection() {
               label="Bancos activos"
               icon={<Landmark size={16} color="#FFFFFF" strokeWidth={2} />}
               iconBg={BANKS_COLOR}
-              detail={
-                allowedBanks.length === 0
-                  ? "Todos los bancos compatibles"
-                  : `${allowedBanks.length} seleccionado${allowedBanks.length !== 1 ? "s" : ""}`
-              }
               showChevron
               onPress={() => setShowBankSelector(true)}
             />
@@ -2241,8 +2228,6 @@ export default function SettingsScreen() {
   const darkMode = useSettingsStore((s) => s.darkMode);
   const budgetByCategory = useSettingsStore((s) => s.budgetByCategory);
   const userCategories = useSettingsStore((s) => s.userCategories);
-  const savingsGoals = useSettingsStore((s) => s.savingsGoals);
-  const debts = useSettingsStore((s) => s.debts);
 
   const setMonthlyBudget = useSettingsStore((s) => s.setMonthlyBudget);
   const setDarkMode = useSettingsStore((s) => s.setDarkMode);
@@ -2385,10 +2370,6 @@ export default function SettingsScreen() {
     useFinanceStore.getState().loadTransactions();
   }
 
-  const incomeSubtitle = monthlyBudget <= 0 ? "Sin configurar" : formatCOP(monthlyBudget);
-  const darkLabel =
-    darkMode === "system" ? "Según el sistema" : darkMode === "light" ? "Claro" : "Oscuro";
-
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: tokens.colors.surface.primary }}
@@ -2417,7 +2398,6 @@ export default function SettingsScreen() {
                 label="Ingreso mensual"
                 icon={<Wallet size={16} color="#FFFFFF" strokeWidth={2} />}
                 iconBg={tokens.colors.state.success}
-                detail={incomeSubtitle}
                 showChevron
                 onPress={() => setBudgetModal(true)}
               />
@@ -2433,7 +2413,6 @@ export default function SettingsScreen() {
               label="Categorías"
               icon={<LayoutGrid size={16} color="#FFFFFF" strokeWidth={2} />}
               iconBg={tokens.colors.state.success}
-              detail={`${userCategories.length} configuradas`}
               showChevron
               onPress={() => setShowCategoriesModal(true)}
             />
@@ -2442,7 +2421,6 @@ export default function SettingsScreen() {
               label="Métodos de pago"
               icon={<CreditCard size={16} color="#FFFFFF" strokeWidth={2} />}
               iconBg={tokens.colors.accent.default}
-              detail="Cuentas y formas de pago"
               showChevron
               onPress={() => setShowPaymentModal(true)}
             />
@@ -2451,7 +2429,6 @@ export default function SettingsScreen() {
               label="Presupuesto por categoría"
               icon={<PiggyBank size={16} color="#FFFFFF" strokeWidth={2} />}
               iconBg="#7C3AED"
-              detail="Límites de gasto"
               showChevron
               onPress={() => setShowCatBudgetModal(true)}
             />
@@ -2460,11 +2437,6 @@ export default function SettingsScreen() {
               label="Metas de ahorro"
               icon={<Target size={16} color="#FFFFFF" strokeWidth={2} />}
               iconBg="#DB2777"
-              detail={
-                savingsGoals.length === 0
-                  ? "Sin metas"
-                  : `${savingsGoals.length} meta${savingsGoals.length !== 1 ? "s" : ""}`
-              }
               showChevron
               onPress={() => setShowGoalsModal(true)}
             />
@@ -2473,11 +2445,6 @@ export default function SettingsScreen() {
               label="Deudas"
               icon={<HandCoins size={16} color="#FFFFFF" strokeWidth={2} />}
               iconBg={DEBT_COLOR}
-              detail={
-                debts.length === 0
-                  ? "Sin deudas"
-                  : `${debts.length} deuda${debts.length !== 1 ? "s" : ""}`
-              }
               showChevron
               onPress={() => setShowDebtsModal(true)}
             />
@@ -2501,7 +2468,6 @@ export default function SettingsScreen() {
               label="Modo oscuro"
               icon={<Moon size={16} color="#FFFFFF" strokeWidth={2} />}
               iconBg="#7C3AED"
-              detail={darkLabel}
               showChevron
               onPress={() => setDarkSheet(true)}
             />
@@ -2510,7 +2476,6 @@ export default function SettingsScreen() {
               label="Exportar datos"
               icon={<Download size={16} color="#FFFFFF" strokeWidth={2} />}
               iconBg={tokens.colors.text.secondary}
-              detail="CSV"
               showChevron
               onPress={handleExport}
             />
@@ -2523,16 +2488,13 @@ export default function SettingsScreen() {
               onPress={handleClearData}
             />
             <Divider inset={tokens.spacing.md * 2 + 34} />
-            <ListRow label="Versión" detail={`v${APP_VERSION}`} />
+            <ListRow
+              label="Versión"
+              icon={<Info size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg={tokens.colors.text.secondary}
+              detail={`v${APP_VERSION}`}
+            />
           </Card>
-          <ThemedText
-            variant="footnote"
-            color="secondary"
-            style={{ marginTop: tokens.spacing.sm, marginHorizontal: tokens.spacing.xs }}
-          >
-            Exportar genera un CSV con tus transacciones. Borrar historial elimina todos los
-            registros de ingresos y gastos; tu configuración, categorías y metas se conservan.
-          </ThemedText>
         </Enter>
       </ScrollView>
 

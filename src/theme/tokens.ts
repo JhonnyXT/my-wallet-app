@@ -87,7 +87,7 @@ export const tokenColors = {
     state: { success: "#059669", warning: "#D97706", danger: "#DC2626", dangerSubtle: "#FEE2E2" },
   },
   dark: {
-    surface: { primary: "#000000", secondary: "#1C1C1F", elevated: "#2A2A2E" },
+    surface: { primary: "#0D1117", secondary: "#1C1C1F", elevated: "#2A2A2E" },
     text: { primary: "#E6EDF3", secondary: "#8B949E", accent: "#4B82EF" },
     border: { default: "#30363D" },
     accent: { default: "#4B82EF", subtle: "#4B82EF26" },

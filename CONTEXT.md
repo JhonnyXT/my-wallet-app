@@ -2,7 +2,7 @@
 
 > **Propósito:** Este documento es la referencia técnica completa del proyecto. Cualquier desarrollador, IA o colaborador que lea este archivo tendrá TODO el contexto necesario para desarrollar, modificar o extender la aplicación sin perder consistencia.
 >
-> **Última actualización:** 2026-09-02 | **Versión:** 1.5.0
+> **Última actualización:** 2026-09-03 | **Versión:** 1.5.0
 >
 > Nota de cobertura: este documento se actualiza incrementalmente por sesión de trabajo — algunas
 > secciones (ej. pantallas de onboarding `notification-onboarding.tsx`/`bank-selection-onboarding.tsx`,
@@ -893,6 +893,11 @@ reemplazarlo — solo los componentes de patrón "lista agrupada" (Ajustes y suc
 `pressScale`) y colores anidados `surface.primary/secondary/elevated`, `text.primary/secondary/accent`,
 `border.default`, `accent.default/subtle`, `state.success/warning/danger/dangerSubtle`.
 
+En dark, `surface.primary` es `#0D1117` (2026-09-03: cambió de `#000000` para igualar `theme.bg`
+del Dashboard/`AppTheme` — afecta el fondo de `app/settings.tsx` main + sus `FullScreenModal` y de
+`app/reports.tsx`), `surface.secondary` `#1C1C1F`, `surface.elevated` `#2A2A2E`. En light,
+`surface.primary` `#F2F2F4` (sin cambios).
+
 - **`Card`** (`src/components/ui/Card.tsx`): contenedor de lista agrupada. **Sin borde** (2026-09-02:
   el `borderWidth: 1.5` + `border.default` que había ganado en el rediseño Material se quitó a
   pedido explícito del usuario — se veía como un aro blanco/gris alrededor de cada tarjeta en tema
@@ -905,7 +910,10 @@ reemplazarlo — solo los componentes de patrón "lista agrupada" (Ajustes y suc
   botones editar/eliminar). `labelColor?` sobreescribe el color del label sin marcarlo
   `destructive` (ej. accent en "Agregar…"). `detail` tiene `numberOfLines={1}` + `maxWidth: 120` +
   `flexShrink: 0`, y `label` tiene `numberOfLines={1}` — sin esto un `detail` largo le roba casi
-  todo el ancho al `label` (bug detectado en dispositivo físico real).
+  todo el ancho al `label` (bug detectado en dispositivo físico real). **2026-09-03:** la pantalla
+  principal de Ajustes dejó de usar `detail` en sus filas (truncaba el título); solo lo conservan la
+  fila "Versión" del screen principal y las sub-pantallas (Métodos de pago → tipo de cuenta,
+  Categorías → "Predefinida"/"Personalizada").
 - **`StackedScreenHeader`**: barra de app estilo **Material** (flecha llana `ArrowLeft` + título
   en la misma fila) — reemplazó la variante original estilo iOS (botón circular flotante +
   `ChevronLeft` + large title duplicado en el body), eliminada del componente. Prop `title`
@@ -1020,6 +1028,19 @@ existen como tales — se fusionaron en una sola sección **SISTEMA** con las 4 
 También se eliminó la fila "Optimización de batería" (`Linking.openSettings()`) de Detección
 Automática — el problema de fondo (el sistema puede matar el listener en background, ver ANR en
 AGENTS.md) sigue existiendo, solo se quitó el atajo de UI.
+
+**Sin subtítulos + "Versión" reubicada (2026-09-03, pedido explícito del usuario):** se quitó el
+prop `detail` (texto gris secundario) de TODAS las filas del screen principal (`SettingsScreen` +
+`AutoDetectSection`): Ingreso mensual, Categorías, Métodos de pago, Presupuesto por categoría,
+Metas de ahorro, Deudas, Detectar transacciones, Bancos activos, Modo oscuro, Exportar datos —
+hacían que el título se truncara ("Ingreso men…", "Métodos de …"). Ahora cada fila es ícono +
+título + flecha. Se quitó también el párrafo `ThemedText` al pie de SISTEMA ("Exportar genera un
+CSV…"). La fila "Versión" pasó de `<ListRow label="Versión" detail={…} />` sin ícono a ícono
+circular (`Info` de lucide, `iconBg={tokens.colors.text.secondary}`) + `v{APP_VERSION}` a la
+derecha — es la única fila del screen principal que aún usa `detail` (el valor es el dato, no un
+subtítulo). Los `detail` de las sub-pantallas (Métodos de pago → tipo de cuenta; Categorías →
+"Predefinida"/"Personalizada") no se tocaron. Variables muertas eliminadas: `incomeSubtitle`,
+`darkLabel`, `activeCount`, selectores `savingsGoals`/`debts` de `SettingsScreen`.
 
 Colores de icono por fila se mantienen (no monocromáticos, se probó y se revirtió): verde
 (Ingreso/Categorías), azul acento (Métodos de pago), morado `#7C3AED` (Presupuesto/Modo oscuro),

@@ -59,7 +59,16 @@ extenderlos:
   no son `Card` (el pill "Este mes" de `FilterChips`, el toggle de `reports.tsx`) sí conservan su
   borde propio — no confundir ambos casos.
 - **`ListRow`**: el badge de icono es un círculo completo (`radius.full`, 34px), no un cuadrado
-  redondeado.
+  redondeado. **No usar `detail` como subtítulo descriptivo bajo el `label`** en pantallas de
+  lista agrupada tipo Ajustes: el texto gris le roba ancho al título y lo trunca (se quitó de
+  todas las filas del screen principal de Ajustes el 2026-09-03). `detail` es solo para un dato
+  corto que ES el contenido de la fila (ej. `v{APP_VERSION}` en "Versión", el tipo de cuenta en
+  Métodos de pago), no para explicar qué hace la fila.
+- **Fondo de pantalla en dark**: `useAppTokens().colors.surface.primary` es `#0D1117` en dark
+  (2026-09-03: cambió de `#000000` para igualar `theme.bg` de `AppTheme` — las pantallas sobre
+  esta capa, `settings.tsx` y `reports.tsx`, ya no se ven con fondo negro puro distinto al resto
+  de la app). `surface.secondary` (`#1C1C1F`) y `surface.elevated` (`#2A2A2E`) sin cambios; light
+  sin cambios (`#F2F2F4`).
 - **Secciones con varias opciones relacionadas van en una sola `Card` con `Divider` entre
   filas**, no una `Card` bordeada por cada fila individual — ya se probó ese patrón (una tarjeta
   por opción) y se revirtió a pedido explícito del usuario.

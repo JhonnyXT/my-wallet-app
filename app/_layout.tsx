@@ -41,7 +41,7 @@ function prefillExpenseFromPendingItem(item: PendingNotificationItem) {
   const description = item.description
     ? shortenDescription(item.description, item.isExpense, item.amount)
     : item.bankName;
-  const categoryEmoji = guessCategoryEmoji(rawDescription, userCategories);
+  const categoryEmoji = guessCategoryEmoji(rawDescription, userCategories, item.isExpense);
   const categoryName = resolveCategory(categoryEmoji, userCategories, savingsGoals);
   const expense = useExpenseStore.getState();
   expense.setIsExpense(item.isExpense);

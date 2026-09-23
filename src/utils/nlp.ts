@@ -45,7 +45,10 @@ export function parseExpenseInput(raw: string, userCats?: UserCategory[]): Parse
       .replace(/[€$]/g, "")
       .trim() || "Gasto";
 
-  const categoryEmoji = guessCategoryEmoji(description, userCats);
+  // parseExpenseInput/ParsedExpense es siempre flujo de gasto (entrada rápida
+  // NLP), así que se filtra a categorías de gasto — evita que coincida por
+  // error con una de ingreso (ej. "regalo" existe en ambos tipos).
+  const categoryEmoji = guessCategoryEmoji(description, userCats, true);
 
   return { amount, description, categoryEmoji };
 }

@@ -73,3 +73,77 @@ describe("processVoiceInput — categoría con tolerancia a typos (fuzzyIncludes
     expect(r._categoryDetected).toBe(false);
   });
 });
+
+describe("processVoiceInput — categoría NO cruza gasto/ingreso (bug real 2026-09-23)", () => {
+  // userCats reproduce la colisión real de categoryPresets.ts: "Suscripciones"
+  // (gasto) y "Salario" (ingreso) comparten la keyword "mensualidad"; "Regalos"
+  // (gasto) y "Extra" (ingreso) comparten "regalo" y hasta el mismo emoji 🎁.
+  // Sin filtrar por isExpense, extractCategory devolvía la PRIMERA coincidencia
+  // del array sin importar el tipo real de la transacción.
+  const userCats = [
+    {
+      id: "1",
+      emoji: "📱",
+      name: "Suscripciones",
+      colorBg: "",
+      colorAccent: "",
+      type: "expense" as const,
+      isPreset: true,
+      keywords: ["suscripcion", "mensualidad", "plan"],
+    },
+    {
+      id: "2",
+      emoji: "🎁",
+      name: "Regalos",
+      colorBg: "",
+      colorAccent: "",
+      type: "expense" as const,
+      isPreset: true,
+      keywords: ["regalo", "obsequio"],
+    },
+    {
+      id: "3",
+      emoji: "💼",
+      name: "Salario",
+      colorBg: "",
+      colorAccent: "",
+      type: "income" as const,
+      isPreset: true,
+      keywords: ["salario", "mensualidad"],
+    },
+    {
+      id: "4",
+      emoji: "🎁",
+      name: "Extra",
+      colorBg: "",
+      colorAccent: "",
+      type: "income" as const,
+      isPreset: true,
+      keywords: ["regalo", "bono"],
+    },
+  ];
+
+  it("'mensualidad' en un ingreso da Salario (💼), no Suscripciones (📱, gasto)", () => {
+    const r = processVoiceInput("recibí 2 millones de mensualidad del trabajo", userCats);
+    expect(r.isExpense).toBe(false);
+    expect(r.categoryEmoji).toBe("💼");
+  });
+
+  it("'mensualidad' en un gasto da Suscripciones (📱), no Salario (💼, ingreso)", () => {
+    const r = processVoiceInput("pagué 50 mil de mensualidad de Netflix", userCats);
+    expect(r.isExpense).toBe(true);
+    expect(r.categoryEmoji).toBe("📱");
+  });
+
+  it("'regalo' en un ingreso da la categoría Extra (nombre correcto), no Regalos", () => {
+    const r = processVoiceInput("recibí 30 mil de regalo de cumpleaños", userCats);
+    expect(r.isExpense).toBe(false);
+    expect(r.categoryName).toBe("Extra");
+  });
+
+  it("'regalo' en un gasto da la categoría Regalos (nombre correcto), no Extra", () => {
+    const r = processVoiceInput("gasté 30 mil en un regalo para mi mamá", userCats);
+    expect(r.isExpense).toBe(true);
+    expect(r.categoryName).toBe("Regalos");
+  });
+});

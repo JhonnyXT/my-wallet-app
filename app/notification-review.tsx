@@ -61,7 +61,7 @@ function pendingToReview(
   const description = item.description
     ? shortenDescription(item.description, item.isExpense, item.amount)
     : item.bankName;
-  const categoryEmoji = guessCategoryEmoji(rawDescription, userCategories);
+  const categoryEmoji = guessCategoryEmoji(rawDescription, userCategories, item.isExpense);
   return {
     id: item.id,
     amount: item.amount,

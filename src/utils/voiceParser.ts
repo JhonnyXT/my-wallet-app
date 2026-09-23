@@ -7,9 +7,17 @@ import type { ActiveExpense, DateOption } from "@/src/store/useExpenseStore";
 import { fuzzyIncludes } from "@/src/utils/fuzzyMatch";
 
 // ─── Mapa de categorías (gastos + ingresos) ───────────────────────────────────
-const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
+// `type` es obligatorio: algunas palabras se repiten entre gasto e ingreso con
+// significado distinto (ej. "mensualidad" es una suscripción que pagas O el
+// salario que recibes; "regalo" es un regalo que compras O plata que te
+// regalan) — sin filtrar por tipo, `extractCategory` podía asignarle una
+// categoría de gasto a un ingreso real (o viceversa) solo por coincidir en la
+// palabra. Bug real encontrado 2026-09-23.
+const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string; type: "expense" | "income" }[] =
+  [
   // ── Gastos ──────────────────────────────────────────────────────────────────
   {
+    type: "expense",
     keywords: [
       "restaurante",
       "almuerzo",
@@ -41,6 +49,7 @@ const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
     name: "Comida",
   },
   {
+    type: "expense",
     keywords: [
       "uber",
       "taxi",
@@ -62,6 +71,7 @@ const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
     name: "Transporte",
   },
   {
+    type: "expense",
     keywords: [
       "arriendo",
       "alquiler",
@@ -82,6 +92,7 @@ const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
     name: "Hogar",
   },
   {
+    type: "expense",
     keywords: [
       "zara",
       "ropa",
@@ -98,6 +109,7 @@ const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
     name: "Compras",
   },
   {
+    type: "expense",
     keywords: [
       "medicina",
       "medico",
@@ -116,6 +128,7 @@ const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
     name: "Salud",
   },
   {
+    type: "expense",
     keywords: [
       "cine",
       "netflix",
@@ -135,6 +148,7 @@ const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
     name: "Entretenimiento",
   },
   {
+    type: "expense",
     keywords: [
       "curso",
       "libro",
@@ -150,6 +164,7 @@ const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
     name: "Educación",
   },
   {
+    type: "expense",
     keywords: [
       "personal",
       "cuidado",
@@ -167,6 +182,7 @@ const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
   },
   // ── Ingresos ─────────────────────────────────────────────────────────────────
   {
+    type: "income",
     keywords: [
       "salario",
       "nomina",
@@ -180,6 +196,7 @@ const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
     name: "Salario",
   },
   {
+    type: "income",
     keywords: [
       "freelance",
       "proyecto",
@@ -192,16 +209,19 @@ const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string }[] = [
     name: "Freelance",
   },
   {
+    type: "income",
     keywords: ["inversion", "dividendos", "intereses", "rendimientos", "acciones", "cripto"],
     emoji: "📈",
     name: "Inversiones",
   },
   {
+    type: "income",
     keywords: ["regalo", "bono", "reembolso", "devolucion", "venta", "comision", "cashback"],
     emoji: "🎁",
     name: "Extra",
   },
   {
+    type: "income",
     keywords: ["negocio", "facturacion", "cobro del negocio", "venta del negocio"],
     emoji: "🏢",
     name: "Negocio",
@@ -396,20 +416,34 @@ function extractDate(text: string): DateOption | null {
   return null;
 }
 
-/** Devuelve la categoría detectada. Consulta primero userCategories si se proveen. */
+/**
+ * Devuelve la categoría detectada. Consulta primero userCategories si se proveen.
+ * `isExpense`, si se conoce, filtra a solo categorías de ese tipo — ver el
+ * comentario sobre `CATEGORY_MAP` más arriba (palabras que colisionan entre
+ * gasto e ingreso). Sin `isExpense` (no detectado aún), busca en ambos tipos.
+ */
 function extractCategory(
   text: string,
   userCats?: import("@/src/constants/categoryPresets").UserCategory[],
+  isExpense?: boolean,
 ): { emoji: string; name: string } | null {
   const n = normalize(text);
   if (userCats) {
-    for (const cat of userCats) {
+    const relevant =
+      isExpense === undefined
+        ? userCats
+        : userCats.filter((c) => c.type === (isExpense ? "expense" : "income"));
+    for (const cat of relevant) {
       if (cat.keywords.some((kw) => fuzzyIncludes(n, normalize(kw)))) {
         return { emoji: cat.emoji, name: cat.name };
       }
     }
   }
-  for (const cat of CATEGORY_MAP) {
+  const relevantMap =
+    isExpense === undefined
+      ? CATEGORY_MAP
+      : CATEGORY_MAP.filter((c) => c.type === (isExpense ? "expense" : "income"));
+  for (const cat of relevantMap) {
     if (cat.keywords.some((kw) => fuzzyIncludes(n, normalize(kw)))) {
       return { emoji: cat.emoji, name: cat.name };
     }
@@ -438,7 +472,12 @@ function extractIsExpense(text: string): boolean | undefined {
     "sueldo",
     "nomina",
     "quincena",
-    "mensualidad",
+    // "mensualidad" NO va aquí — es ambigua (pagas una mensualidad de
+    // Netflix, o recibes tu mensualidad de sueldo): como señal aislada e
+    // incondicional pisaba un verbo de gasto explícito en la misma frase
+    // ("pagué mi mensualidad de Netflix" se leía como ingreso). "salario"/
+    // "sueldo"/"nomina"/"recibi" ya cubren el caso real de ingreso sin
+    // ambigüedad — bug real encontrado 2026-09-23.
     "ganancia",
     "vendi",
     "venta",
@@ -570,9 +609,11 @@ export function processVoiceInput(
   _categoryDetected: boolean;
   _dateDetected: boolean;
 } {
-  const category = extractCategory(raw, userCats);
-  const date = extractDate(raw);
+  // isExpense se calcula primero: extractCategory lo usa para no cruzar
+  // categorías de gasto/ingreso (ver comentario de CATEGORY_MAP).
   const isExpense = extractIsExpense(raw);
+  const category = extractCategory(raw, userCats, isExpense);
+  const date = extractDate(raw);
   const amount = extractAmount(raw);
   // Normalizar texto y convertir expresión de dinero textual a dígitos formateados
   const normalizedRaw = normalizeMoneyText(raw);

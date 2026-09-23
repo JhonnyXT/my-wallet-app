@@ -22,6 +22,7 @@ import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { useTheme } from "@/src/context/ThemeContext";
 import { formatMoneyDisplay } from "@/src/utils/formatMoney";
 import { guessCategoryEmoji } from "@/src/constants/theme";
+import { shortenDescription } from "@/src/utils/notificationParser/descriptionExtractor";
 import { resolveCategory } from "@/src/utils/transactionFormatters";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { PressableScale } from "@/src/components/ui/PressableScale";
@@ -50,8 +51,17 @@ function pendingToReview(
   userCategories: UserCategory[],
   savingsGoals: SavingsGoal[],
 ): ReviewItem {
-  const description = item.description || item.bankName;
-  const categoryEmoji = guessCategoryEmoji(description, userCategories);
+  // La categoría se adivina sobre el texto crudo del banco (más palabras clave
+  // disponibles, ej. nombres de comercio) pero lo que se muestra/guarda como
+  // descripción es la versión corta tipo "Compra en RAPPI CO · $45.000" — la
+  // completa ("Bancolombia le informa Compra por... Comercio: NETFLIX
+  // $38.900") se veía tal cual la notificación del banco, no legible como
+  // nota de una transacción.
+  const rawDescription = item.description || item.bankName;
+  const description = item.description
+    ? shortenDescription(item.description, item.isExpense, item.amount)
+    : item.bankName;
+  const categoryEmoji = guessCategoryEmoji(rawDescription, userCategories);
   return {
     id: item.id,
     amount: item.amount,

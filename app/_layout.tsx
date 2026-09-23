@@ -18,6 +18,7 @@ import { AnimatedSplash } from "@/src/components/ui/AnimatedSplash";
 import { light, dark } from "@/src/theme";
 import { guessCategoryEmoji } from "@/src/constants/theme";
 import { resolveCategory } from "@/src/utils/transactionFormatters";
+import { shortenDescription } from "@/src/utils/notificationParser/descriptionExtractor";
 
 import "../global.css";
 
@@ -31,12 +32,16 @@ SplashScreen.preventAutoHideAsync();
 
 /** Prellena useExpenseStore con los datos de un item detectado — mismo criterio
  *  que `notification-review.tsx` (`pendingToReview`/`handleEdit`): descripción =
- *  texto del banco o su nombre, categoría adivinada por palabras clave, fecha real
- *  de detección (no "hoy"). */
+ *  versión corta tipo "Compra en RAPPI CO · $45.000" (no el texto crudo de la
+ *  notificación bancaria), categoría adivinada por palabras clave sobre el
+ *  texto crudo, fecha real de detección (no "hoy"). */
 function prefillExpenseFromPendingItem(item: PendingNotificationItem) {
   const { userCategories, savingsGoals } = useSettingsStore.getState();
-  const description = item.description || item.bankName;
-  const categoryEmoji = guessCategoryEmoji(description, userCategories);
+  const rawDescription = item.description || item.bankName;
+  const description = item.description
+    ? shortenDescription(item.description, item.isExpense, item.amount)
+    : item.bankName;
+  const categoryEmoji = guessCategoryEmoji(rawDescription, userCategories);
   const categoryName = resolveCategory(categoryEmoji, userCategories, savingsGoals);
   const expense = useExpenseStore.getState();
   expense.setIsExpense(item.isExpense);

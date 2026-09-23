@@ -206,13 +206,14 @@ export async function checkAndNotifyGoalCompleted(
  * abre el formulario ya cargado con monto/categoría/fecha).
  *
  * El título es una etiqueta corta (tipo + banco), sin el monto. El cuerpo usa
- * el monto + una etiqueta corta de la acción (`shortenDescription`, ej.
- * "Compra en RAPPI CO" / "Recibiste de Juan Pérez") en vez de la descripción
- * completa — el verbo lo decide `isExpense`, ya clasificado, no la keyword
- * suelta del banco (que varía y puede ser ambigua, ej. "enviaron" es ingreso
- * cuando alguien te manda plata). La descripción completa capturada del banco
- * sigue viva en `ParsedTransaction.description` y aparece igual que antes
- * como nota prellenada al editar el ítem en `notification-review.tsx`.
+ * `shortenDescription` (ej. "Compra en RAPPI CO · $45.000" / "Recibiste de
+ * Juan Pérez · $80.000" — YA incluye el monto, no se concatena aparte) en vez
+ * de la descripción completa — el verbo lo decide `isExpense`, ya clasificado,
+ * no la keyword suelta del banco (que varía y puede ser ambigua, ej.
+ * "enviaron" es ingreso cuando alguien te manda plata). Esta misma versión
+ * corta (no la completa capturada del banco) es también la que queda como
+ * nota al editar/guardar el ítem en `notification-review.tsx` (2026-09-23,
+ * antes se mostraba el texto casi tal cual lo mandó el banco).
  */
 export async function notifyBankTransaction(
   amount: number,
@@ -225,22 +226,20 @@ export async function notifyBankTransaction(
   try {
     await ensureChannels();
 
-    const amtStr = `$${Math.round(amount)
-      .toString()
-      .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+    const amtStr = formatCOP(amount);
     const label = isExpense ? "gasto" : "ingreso";
     const title =
       confidence === "high"
         ? `Nuevo ${label} detectado — ${bankName}`
         : `¿Nuevo ${label}? — ${bankName}`;
-    const shortDesc = description ? shortenDescription(description, isExpense) : "";
+    // `shortDesc` ya incluye el monto (ej. "Recibiste de Juan Pérez · $80.000") —
+    // no se vuelve a concatenar `amtStr` para no duplicarlo.
+    const shortDesc = description ? shortenDescription(description, isExpense, amount) : "";
     const body =
       confidence === "high"
-        ? shortDesc
-          ? `${amtStr} · ${shortDesc}`
-          : `${amtStr} · Toca para revisar`
+        ? shortDesc || `${amtStr} · Toca para revisar`
         : shortDesc
-          ? `${amtStr} · Posible ${shortDesc.charAt(0).toLowerCase() + shortDesc.slice(1)}`
+          ? `Posible ${shortDesc.charAt(0).toLowerCase() + shortDesc.slice(1)}`
           : `${amtStr} · No estamos seguros — confirma en la app`;
 
     await Notifications.scheduleNotificationAsync({

@@ -579,6 +579,7 @@ type AppTheme = {
 
 **Extracción de categoría:**
 - Consulta primero `userCategories` (categorías dinámicas del usuario), luego `CATEGORY_MAP` legacy como fallback
+- `extractCategory(text, userCats?, isExpense?)` recibe un 3er parámetro opcional `isExpense` (2026-09-23) — si se conoce, filtra tanto `userCats` como el `CATEGORY_MAP` local (ahora con `type: "expense"|"income"` obligatorio por entrada) a solo categorías de ese tipo antes de buscar keywords. Necesario porque palabras como "mensualidad" o "regalo" existen en categorías de gasto Y de ingreso con significado distinto — sin filtrar, la primera coincidencia del array ganaba sin importar si la transacción era realmente un gasto o un ingreso (bug real, 2026-09-23). `processVoiceInput()` calcula `isExpense` (vía `extractIsExpense`) ANTES de llamar a `extractCategory` y se lo pasa. Sin `isExpense` conocido, sigue buscando en ambos tipos (comportamiento legacy)
 
 **Fuzzy matching (`src/utils/fuzzyMatch.ts`)**: tanto `extractCategory`/`extractIsExpense`
 (`voiceParser.ts`) como `guessCategoryEmoji` (`theme.ts`, usado por `nlp.ts`) reemplazaron su
@@ -609,13 +610,14 @@ externa por el mismo principio de offline-first/sin-dependencias.
 
 Parseo simple para el campo de texto del formulario:
 - Busca el primer número en el texto → monto
-- Usa `guessCategoryEmoji(description, userCats?)` para categoría (consulta userCategories primero)
+- Usa `guessCategoryEmoji(description, userCats?, isExpense?)` para categoría (consulta userCategories primero). `parseExpenseInput()` siempre pasa `true` — esta función es siempre flujo de gasto (entrada rápida NLP), así que se filtra a categorías de gasto para no cruzar con una de ingreso (ver nota de `isExpense` más abajo)
 - Más ligero, se ejecuta en cada keystroke
 
 ### Reglas para extender NLP
 - Mantener offline: **NUNCA** llamar APIs externas
 - Los retornos de `extractCategory` y `extractDate` son `null` si no hay match (no forzar defaults)
 - Usar `\b` (word boundaries) para evitar falsos positivos en regex
+- **`guessCategoryEmoji`/`extractCategory` no deben buscar keywords cruzando gasto/ingreso cuando se conoce el tipo** (2026-09-23): pasar siempre `isExpense` al llamador si el dato está disponible (ej. `item.isExpense` de una notificación bancaria ya clasificada, o `true`/`false` fijo cuando la función es de un solo flujo conocido) — sin ese filtro, palabras ambiguas entre categorías ("mensualidad", "regalo") devuelven la primera coincidencia del array sin importar el tipo real de la transacción
 
 ---
 
@@ -767,7 +769,7 @@ Definidos en `src/constants/categoryPresets.ts`:
 ### 10.4 Fuentes de verdad
 - **`src/constants/categoryPresets.ts`**: Catálogo de presets, paleta de colores, emojis curados, tipo `UserCategory`
 - **`src/store/useSettingsStore.ts`**: `userCategories` (array persistido), helpers `getUserExpenseCategories()`, `getUserIncomeCategories()`, `getCategoryByEmoji()`
-- **`src/constants/theme.ts`**: `getCategoryColor()`, `guessCategoryEmoji()`, `getCategoryName()` — consultan primero `userCategories`, luego legacy como fallback
+- **`src/constants/theme.ts`**: `getCategoryColor()`, `guessCategoryEmoji()`, `getCategoryName()` — consultan primero `userCategories`, luego legacy como fallback. `guessCategoryEmoji(description, userCats?, isExpense?)` gana un 3er parámetro opcional `isExpense` (2026-09-23) que filtra ambas fuentes a solo categorías de ese tipo — el mapa legacy se dividió en `EXPENSE_CATEGORY_MAP`/`INCOME_CATEGORY_MAP` (el viejo `CATEGORY_MAP` mezclado queda `@deprecated`, solo como fallback cuando no se conoce `isExpense`). Ver sección 9 ("Reglas para extender NLP") para el detalle del bug que motivó el cambio
 
 ### 10.5 Regla
 Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las categorías custom se crean desde la UI y se guardan automáticamente en el store.

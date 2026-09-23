@@ -181,6 +181,11 @@ export default function VoiceInputScreen() {
 
   const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const processingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Transcript acumulado + si el próximo "end" viene de nuestro propio timer de
+  // silencio (vs. un stop manual del usuario, que debe quedar en pausa, no
+  // procesar) — ver bug fix en el listener de "end" más abajo.
+  const transcriptTextRef = useRef("");
+  const silenceStopRef = useRef(false);
 
   // ─── Prominent Disclosure micrófono ───────────────────────────────────────
   const MIC_DISCLOSED_KEY = "mywallet-mic-disclosed";
@@ -265,11 +270,29 @@ export default function VoiceInputScreen() {
       SpeechModule.addListener("start", () => {
         setStatus("listening");
         setTranscript("");
+        transcriptTextRef.current = "";
+        silenceStopRef.current = false;
       }),
 
+      // Bug fix: antes, si nuestro propio timer de silencio llamaba a
+      // `SpeechModule.stop()` y el módulo nativo terminaba sin emitir un
+      // "result" con `isFinal:true` (pasa en algunos dispositivos/versiones
+      // de Android), este listener solo hacía `setStatus("idle")` — el
+      // dictado se perdía en silencio, sin llamar nunca a `handleDone()`.
+      // Ahora, si el "end" llega justo después de nuestro stop por silencio
+      // (`silenceStopRef`), se procesa con el transcript acumulado en vez de
+      // descartarlo. Un stop MANUAL (botón de pausa) no dispara este flag,
+      // así que sigue quedando en pausa como antes — no se auto-envía.
       SpeechModule.addListener("end", () => {
-        // Usar ref en lugar de closure para leer el status actual
-        if (statusRef.current !== "processing") setStatus("idle");
+        if (statusRef.current === "processing") return;
+        const wasSilenceStop = silenceStopRef.current;
+        silenceStopRef.current = false;
+        const pending = transcriptTextRef.current.trim();
+        if (wasSilenceStop && pending) {
+          handleDone(pending);
+        } else {
+          setStatus("idle");
+        }
       }),
 
       SpeechModule.addListener("error", (e) => {
@@ -282,14 +305,21 @@ export default function VoiceInputScreen() {
       SpeechModule.addListener("result", (event) => {
         const text: string = event.results?.[0]?.transcript ?? "";
         if (!text) return;
+        transcriptTextRef.current = text;
 
         if (event.isFinal) {
+          // Limpiar el ref ANTES de handleDone: si el "end" llega justo
+          // después (statusRef aún no se actualizó a "processing" por el
+          // retraso normal de React), el guard de `pending` en el listener
+          // de "end" lo encuentra vacío y no vuelve a procesar el mismo texto.
+          transcriptTextRef.current = "";
           handleDone(text);
         } else {
           setTranscript(normalizeMoneyText(text));
           // Reiniciar el timer de silencio con cada nueva palabra
           clearSilenceTimer();
           silenceTimer.current = setTimeout(() => {
+            silenceStopRef.current = true;
             SpeechModule?.stop();
           }, 2000);
         }
@@ -356,6 +386,7 @@ export default function VoiceInputScreen() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isListening) {
       clearSilenceTimer();
+      silenceStopRef.current = false;
       SpeechModule?.stop();
     } else {
       startVoice();
@@ -365,6 +396,7 @@ export default function VoiceInputScreen() {
   function handleClose() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     clearSilenceTimer();
+    silenceStopRef.current = false;
     try {
       SpeechModule?.stop();
     } catch {

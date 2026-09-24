@@ -2,13 +2,9 @@
 
 ## Instrucciones
 
-### Paso 1 — Obtener información
-Preguntar al usuario:
-- **Nombre de la pantalla** (kebab-case para el archivo)
-- **Propósito** (qué hace la pantalla)
-- **¿Necesita store propio?**
-- **¿Necesita modificar la base de datos?**
-- **¿Necesita componentes UI nuevos?**
+### Paso 1 — Definir la pantalla
+Del pedido, deduce nombre (kebab-case), propósito y si necesita store propio, cambios de DB o
+componentes nuevos. Pregunta al usuario solo lo que no se pueda deducir.
 
 ### Paso 2 — Generar la pantalla
 Activar la skill `add-screen` (`.agents/skills/add-screen/SKILL.md`) con el contexto proporcionado:

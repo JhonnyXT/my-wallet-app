@@ -18,8 +18,8 @@ etc.), igual que ya haces con el resto de la auditoría.
 
 ### 1. Tema dinámico
 Para cada archivo `.tsx`:
-- ¿Usa `useTheme()` + `buildStyles()`/`createStyles()` + `useMemo`?
-- ¿Hay colores hardcodeados fuera de las constantes permitidas (`#135BEC` para botón primario, `#EF4444`, `#22C55E`)?
+- ¿Usa `useTheme()` + `buildStyles()`/`createStyles()` + `useMemo`, o `useAppTokens()` si pertenece a la capa de tokens (`Card`, `ListRow`, `settings.tsx`, `reports.tsx`…, ver `ui-components.mdc`)?
+- ¿Hay colores hardcodeados fuera de los hex aceptados que lista el gotcha de colores de `.agents/skills/wallet-validator/SKILL.md`?
 - ¿Los iconos de lucide usan `theme.text` o `theme.textSub` como color?
 
 ### 2. Tokens de color
@@ -45,7 +45,7 @@ Lee `.agents/skills/apple-design/references/hig/accessibility.md` como base y ve
 Lee `.agents/skills/apple-design/references/hig/loading.md`, `feedback.md` y `undo-and-redo.md`:
 - ¿Las operaciones asíncronas (fetch a SQLite, guardar transacción) muestran algún estado de carga o feedback, o la UI queda muda mientras resuelve?
 - ¿Los errores se comunican con `Alert.alert` o feedback visible, no silenciados?
-- ¿Las acciones destructivas (eliminar transacción, borrar historial) tienen confirmación o un mecanismo de deshacer — consistente con el precedente ya establecido en el proyecto (swipe-to-delete de `TransactionItem.tsx` no pide confirmación; `ConfirmDialog.tsx` sí se usa para acciones más graves en `settings.tsx`)? Señalar solo si una pantalla nueva se desvía de ese precedente sin justificación.
+- ¿Las acciones destructivas (eliminar transacción, borrar historial) tienen confirmación o un mecanismo de deshacer — consistente con el precedente ya establecido en el proyecto (las eliminaciones —swipe-to-delete de `TransactionItem.tsx` incluido— confirman con `ConfirmDialog.tsx`)? Señalar solo si una pantalla nueva se desvía de ese precedente sin justificación.
 
 ### 7. Navegación y modales
 Lee `.agents/skills/apple-design/references/hig/modality.md` y `gestures.md`:

@@ -22,7 +22,8 @@ metadata:
 - `presentation: "fullScreenModal"` es el estándar para pantallas fuera de tabs — NO usar `"modal"` a secas.
 - Los textos de UI van en español, los nombres de variables/funciones en inglés.
 - El `buildStyles` se llama `buildStyles`, `createStyles` o `s` según la pantalla — mantener consistencia dentro de la pantalla.
-- NUNCA hardcodear colores excepto `#135BEC` para botones primarios, `#EF4444` para rojo y `#22C55E` para verde.
+- Colores: tokens del tema; los únicos hex aceptados son los que lista el gotcha de colores de `wallet-validator`.
+- Botones de cerrar/confirmar/cancelar usan `PressableScale` + haptic `Light`, no `TouchableOpacity` (convención de `.cursor/rules/ui-components.mdc`).
 
 ## Instructions
 
@@ -33,13 +34,14 @@ Crear `app/{nombre-pantalla}.tsx` con esta estructura real del proyecto:
 ```tsx
 import { useState, useMemo } from "react";
 import {
-  View, Text, TouchableOpacity, StyleSheet,
+  View, Text, StyleSheet,
   KeyboardAvoidingView, Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { X } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
+import { PressableScale } from "@/src/components/ui/PressableScale";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
 
@@ -54,9 +56,14 @@ export default function NombrePantallaScreen() {
     <View style={[st.container, { paddingTop: top }]}>
       {/* Header */}
       <View style={st.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <PressableScale
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.back();
+          }}
+        >
           <X size={24} color={theme.text} />
-        </TouchableOpacity>
+        </PressableScale>
         <Text style={st.title}>Título en Español</Text>
         <View style={{ width: 24 }} />
       </View>

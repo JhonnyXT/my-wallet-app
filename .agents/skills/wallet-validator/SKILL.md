@@ -20,8 +20,7 @@ metadata:
 
 ## Gotchas
 - `amount > 0` = gasto, `amount < 0` = ingreso — convención invertida.
-- `#135BEC` para botones primarios es la ÚNICA excepción a "no hardcodear colores".
-- `src/features/voice/useVoiceExpense.ts` y los componentes huérfanos (`ActionPills.tsx`, `CustomTabBar.tsx`, `AnimatedNumber.tsx`) ya fueron eliminados del repo — si aparecen, es un archivo reintroducido por error, no deuda conocida.
+- Colores hex aceptados fuera del tema: `#135BEC` (botón primario, fijo entre temas) y el rojo/verde de gasto/ingreso (`#EF4444`/`#22C55E`, `#E53E3E`/`#16A34A`, fondos `#FEE2E2`/`#DCFCE7`) — estos últimos aún sin token compartido (ver Deuda técnica en `AGENTS.md`). Cualquier otro hex fuera de `buildStyles`/tokens es un hallazgo.
 - El `main` de `package.json` DEBE ser `"index.js"` (no `"expo-router/entry"`).
 
 ## Instructions
@@ -36,7 +35,7 @@ Validación MyWallet:
 - [ ] 2. Fechas: localISOString(), nunca toISOString()
 - [ ] 3. Offline: sin fetch/axios/http/API calls en código de producción
 - [ ] 4. Categorías: consulta userCategories antes de mapas legacy
-- [ ] 5. Tema: useTheme() + useMemo + buildStyles(), sin colores hardcodeados
+- [ ] 5. Tema: useTheme() + useMemo + buildStyles() — o useAppTokens() en la capa de tokens (ver ui-components.mdc) —, sin colores hardcodeados
 - [ ] 6. Arquitectura: pantallas en app/, componentes en src/components/ui/
 - [ ] 7. Tipos: TransactionRow actualizado si se modificó DB
 - [ ] 8. Migraciones: ALTER TABLE con try/catch
@@ -49,20 +48,21 @@ Validación MyWallet:
 ### Paso 2 — Buscar violaciones específicas
 
 ```bash
+# `--type ts` de ripgrep ya incluye *.tsx (no existe un tipo `tsx`)
 # Moneda
-rg "toLocaleString" --type ts --type tsx
+rg "toLocaleString" --type ts
 
 # Fechas
 rg "toISOString|toJSON" src/db/
 
 # Offline
-rg "fetch\(|axios|http://|https://" src/ app/ --type ts --type tsx
+rg "fetch\(|axios|http://|https://" src/ app/ --type ts
 
 # Colores hardcodeados (fuera de buildStyles)
-rg "color:\s*[\"']#" app/ src/components/ --type tsx
+rg "color:\s*[\"']#" app/ src/components/ --type ts
 
 # Any innecesarios
-rg ": any|as any" src/ app/ --type ts --type tsx
+rg ": any|as any" src/ app/ --type ts
 ```
 
 ### Paso 3 — Verificar consistencia de stores

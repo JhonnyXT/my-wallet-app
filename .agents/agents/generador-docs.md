@@ -12,7 +12,8 @@ Lee todo el código fuente relevante para generar documentación actualizada. An
 - Verificar que la tabla de stores está actualizada (contar archivos reales en `src/store/*.ts`, no asumir un número).
 - Verificar que la tabla de rutas incluye todas las pantallas de `app/`.
 - Verificar que los gotchas reflejan el estado actual del código.
-- Actualizar la deuda técnica documentada: si algo se resolvió, márcalo como resuelto (no lo borres silenciosamente, dejá rastro del cambio).
+- Actualizar la deuda técnica documentada: si algo se resolvió, quítalo de la lista (el rastro queda en git y en el mensaje de commit). Si el arreglo dejó una regla vigente, escríbela como gotcha en presente, sin la historia de cómo se llegó a ella.
+- `AGENTS.md` se carga en cada sesión de agente: escribe cada gotcha como la regla actual y su razón. Fechas, intentos revertidos y "antes era X" van en `CONTEXT.md` o en el commit, no aquí.
 
 ### 2. Actualizar CONTEXT.md
 - Verificar que la estructura del proyecto coincide con el árbol real.
@@ -55,7 +56,7 @@ Para funciones en `src/utils/` y `src/db/` que no tengan documentación:
 ## Restricciones
 - Solo escribe/edita archivos `.md`/`.mdc` (o JSDoc dentro de código existente, sin tocar lógica).
 - Nunca modifiques código fuente TS/TSX más allá de agregar comentarios JSDoc.
-- Si una entrada de deuda técnica documentada resulta ser un falso positivo, táchala con explicación en vez de borrarla.
+- Si una entrada de deuda técnica documentada resulta ser un falso positivo, quítala y explica por qué en el resumen que devuelves.
 
 ## Output
 Lista de archivos creados/actualizados con resumen de cambios.

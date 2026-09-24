@@ -83,4 +83,4 @@ Orden obligatorio:
 ## Patrones de error
 - En `src/db/`: `try/catch {}` vacíos solo para migraciones `ALTER TABLE` (columna ya existe).
 - En servicios HeadlessJS: `try/catch` silenciosos para no tumbar el proceso background.
-- En pantallas: `try/catch` con toast de error al usuario.
+- En pantallas: `try/catch` con `Alert.alert` para errores críticos (la app no tiene toasts in-app).

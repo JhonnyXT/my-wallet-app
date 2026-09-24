@@ -24,7 +24,7 @@ metadata:
 - `amount > 0` = gasto, `amount < 0` = ingreso — invertido vs lo convencional.
 - Las migraciones SQLite usan `try/catch {}` vacío intencionalmente.
 - HeadlessJS corre SIN React — no se pueden usar hooks en `notificationHeadlessTask.ts`.
-- `adb` no está en PATH por defecto: usar `C:\Users\FAMILY\AppData\Local\Android\Sdk\platform-tools\adb.exe`.
+- `adb` puede no estar en PATH: ubicarlo según `.agents/snippets/entorno-android.md` (Linux/macOS y Windows).
 
 ## Instructions
 
@@ -87,18 +87,12 @@ Checklist:
 
 **Síntomas**: Gradle falla, APK no se instala, crash al abrir en dispositivo.
 
-```powershell
-# Build limpio
-cd android
-.\gradlew clean
-.\gradlew assembleRelease
+Build e instalación: `npm run build:dev` / `npm run build:test` (ver Build variants en `AGENTS.md`);
+`adb` según `.agents/snippets/entorno-android.md`.
 
-# Si "App not installed":
-$adb = "C:\Users\FAMILY\AppData\Local\Android\Sdk\platform-tools\adb.exe"
-& $adb devices                    # Verificar que el dispositivo aparece
-& $adb uninstall com.mywallet.app # Desinstalar versión anterior
-& $adb install -r "android\app\build\outputs\apk\release\app-release.apk"
-```
+Si falla con "App not installed", `adb uninstall <applicationId>` lo destraba, pero **borra la base
+de datos SQLite de esa app** — el dispositivo es el teléfono real del usuario y `com.mywallet.app`
+(variant `dev`) guarda sus datos reales. Pedir confirmación explícita antes de desinstalar.
 
 Checklist:
 1. ¿`AndroidManifest.xml` tiene `tools:replace="android:allowBackup"`?

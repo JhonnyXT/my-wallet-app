@@ -2,14 +2,11 @@
 
 ## Instrucciones
 
-### Paso 1 — Obtener alcance del feature
-Preguntar al usuario:
-- **Nombre del feature** (ej: "recurring-expenses", "export-pdf")
-- **¿Necesita pantalla nueva?** → archivo en `app/`
-- **¿Necesita componente UI?** → archivo en `src/components/ui/`
-- **¿Necesita store propio?** → archivo en `src/store/`
-- **¿Necesita modificar DB?** → migración en `src/db/db.ts`
-- **¿Necesita lógica de dominio?** → archivo en `src/features/`
+### Paso 1 — Definir alcance del feature
+A partir del pedido, decide qué piezas necesita y dónde viven: pantalla (`app/`), componente UI
+(`src/components/ui/`), store (`src/store/`), cambio de DB (migración en `src/db/db.ts`), lógica
+de dominio (`src/features/`). Pregunta al usuario solo lo que el pedido no deje claro (típicamente
+el nombre, o si hace falta persistir en DB).
 
 ### Paso 2 — Generar archivos
 Para cada pieza, activar la skill correspondiente:

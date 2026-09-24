@@ -2,12 +2,9 @@
 
 ## Instrucciones
 
-### Paso 1 — Obtener información
-Preguntar al usuario:
-- **Nombre del componente** (PascalCase)
-- **Propósito** (qué muestra o controla)
-- **¿Necesita animaciones?** (entrada, swipe, etc.)
-- **¿Recibe datos de algún store?**
+### Paso 1 — Definir el componente
+Del pedido, deduce nombre (PascalCase), propósito, animaciones necesarias y qué datos recibe por
+props. Pregunta al usuario solo lo que no se pueda deducir.
 
 ### Paso 2 — Generar el componente
 Activar la skill `add-component` (`.agents/skills/add-component/SKILL.md`) con el contexto proporcionado:

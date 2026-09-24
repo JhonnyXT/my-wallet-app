@@ -59,7 +59,7 @@ src/theme/          → Tokens de tema light/dark.
 - Componentes UI: **PascalCase** (`CategoryChart.tsx`)
 - Stores: **camelCase** con prefijo `use` (`useFinanceStore.ts`)
 - Utils: **camelCase** (`formatMoney.ts`)
-- Constantes en código: **UPPER_SNAKE** (`MAX_TOASTS`, `DEFAULTS`)
+- Constantes en código: **UPPER_SNAKE** (`MAX_BAR_H`, `DEFAULTS`)
 
 ### Imports
 - Alias `@/` para paths desde la raíz (`@/src/store/useFinanceStore`).

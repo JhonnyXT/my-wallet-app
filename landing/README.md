@@ -78,17 +78,39 @@ npm run lint
   teléfono con datos reales, y usar un nombre de archivo nuevo al reemplazar una
   (`next/image` cachea por URL).
 
+## Despliegue
+
+Proyecto **`mywallet`** en Vercel (cuenta `jonathanblandon1017-5123`), `Root
+Directory` = `landing`. Público en **https://mywallet-blush.vercel.app**
+(`mywallet.vercel.app` a secas ya lo tiene otra cuenta — los subdominios
+`.vercel.app` son globales, no por cuenta). `RESEND_API_KEY` y
+`NEXT_PUBLIC_SITE_URL` ya configuradas en Production/Preview/Development
+(2026-09-24).
+
+**El repo de GitHub todavía NO está conectado** — el deploy de arriba se hizo
+a mano con `vercel deploy --prod` desde `landing/`. Conectar el repo requiere
+autorizar la GitHub App de Vercel desde el navegador (no se puede por CLI):
+[Settings → Git](https://vercel.com/jonathanblandon1017-5123s-projects/mywallet/settings/git)
+→ Connect Git Repository → `JhonnyXT/my-wallet-app` (confirmar que el `Root
+Directory` quede en `landing`). Hasta que se conecte, un push a `master` NO
+actualiza el sitio — hay que repetir `vercel deploy --prod` a mano.
+
+Si se compra un dominio propio, se agrega en Settings → Domains del mismo
+proyecto y hay que actualizar `NEXT_PUBLIC_SITE_URL` (Vercel dashboard, las 3
+environments) a la URL nueva.
+
 ## Estado
 
 Fase 1 (hecha): diseño completo, en español e inglés, con lista de espera.
 Fase 2 (hecha): portada con demo interactiva, narrador y datos en vivo.
+Fase 3 (hecha): desplegada en Vercel (ver arriba).
 
 Pendiente:
+- Conectar el repo de GitHub en Vercel (deploy automático — ver arriba).
 - Capturas reales para el carrusel.
-- Despliegue en Vercel (proyecto nuevo, `Root Directory` = `landing`),
-  `NEXT_PUBLIC_SITE_URL` y `RESEND_API_KEY`.
 - La política de privacidad no cubre todavía los emails de la lista de espera.
 - Imagen Open Graph propia (hoy usa el ícono).
+- Dominio propio (opcional — hoy la URL pública es `mywallet-blush.vercel.app`).
 
 ## Gotcha: animaciones con `@keyframes`
 

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Caveat, Inter, JetBrains_Mono } from 'next/font/google';
+import { Caveat, Inter, JetBrains_Mono, Roboto } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import { getDictionary, hasLocale, locales } from '@/i18n/config';
 import '../globals.css';
@@ -9,6 +9,8 @@ import '../globals.css';
 // las notas "escritas a mano".
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const jetbrains = JetBrains_Mono({ subsets: ['latin'], weight: ['500', '700'], variable: '--font-jetbrains' });
+// Roboto solo para el teléfono de la demo: es la fuente de la app en Android.
+const roboto = Roboto({ subsets: ['latin'], variable: '--font-roboto' });
 const caveat = Caveat({ subsets: ['latin'], weight: ['600'], variable: '--font-caveat' });
 
 // Solo /es y /en existen; cualquier otro prefijo es 404.
@@ -44,7 +46,7 @@ export default async function RootLayout({ children, params }: LayoutProps<'/[la
   const { lang } = await params;
   if (!hasLocale(lang)) notFound();
   return (
-    <html lang={lang} className={`${inter.variable} ${jetbrains.variable} ${caveat.variable}`}>
+    <html lang={lang} className={`${inter.variable} ${jetbrains.variable} ${caveat.variable} ${roboto.variable}`}>
       <body className="bg-bg font-sans text-ink">{children}</body>
     </html>
   );

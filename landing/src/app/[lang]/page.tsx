@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
-import { LangToggle } from '@/components/LangToggle';
+import { Header } from '@/components/Header';
+import { DemoSection } from '@/demo/DemoSection';
 import { Bancos } from '@/components/sections/Bancos';
 import { Control } from '@/components/sections/Control';
 import { Detalles } from '@/components/sections/Detalles';
@@ -21,12 +22,10 @@ export default async function Home({ params }: PageProps<'/[lang]'>) {
 
   return (
     <>
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-40 h-16 bg-gradient-to-b from-bg to-transparent" />
-      <div className="absolute top-4 right-5 z-50 sm:top-7 sm:right-12">
-        <LangToggle current={lang} label={t.nav.language} />
-      </div>
-      <main className="flex flex-col items-center pt-12 pb-8 sm:pt-0">
+      <Header t={t.nav} locale={lang} />
+      <main className="flex flex-col items-center pb-8">
         <Hero t={t} locale={lang} />
+        <DemoSection t={t.demo} />
         <Divider />
         <Registro t={t.registro} />
         <Divider />

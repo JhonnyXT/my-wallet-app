@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync:app": "bash scripts/sync-app-logic.sh"
   },
   "dependencies": {
     "@formatjs/intl-localematcher": "^0.9.0",

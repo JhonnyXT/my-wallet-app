@@ -213,7 +213,10 @@ export function WaitlistForm({
 
   if (joined && !editing) {
     return (
-      <div className={`w-full max-w-[480px] ${className}`}>
+      // El estado idle tiene una etiqueta encima del campo que este estado no
+      // tiene; sin ese margen extra la confirmación queda pegada al texto de
+      // arriba (mismo mt del contenedor en Hero.tsx para ambos estados).
+      <div className={`mt-4 w-full max-w-[480px] sm:mt-5 ${className}`}>
         {celebrating ? <Celebration t={t} email={joined} /> : <OnList t={t} email={joined} onChange={() => setEditing(true)} />}
       </div>
     );

@@ -1,4 +1,7 @@
-import { ChartColumn } from 'lucide-react';
+'use client';
+
+import { ChartColumn, X } from 'lucide-react';
+import { useState } from 'react';
 import type { Dictionary } from '@/i18n/config';
 import { AVERAGES, CATEGORY, CHART, TREND, cop } from '@/content/app';
 import { InlineChip, SectionHead } from './shared';
@@ -11,6 +14,12 @@ export function Promedios({ t }: { t: Dictionary['promedios'] }) {
   const avgMax = Math.max(...AVERAGES.map((a) => a.avg));
   const trendMax = Math.max(...TREND.map((m) => m.expense));
   const card = 'flex flex-col gap-4 rounded-[20px] border border-line bg-card p-5 sm:rounded-[22px] sm:p-7';
+  // Tap en una columna: como en la app, filtra por esa categoría (aquí la
+  // resalta en las dos tarjetas y compara el mes con su promedio).
+  const [selected, setSelected] = useState<keyof typeof CATEGORY | null>(null);
+  const sel = selected ? CHART.find((c) => c.key === selected) : undefined;
+  const selAvg = selected ? AVERAGES.find((a) => a.key === selected) : undefined;
+  const diff = sel && selAvg ? Math.round(((sel.amount - selAvg.avg) / selAvg.avg) * 100) : null;
 
   return (
     <section id="promedios" className="flex w-full max-w-[860px] scroll-mt-10 flex-col items-center gap-8 px-5 py-16 sm:gap-12 sm:py-28">
@@ -31,19 +40,53 @@ export function Promedios({ t }: { t: Dictionary['promedios'] }) {
         {/* Gráfica de categorías del mes (`CategoryChart.tsx`) */}
         <div className={card}>
           <span className="text-[15px] font-bold sm:text-base">{t.chartTitle}</span>
-          <div role="img" aria-label={t.chartTitle} className="flex h-[200px] items-end justify-between gap-2.5">
+          <div className="flex h-[200px] items-end justify-between gap-2.5">
             {CHART.map((c) => {
               const cat = CATEGORY[c.key];
+              const on = selected === c.key;
               return (
-                <span key={c.key} className="flex flex-1 flex-col items-center gap-2">
-                  <span className="font-mono text-[10px] text-faint sm:text-[11px]">{short(c.amount)}</span>
-                  <span className="w-full rounded-[10px]" style={{ height: `${(c.amount / chartMax) * 130}px`, background: cat.accent }} />
+                <button
+                  key={c.key}
+                  type="button"
+                  aria-pressed={on}
+                  aria-label={`${cat.name}: ${cop(c.amount)}`}
+                  onClick={() => setSelected(on ? null : c.key)}
+                  className={`flex h-full flex-1 cursor-pointer flex-col items-center justify-end gap-2 transition-opacity duration-200 ${selected && !on ? 'opacity-30' : ''}`}
+                >
+                  <span className={`font-mono text-[10px] sm:text-[11px] ${on ? 'font-bold text-ink' : 'text-faint'}`}>{short(c.amount)}</span>
+                  <span
+                    className="w-full rounded-[10px] transition-transform duration-200 hover:scale-y-[1.03]"
+                    style={{ height: `${(c.amount / chartMax) * 130}px`, background: cat.accent, transformOrigin: 'bottom' }}
+                  />
                   <span className="text-lg leading-none">{cat.emoji}</span>
-                </span>
+                </button>
               );
             })}
           </div>
-          <span className="-mt-1 self-center -rotate-2 font-hand text-lg text-dim">↑ {t.chartHint}</span>
+          {sel && selected ? (
+            <div key={selected} className="flex animate-row-in items-center justify-between gap-3 rounded-2xl bg-surface-2 px-3.5 py-2.5 text-sm">
+              <span className="min-w-0">
+                <b>
+                  {CATEGORY[selected].emoji} {t.thisMonth}: {cop(sel.amount)}
+                </b>
+                {diff !== null && (
+                  <span className={`block text-xs ${diff > 0 ? 'text-expense' : 'text-income'}`}>
+                    {Math.abs(diff)}% {diff > 0 ? t.vsAverage.above : t.vsAverage.below}
+                  </span>
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                aria-label={t.clearFilter}
+                className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-dim hover:bg-line hover:text-ink"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          ) : (
+            <span className="-mt-1 self-center -rotate-2 font-hand text-lg text-dim">↑ {t.chartHint}</span>
+          )}
         </div>
 
         {/* Ranking de promedio mensual (`app/reports.tsx`) */}
@@ -52,8 +95,9 @@ export function Promedios({ t }: { t: Dictionary['promedios'] }) {
           <ol className="flex flex-col gap-3.5">
             {AVERAGES.map((a, i) => {
               const cat = CATEGORY[a.key];
+              const dim = selected !== null && selected !== a.key;
               return (
-                <li key={a.key} className="flex items-center gap-3">
+                <li key={a.key} className={`flex items-center gap-3 transition-opacity duration-200 ${dim ? 'opacity-30' : ''}`}>
                   <span className="w-4 font-mono text-xs text-faint">{i + 1}</span>
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-full text-lg" style={{ background: cat.tint }} aria-hidden>
                     {cat.emoji}

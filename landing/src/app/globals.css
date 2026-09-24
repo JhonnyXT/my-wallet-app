@@ -133,3 +133,94 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Demo interactiva (réplicas de la app en `src/demo/phone/`). Fuera de @theme
+ * por la misma razón: se usan desde estilos en línea. */
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes popup-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fade-out-up {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+@keyframes zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+/* `VoiceOrb`: anillo interno 1 → 1.14 → 1 (900 ms + 900 ms); externo espera
+ * 450 ms y hace 1 → 1.22 → 1. */
+@keyframes orb-pulse-1 {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.14);
+  }
+}
+@keyframes orb-pulse-2 {
+  0%,
+  20% {
+    transform: scale(1);
+  }
+  60% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+/* `fullScreenModal`: la pantalla sube desde abajo. */
+@keyframes screen-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}

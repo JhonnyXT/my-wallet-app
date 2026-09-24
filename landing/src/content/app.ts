@@ -46,24 +46,6 @@ const tx = (c: keyof typeof CATEGORY, date: string, title: string, amount: numbe
   income,
 });
 
-/** Lista "RECIENTE" del teléfono de la portada. */
-export const RECENT: Tx[] = [
-  tx('food', 'Hoy', 'Almuerzo', 45000),
-  tx('transport', 'Hoy', 'Uber al trabajo', 12000),
-  tx('salary', 'Ayer', 'Quincena', 2400000, true),
-  tx('coffee', 'Ayer', 'Tinto', 8000),
-  tx('home', '21 sep', 'Internet', 89900),
-];
-
-export const PHONE = {
-  balance: 4_812_300,
-  expense: 1_386_400,
-  income: 4_800_000,
-  budgetPct: 68,
-  budget: 2_000_000,
-  netWorth: 2_612_300,
-};
-
 /** Columnas de la gráfica de categorías (gasto del mes). */
 export const CHART: { key: keyof typeof CATEGORY; amount: number }[] = [
   { key: 'food', amount: 486000 },

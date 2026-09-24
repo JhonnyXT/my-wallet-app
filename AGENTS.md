@@ -182,7 +182,8 @@ my-wallet-app/
 │
 ├── index.js                          # Entrypoint: registra HeadlessJS task + delega a expo-router/entry
 ├── android/                          # Proyecto Android nativo (Gradle, manifest, Kotlin)
-├── docs/                             # Sitio estático servido por GitHub Pages (landing pública + política de privacidad)
+├── docs/                             # Sitio estático servido por GitHub Pages (landing anterior + política de privacidad)
+├── landing/                          # Landing nueva en Next.js 16 + Tailwind v4 (proyecto npm aparte, ver landing/README.md)
 ├── CONTEXT.md                        # Ventana de contexto técnico completo (~1250 líneas)
 ├── DOCUMENTATION.md                  # Guía de usuario
 └── PRODUCT_REQUIREMENTS.md           # Historias de usuario y requisitos
@@ -190,8 +191,10 @@ my-wallet-app/
 
 ---
 
-## Landing page y GitHub Pages (`docs/`)
+## Landing page y GitHub Pages (`docs/`, `landing/`)
 
+- **`landing/` es la landing nueva** (Next.js 16 + Tailwind v4, español e inglés, tema oscuro con el azul de la app), con el diseño y la estructura de la de Meld (`../meld-app/landing`). Es un proyecto npm aparte con su propio `node_modules`: `tsconfig.json`, `metro.config.js`, `eslint.config.js`, `jest.config.js` y `.prettierignore` de la raíz la excluyen. Todo lo operativo (comandos, dónde vive cada texto, qué falta) está en [`landing/README.md`](landing/README.md). Estado: fase 1 (diseño completo, estático) hecha; en vez de descargar el APK ofrece una lista de espera (Resend) hasta que la app llegue a Google Play; el teléfono interactivo, las capturas reales del carrusel y el despliegue en Vercel están pendientes. Hasta desplegarla, la URL pública sigue siendo la de `docs/`.
+- El contenido "dentro de la app" que muestra la landing (`landing/src/content/app.ts`) sale de la app real: colores de `categoryPresets.ts`, bancos de `banks.ts`, frases verificadas contra `voiceParser.ts` y notificaciones de `notificationParser/fixtures.ts`. Si cambian el parser, los presets o la lista de bancos, revisar ese archivo.
 - `docs/` es el sitio estático servido por **GitHub Pages** para este repo — configurado a nivel de repositorio (rama `master`, carpeta `/docs`), confirmado vía `gh api repos/JhonnyXT/my-wallet-app/pages`. Público en **https://jhonnyxt.github.io/my-wallet-app/**. Esta configuración ya existía antes de documentarse aquí (probablemente para cumplir el requisito de política de privacidad de Play Store).
 - Contenido:
   - `docs/index.html` — landing pública de MyWallet (hero, features, CTA de descarga del APK).
@@ -199,7 +202,7 @@ my-wallet-app/
   - `docs/icon.png`, `docs/favicon.png` — assets del sitio.
 - **Relación con Play Store**: `docs/privacy-policy.html` existe para cumplir el requisito de Google Play Console de tener una URL pública de política de privacidad — es un artefacto de *compliance*, no parte de la app en sí (por eso no se documenta en `DOCUMENTATION.md`/`PRODUCT_REQUIREMENTS.md`, que cubren la app, no el sitio de marketing).
 - **Proceso manual de release del APK (sin automatizar)**: el botón "Descargar APK" de `docs/index.html` apunta a un asset fijo de un GitHub Release (ej. `https://github.com/JhonnyXT/my-wallet-app/releases/download/v1.5.0/app-release.apk`), no a "la última versión" dinámicamente. Al sacar una versión nueva de la app hay que, manualmente: (1) publicar un GitHub Release nuevo con el APK compilado (`gh release create vX.Y.Z <ruta-al-apk> ...`) y (2) actualizar el link de descarga en `docs/index.html` para que apunte al asset nuevo. Si se omite el paso 2, la landing sigue ofreciendo una versión vieja del APK sin que nada lo avise — no hay CI que sincronice esto.
-- La landing se diseñó con ayuda de la skill/plugin `ui-ux-pro-max` (instalada a nivel de usuario de Claude Code, no es parte de este repo). La metodología aplicada —qué se tomó del generador y qué se descartó— está documentada en [`.agents/README.md`](.agents/README.md#diseño-de-la-landing-con-ui-ux-pro-max-metodología).
+- La landing de `docs/` se diseñó con ayuda de la skill/plugin `ui-ux-pro-max` (instalada a nivel de usuario de Claude Code, no es parte de este repo). La metodología aplicada —qué se tomó del generador y qué se descartó— está documentada en [`.agents/README.md`](.agents/README.md#diseño-de-la-landing-con-ui-ux-pro-max-metodología).
 
 ---
 

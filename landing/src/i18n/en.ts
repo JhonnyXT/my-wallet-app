@@ -1,0 +1,165 @@
+import type { Dictionary } from './es';
+
+// The app itself is Spanish-only and works in Colombian pesos: the English
+// site says so up front, and everything shown "inside the app" stays in
+// Spanish (see `src/content/app.ts`).
+export const en: Dictionary = {
+  meta: {
+    title: 'MyWallet — your money, clear and on your phone',
+    description:
+      'Log expenses and income by hand, by voice or straight from your bank’s notifications. Budgets, goals and debts. Free, no account, 100% on your phone.',
+  },
+  nav: {
+    language: 'Language',
+  },
+  waitlist: {
+    label: 'Let me know when MyWallet is on Google Play',
+    placeholder: 'you@email.com',
+    submit: 'Notify me',
+    sending: 'Sending…',
+    success: 'Done, you’re on the list!',
+    successDetail: 'We’ll write to {email} the day MyWallet is on Google Play. Nothing else.',
+    onList: 'You’re on the list',
+    change: 'Change',
+    invalid: 'Check your email, something seems to be missing.',
+    error: 'We couldn’t save your email. Please try again in a moment.',
+  },
+  unsubscribe: {
+    okTitle: 'Done, you’re unsubscribed',
+    okBody: 'We won’t write to you about MyWallet’s launch again.',
+    errorTitle: 'We couldn’t unsubscribe you',
+    errorBody: 'Something went wrong processing the link. Please try again later.',
+    backHome: 'Back to home',
+  },
+  hero: {
+    iconAlt: 'MyWallet icon',
+    title1: 'Your money, clear.',
+    title2: 'And only on your phone.',
+    subtitle:
+      'Log every expense in seconds: by hand, by voice, or by letting MyWallet read your bank’s notification. No account, no cloud, no ads.',
+    finePrint: 'Coming soon to Google Play · Free · The app is in Spanish, in Colombian pesos',
+    privacyLink: 'How we handle your data',
+    widgetsNote: 'budget per category',
+    goalsNote: 'and your goals, up to date',
+    phoneHint: 'the home screen, as it is',
+  },
+  registro: {
+    titleA: 'Five ways to log,',
+    titleB: 'one single list',
+    subtitle: 'Use whichever is handiest at the moment. Everything lands in the same history, editable with a swipe.',
+    bankNote: 'detected for you, you just confirm',
+    items: {
+      manual: { title: 'By hand', desc: 'Amount, category, account and date on a single card, no hidden menus.' },
+      voice: { title: 'By voice', desc: 'Say it the way you would (in Spanish): MyWallet picks out the amount, the type and the category.' },
+      batch: { title: 'Several at once', desc: 'Dictate several expenses in one sentence and review them together before saving.' },
+      quick: { title: 'Quick typing', desc: 'Type “Uber 15000” in the quick entry and the category is guessed as you type.' },
+      bank: { title: 'From your bank', desc: 'It reads your bank’s notifications on the phone and suggests the transaction, ready to confirm.' },
+    },
+  },
+  voz: {
+    eyebrow: 'Voice',
+    title: 'Say it, and it’s logged.',
+    subtitle: 'Talk the way you talk: in digits or in words, one transaction or several. Speech recognition is your phone’s own; the interpretation happens inside the app.',
+    bullets: [
+      'Understands “45 mil”, “dos millones 400 mil” or “89.900”',
+      'Tells expense from income by how you say it',
+      'Picks the category using your own keywords',
+      'Several transactions in one sentence, reviewed before saving',
+    ],
+    understood: 'MyWallet understood',
+    expense: 'Expense',
+    income: 'Income',
+    today: 'Today',
+    movements: 'transactions',
+  },
+  bancos: {
+    titleA: 'Your bank notifies,',
+    chip: 'MyWallet',
+    titleB: 'logs it',
+    subtitle:
+      'When the notification for a purchase or a transfer arrives, MyWallet reads it on your phone and suggests the transaction. It never saves anything until you confirm.',
+    detected: 'Detected',
+    ignored: 'Ignored: a reminder, not a payment',
+    listTitle: 'Banks and wallets it recognizes',
+    listNote: 'You choose which ones to read. Codes, security alerts and promotions are discarded before they touch your data.',
+  },
+  promedios: {
+    titleA: 'Where does',
+    titleB: 'your money go?',
+    subtitle: 'The monthly chart shows where you spent; Averages tells you how much you usually spend on each thing, across your whole history.',
+    chartTitle: 'September expenses',
+    chartHint: 'tap a column to filter',
+    avgTitle: 'Monthly average',
+    perMonth: '/mo',
+    trendTitle: 'Trend',
+    trendRange: 'Last 6 months',
+  },
+  control: {
+    title: 'Budgets, goals and debts',
+    subtitle: 'Set a cap per category, save for something specific and keep track of what you owe. It warns you at 80% (or whatever share you choose).',
+    budget: { title: 'Budget per category', over: 'over', of: 'of' },
+    goal: { title: 'Savings goal', saved: 'saved', of: 'of' },
+    debt: { title: 'Debt', remaining: 'remaining', monthly: 'monthly payment', due: 'Reminder on day' },
+  },
+  detalles: {
+    title: 'The details',
+    items: {
+      offline: { t: 'Works offline', d: 'Everything lives in a database inside your phone. There is no server.' },
+      cop: { t: 'Colombian pesos', d: 'Amounts with thousands separators and no decimals, the way you write them.' },
+      categories: { t: 'Your categories', d: '24 presets to start with, plus your own with emoji, color and keywords.' },
+      accounts: { t: 'Accounts and payment methods', d: 'Cash, savings, card, or any you want to create.' },
+      search: { t: 'Search and filters', d: 'By text, category, #tag, type or period.' },
+      swipe: { t: 'Swipe to edit', d: 'Swipe right to edit, left to delete.' },
+      alerts: { t: 'Useful alerts', d: 'Budget near its limit, goal reached, payment due. No spam.' },
+      export: { t: 'Export to CSV', d: 'All your transactions, to share or open in a spreadsheet.' },
+      theme: { t: 'Light and dark', d: 'Follows your phone’s theme, or pick one yourself.' },
+    },
+  },
+  pantallas: {
+    title: 'See it on your phone',
+    subtitle: 'Real MyWallet screens.',
+    soon: 'Screenshot on the way',
+    prev: 'Previous screen',
+    next: 'Next screen',
+    goTo: 'Go to screen',
+    items: [
+      { a: 'Your balance', b: 'at a glance', alt: 'MyWallet home screen' },
+      { a: 'Log it', b: 'in seconds', alt: 'New expense form' },
+      { a: 'Review what', b: 'it detected', alt: 'Review of transactions detected from the bank' },
+      { a: 'Your averages', b: 'per category', alt: 'Averages screen' },
+    ],
+  },
+  privacidad: {
+    title: 'Free and private.',
+    titleB: 'No fine print.',
+    subtitle: 'No paid plans, no accounts, no ads. Your finances are not a product.',
+    free: {
+      name: 'MyWallet',
+      price: '$0',
+      per: 'Forever, every feature',
+      items: ['Logging by hand, by voice and from your bank', 'Budgets, goals and debts', 'Averages and trend', 'Export to CSV', 'No ads'],
+    },
+    data: {
+      name: 'Your data',
+      tag: 'On your phone',
+      items: {
+        local: { t: 'Your transactions stay on your phone', d: 'No server of ours, no sync, no analytics.' },
+        noAccount: { t: 'No account', d: 'Open the app and start. No email, no password.' },
+        noNumbers: { t: 'No account numbers', d: 'It never stores card or bank account numbers.' },
+        noBackup: { t: 'No cloud copy', d: 'Android’s automatic backup is turned off for this app.' },
+        yourBanks: { t: 'Only the banks you pick', d: 'Notification reading is turned on and limited from Settings.' },
+      },
+    },
+  },
+  cta: {
+    titleA: 'Be among the first.',
+    titleB: 'We’ll let you know on launch day.',
+    note: 'For Android 8 or later. We only use your email to tell you about the launch.',
+  },
+  footer: {
+    privacy: 'Privacy policy (Spanish)',
+    source: 'Code on GitHub',
+    support: 'Support',
+    rights: '© 2026 MyWallet',
+  },
+};

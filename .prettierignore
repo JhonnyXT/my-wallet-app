@@ -16,3 +16,6 @@ package-lock.json
 # documentada en AGENTS.md). Prettier lo expande verbosamente (+1400 líneas de diff) sin
 # ganancia real — no es código de la app, es un artefacto de marketing/compliance aparte.
 docs/
+
+# Web en Next.js: proyecto npm aparte con su propio lint/formato.
+landing/

@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+/* Paleta de MyWallet: la del tema oscuro de la app (`src/theme/index.ts` y
+ * `src/theme/tokens.ts`). El azul de los botones es el primario fijo de la app
+ * (#135BEC, texto blanco con contraste AA); el azul claro es el acento de texto
+ * sobre fondo oscuro. Rojo y verde quedan reservados para gasto e ingreso. */
+@theme {
+  --color-bg: #0d1117;
+  --color-sunken: #090c10;
+  --color-card: #161b22;
+  --color-surface: #1a1f27;
+  --color-surface-2: #21262d;
+  --color-line: #30363d;
+  --color-ink: #e6edf3;
+  --color-dim: #8b949e;
+  --color-faint: #7d8590;
+  --color-mute: #6e7681;
+  --color-accent: #4b82ef;
+  --color-brand: #1796fe;
+  --color-btn: #135bec;
+  --color-btn-hover: #0f4bc6;
+
+  --color-expense: #f87171;
+  --color-expense-bg: #fee2e2;
+  --color-expense-ink: #e53e3e;
+  --color-income: #22c55e;
+  --color-income-bg: #dcfce7;
+  --color-income-ink: #16a34a;
+  --color-warn: #f59e0b;
+
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+  --font-hand: var(--font-caveat), cursive;
+
+  --animate-row-in: row-in 0.3s ease-out;
+  @keyframes row-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+}
+
+/* Animaciones usadas desde estilos en línea (style={{ animation: … }}). Van
+ * FUERA de @theme a propósito: Tailwind v4 elimina del CSS final los
+ * @keyframes de @theme que ninguna clase suya usa. */
+@keyframes voice-bar {
+  from {
+    transform: scaleY(0.2);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes waitlist-pop {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+}
+@keyframes waitlist-circle {
+  from {
+    stroke-dashoffset: 189;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes waitlist-draw {
+  from {
+    stroke-dashoffset: 40;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes waitlist-ring {
+  from {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+@keyframes waitlist-spark {
+  from {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translate(var(--dx), var(--dy)) scale(0.4);
+    opacity: 0;
+  }
+}
+@keyframes undo-bar {
+  to {
+    transform: scaleX(0);
+  }
+}
+@keyframes notif-in {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.97);
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-btn);
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

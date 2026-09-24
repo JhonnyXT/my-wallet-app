@@ -16,8 +16,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    await saveEmail(email, locale);
-    return Response.json({ ok: true });
+    const { alreadyOnWaitlist } = await saveEmail(email, locale);
+    return Response.json({ ok: true, alreadyOnWaitlist });
   } catch (err) {
     if (err instanceof WaitlistNotConfiguredError) {
       return Response.json({ error: 'not_configured' }, { status: 503 });

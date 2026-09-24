@@ -39,9 +39,9 @@ export default async function Home({ params }: PageProps<'/[lang]'>) {
         <Divider />
         <Detalles t={t.detalles} />
         <Pantallas t={t.pantallas} />
-        <Privacidad t={t.privacidad} policyLabel={t.footer.privacy} />
+        <Privacidad t={t.privacidad} policyLabel={t.footer.privacy} locale={lang} />
         <FinalCta t={t} locale={lang} />
-        <Footer t={t.footer} />
+        <Footer t={t.footer} locale={lang} />
       </main>
     </>
   );

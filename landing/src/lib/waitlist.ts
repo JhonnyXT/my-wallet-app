@@ -55,12 +55,28 @@ async function parseError(res: Response): Promise<string> {
   return `Resend ${res.status}: ${body?.name ?? ''} ${body?.message ?? ''}`.trim();
 }
 
-export async function saveEmail(email: string, locale: string): Promise<void> {
+/** `alreadyOnWaitlist` es la verdad del servidor (no del `localStorage` del
+ * visitante): si ya estaba `opt_in` en el topic de MyWallet antes de esta
+ * llamada. Se mira ANTES de tocar nada porque el contacto puede ya existir
+ * en la cuenta por ser de Meld (mismo email, otra app) sin estar todavía en
+ * ESTA lista — en ese caso es alta nueva para MyWallet, no un reenvío.
+ * Formato de la respuesta verificado a mano contra la API real (GET
+ * /contacts/{email}/topics → `{ data: [{ id, subscription }] }`). */
+export async function saveEmail(email: string, locale: string): Promise<{ alreadyOnWaitlist: boolean }> {
   if (!process.env.RESEND_API_KEY && process.env.NODE_ENV !== 'production') {
     console.log(`[waitlist] (dev, sin RESEND_API_KEY) ${email} · ${locale}`);
-    return;
+    return { alreadyOnWaitlist: false };
   }
   const apiKey = requireApiKey();
+
+  const topicsRes = await resendFetch(apiKey, `/${encodeURIComponent(email)}/topics`, { method: 'GET' });
+  let alreadyOnWaitlist = false;
+  if (topicsRes.ok) {
+    const body = (await topicsRes.json().catch(() => null)) as { data?: { id: string; subscription: string }[] } | null;
+    alreadyOnWaitlist = body?.data?.some((topic) => topic.id === topicId() && topic.subscription === 'opt_in') ?? false;
+  } else if (topicsRes.status !== 404) {
+    throw new Error(await parseError(topicsRes));
+  }
 
   // Crear el contacto. Si ya existe (anotado antes, o ya es contacto de Meld
   // en esta misma cuenta), Resend responde "already exists" — no es un error:
@@ -85,6 +101,8 @@ export async function saveEmail(email: string, locale: string): Promise<void> {
   ]);
   if (!segRes.ok) throw new Error(await parseError(segRes));
   if (!topicRes.ok) throw new Error(await parseError(topicRes));
+
+  return { alreadyOnWaitlist };
 }
 
 /** Baja de la lista de espera de MyWallet — opt_out del topic

@@ -17,6 +17,9 @@ export const en: Dictionary = {
     privacy: 'Privacy',
     notify: 'Notify me',
   },
+  legal: {
+    back: 'Back',
+  },
   waitlist: {
     label: 'Let me know when MyWallet is on Google Play',
     placeholder: 'you@email.com',
@@ -250,8 +253,7 @@ export const en: Dictionary = {
     note: 'For Android 8 or later. We only use your email to tell you about the launch.',
   },
   footer: {
-    privacy: 'Privacy policy (Spanish)',
-    source: 'Code on GitHub',
+    privacy: 'Privacy policy',
     support: 'Support',
     rights: '© 2026 MyWallet',
   },

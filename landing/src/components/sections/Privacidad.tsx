@@ -1,6 +1,6 @@
 import { Ban, Check, CloudOff, Landmark, Smartphone, UserX, type LucideIcon } from 'lucide-react';
-import type { Dictionary } from '@/i18n/config';
-import { PRIVACY_URL } from '@/lib/links';
+import Link from 'next/link';
+import type { Dictionary, Locale } from '@/i18n/config';
 import { SectionHead } from './shared';
 
 type DataKey = keyof Dictionary['privacidad']['data']['items'];
@@ -12,7 +12,7 @@ const DATA_ICONS: Record<DataKey, LucideIcon> = {
   yourBanks: Landmark,
 };
 
-export function Privacidad({ t, policyLabel }: { t: Dictionary['privacidad']; policyLabel: string }) {
+export function Privacidad({ t, policyLabel, locale }: { t: Dictionary['privacidad']; policyLabel: string; locale: Locale }) {
   return (
     <section id="privacidad" className="flex w-full max-w-[760px] scroll-mt-10 flex-col items-center gap-8 px-5 py-16 sm:gap-12 sm:py-28">
       <SectionHead
@@ -58,9 +58,9 @@ export function Privacidad({ t, policyLabel }: { t: Dictionary['privacidad']; po
               );
             })}
           </ul>
-          <a href={PRIVACY_URL} className="mt-1 text-sm text-dim underline hover:text-ink">
+          <Link href={`/${locale}/privacy`} className="mt-1 text-sm text-dim underline hover:text-ink">
             {policyLabel}
-          </a>
+          </Link>
         </div>
       </div>
     </section>

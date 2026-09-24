@@ -197,11 +197,13 @@ export function WaitlistForm({
         body: JSON.stringify({ email, website: data.get('website'), locale }),
       });
       if (res.ok) {
+        // El servidor es la verdad: si el email ya estaba anotado (aunque sea
+        // desde otro navegador, o porque ya era contacto de Meld con el mismo
+        // correo), no hay nada que celebrar — solo confirmar que ya está.
+        const body = (await res.json().catch(() => null)) as { alreadyOnWaitlist?: boolean } | null;
         setStatus('idle');
         setEditing(false);
-        // Reenviar el mismo email que ya estaba anotado no es una novedad —
-        // solo celebrar cuando es distinto (o la primera vez).
-        setCelebrating(!alreadyJoinedWithThis);
+        setCelebrating(!alreadyJoinedWithThis && !body?.alreadyOnWaitlist);
         setJoined(email);
       } else {
         setStatus(res.status === 400 ? 'invalid' : 'error');
@@ -213,12 +215,17 @@ export function WaitlistForm({
 
   if (joined && !editing) {
     return (
-      // El estado idle tiene una etiqueta encima del campo que este estado no
-      // tiene; sin ese margen extra la confirmación queda pegada al texto de
-      // arriba (mismo mt del contenedor en Hero.tsx para ambos estados).
-      <div className={`mt-4 w-full max-w-[480px] sm:mt-5 ${className}`}>
-        {celebrating ? <Celebration t={t} email={joined} /> : <OnList t={t} email={joined} onChange={() => setEditing(true)} />}
-      </div>
+      <>
+        {/* El estado idle tiene una etiqueta encima del campo que este estado
+        no tiene; sin ese margen extra la confirmación queda pegada al texto
+        de arriba (mismo mt del contenedor en Hero.tsx para ambos estados). */}
+        <div className={`mt-4 w-full max-w-[480px] sm:mt-5 ${className}`}>
+          {celebrating ? <Celebration t={t} email={joined} /> : <OnList t={t} email={joined} onChange={() => setEditing(true)} />}
+        </div>
+        {/* El `note` también va aquí (no solo en el form): en FinalCta.tsx
+        desaparecía al anotarse, dejando la tarjeta coja de un texto legal. */}
+        {note && !celebrating && <p className="mt-2 text-center text-xs text-faint sm:text-[13px]">{note}</p>}
+      </>
     );
   }
 

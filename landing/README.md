@@ -66,11 +66,30 @@ npm run lint
   responde 503 (nunca finge que guardó). Campo trampa `website` contra
   bots. Baja: `GET /api/unsubscribe?email=…&lang=es` → página
   `/[lang]/unsubscribed` (para el link del futuro email de lanzamiento).
-- **Enlaces externos**: `src/lib/links.ts` (repo, issues, política de privacidad).
-- **Política de privacidad**: el sitio enlaza a
-  `https://jhonnyxt.github.io/my-wallet-app/privacy-policy.html`
-  (`docs/privacy-policy.html`, GitHub Pages). Esa URL está registrada en Play
-  Console: no moverla.
+  `saveEmail()` primero hace `GET /contacts/{email}/topics` para saber si
+  ese email YA estaba `opt_in` en el topic de MyWallet antes de tocar nada
+  (`{ alreadyOnWaitlist }`, devuelto por `/api/waitlist` y usado por
+  `WaitlistForm.tsx`): así, quien reenvía un email ya anotado desde otro
+  navegador (sin el `localStorage` que lo recuerda) ve directo "ya estás en
+  la lista" en vez de la animación de bienvenida — el contacto puede
+  además ya existir en la cuenta por ser de Meld con el mismo email, sin
+  estar todavía en ESTA lista, y ese caso sí debe celebrarse como alta
+  nueva.
+- **Enlaces externos**: `src/lib/links.ts` (`PRIVACY_URL` de referencia,
+  `SUPPORT_EMAIL`). El footer ya no enlaza al repo de GitHub ni a Issues
+  (`Soporte` es un `mailto:` directo); si se necesita reportar algo en
+  GitHub, es manual.
+- **Política de privacidad**: DOS copias a propósito, no fusionar.
+  `docs/privacy-policy.html` (GitHub Pages,
+  `https://jhonnyxt.github.io/my-wallet-app/privacy-policy.html`) es la URL
+  registrada en Play Console — no moverla ni depender de que el sitio nuevo
+  la reemplace. El sitio en sí enlaza (footer y sección "Privacidad") a
+  `/[lang]/privacy`, una página propia con el mismo patrón tipado que
+  `meld-app/landing` (`src/legal/docs.ts` + `LegalPage.tsx`): título, fecha,
+  intro y secciones con lista u párrafos, en español e inglés. Cubre además
+  los emails de la lista de espera (Resend). Si cambia algo real (permisos,
+  proveedor de la lista de espera, exportación), actualizar **ambos**
+  documentos.
 - **Secciones**: `src/components/sections/*`, en el orden de
   `src/app/[lang]/page.tsx`.
 - **Pantallas reales**: el carrusel (`Pantallas.tsx`) muestra marcadores hasta
@@ -108,7 +127,6 @@ Fase 3 (hecha): desplegada en Vercel (ver arriba).
 Pendiente:
 - Conectar el repo de GitHub en Vercel (deploy automático — ver arriba).
 - Capturas reales para el carrusel.
-- La política de privacidad no cubre todavía los emails de la lista de espera.
 - Imagen Open Graph propia (hoy usa el ícono).
 - Dominio propio (opcional — hoy la URL pública es `mywallet-blush.vercel.app`).
 

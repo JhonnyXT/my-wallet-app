@@ -17,6 +17,9 @@ export const es = {
     privacy: 'Privacidad',
     notify: 'Avísame',
   },
+  legal: {
+    back: 'Volver',
+  },
   waitlist: {
     label: 'Avísame cuando MyWallet llegue a Google Play',
     placeholder: 'tu@email.com',
@@ -251,7 +254,6 @@ export const es = {
   },
   footer: {
     privacy: 'Política de privacidad',
-    source: 'Código en GitHub',
     support: 'Soporte',
     rights: '© 2026 MyWallet',
   },

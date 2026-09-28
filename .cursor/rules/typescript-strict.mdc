@@ -44,10 +44,25 @@ export const useSettingsStore = create<State>()(
     {
       name: "mywallet-settings",
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (persisted, version) => { /* v0 → v1 … */ return persisted as State; },
     }
   )
 );
 ```
+
+- **Cambios incompatibles del estado persistido = subir `version` + extender `migrate`**, nunca
+  renombrar/quitar un campo a secas: el usuario perdería lo guardado. Referencia: `useSettingsStore`
+  v1 pasa el antiguo `monthlyBudget` a `defaultPeriod.pay` y borra la clave vieja. Cada paso va en
+  un `if (version < N)` para que una instalación muy vieja aplique todos en orden.
+- **Datos persistidos van en tipos que sobreviven a JSON**: `Record<string, number>` con la clave
+  como string (ej. `defaultPeriod.pay` en quincenal, clave = día), fechas como `"YYYY-MM-DD"` o
+  ISO local, nunca `Date`/`Map`.
+- **Leer un store persistido fuera del ciclo de render (HeadlessJS, deep links, capas de
+  arranque) exige esperar la rehidratación**, que es async: `persist.hasHydrated()` +
+  `persist.onFinishHydration()` con un tope de tiempo (si la rehidratación falla, zustand nunca
+  avisa). Referencia: `waitForNotificationStoreHydration()`/`getPendingItemAfterHydration()` en
+  `useNotificationStore.ts`, y `BiometricLockGate.tsx` para `useSettingsStore`.
 
 ### TransactionRow (fuente de verdad del esquema)
 ```typescript

@@ -51,13 +51,12 @@ extenderlos:
   fila, `title` obligatoria. No existe (ni debe reintroducirse) la variante con botón circular
   flotante + `ChevronLeft` + large title duplicado en el body del scroll — se probó y se
   eliminó del componente.
-- **`Card`**: **sin borde** (2026-09-02 — se probó `borderWidth: 1.5` + `border.default`, mismo
-  lenguaje que el pill "Este mes" de `FilterChips`, y se revirtió a pedido explícito del usuario:
-  se veía como un aro blanco/gris alrededor de cada tarjeta en tema oscuro). Se distingue del
-  fondo solo por color de relleno (`surface.secondary` vs `surface.primary`) y esquinas
-  redondeadas. No reintroducir el borde sin que el usuario lo pida de nuevo. Controles inline que
-  no son `Card` (el pill "Este mes" de `FilterChips`, el toggle de `reports.tsx`) sí conservan su
-  borde propio — no confundir ambos casos.
+- **`Card`**: **sin borde** (se probó `borderWidth: 1.5` + `border.default` y se revirtió a
+  pedido explícito del usuario: se veía como un aro blanco/gris alrededor de cada tarjeta en tema
+  oscuro). Se distingue del fondo solo por color de relleno (`surface.secondary` vs
+  `surface.primary`) y esquinas redondeadas. No reintroducir el borde sin que el usuario lo pida
+  de nuevo. Controles inline que no son `Card` (el toggle de `reports.tsx`) sí conservan su borde
+  propio — no confundir ambos casos.
 - **`ListRow`**: el badge de icono es un círculo completo (`radius.full`, 34px), no un cuadrado
   redondeado. **No usar `detail` como subtítulo descriptivo bajo el `label`** en pantallas de
   lista agrupada tipo Ajustes: el texto gris le roba ancho al título y lo trunca (se quitó de
@@ -101,7 +100,8 @@ Referencia: `@/src/components/ui/TransactionItem.tsx`, `@/src/components/ui/Cate
    ```
 3. Usar `useTheme()` + `buildStyles()` + `useMemo`.
 4. Textos de UI en español.
-5. `KeyboardAvoidingView behavior="padding"` en modales con inputs.
+5. `KeyboardAvoidingView behavior="padding"` en pantallas modales con inputs. Dentro de una
+   `BottomSheet` (un `Modal` edge-to-edge) no funciona: ver "Modales de Android" más abajo.
 
 Referencia: `@/app/active-expense.tsx`, `@/app/voice-input.tsx`
 
@@ -135,6 +135,23 @@ más elaborada que la de `BottomSheet` (spring custom, ver `FloatingInput.tsx`),
 componente — replicar el mismo `PanResponder`/umbrales (`CLOSE_DISTANCE`/`CLOSE_VELOCITY`) sobre
 el handle en un `Animated.View` de RN core anidado dentro del wrapper de animación de entrada.
 
+### Modales de Android (`Modal`, `BottomSheet`, menús flotantes)
+
+- **No apilar `Modal`s.** Si un formulario dentro de una hoja necesita sub-selecciones, usar
+  "páginas" internas que reemplazan el contenido (ver `PayPeriodForm.tsx`: estado `page` + header
+  con flecha "Volver"), no otra hoja encima. Para abrir una hoja desde un menú que también es
+  `Modal`, cerrar el menú primero y abrir la hoja con un pequeño retraso (~160ms, ver
+  `app/(tabs)/index.tsx`): abrirla mientras el otro se cierra da saltos.
+- **`Pressable` dentro de un `Modal`: `style` estático, no función.** Con `style={({ pressed }) =>
+  …}` el estilo se perdía y las filas caían a columna. El feedback de toque va con
+  `android_ripple` (ver `PeriodMenu.tsx`, `PayPeriodForm.tsx`).
+- **Teclado:** `KeyboardAvoidingView` no mide bien dentro de un `Modal` edge-to-edge. Escuchar
+  `Keyboard` `keyboardDidShow`/`keyboardDidHide` y aplicar `e.endCoordinates.height` como
+  `paddingBottom` del contenido (ver `DefaultPeriodSheet.tsx`).
+- **Anclar un menú a un botón:** el `Modal` dibuja desde el borde superior de la pantalla, pero
+  `measureInWindow` cuenta desde debajo de la barra de estado. Sumar
+  `StatusBar.currentHeight ?? 0` (solo Android) al `top` calculado (ver `PeriodMenu.tsx`).
+
 ### Calendarios: dibujados a mano, sin librería externa
 
 `CalendarSheet.tsx` (fecha puntual) y `DateRangeSheet.tsx` (rango desde–hasta) son el patrón de
@@ -143,14 +160,25 @@ referencia para cualquier selector de fecha nuevo: grid mensual de 7 columnas ge
 días futuros deshabilitados. No usar `@react-native-community/datetimepicker` para selectores de
 fecha nuevos en pantallas propias de la app (sigue instalado, pero es el picker nativo del SO que
 este patrón reemplazó). Elegir cuál según el caso: una sola fecha con selección-y-cierre inmediato
-→ seguir el patrón de `CalendarSheet`; un rango con confirmación explícita ("Aplicar") y accesos
-rápidos → seguir el patrón de `DateRangeSheet`. En un selector de **rango**, pintar el tramo
+→ seguir el patrón de `CalendarSheet`; un rango con confirmación explícita ("Aplicar") → reusar
+`DateRangeSheet` con el `mode` que corresponda (`"months"`: accesos rápidos 3/6/12 meses y mínimo
+2 meses; `"days"`: cualquier rango, incluso un solo día) antes de crear otro. En un selector de **rango**, pintar el tramo
 seleccionado como una barra/pill continua (un `View` "connector" de posición absoluta detrás de
 cada día en rango, redondeado solo en los extremos reales del rango — inicio/fin, borde de fila al
 cruzar de semana, o celda vecina vacía de otro mes fuera de vista), no como círculos sueltos por
 día — así se lee como una sola franja en vez de celdas independientes. Todo el rango (inicio, fin
 e intermedios) usa el mismo color sólido de acento con texto blanco, sin diferenciar los extremos
-con un tono más oscuro.
+con un tono más oscuro. Los lados no redondeados del connector se extienden 1px (`left: -1` /
+`right: -1`) para solapar con la celda vecina: sin eso queda una rendija vertical entre días.
+
+### Listas que se recalculan: remontar con `key`, no sincronizar índices
+
+Si un componente con scroll/selección interna (ej. `PeriodStrip`) recibe una lista que puede
+cambiar de forma (otra frecuencia, ciclos → años), remontarlo con una `key` derivada de la lista
+(tipo + primer ítem + largo) en vez de guardar el índice seleccionado en un estado aparte: el
+índice llegaba un render tarde y el resaltado quedaba en otra posición. Lo mismo para estado
+derivado de un setting: guardarlo junto al valor del setting con que se calculó y descartarlo en
+el mismo render si cambió (ver `useTransactionFilters.ts`), no resetearlo en un `useEffect`.
 
 ### Swipe pattern (PanResponder)
 
@@ -173,6 +201,8 @@ onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Ma
 
 Usar `RollingNumber` (`@/src/components/ui/RollingNumber.tsx`) para todos los valores numéricos.
 - No puede ir dentro de `<Text>`. Reestructurar como `<View flexDirection="row">`.
+- Efecto ruleta: cada dígito gira siempre hacia adelante (columna con 0-9 ×3), escalonado de
+  izquierda a derecha; respeta `useReducedMotion()`.
 
 > `ActionPills.tsx`, `CustomTabBar.tsx` y `AnimatedNumber.tsx` **ya no existen** en el repo (se
 > eliminaron por no tener importadores). Si aparecen en un ejemplo antiguo, no reintroducirlos:

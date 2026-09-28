@@ -30,14 +30,18 @@ MyWallet es tu aplicación personal de control financiero. Diseñada para ser **
 
 ## 1. Primeros Pasos
 
-Al abrir MyWallet por primera vez, un **tour guiado** te acompañará en los pasos esenciales: configurar tu ingreso mensual, conocer el registro por voz y el registro manual. Puedes seguirlo o saltarlo tocando **"Omitir"** en cualquier momento.
+Al abrir MyWallet por primera vez pasas por 4 pantallas de bienvenida:
+1. **Categorías:** eliges las categorías de gasto e ingreso que usas.
+2. **¿Cuándo y cuánto te pagan?:** eliges cada cuánto te pagan y cuánto (ver [Pago y período](#pago-y-período)). Puedes tocar **"Omitir"**: la app queda en mensual, sin pago configurado, y lo cambias cuando quieras en Configuración.
+3. **Detección automática:** te explica cómo la app puede leer las notificaciones de tu banco.
+4. **Bancos:** eliges de qué bancos detectar movimientos.
+
+Ya en el Dashboard, un **tour guiado** de 3 pasos te muestra el botón de calendario (tus períodos), el registro por voz y el registro manual. Puedes saltarlo tocando **"Omitir"** en cualquier momento.
 
 Si prefieres configurar todo manualmente, sigue estos pasos:
 
-### Paso 1 — Define tu ingreso mensual
-Este es el paso más importante. Sin un presupuesto, las gráficas no muestran alertas ni contexto útil.
-
-En **Configuración → Control financiero → Ingreso mensual**, ingresa cuánto dinero dispones para gastar al mes.
+### Paso 1 — Define cada cuánto y cuánto te pagan
+En **Configuración → Control financiero → Pago y período** eliges la frecuencia de tu pago y el monto. Con eso el Dashboard agrupa tus movimientos por período de pago y te muestra cuánto de tu pago llevas gastado.
 
 > 💡 **Recomendación:** Si no sabes cuánto gastas, empieza por registrar todo durante 2 semanas sin presupuesto. Luego usa los datos reales para definir un presupuesto realista.
 
@@ -64,11 +68,12 @@ Los presupuestos por categoría activan las alertas visuales en la gráfica:
 Es la pantalla que verás al abrir la app. Está organizada en secciones de arriba a abajo:
 
 ### Balance Neto
-- **Número grande:** `Ingresos totales - Gastos totales`, sobre **todo tu historial** — no cambia aunque filtres por mes/año en la gráfica de abajo, es tu plata real en este momento.
-- Si es **positivo** → tenés más de lo que has gastado
-- Si es **negativo** → has gastado más de lo que ha entrado
-- **Durante una búsqueda** es la única excepción: el número pasa a mostrar el neto de los resultados encontrados (la etiqueta cambia a "BÚSQUEDA · N resultados" para que quede claro que no es tu balance total).
-- Los pills "↓ Gastos / ↑ Ingresos" de abajo sí muestran el total **del período que estés viendo** — son cosas distintas a propósito: el Balance Neto es "cuánta plata tenés", los pills son "cuánto gastaste/ingresaste este mes".
+- **Número grande:** `Ingresos − Gastos` **del período que estés viendo** (el mes, la quincena, el año o el rango que elijas con el botón de calendario).
+- Si es **positivo** → en ese período entró más de lo que gastaste
+- Si es **negativo** → en ese período gastaste más de lo que entró
+- **Saldo total:** debajo del número, tu plata real sobre **todo tu historial**, para no perderla de vista mientras miras otro período. No aparece en la vista "Todo el tiempo", porque ahí coincide con el número grande.
+- **Patrimonio neto:** si tienes deudas activas, al lado del saldo total aparece tu saldo menos lo que aún debes.
+- **Durante una búsqueda** el número pasa a mostrar el neto de los resultados encontrados (la etiqueta cambia a "BÚSQUEDA · N resultados") y se ocultan el saldo total y el patrimonio neto.
 
 ### Pills de tipo (↓ Gastos / ↑ Ingresos)
 - **Sin selección (por defecto):** La lista y la gráfica muestran todos los movimientos
@@ -76,33 +81,32 @@ Es la pantalla que verás al abrir la app. Está organizada en secciones de arri
 - **Toca Ingresos (↑):** Filtra todo para ver solo tus ingresos. El pill se activa en **verde suave**
 - **Vuelve a tocar el pill activo:** Desactiva el filtro y regresa a la vista completa
 
-### Barra de progreso del presupuesto
-Solo visible si tienes un presupuesto mensual configurado.
-- Muestra `X% de $monto_presupuesto` (porcentaje del presupuesto mensual consumido)
-- Se pone **roja** cuando superas el 90% del presupuesto
+### Barra de tu pago
+Visible si configuraste cuánto te pagan (Configuración → Pago y período) y estás viendo un período de pago (no un año ni un rango).
+- Muestra `X% de $pago · recibido $Y`: cuánto de tu pago esperado llevas gastado en ese período, y al lado cuánto te ha entrado de verdad.
+- Si gastas más que tu pago, arriba del balance aparece el aviso **"$X sobre tu pago"**.
+- Se oculta mientras buscas o filtras por gastos/ingresos.
 
-### Filtro de período
-- **Chip de período** (ej: "Este mes") → toca para ver las opciones:
-  - Hoy / Esta semana / Esta quincena / Este mes / Este año / Todo
-  - **📅 Elegir mes específico...** → abre el selector de mes/año
-- El chip muestra la etiqueta dinámica del período activo: "Este mes", "Abr 2025", "2025", etc.
+### Períodos: el botón de calendario
+Arriba a la derecha, junto a la campana, está el botón de **calendario**:
+- **Tócalo** para mostrar u ocultar la **tira de períodos**: una fila deslizable con tus meses (o semanas, quincenas… según cada cuánto te pagan), cada uno con su neto. Desliza y suelta: el período que queda al centro es el que ves. Hay un período de más hacia adelante para que veas lo que viene.
+- **Mantenlo presionado** para abrir el menú:
+  - **Mes / Semana / 2 semanas / Quincena** (según tu frecuencia): vuelve a los períodos de pago.
+  - **Año:** la tira pasa a mostrar años.
+  - **Todo el tiempo:** todo tu historial junto.
+  - **Rango personalizado…:** abre un calendario; toca el día de inicio y el de fin (o un solo día) y **Aplicar**.
+  - **Restablecer predeterminado:** vuelve al período actual (solo aparece si estás viendo otro).
+  - **Pago y período:** cambia cada cuánto y cuánto te pagan.
+- Cuando no estás en el período actual, el botón muestra un **punto rojo** y una **"x"** al lado: tócala para volver al período actual. Con la tira oculta, debajo aparece el nombre del período que estás viendo; tócalo para volver a mostrar la tira.
 
-### Selector de mes/año
-Al tocar **"📅 Elegir mes específico..."** se abre un panel donde puedes:
-1. Seleccionar el **año** con las pills (2025, 2024, 2023…) o "Todo el tiempo" para quitar el filtro
-2. Tocar el **mes** que quieres ver — debajo de cada mes aparece el total de gastos de ese período
-3. Los **meses futuros** aparecen deshabilitados
-4. Toca **✓ Aplicar** para confirmar — el chip del Dashboard mostrará "Abr 2025" o "2025"
-5. La **X** cierra sin aplicar cambios
-
-> Una vez aplicado, la gráfica de categorías, la lista de transacciones y el balance reflejan exactamente el mes elegido.
+> La gráfica de categorías, la lista, el balance y los pills reflejan exactamente el período elegido.
 
 ### Gráfica de categorías
 Ver sección detallada en [punto 6](#6-gráfica-de-categorías).
 
 ### Período sin transacciones
 Cuando no hay movimientos en el período seleccionado:
-- **Período actual (mes en curso):** aparecen barras fantasma suaves con un mensaje motivacional centrado: *"Nuevo mes, ¡comienza ahora!"*
+- **Período en curso:** aparecen barras fantasma suaves con un mensaje motivacional centrado: *"Nuevo mes, ¡comienza ahora!"* (o "Nueva semana", "Nuevo período", "Nuevo año", según lo que estés viendo)
 - **Período pasado:** se muestra *"Sin registros en este período"*
 
 ### Lista de transacciones recientes
@@ -340,7 +344,7 @@ Toca el ícono de **lupa (🔍)** en el dock flotante. Una barra de búsqueda ap
 - El label cambia a "BÚSQUEDA · N resultados"
 - Para cerrar la búsqueda: toca el botón **✗** circular al final de la barra
 
-> 💡 La búsqueda funciona sobre el período y tipo actualmente seleccionados. Si tienes activo "Este mes", busca solo dentro de este mes.
+> 💡 La búsqueda funciona sobre el período y tipo actualmente seleccionados. Si estás viendo el mes actual, busca solo dentro de ese mes.
 
 ---
 
@@ -348,17 +352,27 @@ Toca el ícono de **lupa (🔍)** en el dock flotante. Una barra de búsqueda ap
 
 Accede tocando ⚙️ en la esquina superior derecha del Dashboard.
 
-La pantalla está organizada en secciones, en este orden: **Control financiero** (Ingreso
-mensual) → **Gestión** (Categorías, Métodos de pago, Presupuesto por categoría, Metas de
-ahorro, Deudas) → **Detección automática** → **Sistema** (Modo oscuro, Exportar datos,
-Borrar historial, Versión).
+La pantalla está organizada en secciones, en este orden: **Control financiero** (Pago y
+período) → **Gestión** (Categorías, Métodos de pago, Presupuesto por categoría, Metas de
+ahorro, Deudas) → **Detección automática** → **Sistema** (Modo oscuro, Bloqueo con huella,
+Exportar datos, Borrar historial, Versión).
 
 ### Control Financiero
-Opciones visibles directamente en la pantalla de ajustes (en este orden):
 
-| Opción | Descripción |
-|--------|-------------|
-| Ingreso mensual | Cuánto dinero tienes disponible para gastar al mes. `0` = sin presupuesto configurado. |
+#### Pago y período
+Define **cada cuánto te pagan** y **cuánto**. También se abre desde el Dashboard (mantén presionado el botón de calendario → "Pago y período").
+
+- **Frecuencia:**
+  - **Semanal** — períodos de 7 días; eliges el día en que empieza la semana.
+  - **Cada 2 semanas** — períodos de 14 días; eliges el día de inicio de la semana y si el período actual empezó esta semana o la pasada.
+  - **Varias veces al mes** — por ejemplo quincenal: tocas los días en que te pagan (mínimo 2, del 1 al 28); cada uno empieza un período.
+  - **Mensual** — por defecto empieza el día 1; con **"Añadir desfase de inicio de mes"** eliges otro día (del 1 al 28), por ejemplo el día que te pagan.
+  - **Todo el tiempo** — sin cortes: todo tu historial junto (el calendario navega por meses).
+- **¿Cuánto te pagan?** — el monto que recibes en cada período (en "Varias veces al mes", uno por cada día de pago). Se compara con lo que gastas en la barra del Dashboard. Si lo dejas vacío, no hay barra.
+- Arriba ves una **vista previa** con tus períodos reales según la frecuencia elegida.
+- Toca **Aplicar** para guardar. Cerrar la hoja sin aplicar descarta los cambios.
+
+> ℹ️ Si usas **Mensual con desfase**, tus presupuestos por categoría también se miden de ese día al anterior del mes siguiente (ej. del 15 al 14). Con cualquier otra frecuencia, los presupuestos por categoría siguen siendo por mes calendario.
 
 ### Métodos de pago *(abre modal de pantalla completa)*
 Toca la tarjeta "Métodos de pago" para abrir el panel de gestión:
@@ -397,7 +411,7 @@ Toca la fila "Deudas" (dentro de Gestión) para abrir el panel:
 
 > ℹ️ Al pagar una deuda, se registra automáticamente como **gasto** en el Dashboard (con el emoji de la deuda, descripción "Pago de [nombre]" y tag `#deuda`). Esto descuenta el dinero de tu balance disponible.
 
-> 💡 Si tienes deudas activas, el Dashboard muestra una línea adicional **"Patrimonio neto"** bajo el balance neto: tu balance disponible menos el saldo pendiente de todas tus deudas.
+> 💡 Si tienes deudas activas, el Dashboard muestra **"Patrimonio neto"** bajo el balance neto: tu saldo total menos el saldo pendiente de todas tus deudas.
 
 ### Alertas de presupuesto *(nuevo)*
 
@@ -430,7 +444,7 @@ Bancolombia, Nequi, Davivienda, DaviPlata, BBVA, Banco de Occidente, Banco Popul
 Puedes elegir **solo algunos bancos** tocando la opción "Bancos activos". Si no seleccionas ninguno, se usarán todos.
 
 **¿Cómo funciona la revisión?**
-Cuando se detecta una transacción, aparece un **badge rojo 🔔** sobre el ícono de configuración en el Dashboard, y además recibes una notificación push (si activaste el permiso).
+Cuando se detecta una transacción, aparece un **badge rojo 🔔** sobre el ícono de configuración en el Dashboard, y además recibes una notificación push (si activaste el permiso). Recibes **una sola** notificación por transacción, aunque tu banco la envíe dos veces. El texto muestra el comercio o la persona y el monto (ej. *"Compra en APPLE.COM/BILL · $ 12.900"*, *"Recibiste de Juan Pérez · $ 80.000"*); la referencia a tu tarjeta ("terminada en 1234") nunca se muestra ni se guarda.
 
 - **Si es la única transacción pendiente**, tocar la notificación push te lleva **directo al formulario** ("Nuevo Gasto"/"Nuevo Ingreso") con el monto, la categoría y la fecha real de detección ya cargados — solo revisa y toca **✓** para guardar. Cerrar sin guardar no la descarta: sigue disponible en el badge 🔔.
 - **Si hay más de una pendiente**, la notificación te lleva a la pantalla de revisión (o tocá el badge 🔔 en cualquier momento para verlas todas):
@@ -453,6 +467,7 @@ Algunos fabricantes (Samsung, Xiaomi, Huawei...) detienen apps en segundo plano 
 | Opción | Qué hace |
 |--------|---------|
 | Modo oscuro | Sistema (sigue el tema del dispositivo) / Claro / Oscuro — se aplica en **todas las pantallas** de la app |
+| Bloqueo con huella | Al activarlo, la app pide tu huella, rostro o PIN del teléfono cada vez que la abres o vuelves a ella. Activarlo y desactivarlo también piden confirmar tu identidad. Si tu teléfono no tiene huella, rostro ni PIN configurados, no se puede activar (la app te avisa) |
 | Exportar datos | Genera un CSV con todas tus transacciones (id, fecha, tipo, descripción, categoría, monto, método de pago, tags) y abre el diálogo nativo del sistema para compartirlo (email, WhatsApp, Drive, copiar, etc.) |
 | Borrar historial de transacciones | ⚠️ **Acción irreversible.** Elimina todos los registros de ingresos y gastos. Tu configuración (categorías, presupuestos, metas) se conserva intacta. Muestra un diálogo de confirmación antes de proceder |
 | Versión | Solo informativa — la versión instalada de la app |
@@ -571,7 +586,7 @@ No. Cuando no tienes un presupuesto configurado para esa categoría, la barra se
 Toca (tap corto) sobre cualquier columna de la gráfica. La gráfica se ocultará y la lista mostrará solo los movimientos de esa categoría, con un chip arriba indicando cuál está activa. Para volver a la vista normal, toca el botón **Atrás** del dispositivo o **desliza la lista hacia abajo** desde el tope.
 
 ### ¿Cómo veo los gastos de un mes anterior (por ejemplo, enero)?
-Toca el chip de período (ej: "Este mes") → al fondo de la lista toca **"📅 Elegir mes específico..."** → selecciona el año y luego el mes → toca **✓ Aplicar**. Toda la pantalla (balance, gráfica y lista) se actualiza para mostrar solo ese período.
+Toca el botón de **calendario** del Dashboard para mostrar la tira de períodos y desliza hacia atrás hasta enero (la tira llega hasta tu primer movimiento, aunque sea de otro año). También puedes mantener presionado el calendario → **Rango personalizado…** y elegir del 1 al 31 de enero. Toda la pantalla (balance, gráfica y lista) se actualiza para mostrar solo ese período; toca la **"x"** junto al calendario para volver al período actual.
 
 ### ¿Cómo activo el modo oscuro?
 Ve a **Configuración → Sistema → Modo oscuro** y selecciona la opción que prefieras:
@@ -588,7 +603,7 @@ Sí. Cuando dices el monto en palabras (ej: "cinco millones cuatrocientos mil"),
 No hay límite técnico. La base de datos SQLite puede manejar millones de registros sin problema.
 
 ### ¿Qué es el tour inicial?
-La primera vez que abres MyWallet aparece un **tour guiado** de 5 pasos con un spotlight que resalta elementos clave de la pantalla. Te lleva a configurar tu ingreso mensual, te muestra el registro por voz (micrófono) y el registro manual (botón +). Si no quieres seguirlo, toca **"Omitir"** en cualquier paso. El tour no vuelve a aparecer una vez completado o saltado.
+La primera vez que llegas al Dashboard aparece un **tour guiado** de 3 pasos con un spotlight que resalta elementos clave de la pantalla: el botón de calendario (tus períodos), el registro por voz (micrófono) y el registro manual (botón +). Cada cuánto y cuánto te pagan se configura antes, en las pantallas de bienvenida. Si no quieres seguirlo, toca **"Omitir"** en cualquier paso. El tour no vuelve a aparecer una vez completado o saltado.
 
 ### ¿Cómo veo el detalle de una transacción?
 Toca (tap) cualquier registro en la lista de transacciones. Se abrirá una tarjeta con toda la información: emoji de categoría, monto, tipo (Gasto/Ingreso), cuenta (método de pago), fecha, hora y descripción. Toca fuera de la tarjeta para cerrarla. Si el item está con el swipe de eliminar abierto, el primer tap cierra el swipe.
@@ -612,11 +627,11 @@ Al hacer un gasto/ingreso:
 
 Una vez por semana:
   1. Revisa la gráfica del Dashboard — ¿alguna categoría en ámbar o rojo?
-  2. Filtra por "Esta semana" para ver solo los movimientos recientes
+  2. Desliza la tira de períodos (botón de calendario) para comparar con períodos anteriores
   3. Ajusta tus hábitos si es necesario
 
 Una vez al mes:
-  1. Revisa el presupuesto general (barra de progreso en el Dashboard)
+  1. Revisa cuánto de tu pago llevas gastado (barra de pago en el Dashboard)
   2. Exporta tus datos como backup (Configuración → Exportar)
   3. Ajusta los presupuestos por categoría según el mes anterior
 ```
@@ -629,8 +644,11 @@ Una vez al mes:
 |---------|-------------|
 | **Gasto** | Dinero que sale de tu bolsillo. Monto positivo en la base de datos |
 | **Ingreso** | Dinero que entra (salario, freelance, etc.). Monto negativo en la base de datos |
-| **Balance Neto** | Ingresos − Gastos de todo tu historial (no cambia con el período que estés filtrando) |
-| **Período** | Ventana de tiempo para filtrar: Hoy, Esta semana, Este mes, un mes/año específico, etc. |
+| **Balance Neto** | Ingresos − Gastos del período que estés viendo en el Dashboard |
+| **Saldo total** | Ingresos − Gastos de todo tu historial. Aparece bajo el balance neto |
+| **Período** | Ventana de tiempo que muestra el Dashboard: un período de pago (semana, quincena, mes…), un año, todo el tiempo o un rango de fechas |
+| **Pago y período** | Ajuste de cada cuánto y cuánto te pagan. Define cómo se agrupan tus movimientos y el pago con el que se compara tu gasto |
+| **Tira de períodos** | Fila deslizable bajo los íconos del Dashboard con tus períodos y el neto de cada uno. Se muestra/oculta tocando el botón de calendario |
 | **NLP** | Procesamiento de Lenguaje Natural — la tecnología que entiende tu texto libre |
 | **Tag** | Etiqueta personalizada para organizar transacciones (ej: `#viaje`, `#trabajo`) |
 | **Presupuesto por categoría** | Límite de gasto mensual para una categoría específica. Activa alertas en la gráfica |
@@ -640,13 +658,12 @@ Una vez al mes:
 | **Swipe-to-delete** | Deslizar una transacción del Dashboard hacia la izquierda para revelar el botón de eliminar. Metas de ahorro y deudas usan en cambio íconos ✏️/🗑️ explícitos en la tarjeta, no swipe |
 | **Swipe-to-edit** | Deslizar una transacción del Dashboard hacia la **derecha** para revelar el botón azul de editar (ícono de lápiz) y abrir el formulario prellenado |
 | **Deuda** | Registro de una deuda (tarjeta de crédito, préstamo, etc.) con monto total, saldo pendiente, cuota mensual y día de pago recurrente. Se gestiona en Ajustes → Deudas |
-| **Patrimonio neto** | Balance neto menos el saldo pendiente de todas tus deudas activas. Aparece bajo el balance en el Dashboard solo si tienes deudas registradas |
+| **Patrimonio neto** | Saldo total menos el saldo pendiente de todas tus deudas activas. Aparece bajo el balance en el Dashboard solo si tienes deudas registradas |
 | **Filtro por categoría** | Tap corto en una columna del CategoryChart filtra la lista a solo esa categoría. Se limpia con el botón Atrás del dispositivo o con un pull-down (deslizar la lista hacia abajo desde el tope) |
 | **Pull-down para limpiar filtro** | Gesto de deslizar la lista hacia abajo desde su posición inicial. NO recarga datos (no muestra spinner) — solo limpia el filtro de categoría activo |
 | **Ghost bar** | Línea fantasma punteada que aparece detrás del fill de una columna **con presupuesto** marcando el límite. Si te pasas del 100%, sigue indicando exactamente dónde estaba el presupuesto dentro de la barra excedida |
-| **Selector de mes/año** | Modal con grid de meses que permite filtrar el Dashboard a un período específico |
 | **Diálogo de confirmación** | Ventana emergente minimalista con icono, título y botones (reemplaza las alertas nativas del sistema) |
-| **Estado draft** | Cambios pendientes en el selector de mes que solo se aplican al confirmar con "Aplicar" |
+| **Bloqueo con huella** | Ajuste que pide huella, rostro o PIN del teléfono al abrir la app o volver a ella |
 | **Detalle de transacción** | Tarjeta modal que aparece al hacer tap en un registro, mostrando información completa (categoría, monto, tipo, cuenta, fecha, hora, descripción, tags) |
 | **Guided Tour / Onboarding** | Tour guiado de 5 pasos que aparece la primera vez que abres la app. Te muestra cómo configurar tu ingreso y registrar transacciones |
 || **Notificación del sistema (push)** | Alerta en la barra de notificaciones del teléfono. MyWallet la usa para: alertas de presupuesto (umbral configurable + 100%), metas de ahorro cumplidas y transacciones bancarias detectadas (con deep link a la pantalla de revisión) |

@@ -27,6 +27,9 @@ Referencia: `@/src/utils/formatMoney.ts`
 ### Fechas locales
 Usar SIEMPRE `localISOString()` de `@/src/db/db.ts` para generar fechas.
 NUNCA usar `toISOString()` ni `new Date().toJSON()` — generan UTC y causan desfase de zona horaria.
+Para fechas de día sin hora (ciclos, rangos, claves de período) usar `toYMD()`/`parseYMD()` de
+`@/src/utils/periodCycles.ts` (`"YYYY-MM-DD"` local), y para rangos/ciclos reusar sus helpers
+(`viewRange`, `cycleAtOffset`, `budgetCycle`, `filterByRange`) en vez de recalcular fechas a mano.
 
 ### Categorías dinámicas
 Consultar siempre `userCategories` del `useSettingsStore` antes de usar mapas legacy como fallback.

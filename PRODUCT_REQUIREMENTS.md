@@ -23,19 +23,20 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
-| Balance Neto | Tipografía grande: `Ingresos - Gastos` sobre **todo el historial** (no el período/mes filtrado en la gráfica) — excepto durante una búsqueda, donde muestra el neto de los resultados encontrados | ✅ Implementado |
+| Balance Neto | Tipografía grande: `Ingresos - Gastos` **del período visto** — durante una búsqueda, el neto de los resultados encontrados | ✅ Implementado |
+| Saldo total | Línea bajo el balance: `Ingresos - Gastos` de todo el historial (oculta en la vista "Todo el tiempo" y durante una búsqueda) | ✅ Implementado |
 | Pills Gastos/Ingresos | Filtran toda la vista por tipo (rojo suave / verde suave) | ✅ Implementado |
-| Barra de Presupuesto | Progreso del gasto vs presupuesto mensual | ✅ Implementado |
-| Estado "período vacío" | Si no hay transacciones en el período actual: barras fantasma (opacity 0.18) + "Nuevo mes, ¡comienza ahora!". Período pasado sin datos: "Sin registros en este período" | ✅ Implementado |
-| Filtro de período | Un solo chip: período rápido (Hoy/Semana/Quincena/Mes/Año/Todo) + "Elegir mes específico" | ✅ Implementado |
-| Selector de mes/año | Modal con grid de meses, montos por mes, pills de año | ✅ Implementado |
+| Barra de pago | En vistas de período de pago con pago configurado: "X% de $pago · recibido $Y" (gasto del período vs pago esperado, más lo recibido). Aviso "$X sobre tu pago" si el gasto supera el pago | ✅ Implementado |
+| Estado "período vacío" | Si no hay transacciones en el período en curso: barras fantasma (opacity 0.18) + "Nuevo mes/Nueva semana/Nuevo período/Nuevo año, ¡comienza ahora!". Período pasado sin datos: "Sin registros en este período" | ✅ Implementado |
+| Botón de calendario (períodos) | Toque = mostrar/ocultar la tira deslizable de períodos (ciclos de pago o años, cada uno con su neto); toque largo = menú (ciclo / Año / Todo el tiempo / Rango personalizado… / Restablecer predeterminado / Pago y período). Vista no predeterminada: punto rojo + "x" para restablecer | ✅ Implementado |
+| Rango personalizado | Calendario de rango (`DateRangeSheet` modo días): cualquier rango, incluso un solo día | ✅ Implementado |
 | Gráfica de Categorías | Barras verticales con scroll horizontal, ghost tracks, alertas por color | ✅ Implementado |
 | Lista de Transacciones | `FlatList` con items tipo tarjeta (fondo blanco + sombra en modo claro), swipe izquierda elimina (con confirmación), swipe derecha edita | ✅ Implementado |
-| Patrimonio neto | Línea bajo el balance neto (`netBalance - totalDebt`), solo visible si hay deudas activas registradas en Ajustes → Deudas | ✅ Implementado |
+| Patrimonio neto | Junto al saldo total (`allTimeNetBalance - totalDebt`), solo visible si hay deudas activas registradas en Ajustes → Deudas | ✅ Implementado |
 | Dock Flotante | FAB micrófono, botón +, lupa, gráfica (→ `/reports`) — reemplaza tab bar | ✅ Implementado |
 | Detalle de transacción | Modal centrado estilo Stitch al hacer **tap** en un item: emoji, monto, categoría, tipo, cuenta, fecha, hora (12h), descripción, tags | ✅ Implementado |
 | Animación scroll de gráfica | Las barras se comprimen progresivamente al hacer scroll (Reanimated `interpolate`). Las etiquetas hacen crossfade de vertical a horizontal compacto. Gráfica y lista en scroll unificado (`FlatList` + `ListHeaderComponent`) | ✅ Implementado |
-| Odómetro de valores | `RollingNumber`: cada dígito tiene su columna 0-9 animada con Reanimated. Separadores de miles COP con fade-in/out. Usado en Balance neto + Pills de gastos/ingresos | ✅ Implementado |
+| Odómetro de valores | `RollingNumber`: efecto ruleta, cada dígito gira siempre hacia adelante, escalonado de izquierda a derecha (respeta "reducir movimiento"). Separadores de miles COP con fade-in/out. Usado en Balance neto + Pills de gastos/ingresos | ✅ Implementado |
 
 ### 2.2 Nuevo Gasto / Nuevo Ingreso (Modal)
 
@@ -66,16 +67,17 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
-| Ingreso mensual | Cuánto dinero se tiene disponible al mes para gastar. 0 = sin presupuesto | ✅ Implementado |
+| Pago y período | Frecuencia del pago (semanal, cada 2 semanas, varias veces al mes, mensual con día de inicio, todo el tiempo) y pago esperado por período (uno por día de pago en "varias veces al mes"). Define los períodos del Dashboard y la barra de pago. Reemplaza "Ingreso mensual" (el valor anterior se migra como pago mensual) | ✅ Implementado |
 | Métodos de pago | Agregar/editar/eliminar (modal full-screen) | ✅ Implementado |
 | Presupuesto por categoría | Límite por cada categoría de gasto del usuario (modal full-screen) | ✅ Implementado |
 | Metas de ahorro | Crear/editar/abonar/eliminar metas (modal full-screen); editar/eliminar con íconos explícitos ✏️/🗑️, ya no swipe-to-delete. Al abonar se crea transacción de gasto automáticamente (con emoji de la meta, tag #ahorro) | ✅ Implementado |
 | Deudas *(nuevo)* | Crear/editar/pagar/eliminar deudas (modal full-screen): nombre, emoji, monto total, cuota mensual, día de pago recurrente. Al pagar se crea transacción de gasto automáticamente (tag #deuda) y se reduce el saldo pendiente. Recordatorio push mensual en el día de pago; notificación al liquidar la deuda | ✅ Implementado |
 | Modo oscuro | Sistema / Claro / Oscuro (dark mode completo) — fila dentro de la sección "Sistema" | ✅ Implementado |
+| Bloqueo con huella | Pide huella/rostro/PIN del sistema al abrir la app y al volver de background; activar y desactivar requieren autenticarse. Sin biometría ni PIN configurados no se puede activar | ✅ Implementado |
 | Exportar datos | CSV con columnas id/fecha/tipo/descripcion/categoria/monto/metodo_pago/tags. Compartido con `Share` nativo de React Native (sin módulos externos) | ✅ Implementado |
 | Limpiar datos | Elimina todas las transacciones (con confirmación vía diálogo custom animado) | ✅ Implementado |
 | Diseño Material (2026-08-17) | Header con flecha llana + título inline (reemplaza el header estilo iOS con botón circular flotante), íconos de fila circulares, secciones reordenadas (Control financiero → Gestión → Detección automática → Sistema) | ✅ Implementado |
-| Sección "Sistema" fusionada (2026-09-02) | Las secciones antes independientes Apariencia (Modo oscuro), Sistema (Exportar/Borrar) y Acerca de (Versión) se unieron en una sola sección "Sistema" con las 4 filas juntas | ✅ Implementado |
+| Sección "Sistema" fusionada (2026-09-02) | Las secciones antes independientes Apariencia (Modo oscuro), Sistema (Exportar/Borrar) y Acerca de (Versión) se unieron en una sola sección "Sistema" (hoy: Modo oscuro, Bloqueo con huella, Exportar datos, Borrar historial, Versión) | ✅ Implementado |
 | Tarjetas sin borde (2026-09-02) | `Card` perdió el `borderWidth` que había ganado en el rediseño Material — se distingue del fondo solo por color de relleno | ✅ Implementado |
 
 ### 2.7 Sistema de Notificaciones (dos capas)
@@ -86,9 +88,10 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 |---------|-------------|--------|
 | Servicio | `src/services/notificationService.ts` — `requestNotificationPermissions`, `checkAndNotifyBudget`, `checkAndNotifyGoalCompleted`, `scheduleDebtReminder`/`cancelDebtReminder`/`notifyDebtPaidOff` *(deudas, nuevo)* | ✅ Implementado |
 | Permiso | Se solicita la primera vez que el usuario configura un presupuesto por categoría (vía `ConfirmDialog` previo) | ✅ Implementado |
-| Anti-duplicación presupuesto | `budgetNotifiedMonth: Record<string, string>` en `useSettingsStore` — una sola notificación por categoría por mes | ✅ Implementado |
+| Anti-duplicación presupuesto | `budgetNotifiedMonth: Record<string, string>` en `useSettingsStore` — hasta dos notificaciones por categoría (umbral y 100%) por ciclo de presupuesto (mes calendario, o desde el día de inicio si la frecuencia es mensual con desfase) | ✅ Implementado |
+| Anti-duplicación transacción detectada | Una sola push por transacción aunque Android entregue la notificación del banco dos veces (`addPendingItem` → `isNew`, e `identifier` único por ítem) | ✅ Implementado |
 | Anti-duplicación metas | `goalNotifiedIds: string[]` en `useSettingsStore` — una sola notificación por meta | ✅ Implementado |
-| Limpieza automática | `clearExpiredBudgetNotifications()` se ejecuta en el bootstrap de la app (`app/_layout.tsx`) para limpiar flags de meses anteriores | ✅ Implementado |
+| Limpieza automática | `clearExpiredBudgetNotifications()` se ejecuta en el bootstrap de la app (`app/_layout.tsx`) para limpiar flags de ciclos anteriores | ✅ Implementado |
 | Recordatorio de deudas *(nuevo)* | `scheduleDebtReminder()` usa un trigger `MONTHLY` nativo de `expo-notifications` (primer trigger programado por fecha del proyecto, todo lo demás es disparo inmediato) — dispara en el `dueDay` de la deuda a las 9am; se cancela solo al liquidar la deuda | ✅ Implementado |
 
 #### Capa 2 — Banners in-app
@@ -100,27 +103,25 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
 | Componente | `GuidedTour.tsx` — overlay reutilizable con spotlight paso a paso, cutout circular y tooltip animado | ✅ Implementado |
-| Registro de refs | `tourRefs.ts` — registro global de refs (`getTourRef`, `TOUR_KEYS`) para localizar targets entre pantallas | ✅ Implementado |
-| Paso 1 (Dashboard) | Spotlight en ⚙️ botón de ajustes → "¡Bienvenido! Configura tu ingreso mensual" | ✅ Implementado |
-| Paso 2 (Settings) | Spotlight en fila "Ingreso mensual" → "Ingresa cuánto ganas al mes" | ✅ Implementado |
-| Paso 3 (Settings) | Tras guardar, spotlight en ← botón volver → "¡Listo! Vuelve al inicio" | ✅ Implementado |
-| Paso 4 (Dashboard) | Spotlight en FAB micrófono → "Registra gastos con tu voz" | ✅ Implementado |
-| Paso 5 (Dashboard) | Spotlight en botón + → "También puedes registrar manualmente" | ✅ Implementado |
+| Registro de refs | `tourRefs.ts` — registro global de refs (`getTourRef`, `TOUR_KEYS`) para localizar targets | ✅ Implementado |
+| Pantallas de bienvenida | 4 pasos: categorías → "¿Cuándo y cuánto te pagan?" (`pay-onboarding`, omitible) → detección automática → bancos | ✅ Implementado |
+| Paso 1 (Dashboard) | Spotlight en el botón de calendario → "¡Bienvenido a MyWallet!": tocarlo muestra los períodos, mantenerlo abre año/rango/pago | ✅ Implementado |
+| Paso 2 (Dashboard) | Spotlight en FAB micrófono → "Registro por voz" | ✅ Implementado |
+| Paso 3 (Dashboard) | Spotlight en botón + → "Registro manual" | ✅ Implementado |
+| Tour en Ajustes | Eliminado: el pago se configura en las pantallas de bienvenida, ya no con un desvío del tour a "Ingreso mensual" | — |
 | Persistencia | `hasCompletedOnboarding` + `onboardingStep` en AsyncStorage. Se puede saltar en cualquier paso con "Omitir" | ✅ Implementado |
 
-### 2.5 Selector de Mes/Año (`MonthPickerModal`)
+### 2.5 Períodos del Dashboard
 
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
-| Acceso | Chip de período → "Elegir mes específico..." al fondo del sheet | ✅ Implementado |
-| Pills de año | Dinámicos desde el año de la primera transacción hasta el actual | ✅ Implementado |
-| "Todo el tiempo" | Limpia el filtro personalizado y regresa a la vista sin restricción de fecha | ✅ Implementado |
-| Grid de meses | 3 columnas × 4 filas (Ene–Dic) con monto compacto del período debajo | ✅ Implementado |
-| Mes seleccionado | Fondo azul claro `#DBEAFE`, texto `#1D4ED8` | ✅ Implementado |
-| Meses futuros | Deshabilitados (opacidad 0.3) | ✅ Implementado |
-| Estado draft | Cambios solo se aplican al tocar "Aplicar"; X descarta sin cambiar | ✅ Implementado |
-| Efecto en Dashboard | Gráfica + lista + balance reflejan el período elegido | ✅ Implementado |
-| Chip activo | Muestra "Abr 2025", "2025" o el período normal según selección | ✅ Implementado |
+| Frecuencia predeterminada | Semanal, cada 2 semanas, varias veces al mes (días 1–28), mensual con día de inicio (1–28) o todo el tiempo; se elige en "Pago y período" (Ajustes, menú del calendario u onboarding) | ✅ Implementado |
+| Tira de períodos | Fila deslizable de ciclos (o años) desde el primer movimiento hasta el actual + 1 futuro, cada uno con su neto; el ítem centrado es el seleccionado, con tick háptico al cruzar | ✅ Implementado |
+| Menú del calendario | Toque largo: ciclo / Año / Todo el tiempo / Rango personalizado… / Restablecer predeterminado / Pago y período | ✅ Implementado |
+| Vista no predeterminada | Punto rojo en el botón + "x" para restablecer; chip con el nombre del período cuando la tira está oculta | ✅ Implementado |
+| Efecto en Dashboard | Gráfica + lista + balance + pills reflejan el período elegido; el saldo total siempre cubre todo el historial | ✅ Implementado |
+| Presupuesto por categoría | Se mide por mes calendario, o desde el día de inicio si la frecuencia es mensual con desfase | ✅ Implementado |
+| *Selector de mes/año (`MonthPickerModal`) y chip "Este mes" (`FilterChips`)* | *Reemplazados por la tira y el menú del calendario* | Eliminado |
 
 ### 2.6 Gráfica de Categorías (Interacciones Avanzadas)
 
@@ -158,14 +159,17 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | ID | Historia | Estado |
 |----|---------|--------|
-| HU 2.1 | Como usuario, quiero ver mi balance neto (ingresos - gastos) con tipografía grande y clara, siempre sobre todo mi historial (no solo el mes que esté filtrando en la gráfica) | ✅ |
-| HU 2.2 | Como usuario, quiero una barra de progreso que compare mis gastos con mi presupuesto mensual | ✅ |
-| HU 2.3 | Como usuario, quiero filtrar por período (hoy, semana, mes, año, todo, o mes/año específico) | ✅ |
+| HU 2.1 | Como usuario, quiero ver el balance neto (ingresos - gastos) del período que estoy mirando con tipografía grande y clara, y debajo mi saldo total de todo el historial para no perder de vista cuánta plata tengo | ✅ *(modificada en 61957c1: antes el número grande era el saldo de todo el historial)* |
+| HU 2.2 | Como usuario, quiero una barra que compare lo que llevo gastado en el período con lo que espero que me paguen en ese período, y ver cuánto me ha entrado de verdad | ✅ *(modificada: antes comparaba contra un presupuesto mensual fijo)* |
+| HU 2.3 | Como usuario, quiero moverme entre mis períodos (ciclos de pago o años) deslizando una tira, o ver todo el tiempo o un rango de fechas a mi elección | ✅ *(modificada: reemplaza el chip de período rápido + selector de mes/año)* |
 | HU 2.4 | Como usuario, quiero una gráfica de barras que muestre cuánto gasté en cada categoría con alertas visuales | ✅ |
 | HU 2.5 | Como usuario, quiero filtrar la vista completa (gráfica + lista) tocando los pills de Gastos o Ingresos | ✅ |
 | HU 2.6 | Como usuario, quiero configurar presupuestos por categoría y ver alertas cuando me acerque al límite | ✅ |
 | HU 2.7 | Como usuario, quiero dejar presionada una columna de la gráfica para editar su presupuesto (o agregarlo si no existe) o crear una transacción en esa categoría | ✅ |
-| HU 2.8 | Como usuario, quiero seleccionar un mes y año específico para ver los movimientos y la gráfica de ese período | ✅ |
+| HU 2.8 | Como usuario, quiero seleccionar un mes y año específico para ver los movimientos y la gráfica de ese período | ✅ Vía la tira de períodos o "Rango personalizado…" |
+| HU 2.9 | Como usuario, quiero que el Dashboard corte el tiempo según cuándo me pagan (semanal, cada 2 semanas, varias veces al mes, mensual con día de inicio o sin cortes) | ✅ |
+| HU 2.10 | Como usuario, quiero ver de un vistazo cuánto neto tuve en cada período, para compararlos sin abrirlos uno por uno | ✅ |
+| HU 2.11 | Como usuario, quiero volver al período actual con un solo toque cuando estoy mirando otro | ✅ |
 
 ### Épica 3: Gestión de Transacciones
 
@@ -186,6 +190,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 |----|---------|--------|
 | HU 4.1 | Como usuario, quiero exportar mis datos como CSV y compartirlos por email, WhatsApp, Drive u otra app usando el diálogo nativo del sistema | ✅ |
 | HU 4.2 | Como usuario, quiero que toda la app funcione sin internet | ✅ |
+| HU 4.3 | Como usuario, quiero proteger la app con mi huella, rostro o PIN del teléfono, para que nadie con mi teléfono desbloqueado vea mis finanzas | ✅ |
 
 ### Épica 5: Personalización
 
@@ -193,7 +198,8 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 |----|---------|--------|
 | HU 5.1 | Como usuario, quiero elegir entre modo claro, oscuro o automático del sistema | ✅ |
 | HU 5.2 | Como usuario, quiero configurar mis métodos de pago (Efectivo, Ahorros, Tarjeta, custom) | ✅ |
-| HU 5.3 | Como usuario, quiero definir mi presupuesto mensual | ✅ |
+| HU 5.3 | Como usuario, quiero definir cada cuánto y cuánto me pagan (antes: "mi presupuesto mensual") | ✅ *(modificada: "Ingreso mensual" pasó a "Pago y período")* |
+| HU 5.4 | Como usuario nuevo, quiero indicar cuándo y cuánto me pagan durante la bienvenida, o saltarlo y hacerlo después | ✅ |
 
 ### Épica 7: Notificaciones
 
@@ -212,15 +218,15 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | ID | Historia | Estado |
 |----|---------|--------|
 | HU 6.1 | Como usuario, quiero definir metas de ahorro, abonarles y eliminarlas con swipe-to-delete en Ajustes | ✅ |
-| HU 6.2 | Como usuario, quiero que el presupuesto sea siempre mensual para un control financiero claro y simple | ✅ |
+| HU 6.2 | Como usuario, quiero que el presupuesto por categoría sea mensual, y que si mi mes empieza el día que me pagan, se mida desde ese día | ✅ *(modificada: el ciclo sigue el día de inicio de la frecuencia mensual)* |
 | HU 6.3 | Como usuario, quiero ver un desglose de mis ingresos por categoría en la gráfica | ✅ |
 | HU 6.4 | Como usuario, quiero filtrar la lista por una categoría específica tocando su columna en la gráfica, y limpiar el filtro con el botón atrás del dispositivo o deslizando hacia abajo | ✅ |
 | HU 6.5 | Como usuario, quiero que al registrar un ingreso el selector de categoría muestre solo categorías de ingreso | ✅ |
 | HU 6.9 | Como usuario, quiero crear una categoría nueva directamente desde el selector de categoría al registrar una transacción, sin salir del formulario | ✅ |
 | HU 6.10 | Como usuario, quiero elegir cualquier color al crear o editar una categoría usando un slider continuo de tono | ✅ |
-| HU 6.6 | Como usuario nuevo, quiero un tour guiado que me muestre los pasos esenciales (configurar ingreso, registrar gasto por voz y manualmente) la primera vez que abro la app | ✅ |
+| HU 6.6 | Como usuario nuevo, quiero un tour guiado que me muestre los pasos esenciales (mis períodos en el calendario, registrar por voz y manualmente) la primera vez que abro la app | ✅ |
 | HU 6.7 | Como usuario, quiero ver un mensaje motivacional ("Nuevo mes, ¡comienza ahora!") cuando no hay transacciones en el período actual | ✅ |
-| HU 6.8 | Como usuario, quiero que la etiqueta de presupuesto diga "Ingreso mensual" y muestre el monto configurado | ✅ |
+| HU 6.8 | Como usuario, quiero que la etiqueta de presupuesto diga "Ingreso mensual" y muestre el monto configurado | Reemplazada por HU 5.3 ("Pago y período") |
 | HU 6.9 | Como usuario, quiero que al abonar a una meta de ahorro se registre como gasto en mi Dashboard para que mi balance refleje el dinero comprometido | ✅ |
 
 ### Épica 8: Detección Automática de Transacciones *(v1.5.0)*
@@ -238,6 +244,8 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 8.9 | Como usuario, quiero que la app NO detecte como transacción real un recordatorio de pago pendiente de factura ("Tienes un pago por $X. Completa tu pago...") que todavía no he confirmado | ✅ |
 | HU 8.10 | Como usuario, quiero que la app me explique cómo evitar que el sistema operativo detenga la detección en background (optimización de batería del fabricante), con acceso directo a esos ajustes | ⚠️ Revertida en parte (2026-09-02): se quitó de la UI la fila "Optimización de batería" (`Linking.openSettings()`) a pedido del usuario — la limitación de fondo sigue existiendo, documentada en `DOCUMENTATION.md`/`AGENTS.md`, pero ya no hay atajo dentro de la app |
 | HU 8.11 *(nuevo, 2026-09-02)* | Como usuario, quiero que al tocar una notificación de transacción detectada, si es la única pendiente, la app me lleve directo al formulario ya prellenado en vez de pasar por la lista de revisión, para ahorrarme un paso | ✅ |
+| HU 8.12 | Como usuario, quiero recibir una sola notificación por cada transacción detectada, aunque mi banco la envíe dos veces | ✅ |
+| HU 8.13 | Como usuario, quiero que la descripción de una transacción detectada muestre el comercio real (ej. "Compra en APPLE.COM/BILL") y nunca los dígitos de mi tarjeta | ✅ |
 
 ### Épica 9: Chat NLP (Experimental)
 
@@ -363,7 +371,7 @@ Las categorías se pueden crear desde **tres contextos**:
 | Nueva transacción guardada | Vibración háptica `success` |
 | Item aparece en lista | `FadeInDown` (Reanimated) |
 | Transcripción de voz | Palabra por palabra con `FadeIn.duration(220)` |
-| Barra de presupuesto | Animación con `withTiming` al cargar |
+| Tira de períodos | Ítems se atenúan/encogen según la distancia al centro siguiendo el dedo; tick háptico al cruzar de período |
 | Swipe-to-delete | `PanResponder` + `Animated` revela botón papelera |
 | Long-press gráfica | Popup con 3 opciones tras ~400ms |
 | Colapso de gráfica | Al hacer scroll, la gráfica colapsa suavemente (opacity + maxHeight) |
@@ -387,8 +395,8 @@ Las categorías se pueden crear desde **tres contextos**:
 - Se almacenan con `payment_method` (método de pago: cash, savings, credit u otro personalizado)
 
 ### Presupuesto
-- Presupuesto mensual: valor numérico global, `0` = no configurado. Siempre mensual (sin división por períodos).
-- Presupuesto por categoría: `emoji → monto`, activa alertas en gráfica
+- Pago esperado: `defaultPeriod.pay`, por período de la frecuencia elegida (en "varias veces al mes", uno por día de pago). Sin valor = no configurado (no hay barra de pago).
+- Presupuesto por categoría: `emoji → monto` por mes (calendario, o desde el día de inicio si la frecuencia es mensual con desfase), activa alertas en gráfica
 - Alertas: < 70% base, 70-89% ámbar, ≥ 90% rojo
 - Sin presupuesto: barra al 50% fijo con color base (solo informativo)
 
@@ -426,7 +434,7 @@ Las categorías se pueden crear desde **tres contextos**:
 | Accesibilidad | Textos escalables, contraste suficiente en ambos temas |
 | Offline | 100% funcional sin internet |
 | Idioma | UI en español, código en inglés |
-| Seguridad | Sin datos sensibles, sin transmisión de datos |
+| Seguridad | Sin datos sensibles, sin transmisión de datos; bloqueo opcional con huella/rostro/PIN del sistema |
 | Tamaño APK | < 30MB (build de producción) |
 
 ---

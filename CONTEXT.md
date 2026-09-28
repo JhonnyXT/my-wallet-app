@@ -2,7 +2,7 @@
 
 > **Propósito:** Este documento es la referencia técnica completa del proyecto. Cualquier desarrollador, IA o colaborador que lea este archivo tendrá TODO el contexto necesario para desarrollar, modificar o extender la aplicación sin perder consistencia.
 >
-> **Última actualización:** 2026-09-23 | **Versión:** 1.5.0
+> **Última actualización:** 2026-09-28 | **Versión:** 1.5.0
 >
 > Nota de cobertura: este documento se actualiza incrementalmente por sesión de trabajo — algunas
 > secciones (ej. pantallas de onboarding `notification-onboarding.tsx`/`bank-selection-onboarding.tsx`,
@@ -79,6 +79,7 @@
 | **AsyncStorage** | ^2.2.0 | Persistencia de configuración de usuario |
 | **react-native-svg** | ^15.15.3 | Gráficos SVG (tarjetas semanales) |
 | **react-native-android-notification-listener** | ^5.0.1 | Captura de notificaciones push bancarias en background (Android) |
+| **expo-local-authentication** | ~55.0.18 | Bloqueo opcional con huella/rostro/PIN del sistema (`BiometricLockGate`) |
 
 ### Configuración Clave
 
@@ -94,8 +95,12 @@
 ```
 my-wallet-app/
 ├── app/                          # Rutas (Expo Router)
-│   ├── _layout.tsx               # Root: ThemeProvider, initDB, Stack
+│   ├── _layout.tsx               # Root: ThemeProvider, initDB, Stack, splash, BiometricLockGate (capa encima del Stack)
 │   ├── +not-found.tsx            # 404
+│   ├── category-onboarding.tsx   # Onboarding paso 1: categorías
+│   ├── pay-onboarding.tsx        # Onboarding paso 2: frecuencia de pago y pago esperado (PayPeriodForm, omitible)
+│   ├── notification-onboarding.tsx     # Onboarding paso 3: detección automática
+│   ├── bank-selection-onboarding.tsx   # Onboarding paso 4: bancos a rastrear
 │   ├── active-expense.tsx        # Modal: nuevo gasto/ingreso
 │   ├── reports.tsx               # Modal "Promedios": promedio mensual histórico por categoría + tendencia
 │   ├── settings.tsx              # Modal: configuración (incluye sección Detección automática)
@@ -110,17 +115,27 @@ my-wallet-app/
 ├── src/                          # Lógica y componentes
 │   ├── components/ui/            # Componentes reutilizables
 │   │   ├── AnimatedSplash.tsx    # Splash animado (icono + texto) al arrancar, usado en app/_layout.tsx
-│   │   ├── BudgetBar.tsx         # Barra de progreso presupuesto
+│   │   ├── BiometricLockGate.tsx # Capa de bloqueo con huella/rostro/PIN (expo-local-authentication)
+│   │   ├── BottomSheet.tsx       # Hoja inferior base: tap fuera + swipe-down en el handle
+│   │   ├── CalendarSheet.tsx     # Calendario de fecha puntual (active-expense)
+│   │   ├── Card.tsx              # Card / SectionHeader / Divider (capa de tokens)
 │   │   ├── CategoryChart.tsx     # Gráfica de categorías (barras + animaciones scroll)
 │   │   ├── ConfirmDialog.tsx     # Diálogo de confirmación reutilizable (danger/warning/info)
-│   │   ├── DateRangeSheet.tsx    # Calendario de rango (desde-hasta) dibujado a mano, usado por reports.tsx
+│   │   ├── DateRangeSheet.tsx    # Calendario de rango dibujado a mano: mode "months" (reports.tsx) / "days" (rango del Dashboard)
+│   │   ├── DefaultPeriodSheet.tsx # Hoja "Pago y período" (Ajustes y menú del calendario), envuelve PayPeriodForm
+│   │   ├── Enter.tsx             # Animación de entrada escalonada de secciones
 │   │   ├── GuidedTour.tsx        # Overlay de onboarding paso a paso con spotlight
-│   │   ├── FilterChips.tsx       # Chip de período + "Elegir mes específico"
 │   │   ├── FloatingDock.tsx      # Dock flotante + FAB micrófono
 │   │   ├── FloatingInput.tsx     # Overlay input/búsqueda flotante
-│   │   ├── MonthPickerModal.tsx  # Selector de mes/año con montos
 │   │   ├── HueColorPicker.tsx    # Slider continuo de tono (PanResponder + LinearGradient) para categorías
-│   │   ├── RollingNumber.tsx     # Odómetro por dígito (Reanimated) — usado en Dashboard
+│   │   ├── ListRow.tsx           # Fila de lista agrupada (capa de tokens)
+│   │   ├── PayPeriodForm.tsx     # Formulario frecuencia + pago esperado, con páginas internas
+│   │   ├── PeriodMenu.tsx        # Menú flotante del toque largo en el calendario del Dashboard
+│   │   ├── PeriodStrip.tsx       # Tira horizontal deslizable de ciclos/años con su neto
+│   │   ├── PressableScale.tsx    # Pressable con spring de escala
+│   │   ├── RollingNumber.tsx     # Odómetro tipo ruleta por dígito (Reanimated) — usado en Dashboard
+│   │   ├── StackedScreenHeader.tsx # Barra Material (flecha + título)
+│   │   ├── ThemedText.tsx        # Texto con variantes tipográficas de tokens
 │   │   └── TransactionItem.tsx   # Item transacción + swipe-delete + tap-to-detail
 │   │
 │   ├── constants/
@@ -160,10 +175,12 @@ my-wallet-app/
 │       ├── fuzzyMatch.ts           # levenshtein, fuzzyIncludes — tolerancia a typos en NLP de voz/texto
 │       ├── nlp.ts                  # parseExpenseInput (texto rápido)
 │       ├── notificationParser/     # Parser de notificaciones bancarias (carpeta, un módulo por responsabilidad — ver sección 9b)
+│       ├── periodCycles.ts         # Frecuencias de pago, ciclos, vistas de período, budgetCycle, expectedPay (reemplaza periodFilter.ts)
 │       ├── tourRefs.ts             # Registro global de refs para el GuidedTour (getTourRef, TOUR_KEYS)
 │       └── voiceParser.ts          # Parseo de transcripción de voz
 │
 ├── index.js                      # Entrypoint: registra HeadlessJS task + delega a expo-router/entry
+├── scripts/                      # build-android.sh (build:dev/build:test), seed-dev-data.py (datos de prueba "datos-prueba" en dev vía adb run-as)
 ├── assets/images/                # Iconos, splash, favicon
 ├── docs/                         # Sitio estático GitHub Pages: index.html (landing), privacy-policy.html, icon.png, favicon.png
 ├── .github/workflows/            # CI: eas-build.yml, eas-update.yml
@@ -256,7 +273,11 @@ Stack
 ├── active-expense           → Modal slide_from_bottom
 ├── settings                 → Modal slide_from_bottom
 ├── reports                  → Modal slide_from_bottom ("Promedios")
+├── category-onboarding → pay-onboarding → notification-onboarding → bank-selection-onboarding  (fade, router.push)
 └── +not-found               → 404
+
+BiometricLockGate            → capa hermana ENCIMA del Stack (no lo envuelve), para que deep links y
+                               el router.replace("/(tabs)") del arranque funcionen bajo el bloqueo
 ```
 
 ### Dock Flotante (FloatingDock)
@@ -324,16 +345,17 @@ La API pública es idéntica a la de un store plano — ningún importador exter
 ```typescript
 {
   userName: string
-  monthlyBudget: number             // 0 = no configurado
-  budgetByCategory: Record<string, number>  // emoji → monto límite
+  budgetByCategory: Record<string, number>  // emoji → monto límite por ciclo de presupuesto (budgetCycle)
   paymentMethods: PaymentMethod[]
   savingsGoals: SavingsGoal[]
   debts: Debt[]
   darkMode: "system" | "light" | "dark"
+  defaultPeriod: PeriodCadence      // prefsSlice: frecuencia del Dashboard + pago esperado (`pay`), ver periodCycles.ts
+  biometricLockEnabled: boolean     // prefsSlice: bloqueo con huella/rostro/PIN al abrir y al volver de background
   hasCompletedOnboarding: boolean   // true tras completar o saltar el Guided Tour
-  onboardingStep: number            // paso actual del tour (0-4)
+  onboardingStep: number            // paso del tour: 0 calendario → 3 voz → 4 manual (1-2 sin uso)
   notificationsEnabled: boolean     // si el usuario concedió permiso de notificaciones OS
-  budgetNotifiedMonth: Record<string, string>  // "emoji:threshold"|"emoji:overspent" → "YYYY-MM" — 2 niveles de notif. por cat./mes
+  budgetNotifiedMonth: Record<string, string>  // "emoji:threshold"|"emoji:overspent" → inicio del ciclo "YYYY-MM-DD" — 2 niveles de notif. por cat./ciclo
   goalNotifiedIds: string[]         // IDs de metas ya notificadas — anti-duplicación
 }
 
@@ -341,9 +363,9 @@ La API pública es idéntica a la de un store plano — ningún importador exter
 setOnboardingStep(step: number): void
 completeOnboarding(): void
 setNotificationsEnabled(val: boolean): void
-markBudgetNotified(emoji: string): void
+markBudgetNotified(key: string, cycleKey: string): void  // key = "emoji:threshold"|"emoji:overspent"
 markGoalNotified(id: string): void
-clearExpiredBudgetNotifications(): void  // limpia entradas de meses anteriores al arrancar la app
+clearExpiredBudgetNotifications(currentKey: string): void  // al arrancar: borra marcas de ciclos anteriores (currentKey = cycleKey(budgetCycle(...)))
 
 // goalsSlice
 addSavingsGoal(goal): void
@@ -366,9 +388,17 @@ editDebt(id, updates): void               // edita nombre/emoji/monto total/cuot
 removeDebt(id): void
 ```
 
-El presupuesto es siempre mensual. No existen helpers de período — los montos se usan directamente.
+```typescript
+// prefsSlice
+setDefaultPeriod(cadence: PeriodCadence): void
+setBiometricLockEnabled(enabled: boolean): void
+```
 
-**Persistencia:** `zustand/middleware/persist` con `createJSONStorage(() => AsyncStorage)`, key `"mywallet-settings"`. Los campos `hasCompletedOnboarding` y `onboardingStep` también se persisten.
+No existe `monthlyBudget` (el antiguo "Ingreso mensual"): el pago esperado vive en `defaultPeriod.pay`.
+El presupuesto por categoría se mide por `budgetCycle(defaultPeriod, now)`: un mes que arranca en el
+`startDay` si la frecuencia es mensual, o el mes calendario con cualquier otra frecuencia.
+
+**Persistencia:** `zustand/middleware/persist` con `createJSONStorage(() => AsyncStorage)`, key `"mywallet-settings"`, `version: 1`. El `migrate` de v0 → v1 pasa un `monthlyBudget > 0` a `defaultPeriod.pay` (si la frecuencia no es quincenal y no hay pago ya) y borra la clave vieja. Los campos `hasCompletedOnboarding` y `onboardingStep` también se persisten.
 
 ### useUIStore (no persistido)
 Estado de UI global: búsqueda (searchOpen, searchQuery, activeTags), filtro por categoría desde el chart (categoryFilter) y overlay de entrada rápida NLP (isExpenseInputOpen, prefillText). Acciones principales: setSearchOpen(), closeSearch(), setCategoryFilter(filter), clearCategoryFilter(), openExpenseInput(prefill?), closeExpenseInput().
@@ -384,15 +414,34 @@ Estado de UI global: búsqueda (searchOpen, searchQuery, activeTags), filtro por
 ```
 > Cuando `categoryFilter` está activo, el Dashboard oculta la gráfica y muestra solo las transacciones de esa categoría con un chip informativo. Se limpia con back físico o pull-down (`PanResponder` custom, ver sección Dashboard).
 
-### PeriodFilter (tipo local del Dashboard)
+### Períodos: `PeriodCadence` y `PeriodView` (`src/utils/periodCycles.ts`)
 ```typescript
-type PeriodFilter =
-  | { type: "quick"; label: string }   // "Hoy", "Esta semana", "Este mes", etc.
-  | { type: "month"; year: number; month: number }  // Mes específico
-  | { type: "year";  year: number }     // Año completo
-  | { type: "all" };                    // Sin filtro de fecha
+// Frecuencia predeterminada (useSettingsStore.defaultPeriod). `pay` = pago esperado por ciclo.
+type PeriodCadence =
+  | { type: "weekly"; weekStartsOn: number; pay?: number }                  // 0 = domingo … 6 = sábado
+  | { type: "biweekly"; weekStartsOn: number; anchor: string; pay?: number } // anchor "YYYY-MM-DD"
+  | { type: "semimonthly"; days: number[]; pay?: Record<string, number> }    // días 1–28; pago por día
+  | { type: "monthly"; startDay: number; pay?: number }                      // 1–28
+  | { type: "all"; pay?: number };                                           // navega por meses calendario
+
+// Lo que mira el Dashboard (estado local de useTransactionFilters).
+type PeriodView =
+  | { kind: "cycle"; offset: number }              // 0 = ciclo actual, -1 = anterior…
+  | { kind: "year"; year: number }
+  | { kind: "all" }
+  | { kind: "range"; start: string; end: string }; // "YYYY-MM-DD", ambos inclusive
 ```
-Reemplaza los estados separados `period` + `pickerYear` + `pickerMonth`. Vive en `app/(tabs)/index.tsx`.
+Helpers: `cycleAtOffset`, `listCycles` (tope 400 ciclos), `viewRange`/`viewLabel`, `defaultView`/`isDefaultView`,
+`budgetCycle`/`cycleKey`, `expectedPay` (en `semimonthly` depende del día que abre el ciclo),
+`filterByRange`, `sumByRanges` (una pasada con búsqueda binaria), `toYMD`/`parseYMD` (fechas locales).
+Tests en `periodCycles.test.ts`. Reemplaza al antiguo `periodFilter.ts` (borrado).
+
+`useTransactionFilters(transactions)` guarda la vista junto con la frecuencia en que se eligió; si la
+frecuencia cambia, la vista vuelve a la predeterminada en el mismo render. Expone `periodView`,
+`setPeriodView`, `resetPeriod`, `isDefault`, `periodRange`, `periodLabel`, `stripItems`/`stripIndex`
+(ítems de `PeriodStrip`: ciclos o años con su neto, más 1 futuro), `typeFilter`, `filteredTransactions`,
+`typeFilteredTransactions` e `isCurrentPeriod`. También exporta `buildCycleItems` y `earliestDate`,
+que reusa la vista previa de `PayPeriodForm`.
 
 ### useVoiceStore (no persistido)
 ```typescript
@@ -428,16 +477,17 @@ reset(): void  // limpia todo incluyendo pendingBatch y pendingManualItem
 //                       rawTitle, rawText, confidence: "high"|"medium"|"low", detectedAt }
 
 // Acciones
-addPendingItem(item: ParsedTransaction): string  // agrega a la cola (o retorna el id del duplicado si no agregó nada), evita duplicados (<2 min mismo banco+monto)
+addPendingItem(item: ParsedTransaction): { id: string; isNew: boolean }  // id agregado, o el del duplicado con isNew: false (<2 min mismo banco+monto)
 removePendingItem(id: string): void
 clearAll(): void
 
-// Export adicional (no es parte del store, función standalone en el mismo archivo)
-getPendingItemAfterHydration(id: string): Promise<PendingNotificationItem | undefined>
+// Exports adicionales (funciones standalone en el mismo archivo, no parte del store)
+waitForNotificationStoreHydration(): Promise<void>           // espera onFinishHydration (tope 1.5s)
+getPendingItemAfterHydration(id: string): Promise<PendingNotificationItem | null>
 ```
 **Importante:** Este store **sí se persiste** en AsyncStorage (`persist` + `partialize` sobre `pendingItems`, clave `"notification-pending-queue"`), justamente para sobrevivir cold starts: cuando el HeadlessJS task detecta una transacción con la app cerrada, el item sigue disponible al abrirla. Lo que nunca ocurre automáticamente es la escritura en la base de datos — un item solo pasa a `transactions` si el usuario lo confirma en `notification-review.tsx`.
 
-**`addPendingItem()` devuelve el id agregado (2026-09-02)** — antes no devolvía nada. `notificationHeadlessTask.ts` pasa ese id a `notifyBankTransaction()` (nuevo parámetro opcional `itemId`), que lo mete en `data.itemId` del payload de la notificación push, para que `app/_layout.tsx` pueda resolver el destino del deep link (ver sección 9b).
+**`addPendingItem()` devuelve `{ id, isNew }`.** `notificationHeadlessTask.ts` primero espera `waitForNotificationStoreHydration()` (si agrega antes de hidratar, la rehidratación pisa el ítem y el chequeo de duplicados no ve la cola real), y solo manda la push si `isNew`: Android a veces entrega la misma notificación del banco dos veces (post + update) y salían dos pushes. Pasa el id a `notifyBankTransaction()` (parámetro opcional `itemId`), que lo mete en `data.itemId` del payload y usa `identifier: bank-tx-<itemId>` como segunda barrera contra duplicados, para que `app/_layout.tsx` pueda resolver el destino del deep link (ver sección 9b).
 
 **`getPendingItemAfterHydration(id)` (2026-09-02):** como el `persist` de este store rehidrata desde AsyncStorage de forma asíncrona, y el listener de deep link de `_layout.tsx` puede correr en un cold start antes de que termine, esta función espera `persist.onFinishHydration()` (con timeout de seguridad de 1.5s) antes de buscar el item — sin esto, el primer tap tras un cold start podía fallar en encontrar el item aunque sí estuviera guardado.
 
@@ -650,9 +700,10 @@ parseNotification(packageName, title, text)
       pago pendiente tipo "Tienes un pago por $X. Completa tu pago..." que NO
       son transacciones confirmadas, aunque mencionen un monto]
     ↓ extrae monto, tipo (gasto/ingreso) y descripción
-itemId = useNotificationStore.addPendingItem(parsed) — agrega a la cola (dedup <2 min), retorna el id
-    ↓
-notifyBankTransaction(amount, description, bankName, isExpense, itemId)
+await waitForNotificationStoreHydration()
+{ id: itemId, isNew } = useNotificationStore.addPendingItem(parsed) — agrega a la cola (dedup <2 min)
+    ↓ [si !isNew (duplicado: Android entregó la misma notificación dos veces), termina sin push]
+notifyBankTransaction(amount, description, bankName, isExpense, itemId)  — identifier "bank-tx-<itemId>"
     → Push notification del sistema: título "Nuevo gasto detectado — Nubank" (sin monto),
       cuerpo "$140.000 · Compra en Éxito" (monto + etiqueta corta de la acción,
       via shortenDescription() — no la descripción completa)
@@ -685,7 +736,7 @@ addTransactionBatch() → se guardan en SQLite
 - **Score de confianza**: `"high"` (keyword explícita) / `"medium"` (heurística, incluye siempre `GENERIC_PATTERN`) / `"low"`
 - **Privacidad**: `rawTitle` limitado a 100 chars, `rawText` a 200 chars. Saldos, números de tarjeta y datos personales son descartados.
 - **`parseNotification(packageName, title, text, postedAt?: Date)` (4º parámetro nuevo, 2026-09-02)**: `postedAt` (default `new Date()`, así fixtures/tests no necesitan tocarse) se usa para `detectedAt` en vez de "ahora". Causa raíz: `NotificationListenerService` de Android **re-entrega notificaciones ya existentes** cada vez que el servicio se reconecta (frecuente por el ANR de batería documentado en AGENTS.md) — sin este parámetro, cualquier notificación bancaria que siguiera en la bandeja se reprocesaba con `detectedAt = ahora` una y otra vez, y la fecha al editar un ítem detectado siempre mostraba el día actual. `RawNotification.time` (`notificationHeadlessTask.ts`) es el `StatusBarNotification.postTime` real de Android (ms desde epoch) — el campo ya existía sin usar; ahora se parsea a `Date` y se pasa como `postedAt`.
-- **Confidence-aware push**: `notifyBankTransaction()` (`notificationService.ts`) redacta el título distinto según `confidence` — `"detectado"` (asertivo) solo con `high`; a confirmar (`"¿...?"`) con `medium`/`low`. El título es una etiqueta corta (tipo + banco, ej. "Nuevo gasto detectado — Bancolombia") sin el monto; el cuerpo usa `shortenDescription(description, isExpense, amount)` (ej. "Compra en RAPPI CO · $ 45.000" — **ya incluye el monto desde 2026-09-23**, no se concatena `amtStr` aparte), que reduce la descripción completa a "verbo + preposición + contraparte" — el verbo lo decide `isExpense` (no la keyword del banco, ambigua entre bancos/direcciones: "Pagaste" vs "Enviaste" del lado gasto, "Recibiste" del lado ingreso incluyendo el caso "sujeto primero" — "Bancolombia te envió..." — que antes caía al genérico "Ingreso"), la contraparte se extrae de la última frase preposicional del texto. La descripción **completa** original no se pierde para la categoría: `extractDescription()` sigue alimentando `guessCategoryEmoji`. Pero **como nota/descripción mostrada y guardada, `shortenDescription()` reemplazó al texto crudo también en `notification-review.tsx` y en el flujo `notification-detect` de `app/_layout.tsx`** (2026-09-23) — antes esos dos sitios mostraban la descripción completa capturada del banco, a veces muy verbosa. El item siempre requiere confirmación manual antes de guardarse en SQLite.
+- **Confidence-aware push**: `notifyBankTransaction()` (`notificationService.ts`) redacta el título distinto según `confidence` — `"detectado"` (asertivo) solo con `high`; a confirmar (`"¿...?"`) con `medium`/`low`. El título es una etiqueta corta (tipo + banco, ej. "Nuevo gasto detectado — Bancolombia") sin el monto; el cuerpo usa `shortenDescription(description, isExpense, amount)` (ej. "Compra en RAPPI CO · $ 45.000" — **ya incluye el monto desde 2026-09-23**, no se concatena `amtStr` aparte), que reduce la descripción completa a "verbo + preposición + contraparte" — el verbo lo decide `isExpense` (no la keyword del banco, ambigua entre bancos/direcciones: "Pagaste" vs "Enviaste" del lado gasto, "Recibiste" del lado ingreso incluyendo el caso "sujeto primero" — "Bancolombia te envió..." — que antes caía al genérico "Ingreso"), la contraparte se extrae primero del comercio justo después del verbo de gasto ("compra en APPLE.COM/BILL por…": admite puntos en el nombre y corta en `por`/`con`/`el`/`desde`) y, si no hay, de la última frase preposicional del texto. `extractDescription()` además quita la cola "con tu tarjeta … terminada en 1234" (no aporta y guardaría dígitos de la tarjeta). La descripción **completa** original no se pierde para la categoría: `extractDescription()` sigue alimentando `guessCategoryEmoji`. Pero **como nota/descripción mostrada y guardada, `shortenDescription()` reemplazó al texto crudo también en `notification-review.tsx` y en el flujo `notification-detect` de `app/_layout.tsx`** (2026-09-23) — antes esos dos sitios mostraban la descripción completa capturada del banco, a veces muy verbosa. El item siempre requiere confirmación manual antes de guardarse en SQLite.
 
 ### Configuración en AndroidManifest.xml (verificado contra el manifest fusionado real, 2026-07-13)
 ```xml
@@ -824,20 +875,29 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Animación de entrada: `FadeInDown.delay(index * 40)`
 - Gastos en negro con `−`, ingresos en verde `#059669` con `+`
 
-### FilterChips
-- **Un solo chip** de período: 6 períodos fijos: Hoy, Esta semana, Esta quincena, Este mes, Este año, Todo + "📅 Elegir mes específico..." al fondo del sheet
-- Props: `period`, `periodLabel?` (label dinámico, ej: "Abr 2025"), `onPeriodChange`, `onOpenMonthPicker?`
-- El chip de categoría fue eliminado del `FilterChips` — el filtrado por categoría se activa con tap corto en una columna del `CategoryChart` (ver `useUIStore.categoryFilter`) o desde la búsqueda
-- Abre un único Modal bottom-sheet al tocar
+### PeriodStrip
+- Tira horizontal deslizable de períodos (ciclos de la frecuencia o años), cada ítem con su etiqueta y su neto (`+$X`/`−$X`/`$0`). Ítems de `STRIP_ITEM_WIDTH = 112`.
+- El ítem centrado es el seleccionado; al soltar el deslizamiento se selecciona el que quedó al centro. Cada ítem se atenúa y encoge según su distancia al centro, siguiendo el dedo en el hilo de UI (Reanimated), y cruzar de un ítem a otro da un tick háptico.
+- Props: `items: PeriodStripItem[]`, `selectedIndex`, `onSelect(index)`. Los padres la remontan con una `key` derivada de la lista (ver AGENTS.md): el índice guardado aparte llegaba viejo al cambiar de frecuencia.
+- Usada en el Dashboard (debajo de los íconos del header, con `FadeInDown`/`FadeOutUp`) y como vista previa de solo lectura en `PayPeriodForm`.
 
-### MonthPickerModal
-- Sheet inferior que permite elegir un mes y año concreto como filtro del Dashboard
-- Pills de año dinámicos: desde `queryFirstTransactionYear()` hasta el año actual; "Todo el tiempo" limpia el filtro
-- Grid 3×4 de meses (Ene–Dic) con monto compacto bajo cada celda (`45k`, `1.7M`)
-- Mes seleccionado: fondo `#DBEAFE`, texto `#1D4ED8`; meses futuros deshabilitados (opacity 0.3)
-- Estado draft interno: cambios pendientes hasta tocar "Aplicar"; X descarta sin aplicar
-- Animación: `animationType="slide"` nativo del Modal (sin Reanimated en el sheet para evitar conflictos de touch)
-- Dark mode: pill año activo usa `t.accent` en oscuro, `#0F172A` en claro
+### PeriodMenu
+- Menú flotante del **toque largo** en el botón de calendario del Dashboard (`Modal` transparente, anclado debajo del botón y creciendo desde su esquina superior derecha con spring; con reduced motion, solo fade).
+- Filas: ciclo de la frecuencia ("Semana"/"2 semanas"/"Quincena"/"Mes", `cycleUnitLabel`), "Año", "Todo el tiempo", "Rango personalizado…" (con check en la vista activa); "Restablecer predeterminado" (rojo, solo si la vista no es la predeterminada); "Pago y período".
+- Emite `PeriodMenuAction` (`cycle`/`year`/`all`/`range`/`reset`/`changeDefault`); el Dashboard abre `DateRangeSheet mode="days"` o `DefaultPeriodSheet` 160ms después de cerrarlo.
+- Filas con estilo estático + `android_ripple` (el estilo-función de `Pressable` se perdía dentro del `Modal`). Suma `StatusBar.currentHeight` al `top` porque el `Modal` es edge-to-edge y `measureInWindow` cuenta desde debajo de la barra de estado.
+
+### PayPeriodForm / DefaultPeriodSheet
+- `PayPeriodForm`: "cada cuánto y cuánto te pagan". Página principal con vista previa (`PeriodStrip` con los ciclos reales, si hay datos y la frecuencia no es "Todo el tiempo") y filas: Frecuencia, Inicio de la semana (semanal / cada 2 semanas), El ciclo actual empieza (cada 2 semanas: esta semana o la pasada → `anchor`), Días de inicio (varias veces al mes, grilla 1–28, mínimo 2 días), "Añadir desfase de inicio de mes"/Inicio del mes (mensual, grilla 1–28), "¿Cuánto te pagan?" (un monto, o uno por día de pago en varias veces al mes). Cada fila abre una **página interna** del mismo formulario, no otra hoja.
+- Al cambiar de frecuencia conserva el pago solo si la conversión es exacta (mensual ↔ quincenal ↔ todo el tiempo, semanal ↔ cada 2 semanas). Con desfase mensual avisa que los presupuestos por categoría también se medirán de ese día al anterior del mes siguiente.
+- Props: `initial`, `onApply`, `showHeader`, `showPreview`, `renderActions` (reemplaza "Aplicar"; lo usa el onboarding para "Omitir"/"Continuar"). Mantiene su borrador; el padre lo reinicia remontándolo con otra `key`.
+- `DefaultPeriodSheet`: `BottomSheet` con `PayPeriodForm`; guarda con `setDefaultPeriod` y cierra. Se remonta en cada apertura (descarta borradores). Levanta el contenido con la altura del teclado (`Keyboard` listeners), porque `KeyboardAvoidingView` no medía bien dentro del `Modal`. Se abre desde Ajustes ("Pago y período") y desde `PeriodMenu`.
+
+### BiometricLockGate
+- Capa de bloqueo (huella/rostro/PIN del sistema vía `expo-local-authentication`) montada en `app/_layout.tsx` como hermana encima del `Stack`, no envolviéndolo.
+- Bloquea al abrir y cada vez que la app va a background; `ready` (splash terminado) retrasa el primer prompt. `authenticatingRef` evita el ciclo de re-bloqueo cuando el prompt con PIN abre otra `Activity`.
+- Sin huella/rostro/PIN configurados (`SecurityLevel.NONE`) desbloquea en vez de dejar al usuario afuera. Hasta que `useSettingsStore` rehidrata (tope 1.5s) tapa el contenido con el fondo.
+- Pantalla: icono de la app, "MyWallet está bloqueada", botón "Desbloquear" (`PressableScale`, `#135BEC`); sale con `FadeOut`.
 
 ### DateRangeSheet *(nuevo, rediseñado 2026-08-18)*
 - Calendario de selección de **rango** (desde–hasta) dibujado a mano, igual patrón que `CalendarSheet` (grid mensual sin librería externa, fade entre meses con Reanimated) — pero para dos fechas, no una.
@@ -846,9 +906,11 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - **Resumen "Desde / Hasta"** siempre visible arriba del grid con las fechas formateadas.
 - **Render del rango — barra continua tipo pill/cápsula (2026-08-18, reemplaza el diseño original de círculos sueltos):** cada día en rango pinta un `View` "connector" de posición absoluta (`s.connector`) detrás del dígito, con `backgroundColor: accent.default` sólido y texto blanco en **todo** el rango (inicio, fin e intermedios sin distinción de tono — se probó `accent.subtle` para los días intermedios y se descartó a pedido del usuario). El connector se redondea (`borderRadius: 999`, vía `s.connectorRoundLeft`/`s.connectorRoundRight`) solo en los extremos reales: el día de inicio/fin (`isStart`/`isEnd`), el borde de fila al cruzar de semana (`col === 0`/`col === 6`), o cuando la celda vecina en el grid es `null` (mes anterior/siguiente fuera de vista — sin esto el primer/último día visible de un rango multi-mes, ej. "1 año", quedaba con una esquina cuadrada pegada a celdas vacías). El resto de las uniones internas quedan cuadradas, para que se lea como una sola franja continua y no como celdas independientes. `dayCircle` (el contenedor del número, sin fondo propio) usa tamaño relativo (`width: "76%"`, `aspectRatio: 1`), no un círculo fijo de 36×36 como en la primera iteración.
 - **Validación de mínimo 2 meses:** `isValidRange = rangeStart && rangeEnd ? !isSameMonth(rangeStart, rangeEnd) : false`. Motivo: la tarjeta "Tendencia" es un gráfico de barras mensuales — con un rango dentro del mismo mes se vería una sola barra flotando sin nada que comparar; se decidió prevenir el caso en el selector en vez de rediseñar el gráfico para 1 barra. El botón "Aplicar" queda deshabilitado (con spring `withSpring(0.97, ...)` de escala) y cambia su texto a "Elige un rango de al menos 2 meses" cuando el rango elegido cae dentro de un mismo mes.
-- Botón "Aplicar" con spring de `tokens.motion.spring.snappy`, habilitado solo con ambas fechas elegidas y rango válido (≥2 meses); navegación de mes con flechas (mes futuro deshabilitado).
-- Usa `useAppTokens()` (capa de tokens), no `AppTheme`/`useTheme()` legacy que usa `CalendarSheet` — dos calendarios distintos con casos de uso distintos: `CalendarSheet` = fecha puntual de una transacción; `DateRangeSheet` = rango para acotar un gráfico.
-- Único consumidor: `app/reports.tsx`, tarjeta "Tendencia".
+- Botón "Aplicar" con spring de `tokens.motion.spring.snappy`, habilitado solo con rango válido; navegación de mes con flechas (mes futuro deshabilitado).
+- Los lados no redondeados del connector se extienden 1px (`left: -1`/`right: -1`) para solapar con la celda vecina: sin eso quedaba una rendija vertical entre días.
+- **Prop `mode`:** `"months"` (default) = todo lo anterior (accesos rápidos, mínimo 2 meses); `"days"` = sin accesos rápidos, cualquier rango, incluso un solo día (tocar un día y "Aplicar" aplica ese día como inicio y fin). Prop `title` (default "Rango de la tendencia").
+- Usa `useAppTokens()` (capa de tokens), no `AppTheme`/`useTheme()` legacy que usa `CalendarSheet` — dos calendarios distintos con casos de uso distintos: `CalendarSheet` = fecha puntual de una transacción; `DateRangeSheet` = rango de fechas.
+- Consumidores: `app/reports.tsx`, tarjeta "Tendencia" (`mode="months"`), y "Rango personalizado…" del Dashboard (`mode="days"`).
 
 ### ConfirmDialog
 - Componente reutilizable que reemplaza `Alert.alert` nativo con un diálogo minimalista y animado
@@ -861,13 +923,13 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Usado en: `settings.tsx` (limpiar datos, eliminar método de pago, error de exportación, mínimo un método)
 
 ### RollingNumber
-- **Odómetro por dígito** estilo cuentakilómetros de carro: cada posición tiene su propia columna de 10 dígitos (0–9) apilados verticalmente con `overflow: hidden`
-- Cuando el valor cambia, cada columna anima su `translateY` con `withTiming(Easing.out(Easing.cubic))` en el UI thread (60fps, Reanimated)
+- **Odómetro tipo ruleta**: cada posición tiene su propia columna con los dígitos 0–9 apilados **tres veces** (30 filas) con `overflow: hidden`; en reposo muestra la copia del medio
+- Cuando el dígito cambia, la columna gira **siempre hacia adelante** hasta la tercera copia (`withTiming(Easing.out(Easing.cubic))`, al menos una vuelta si el dígito baja) y al terminar salta invisible a la copia del medio. Las columnas arrancan escalonadas de izquierda a derecha (`COLUMN_STAGGER_MS = 35`). Con `useReducedMotion()` cambia sin animar. UI thread (Reanimated)
 - **Keys estables** basados en posición desde la derecha (`d-0`, `d-1`, `sep-3`, etc.): cuando el conteo de dígitos cambia, los dígitos existentes conservan su estado y solo los nuevos/eliminados hacen fade-in/out con `FadeInDown` y `FadeOut`
 - **Separadores de miles COP** (`.`) renderizados como componentes independientes entre columnas; aparecen/desaparecen con animación cuando el número de dígitos cruza una frontera de grupo (×3)
 - **`digitHeight`:** calculado desde `lineHeight` del estilo; si no hay `lineHeight`, se estima como `fontSize * 1.28`
 - **Compatibilidad:** no puede ir dentro de `<Text>` (es un `View`). Las pills del Dashboard fueron reestructuradas a `<View row>` con `<Text>↓</Text>` + `<RollingNumber />`
-- Props: `value`, `prefix` (default `"$ "`), `style: StyleProp<TextStyle>`, `duration` (default 400ms)
+- Props: `value`, `prefix` (default `"$ "`), `style: StyleProp<TextStyle>`, `duration` (default 700ms)
 - Usado en Dashboard: Balance neto (fontSize 38, lineHeight 44), Pill gastos (fontSize 13), Pill ingresos (fontSize 13)
 
 ### GuidedTour
@@ -880,13 +942,6 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Tooltip estilo Stitch: título, descripción, botones "Omitir" + CTA, dots de progreso
 - Animación: fade-in del overlay + spring scale del tooltip
 - Utilidad complementaria: `src/utils/tourRefs.ts` — registro global de refs (`getTourRef(key)`, constantes `TOUR_KEYS`)
-
-### BudgetBar
-- Barra de progreso animada (Reanimated)
-- Muestra `X% de $presupuesto`
-- Se vuelve roja al superar 90%
-- Solo visible si `monthlyBudget > 0`
-- Usa `monthlyBudget` directamente (presupuesto siempre mensual)
 
 ### Capa aditiva de tokens (`src/theme/tokens.ts`) y componentes que la usan
 Puerto del sistema de diseño de Habit Tracker. Coexiste con `AppTheme`/`useTheme()` sin
@@ -905,8 +960,8 @@ del Dashboard/`AppTheme` — afecta el fondo de `app/settings.tsx` main + sus `F
   el `borderWidth: 1.5` + `border.default` que había ganado en el rediseño Material se quitó a
   pedido explícito del usuario — se veía como un aro blanco/gris alrededor de cada tarjeta en tema
   oscuro) — se distingue del fondo solo por color de relleno (`surface.secondary` vs `surface.primary`)
-  y esquinas redondeadas. El pill "Este mes" de `FilterChips` y el toggle de `reports.tsx` conservan
-  su borde propio (son controles inline, no `Card`). `padded={false}` cuando envuelve `ListRow`.
+  y esquinas redondeadas. El toggle de `reports.tsx` conserva su borde propio (es un control
+  inline, no `Card`). `padded={false}` cuando envuelve `ListRow`.
   Exporta también `SectionHeader` y `Divider`.
 - **`ListRow`**: fila de lista agrupada — ícono circular (34px, `radius.full`) + label + detail/chevron
   o un slot `right?: ReactNode` que reemplaza detail+chevron por un control custom (`Switch`,
@@ -932,20 +987,15 @@ del Dashboard/`AppTheme` — afecta el fondo de `app/settings.tsx` main + sus `F
 
 ### Dashboard (`app/(tabs)/index.tsx`)
 - Balance neto (tipografía 38px, weight 800)
-- **"BALANCE NETO" siempre sobre todo el historial (2026-09-02, pedido explícito del usuario)**: `useDashboardTotals.ts` ganó `allTimeNetBalance` — mismo cálculo que `netBalance` (ingresos − gastos) pero sobre `transactions` sin filtrar por período, en vez de `typeFilteredTransactions`/`searchedTransactions` (las mismas transacciones ya acotadas por `FilterChips` que alimentan la gráfica). Antes, al cambiar de mes (o si el mes nuevo aún no tenía movimientos) el balance se iba a $0 en vez de seguir mostrando la plata real disponible. El Dashboard usa `allTimeNetBalance` para "BALANCE NETO" y "Patrimonio neto" **excepto durante una búsqueda** (`isSearching`), donde se mantiene `netBalance` (neto de los resultados encontrados, intencional — la etiqueta ya dice "BÚSQUEDA · N resultados"). Los pills "↓ Gasto / ↑ Ingreso" (`incomeTotal`/`expenseTotal`) siguen acotados al período — es un cambio deliberadamente distinto del balance.
-- **Patrimonio neto** *(nuevo, 2026-08-17)*: línea bajo el balance, `allTimeNetBalance - totalDebt` (suma de `remainingAmount` de `useSettingsStore.debts`) con `formatBalance` (conserva el signo). Solo visible si `totalDebt > 0` (hay deudas activas) y no hay búsqueda/filtro de tipo activos.
-- Pills inline (Gastos/Ingresos) con toggle por tipo
-- Barra de presupuesto inline (condicional: `monthlyBudget > 0`, sin filtro de tipo, solo período actual). Usa `monthlyBudget` directamente (presupuesto siempre mensual)
-- FilterChips — un solo chip de período con `periodLabel` y `onOpenMonthPicker`. Por defecto muestra "Este mes"
+- **"BALANCE NETO" = neto del período visto** (`periodNet` de `useDashboardTotals`: ingresos − gastos de `filteredTransactions`, sin el filtro de tipo de los pills). Durante una búsqueda (`isSearching`) usa `netBalance` de los resultados y la etiqueta dice "BÚSQUEDA · N resultados". Entre 2026-09-02 y el commit 61957c1 mostraba `allTimeNetBalance` (todo el historial); se cambió para que el balance acompañe al período elegido y el saldo real quede en su propia línea.
+- **"Saldo total: $X"** (`allTimeNetBalance`, todo el historial) bajo el balance, oculto en la vista "Todo el tiempo" (coincidiría con el balance). **"Patrimonio neto: $X"** (`allTimeNetBalance - totalDebt`, suma de `remainingAmount`) en la misma línea si hay deudas activas. Ninguna durante una búsqueda.
+- Pills inline (Gastos/Ingresos) con toggle por tipo; siguen el período visto
+- **Barra de pago** (solo si la vista es un ciclo de la frecuencia, sin búsqueda ni filtro de tipo, y hay pago configurado): "X% de $pago · recibido $Y" = gasto del ciclo visto vs `expectedPay(defaultPeriod, ciclo)`, con los ingresos del ciclo al lado. Si el gasto supera el pago, aviso "$X sobre tu pago" arriba del balance (`overBudgetAmount`).
+- **Botón de calendario** en el header (entre la campana y Ajustes, ref de tour `PERIOD_BTN`): toque = mostrar/ocultar `PeriodStrip` (en vistas "Todo el tiempo"/rango no hay tira y el toque abre el menú); toque largo = `PeriodMenu`. Con una vista distinta de la predeterminada: punto rojo sobre el ícono y una "x" al lado que restablece. Con la tira oculta y vista no predeterminada, un chip con la etiqueta del período (tocarlo vuelve a mostrar la tira). El período sale de `useTransactionFilters` (sección 6).
 - CategoryChart (gráfica de barras) — recibe `isIncomeMode` y `allEmojis` contextual
 - **`FlatList`** reemplaza `ScrollView + map` — chart y cabecera van en `ListHeaderComponent`, estado vacío en `ListEmptyComponent`; `renderItem` en `useCallback`
-- **`PeriodFilter` tipo unificado:** discriminante con 4 variantes (`quick`, `month`, `year`, `all`) — reemplaza los estados separados `period` + `pickerYear` + `pickerMonth`
-- **`applyPeriodFilter()`:** función pura fuera del componente que maneja los 4 casos de filtrado por fecha
-- `MonthPickerModal` — integrado con `PeriodFilter` directamente (`onApply` construye el tipo correcto)
-- `filteredTransactions` respeta `PeriodFilter` (período rápido, mes específico, año, o todo)
 - `categoryStats` e `incomeStats` usan `filteredTransactions` (dinámicos al período seleccionado)
-- Presupuesto solo visible si `isCurrentPeriod === true`
-- **Estado "período vacío":** cuando `filteredTransactions.length === 0` y es el período actual, muestra barras fantasma (opacity 0.18) con mensaje centrado: "Nuevo mes, ¡comienza ahora!". Si es un período pasado sin datos: "Sin registros en este período"
+- **Estado "período vacío":** cuando `filteredTransactions.length === 0`, la vista incluye hoy y no hay búsqueda, muestra barras fantasma (opacity 0.18) con mensaje según la vista: "Nuevo mes/Nueva semana/Nuevo período/Nuevo año, ¡comienza ahora!" (o "¡Comienza ahora!" en todo el tiempo/rango). Si es un período pasado sin datos: "Sin registros en este período" + "Toca el calendario de arriba para ver otro período"
 - **Modal de detalle de transacción:** al hacer **tap** en un item de la lista se abre un modal centrado estilo Stitch con: emoji, monto, categoría, tipo (Gasto/Ingreso), cuenta (método de pago), fecha, hora (formato 12h), descripción y tags. Si el item tiene el swipe abierto, el tap cierra el swipe primero
 - **Filtro por categoría desde la gráfica:** un tap corto en una columna del `CategoryChart` activa `setCategoryFilter({ emoji, name })`. Mientras el filtro está activo:
   - Se oculta la gráfica (`!categoryFilter` condiciona el render).
@@ -953,7 +1003,7 @@ del Dashboard/`AppTheme` — afecta el fondo de `app/settings.tsx` main + sus `F
   - `displayedTransactions` filtra por `tx.category === emoji` (`useDashboardSearch` prioriza `categoryFilter` sobre tags y `typeFilter`).
   - Limpieza con: (1) `BackHandler` físico — `useEffect` registra/desregistra el listener cuando `categoryFilter` cambia; (2) **pull-down sin spinner** — `PanResponder` de captura aplicado en un `View` envoltorio del `Reanimated.FlatList`. La lectura de "estoy en el tope" usa `useAnimatedReaction(() => scrollY.value <= 4, ..., runOnJS)` para sincronizar un ref JS sin overhead por frame. Si `dy > 80` al soltar, vibra y limpia el filtro. NO se usa `RefreshControl` (mostraría un spinner que sugiere "recargar contenido", lo cual confunde).
 - Barra de búsqueda: `keyboardExtraAnim` sube la barra sobre el teclado al abrirse
-- **Guided Tour:** integración con `GuidedTour` (5 pasos, solo primera vez). Refs de targets registrados en `tourRefs.ts`. El flujo alterna entre Dashboard y Settings. Persistido con `hasCompletedOnboarding` + `onboardingStep`
+- **Guided Tour:** integración con `GuidedTour` (3 pasos, solo primera vez, todos en el Dashboard): calendario (`PERIOD_BTN`) → voz (`MIC_FAB`) → manual (`PLUS_BTN`). Refs de targets registrados en `tourRefs.ts`. Persistido con `hasCompletedOnboarding` + `onboardingStep` (0 → 3 → 4 → completado; 1 y 2 eran el antiguo desvío a Ajustes y se tratan como el paso de voz)
 - **Eliminado:** chip de categoría, estilos de metas de ahorro, ScrollView+map, banner in-app de presupuesto excedido (reemplazado por notificación push), todo el sistema de toasts.
 
 ### Active Expense (`app/active-expense.tsx`) — rediseñado 2026-08-12
@@ -996,9 +1046,16 @@ del Dashboard/`AppTheme` — afecta el fondo de `app/settings.tsx` main + sus `F
 - **Footer sticky:** `"N registros · Total $ X"` + botón azul `"Guardar todo"`. Al confirmar: `addTransactionBatch(items)` → `clearPendingBatch()` → `router.dismissAll()`. En caso de error, `Alert.alert` nativo
 - Si `pendingBatch` está vacío al montar (p.ej. llegó por error), hace `router.back()` inmediatamente
 
+### Pay Onboarding (`app/pay-onboarding.tsx`)
+Paso 2 del onboarding: "¿Cuándo y cuánto te pagan?". Usa `PayPeriodForm` con `showHeader={false}`,
+`showPreview={false}` y `renderActions` para "Omitir" (sigue sin guardar: queda mensual día 1, sin
+pago) y "Continuar" (`setDefaultPeriod` + sigue). Ambos hacen `router.push("/notification-onboarding")`.
+Reemplaza al antiguo desvío del tour del Dashboard a Ajustes ("Configura tu ingreso").
+
 ### Bank Selection Onboarding (`app/bank-selection-onboarding.tsx`) — fix de navegación 2026-08-17
-Último paso de la cadena de onboarding (`category-onboarding` → `notification-onboarding` →
-`bank-selection-onboarding`, cada paso con `router.push` para que el botón atrás funcione).
+Último paso de la cadena de onboarding (`category-onboarding` → `pay-onboarding` →
+`notification-onboarding` → `bank-selection-onboarding`, cada paso con `router.push` para que el
+botón atrás funcione).
 `goToApp()` ahora hace `router.dismissAll()` **antes** de `router.replace("/(tabs)")`. Causa raíz
 del bug: `_layout.tsx` hace `router.replace("/category-onboarding")` al iniciar el onboarding
 (reemplazando `(tabs)` como raíz del stack); sin el `dismissAll()` previo, la pila quedaba
@@ -1018,13 +1075,20 @@ círculo completo (34px, `radius.full`).
 
 **Secciones, en orden** (todas sobre la capa de tokens, `Card` + `SectionHeader` + `ListRow` +
 `Divider` — ver sección 11b). Reordenadas de nuevo 2026-09-02 (ver abajo):
-1. **CONTROL FINANCIERO** — Ingreso mensual (chevron → `InputModal`)
+1. **CONTROL FINANCIERO** — "Pago y período" (ícono `Wallet`, chevron → `DefaultPeriodSheet`).
+   Reemplazó a "Ingreso mensual" (`InputModal` sobre `monthlyBudget`, eliminado en 61957c1).
 2. **GESTIÓN** — una sola `Card` con 5 filas separadas por `Divider` (no una tarjeta por fila,
    se probó y se revirtió a pedido del usuario): Categorías, Métodos de pago, Presupuesto por
    categoría, **Metas de ahorro** (ya no inline en la pantalla principal — ahora abre su propio
    `FullScreenModal`, mismo patrón que las otras filas de esta sección) y **Deudas** *(nuevo)*.
 3. **DETECCIÓN AUTOMÁTICA** — `AutoDetectSection` (solo "Detectar transacciones" + "Bancos activos")
-4. **SISTEMA** — Modo oscuro, Exportar datos, Borrar historial de transacciones, Versión
+4. **SISTEMA** — Modo oscuro, Bloqueo con huella, Exportar datos, Borrar historial de transacciones, Versión
+
+**Bloqueo con huella** (`BiometricLockRow`, ícono `Fingerprint` sobre `#4F46E5`): fila con `Switch`
+en el slot `right`. Activar y desactivar piden autenticarse (`LocalAuthentication.authenticateAsync`,
+con PIN del dispositivo como alternativa), para que nadie con el teléfono desbloqueado lo quite. Si
+el teléfono no tiene huella/rostro/PIN, activar muestra un `ConfirmDialog` informativo. La capa que
+bloquea es `BiometricLockGate` (sección 11).
 
 **Fusión de secciones (2026-09-02, pedido explícito del usuario):** las antiguas secciones
 independientes APARIENCIA (Modo oscuro), SISTEMA (Exportar/Borrar) y ACERCA DE (Versión) ya no
@@ -1066,8 +1130,8 @@ rosa `#DB2777` (Metas), rojo oscuro `#9F1239` (Deudas), rojo (Borrar historial),
   fecha, todo lo anterior era disparo inmediato `trigger: null`; si `dueDay` no existe en un mes
   dado, ej. 31 en febrero, ese mes no dispara). Al liquidar (`remainingAmount` llega a 0):
   `cancelDebtReminder()` + `notifyDebtPaidOff()`. Canal Android propio: `debt-reminders`.
-  Integración con el Dashboard: línea "Patrimonio neto" bajo el balance (`netBalance - totalDebt`,
-  solo visible si hay deudas activas y no hay búsqueda/filtro activos).
+  Integración con el Dashboard: "Patrimonio neto" bajo el balance (`allTimeNetBalance - totalDebt`,
+  solo visible si hay deudas activas y no hay búsqueda).
 - **Detección automática**: sección con componente `AutoDetectSection`, ahora fusionada en una
   sola `Card` agrupada (antes cada fila era su propia tarjeta con borde, se revirtió):
   - Toggle para activar/desactivar la captura de notificaciones bancarias, con ícono `Radar`
@@ -1086,7 +1150,7 @@ rosa `#DB2777` (Metas), rojo oscuro `#9F1239` (Deudas), rojo (Borrar historial),
 - Sistema: exportar CSV, limpiar datos.
 - **Exportar CSV:** usa `Share` de `react-native`. No usa `expo-sharing` ni `expo-file-system`.
 - **Confirmaciones:** Todas las alertas usan `ConfirmDialog` (componente custom con animación y variantes).
-- **Guided Tour:** paso 2 hace spotlight en la fila "Ingreso mensual"; paso 3 hace spotlight en el botón ← (volver).
+- **Sin Guided Tour:** el tour ya no pasa por Ajustes (se quitaron los pasos sobre "Ingreso mensual" y el botón ←, `TOUR_KEYS.INCOME_ROW`/`BACK_BTN`); el pago se configura en el onboarding (`pay-onboarding.tsx`).
 
 ### Notification Review (`app/notification-review.tsx`) *(nuevo en v1.5.0)*
 - Pantalla fullscreen modal para revisar transacciones detectadas automáticamente desde notificaciones bancarias
@@ -1106,7 +1170,7 @@ rosa `#DB2777` (Metas), rojo oscuro `#9F1239` (Deudas), rojo (Borrar historial),
 ### Reports (`app/reports.tsx`) — "Promedios" *(nuevo)*
 - Pantalla de un solo propósito: promedio de gasto/ingreso mensual histórico por categoría — capacidad que no existía en ningún otro lugar de la app (el Dashboard solo muestra totales del período filtrado, nunca un promedio a través del historial). Deliberadamente **sin filtro de período global**; se evaluó y se descartó.
 - **Header:** `StackedScreenHeader` con título "Promedios".
-- **Toggle Gastos/Ingresos (rediseñado 2026-08-18):** contenedor exterior con `borderWidth: 1.5` + `tokens.colors.border.default` (mismo lenguaje que el pill "Este mes" de `FilterChips`), no solo fondo `elevated` plano. El segmento activo ya no usa `accent.default` genérico — reutiliza los mismos colores por tipo que los pills "↓ Gasto / ↑ Ingreso" del Dashboard (`app/(tabs)/index.tsx`, estilos `pillExpenseActive`/`pillIncomeActive`): rojo (`bg: "#FEE2E2"`, `text: "#E53E3E"`) para Gastos, verde (`bg: "#DCFCE7"`, `text: "#16A34A"`) para Ingresos, en una constante local `SEGMENT_COLORS` dentro de `reports.tsx` — mismos valores hardcodeados que el Dashboard, sin token compartido todavía (ver Deuda técnica).
+- **Toggle Gastos/Ingresos (rediseñado 2026-08-18):** contenedor exterior con `borderWidth: 1.5` + `tokens.colors.border.default` (mismo lenguaje que tenía el pill "Este mes" de `FilterChips`, hoy eliminado), no solo fondo `elevated` plano. El segmento activo ya no usa `accent.default` genérico — reutiliza los mismos colores por tipo que los pills "↓ Gasto / ↑ Ingreso" del Dashboard (`app/(tabs)/index.tsx`, estilos `pillExpenseActive`/`pillIncomeActive`): rojo (`bg: "#FEE2E2"`, `text: "#E53E3E"`) para Gastos, verde (`bg: "#DCFCE7"`, `text: "#16A34A"`) para Ingresos, en una constante local `SEGMENT_COLORS` dentro de `reports.tsx` — mismos valores hardcodeados que el Dashboard, sin token compartido todavía (ver Deuda técnica).
 - **Card "hero":** título "Promedio mensual" + subtítulo según el toggle, dos filas de estadística (categoría top con emoji vía `HeroStatRow`, "Analizados: N meses") y un anillo/dona SVG (`react-native-svg`, `Circle` con `strokeDasharray`/`strokeDashoffset`) que muestra el promedio total en el centro y cuyo relleno representa la proporción de la categoría top sobre el total.
 - **Tarjetas secundarias (#2 y #3):** `SecondaryStatCard` lado a lado con barra de progreso relativa a la categoría top; se ocultan si hay menos de 3 categorías con datos.
 - **Card "Tendencia":** gráfico de barras mensuales scrollable horizontal (`queryMonthlyTotalsInRange`) — el único control de período de la pantalla, acotado a esta tarjeta. Chip "N meses ▾" abre `DateRangeSheet`; rango por defecto = últimos 6 meses calendario.
@@ -1149,7 +1213,6 @@ formatMoneyInput(text: string): string
 |--------|-----------|----------------|
 | Entrada de items | TransactionItem | `FadeInDown.delay(index*40).duration(300)` de Reanimated |
 | Palabra por palabra | voice-input AnimatedWords | `FadeIn.duration(220)` por palabra nueva |
-| Barra de presupuesto | BudgetBar | `useSharedValue` + `withTiming` |
 | Orb de voz | voice-input VoiceOrb | `withRepeat` + `withTiming` (pulsación) |
 | Feedback háptico guardar | active-expense | `expo-haptics` `notificationAsync(success)` |
 | Feedback háptico tap-detalle | TransactionItem | `expo-haptics` `selectionAsync()` en cada tap |
@@ -1159,7 +1222,9 @@ formatMoneyInput(text: string): string
 | **Compresión de barras al scroll** | CategoryChart + Dashboard | `scrollY: SharedValue` + `interpolate` en `AnimatedBar`: `fillH` comprime de valor real a `MIN_FILL_H(52)` cuando `scrollY ∈ [0, COMPRESS_END(140)]` |
 | **Crossfade labels scroll** | CategoryChart `AnimatedBar` | `verticalOpacityStyle` (fade-out) + `horizontalOpacityStyle` (fade-in) con rangos `[COMPRESS_END*0.75, COMPRESS_END]`; barras cortas muestran horizontal desde el inicio |
 | **Ghost fade al scroll** | CategoryChart `AnimatedBar` | `ghostFadeStyle`: opacity `[COMPRESS_END*0.85, COMPRESS_END]` |
-| **Odómetro de dígitos** | RollingNumber → DigitColumn | `useSharedValue` + `withTiming(Easing.out(cubic), 400ms)` por columna; `FadeInDown`/`FadeOut` para columnas que aparecen/desaparecen |
+| **Odómetro de dígitos (ruleta)** | RollingNumber → DigitColumn | `withDelay(35ms × columna, withTiming(Easing.out(cubic), 700ms))`, siempre hacia adelante sobre 3 copias de 0-9; `FadeInDown`/`FadeOut` para columnas que aparecen/desaparecen |
+| Tira de períodos | PeriodStrip | `useAnimatedScrollHandler` + `interpolate` de opacidad/escala según distancia al centro; tick háptico al cruzar ítems |
+| Menú del calendario | PeriodMenu | `withSpring` de escala desde la esquina superior derecha (`transformOrigin`) + fade del fondo |
 | Diálogo de confirmación | ConfirmDialog | Spring scale (0.85→1) + fade-in opacity, 3 variantes (danger/warning/info) |
 | Spotlight de onboarding | GuidedTour | Fade-in overlay oscuro con cutout circular + spring scale del tooltip. Transición animada entre pasos |
 | Tap → detalle transacción | TransactionItem | `TouchableOpacity.onPress` → haptic + modal fade. Si swipe abierto: cierra swipe primero |
@@ -1232,8 +1297,8 @@ formatMoneyInput(text: string): string
 2. **`useMemo`** para cálculos derivados costosos (totales, stats, filtros)
 3. **`useCallback`** para `renderItem` y `keyExtractor` del FlatList
 4. **Animaciones en UI thread** — Reanimated worklets para 60fps
-5. **Funciones puras fuera del componente** — `applyPeriodFilter`, `formatBalance`, `normalize` no se recrean en cada render
-6. **Presupuesto directo** — `monthlyBudget` y `budgetByCategory` se usan directamente sin transformación (el presupuesto es siempre mensual)
+5. **Funciones puras fuera del componente** — helpers de `periodCycles.ts`, `formatBalance`, `normalize` no se recrean en cada render
+6. **Sumas por período en una pasada** — `sumByRanges()` reparte todas las transacciones entre los ciclos de la tira con búsqueda binaria (la tira semanal puede tener cientos de ciclos)
 
 ---
 
@@ -1303,7 +1368,6 @@ clonar/editar el HTML.
 
 | Archivo | Problema |
 |---------|---------|
-| `BudgetBar.tsx` | Componente separado no importado; barra de presupuesto está inline en `index.tsx` |
 | `wallet.tsx` | Pantalla placeholder sin funcionalidad |
 | `FloatingInput.tsx` | Overlay de entrada rápida NLP; `useUIStore` ya expone `isExpenseInputOpen` — funcional |
 | `chat.tsx` | Pantalla de asistente financiero; ya no se navega a ella desde el FloatingDock |
@@ -1323,6 +1387,8 @@ clonar/editar el HTML.
 - `BlurView` no funciona consistentemente en emuladores Android
 - `Appearance.setColorScheme(null)` causa crash en Android — fue removido
 - `PanResponder` puede interferir con scroll horizontal si no se configura correctamente
+- **ANR de `react-native-android-notification-listener`:** su `BootUpReceiver` (en `BOOT_COMPLETED`) llama `startForegroundService()` sobre un servicio que nunca llama `startForeground()`; Android lo mata con ANR (visto en `adb shell dumpsys dropbox` en el Samsung de pruebas). Arreglarlo exige parchear la librería o quitar el receiver con un config plugin; pendiente.
+- **Réplica del Dashboard en la demo de la landing desactualizada:** `landing/src/demo/phone/Dashboard.tsx` sigue con el pill "Este mes" y el balance de todo el historial; no tiene el botón de calendario, la tira de períodos, "Saldo total" ni la barra de pago.
 
 ### Colores de gasto/ingreso duplicados sin token compartido
 `app/(tabs)/index.tsx` (`pillExpenseActive`/`pillIncomeActive`) y `app/reports.tsx`
@@ -1341,6 +1407,7 @@ en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún
 - `app.config.ts` usa `softwareKeyboardLayoutMode: "resize"` para evitar que el teclado cubra contenido
 - Pantallas principales (`active-expense`): `KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}` — Android lo maneja nativamente con `resize`
 - Modales (`settings`, `CategoryChart`, `NewCategoryModal`): `KeyboardAvoidingView behavior="padding"` explícito — necesario porque `resize` no aplica dentro de modales
+- Dentro de una `BottomSheet` (`Modal` edge-to-edge) `KeyboardAvoidingView` no mide bien: `DefaultPeriodSheet` escucha `keyboardDidShow`/`keyboardDidHide` y aplica la altura del teclado como `paddingBottom`
 
 ---
 
@@ -1356,7 +1423,7 @@ en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún
 ### Al disparar notificaciones OS
 1. Usar `checkAndNotifyBudget()` después de guardar una transacción de gasto con presupuesto
 2. Usar `checkAndNotifyGoalCompleted()` después de actualizar el `savedAmount` de una meta
-3. Ambas funciones son no-op si `notificationsEnabled === false` o si ya se notificó ese mes/meta
+3. Ambas funciones son no-op si `notificationsEnabled === false` o si ya se notificó en ese ciclo de presupuesto (`budgetCycle`) / esa meta
 4. `requestNotificationPermissions()` debe llamarse antes del primer intento de notificación
 
 ### Al agregar una nueva pantalla
@@ -1419,6 +1486,7 @@ en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún
   "expo-haptics": "^55.0.8",
   "expo-linear-gradient": "~55.0.8",
   "expo-linking": "~55.0.7",
+  "expo-local-authentication": "~55.0.18",
   "expo-notifications": "~55.0.13",
   "expo-router": "~55.0.3",
   "expo-sharing": "~55.0.14",

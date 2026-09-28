@@ -10,6 +10,10 @@ export function extractDescription(text: string, bankName: string): string {
     .replace(/bancolombia le informa/i, "")
     .replace(/su (cuenta|tarjeta) (fue |ha sido )?/i, "")
     .replace(/transacci[oó]n (aprobada|rechazada|exitosa)?/i, "")
+    // Eliminar la referencia a la tarjeta ("con tu tarjeta débito terminada en 1234"):
+    // no aporta a la descripción y guardaría dígitos de la tarjeta (Regla inmutable #6)
+    .replace(/,?\s*con (tu|su) tarjeta[^.]*/gi, "")
+    .replace(/(terminada|terminado|finalizada) en\s*[*\d]+/gi, "")
     // Eliminar monto + contexto de saldo
     .replace(/\$[\d.,]+/g, "")
     .replace(/saldo[\s:]*[\d.,]+/gi, "")
@@ -85,6 +89,16 @@ export function shortenDescription(description: string, isExpense: boolean, amou
       /^([A-Za-zÁÉÍÓÚÑáéíóúñ][\wÁÉÍÓÚÑáéíóúñ.]*(?:\s+[A-Za-zÁÉÍÓÚÑáéíóúñ][\wÁÉÍÓÚÑáéíóúñ.]*)*)\s+te\s+(envi[oó]|enviaron|transfiri[oó]|pag[oó])(?=\s|$)/i,
     );
     if (senderFirstMatch) return `${verb} de ${senderFirstMatch[1].trim()} · ${amountLabel}`;
+  }
+
+  // Comercio justo después del verbo ("compra en APPLE.COM/BILL por…"): se prueba antes
+  // que la frase preposicional final porque admite puntos en el nombre y corta en el
+  // conector siguiente ("por", "con"…), que en Nu quedan colgando tras quitar el monto.
+  if (isExpense) {
+    const merchantMatch = trimmed.match(
+      /\b(?:compra|compraste|pago|pagaste|retiro)\s+(?:por\s+)?(en|a)\s+(.+?)(?=\s+(?:por|con|el|desde)(?:\s|$)|[,;]|\.(?:\s|$)|$)/i,
+    );
+    if (merchantMatch) return `${verb} ${merchantMatch[1].toLowerCase()} ${merchantMatch[2].trim()} · ${amountLabel}`;
   }
 
   const counterpartMatch = trimmed.match(/(?:^|\s)(comercio:?|en|a|de)\s+([^.]+)$/i);

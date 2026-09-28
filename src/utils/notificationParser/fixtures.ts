@@ -38,6 +38,13 @@ export const NOTIFICATION_FIXTURES: NotificationFixture[] = [
     expected: { kind: "parsed", amount: 12000, isExpense: true },
   },
   {
+    label: "Nu — compra aprobada con comercio con punto (APPLE.COM/BILL) (SÍ debe registrarse como gasto)",
+    packageName: "com.nu.production",
+    title: "Compra aprobada por $12.900,00",
+    text: "Tu compra en APPLE.COM/BILL por $12.900,00 con tu tarjeta débito terminada en 1234.",
+    expected: { kind: "parsed", amount: 12900, isExpense: true },
+  },
+  {
     label:
       "Nu — transferencia entrante de otro banco, sin '$' ni 'recibiste' (SÍ debe registrarse como ingreso)",
     packageName: "com.nu.production",

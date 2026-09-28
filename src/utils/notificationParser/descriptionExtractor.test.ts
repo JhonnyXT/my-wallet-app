@@ -92,3 +92,19 @@ describe("shortenDescription", () => {
     expect(shortenDescription("Compra en Rappi", true, -45000)).toBe("Compra en Rappi · $ 45.000");
   });
 });
+
+describe("comercio con punto y cola de tarjeta (Nu, caso real 2026-09-24)", () => {
+  const title = "Compra aprobada por $12.900,00";
+  const text = "Tu compra en APPLE.COM/BILL por $12.900,00 con tu tarjeta débito terminada en 1234.";
+
+  it("extractDescription quita la cola de la tarjeta (sin últimos dígitos)", () => {
+    const desc = extractDescription(`${title} ${text}`, "Nu");
+    expect(desc).toContain("APPLE.COM/BILL");
+    expect(desc).not.toMatch(/tarjeta|terminada|1234/i);
+  });
+
+  it("shortenDescription nombra el comercio aunque tenga puntos", () => {
+    const desc = extractDescription(`${title} ${text}`, "Nu");
+    expect(shortenDescription(desc, true, 12900)).toBe("Compra en APPLE.COM/BILL · $ 12.900");
+  });
+});

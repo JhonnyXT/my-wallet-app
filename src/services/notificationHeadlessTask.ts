@@ -12,7 +12,7 @@
  * Hay que hacer JSON.parse antes de leer los campos.
  */
 import { parseNotification, BANK_PACKAGE_NAMES } from "@/src/utils/notificationParser";
-import { useNotificationStore } from "@/src/store/useNotificationStore";
+import { useNotificationStore, waitForNotificationStoreHydration } from "@/src/store/useNotificationStore";
 import { notifyBankTransaction } from "@/src/services/notificationService";
 import { AUTO_DETECT_ENABLED_KEY, ALLOWED_BANKS_KEY } from "@/src/constants/banks";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -87,8 +87,13 @@ export async function notificationHeadlessTask(taskData: { notification: string 
     const parsed = parseNotification(notification.app, title, text, postedAt);
     if (!parsed) return;
 
-    // 5. Agregar a la cola de pendientes (acceso directo al store, sin hooks)
-    const itemId = useNotificationStore.getState().addPendingItem(parsed);
+    // 5. Agregar a la cola de pendientes (acceso directo al store, sin hooks). Se espera
+    //    la rehidratación para que el chequeo de duplicados vea la cola real.
+    await waitForNotificationStoreHydration();
+    const { id: itemId, isNew } = useNotificationStore.getState().addPendingItem(parsed);
+    // Android entrega a veces la misma notificación del banco dos veces (post + update):
+    // la cola ya la descartó como duplicado, así que tampoco se repite la push.
+    if (!isNew) return;
 
     // 6. Notificación push al usuario para que sepa que hay una transacción pendiente.
     //    El wording se ajusta según parsed.confidence (ver notifyBankTransaction). Se

@@ -22,11 +22,11 @@ interface NotificationState {
 
   /**
    * Agrega una transacción detectada a la cola (evita duplicados por monto+banco en <2 min).
-   * Devuelve el id generado (o el del duplicado existente si no se agregó nada) — lo usa
-   * `notificationHeadlessTask.ts` para que la notificación push lleve el id del item exacto
-   * que la originó (deep link directo a `active-expense` cuando es el único pendiente).
+   * Devuelve el id del item (el nuevo, o el del duplicado existente) y si realmente se agregó:
+   * `notificationHeadlessTask.ts` solo manda la push cuando `isNew` — Android puede entregar
+   * la misma notificación bancaria dos veces (post + update) y cada entrega disparaba su push.
    */
-  addPendingItem: (item: ParsedTransaction) => string;
+  addPendingItem: (item: ParsedTransaction) => { id: string; isNew: boolean };
 
   /** Elimina un item de la cola (al guardar o descartar) */
   removePendingItem: (id: string) => void;
@@ -61,13 +61,13 @@ export const useNotificationStore = create<NotificationState>()(
       addPendingItem: (item) => {
         const current = get().pendingItems;
         const duplicateId = findDuplicate(current, item);
-        if (duplicateId) return duplicateId;
+        if (duplicateId) return { id: duplicateId, isNew: false };
         const newItem: PendingNotificationItem = {
           ...item,
           id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         };
         set({ pendingItems: [newItem, ...current] });
-        return newItem.id;
+        return { id: newItem.id, isNew: true };
       },
 
       removePendingItem: (id) =>
@@ -96,14 +96,23 @@ export const useNotificationStore = create<NotificationState>()(
 export async function getPendingItemAfterHydration(
   id: string,
 ): Promise<PendingNotificationItem | null> {
-  if (!useNotificationStore.persist.hasHydrated()) {
-    await new Promise<void>((resolve) => {
-      const unsub = useNotificationStore.persist.onFinishHydration(() => {
-        unsub();
-        resolve();
-      });
-      setTimeout(resolve, 1500);
-    });
-  }
+  await waitForNotificationStoreHydration();
   return useNotificationStore.getState().pendingItems.find((i) => i.id === id) ?? null;
+}
+
+/**
+ * Espera a que `persist` termine de rehidratar la cola desde AsyncStorage. En HeadlessJS
+ * (cold start) hay que llamarla antes de `addPendingItem`: si se agrega antes de hidratar,
+ * la rehidratación pisa el estado y se pierde el item, y el chequeo de duplicados no ve la
+ * cola real.
+ */
+export async function waitForNotificationStoreHydration(): Promise<void> {
+  if (useNotificationStore.persist.hasHydrated()) return;
+  await new Promise<void>((resolve) => {
+    const unsub = useNotificationStore.persist.onFinishHydration(() => {
+      unsub();
+      resolve();
+    });
+    setTimeout(resolve, 1500);
+  });
 }

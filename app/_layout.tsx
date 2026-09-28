@@ -15,9 +15,11 @@ import {
 } from "@/src/store/useNotificationStore";
 import { ThemeProvider } from "@/src/context/ThemeContext";
 import { AnimatedSplash } from "@/src/components/ui/AnimatedSplash";
+import { BiometricLockGate } from "@/src/components/ui/BiometricLockGate";
 import { light, dark } from "@/src/theme";
 import { guessCategoryEmoji } from "@/src/constants/theme";
 import { resolveCategory } from "@/src/utils/transactionFormatters";
+import { budgetCycle, cycleKey } from "@/src/utils/periodCycles";
 import { shortenDescription } from "@/src/utils/notificationParser/descriptionExtractor";
 
 import "../global.css";
@@ -154,7 +156,8 @@ export default function RootLayout() {
         // Importación dinámica para evitar dependencia circular con notificationService
         const { initNotifications } = await import("@/src/services/notificationService");
         await initNotifications();
-        useSettingsStore.getState().clearExpiredBudgetNotifications();
+        const settings = useSettingsStore.getState();
+        settings.clearExpiredBudgetNotifications(cycleKey(budgetCycle(settings.defaultPeriod, new Date())));
       } catch (e) {
         console.error("[bootstrap] Error al inicializar la app:", e);
       } finally {
@@ -179,6 +182,13 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="category-onboarding"
+          options={{
+            animation: "fade",
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="pay-onboarding"
           options={{
             animation: "fade",
             headerShown: false,
@@ -249,6 +259,7 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
 
+      <BiometricLockGate ready={splashDone} />
       {!splashDone && <AnimatedSplash ready={appReady} onFinish={() => setSplashDone(true)} />}
     </ThemeProvider>
   );

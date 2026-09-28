@@ -6,6 +6,7 @@ import * as Notifications from "expo-notifications";
 import { Linking, Platform } from "react-native";
 import { useSettingsStore, type Debt } from "@/src/store/useSettingsStore";
 import { formatCOP } from "@/src/utils/formatMoney";
+import { budgetCycle, cycleKey } from "@/src/utils/periodCycles";
 import { shortenDescription } from "@/src/utils/notificationParser/descriptionExtractor";
 
 // Configura cómo se muestran las notificaciones cuando la app está en primer plano
@@ -53,9 +54,9 @@ async function ensureChannels() {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function currentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+/** Clave del ciclo de presupuesto actual: sigue el día de inicio si la frecuencia es mensual. */
+function currentBudgetCycleKey(): string {
+  return cycleKey(budgetCycle(useSettingsStore.getState().defaultPeriod, new Date()));
 }
 
 // ─── Permisos ─────────────────────────────────────────────────────────────────
@@ -117,12 +118,12 @@ export async function checkAndNotifyBudget(
 
   if (!store.notificationsEnabled || !store.budgetAlertsEnabled || budget <= 0) return;
 
-  const month = currentMonth();
+  const month = currentBudgetCycleKey();
   const ratio = spent / budget;
   const threshold = store.budgetAlertThreshold / 100;
   const isOver = ratio >= 1.0;
 
-  // Claves compuestas para permitir dos notificaciones por categoría por mes:
+  // Claves compuestas para permitir dos notificaciones por categoría por ciclo de presupuesto:
   // una al cruzar el umbral, otra al superar el 100%
   const keyThreshold = `${categoryEmoji}:threshold`;
   const keyOverspent = `${categoryEmoji}:overspent`;
@@ -243,6 +244,9 @@ export async function notifyBankTransaction(
           : `${amtStr} · No estamos seguros — confirma en la app`;
 
     await Notifications.scheduleNotificationAsync({
+      // Mismo id que el item de la cola: si por una carrera se vuelve a notificar el mismo
+      // item, Android reemplaza la push en vez de mostrar dos.
+      ...(itemId && { identifier: `bank-tx-${itemId}` }),
       content: {
         title,
         body,

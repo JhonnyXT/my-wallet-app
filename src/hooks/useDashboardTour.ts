@@ -1,7 +1,6 @@
 // ─── Hook: estado del tour de onboarding del dashboard ───────────────────────
 
 import { useMemo } from "react";
-import { router } from "expo-router";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
 import type { TourStep } from "@/src/components/ui/GuidedTour";
@@ -10,7 +9,6 @@ export interface UseDashboardTourReturn {
   dashboardTourSteps: TourStep[];
   dashboardTourVisible: boolean;
   dashboardTourIndex: number;
-  onboardingStep: number;
   completeOnboarding: () => void;
 }
 
@@ -24,14 +22,12 @@ export function useDashboardTour(): UseDashboardTourReturn {
   const dashboardTourSteps: TourStep[] = useMemo(
     () => [
       {
-        targetRef: getTourRef(TOUR_KEYS.SETTINGS_BTN),
+        targetRef: getTourRef(TOUR_KEYS.PERIOD_BTN),
         title: "¡Bienvenido a MyWallet!",
-        message: "Primero, configura tu ingreso mensual para tener control de tus finanzas.",
-        buttonLabel: "Ir a Ajustes",
-        onAction: () => {
-          setOnboardingStep(1);
-          router.push("/settings");
-        },
+        message:
+          "Este es tu período. Tócalo para ver tus meses y deslizarte entre ellos. Mantenlo presionado para ver un año, un rango de fechas o cambiar cuándo te pagan.",
+        buttonLabel: "Siguiente",
+        onAction: () => setOnboardingStep(3),
       },
       {
         targetRef: getTourRef(TOUR_KEYS.MIC_FAB),
@@ -52,18 +48,19 @@ export function useDashboardTour(): UseDashboardTourReturn {
     [],
   );
 
+  // Pasos de onboardingStep: 0 calendario → 3 voz → 4 manual → completado. Los valores 1 y
+  // 2 eran el antiguo desvío a Ajustes ("Configura tu ingreso", ya no existe: el pago se
+  // configura en el onboarding, app/pay-onboarding.tsx); quien quedó a mitad ahí sigue
+  // en el paso de voz.
   const dashboardTourVisible =
-    hasSelectedCategories &&
-    !hasCompletedOnboarding &&
-    (onboardingStep === 0 || onboardingStep === 3 || onboardingStep === 4);
+    hasSelectedCategories && !hasCompletedOnboarding && onboardingStep <= 4;
 
-  const dashboardTourIndex = onboardingStep === 0 ? 0 : onboardingStep === 3 ? 1 : 2;
+  const dashboardTourIndex = onboardingStep === 0 ? 0 : onboardingStep <= 3 ? 1 : 2;
 
   return {
     dashboardTourSteps,
     dashboardTourVisible,
     dashboardTourIndex,
-    onboardingStep,
     completeOnboarding,
   };
 }

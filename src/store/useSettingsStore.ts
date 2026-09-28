@@ -17,6 +17,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { UserCategory } from "@/src/constants/categoryPresets";
+import { DEFAULT_CADENCE, type PeriodCadence } from "@/src/utils/periodCycles";
 
 import { createCategoriesSlice, type CategoriesSlice } from "./slices/categoriesSlice";
 import { createBudgetSlice, type BudgetSlice } from "./slices/budgetSlice";
@@ -75,6 +76,21 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: "mywallet-settings",
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (persisted, version) => {
+        const state = persisted as Record<string, unknown>;
+        // v0 → v1: el antiguo "Ingreso mensual" (monthlyBudget) pasa a ser el pago
+        // esperado del período predeterminado, que en v0 siempre era mensual.
+        if (version < 1) {
+          const monthly = typeof state.monthlyBudget === "number" ? state.monthlyBudget : 0;
+          const period = (state.defaultPeriod as PeriodCadence | undefined) ?? DEFAULT_CADENCE;
+          if (monthly > 0 && period.type !== "semimonthly" && !period.pay) {
+            state.defaultPeriod = { ...period, pay: monthly };
+          }
+          delete state.monthlyBudget;
+        }
+        return state as unknown as SettingsState;
+      },
     },
   ),
 );

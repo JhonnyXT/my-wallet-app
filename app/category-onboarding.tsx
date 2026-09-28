@@ -234,7 +234,7 @@ export default function CategoryOnboarding() {
     if (isEditing) {
       router.back();
     } else {
-      router.push("/notification-onboarding");
+      router.push("/pay-onboarding");
     }
   }, [
     selectedIds,

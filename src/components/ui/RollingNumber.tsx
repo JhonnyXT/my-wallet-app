@@ -1,26 +1,35 @@
 /**
  * RollingNumber — contador tipo odómetro (cuentakilómetros).
  *
- * Cada dígito tiene su propia columna vertical con los números 0-9 apilados.
- * Cuando el valor cambia, cada columna hace translateY al nuevo dígito con
+ * Cada dígito tiene su propia columna vertical con los números 0-9 apilados tres
+ * veces. En reposo se muestra la copia del medio; cuando el dígito cambia, la
+ * columna gira siempre HACIA ADELANTE hasta la tercera copia (efecto ruleta, al
+ * menos una vuelta si el dígito baja) y al terminar salta invisible a la copia
+ * del medio. Las columnas arrancan escalonadas de izquierda a derecha.
  * Reanimated en el UI thread (60fps, sin bloquear el JS thread).
  *
  * Formato COP: separadores de miles con "." intercalados entre las columnas.
  * Cuando el conteo de dígitos cambia, las nuevas columnas/separadores
  * hacen fade-in y los que desaparecen hacen fade-out.
  */
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { View, Text, StyleSheet, type TextStyle, type StyleProp } from "react-native";
 import Reanimated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withDelay,
   Easing,
+  useReducedMotion,
   FadeInDown,
   FadeOut,
 } from "react-native-reanimated";
 
 // ─── DigitColumn ──────────────────────────────────────────────────────────────
+
+const DIGIT_ROWS = Array.from({ length: 30 }, (_, i) => i % 10);
+// Escalonado entre columnas: la ruleta "corre" de izquierda a derecha.
+const COLUMN_STAGGER_MS = 35;
 // Columna con los dígitos 0-9 apilados verticalmente. El translateY
 // desplaza la pila para mostrar el dígito correcto dentro del clipping.
 
@@ -29,34 +38,47 @@ function DigitColumn({
   digitHeight,
   style,
   duration,
+  delay,
 }: {
   digit: number;
   digitHeight: number;
   style?: TextStyle;
   duration: number;
+  delay: number;
 }) {
-  // Inicializar en la posición del dígito actual (sin animación de entrada)
-  const translateY = useSharedValue(-digit * digitHeight);
+  const reducedMotion = useReducedMotion();
+  // Posición en "filas": 10 + dígito = copia del medio (reposo, sin animación de entrada).
+  const row = useSharedValue(10 + digit);
+  const prevDigit = useRef(digit);
 
   useEffect(() => {
-    translateY.value = withTiming(-digit * digitHeight, {
-      duration,
-      easing: Easing.out(Easing.cubic),
-    });
+    if (prevDigit.current === digit) return;
+    prevDigit.current = digit;
+    if (reducedMotion) {
+      row.value = 10 + digit;
+      return;
+    }
+    // Siempre hacia adelante: de la copia del medio a la tercera (1 a 19 filas).
+    row.value = withDelay(
+      delay,
+      withTiming(20 + digit, { duration, easing: Easing.out(Easing.cubic) }, (finished) => {
+        if (finished) row.value = 10 + digit;
+      }),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [digit, digitHeight]);
+  }, [digit]);
 
   const animStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [{ translateY: -row.value * digitHeight }],
   }));
 
   return (
     // overflow:hidden recorta la columna para mostrar solo 1 dígito a la vez
     <View style={{ height: digitHeight, overflow: "hidden" }}>
       <Reanimated.View style={animStyle}>
-        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => (
+        {DIGIT_ROWS.map((d, i) => (
           <Text
-            key={d}
+            key={i}
             style={[
               style,
               {
@@ -113,11 +135,11 @@ export interface RollingNumberProps {
   prefix?: string;
   /** Estilo aplicado a cada dígito, separador y prefijo */
   style?: StyleProp<TextStyle>;
-  /** Duración de la animación de cada columna en ms (default 400) */
+  /** Duración del giro de cada columna en ms (default 700) */
   duration?: number;
 }
 
-export function RollingNumber({ value, prefix = "$ ", style, duration = 400 }: RollingNumberProps) {
+export function RollingNumber({ value, prefix = "$ ", style, duration = 700 }: RollingNumberProps) {
   const flat = StyleSheet.flatten(style) as TextStyle | undefined;
   const fontSize = (flat?.fontSize as number) ?? 14;
   // Usa lineHeight del estilo si está definido; si no, estima desde fontSize
@@ -125,6 +147,7 @@ export function RollingNumber({ value, prefix = "$ ", style, duration = 400 }: R
     typeof flat?.lineHeight === "number" ? flat.lineHeight : Math.ceil(fontSize * 1.28);
 
   const tokens = tokenize(value);
+  let digitOrder = 0;
 
   const baseTextStyle: TextStyle = {
     ...flat,
@@ -158,6 +181,7 @@ export function RollingNumber({ value, prefix = "$ ", style, duration = 400 }: R
               digitHeight={digitHeight}
               style={flat}
               duration={duration}
+              delay={digitOrder++ * COLUMN_STAGGER_MS}
             />
           </Reanimated.View>
         ),

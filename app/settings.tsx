@@ -7,9 +7,9 @@
  */
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
 import { Card, SectionHeader, Divider } from "@/src/components/ui/Card";
+import { DefaultPeriodSheet } from "@/src/components/ui/DefaultPeriodSheet";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { Enter } from "@/src/components/ui/Enter";
-import { GuidedTour, type TourStep } from "@/src/components/ui/GuidedTour";
 import { HueColorPicker } from "@/src/components/ui/HueColorPicker";
 import { ListRow } from "@/src/components/ui/ListRow";
 import { PressableScale } from "@/src/components/ui/PressableScale";
@@ -38,16 +38,17 @@ import { useAppTokens } from "@/src/theme/tokens";
 import { hexToHue, hueToColors } from "@/src/utils/colorUtils";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
 import { KNOWN_BANKS } from "@/src/utils/notificationParser";
-import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
+import * as LocalAuthentication from "expo-local-authentication";
 import { router } from "expo-router";
 import {
   Check,
   ChevronRight,
   CreditCard,
   Download,
+  Fingerprint,
   HandCoins,
   Info,
   Landmark,
@@ -1951,6 +1952,76 @@ function SavingsGoalsSection() {
 
 // ─── Sección: Detección automática de transacciones ──────────────────────────
 
+const BIOMETRIC_COLOR = "#4F46E5";
+
+/**
+ * Fila "Bloqueo con huella" (SISTEMA). Activar y desactivar piden autenticarse, para que
+ * nadie con el teléfono desbloqueado pueda quitar el bloqueo. La capa que bloquea la app
+ * vive en `src/components/ui/BiometricLockGate.tsx`, montada en `app/_layout.tsx`.
+ */
+function BiometricLockRow() {
+  const tokens = useAppTokens();
+  const enabled = useSettingsStore((s) => s.biometricLockEnabled);
+  const setEnabled = useSettingsStore((s) => s.setBiometricLockEnabled);
+  const [busy, setBusy] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
+
+  const handleToggle = useCallback(async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const activating = !enabled;
+      const level = await LocalAuthentication.getEnrolledLevelAsync();
+      if (activating && level === LocalAuthentication.SecurityLevel.NONE) {
+        setUnavailable(true);
+        return;
+      }
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: activating
+          ? "Confirma tu identidad para activar el bloqueo"
+          : "Confirma tu identidad para desactivarlo",
+        cancelLabel: "Cancelar",
+        disableDeviceFallback: false,
+      });
+      if (result.success) {
+        setEnabled(activating);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, enabled, setEnabled]);
+
+  return (
+    <>
+      <ListRow
+        label="Bloqueo con huella"
+        icon={<Fingerprint size={16} color="#FFFFFF" strokeWidth={2} />}
+        iconBg={BIOMETRIC_COLOR}
+        onPress={handleToggle}
+        right={
+          <Switch
+            value={enabled}
+            disabled={busy}
+            onValueChange={handleToggle}
+            trackColor={{ true: "#135BEC", false: tokens.colors.border.default }}
+            thumbColor={enabled ? "#fff" : tokens.colors.text.secondary}
+          />
+        }
+      />
+      <ConfirmDialog
+        visible={unavailable}
+        variant="info"
+        title="No disponible"
+        message="Configura una huella, tu rostro o un PIN en los ajustes del teléfono para usar el bloqueo."
+        confirmLabel="Entendido"
+        onConfirm={() => setUnavailable(false)}
+        onCancel={() => setUnavailable(false)}
+      />
+    </>
+  );
+}
+
 const DETECT_COLOR = "#0D9488";
 const BANKS_COLOR = "#EA580C";
 
@@ -2224,12 +2295,10 @@ export default function SettingsScreen() {
   const tokens = useAppTokens();
   const insets = useSafeAreaInsets();
 
-  const monthlyBudget = useSettingsStore((s) => s.monthlyBudget);
   const darkMode = useSettingsStore((s) => s.darkMode);
   const budgetByCategory = useSettingsStore((s) => s.budgetByCategory);
   const userCategories = useSettingsStore((s) => s.userCategories);
 
-  const setMonthlyBudget = useSettingsStore((s) => s.setMonthlyBudget);
   const setDarkMode = useSettingsStore((s) => s.setDarkMode);
   const setBudgetForCategory = useSettingsStore((s) => s.setBudgetForCategory);
   const removeBudgetForCategory = useSettingsStore((s) => s.removeBudgetForCategory);
@@ -2257,7 +2326,7 @@ export default function SettingsScreen() {
   );
 
   // Modals state
-  const [budgetModal, setBudgetModal] = useState(false);
+  const [periodSheet, setPeriodSheet] = useState(false);
   const [darkSheet, setDarkSheet] = useState(false);
   const [catBudgetEmoji, setCatBudgetEmoji] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -2285,46 +2354,6 @@ export default function SettingsScreen() {
   const [clearDataDialog, setClearDataDialog] = useState(false);
   const [exportErrorDialog, setExportErrorDialog] = useState(false);
   const [notifPermDialog, setNotifPermDialog] = useState(false);
-
-  // Onboarding tour
-  const hasCompletedOnboarding = useSettingsStore((s) => s.hasCompletedOnboarding);
-  const hasSelectedCategories = useSettingsStore((s) => s.hasSelectedCategories);
-  const onboardingStep = useSettingsStore((s) => s.onboardingStep);
-  const setOnboardingStep = useSettingsStore((s) => s.setOnboardingStep);
-  const completeOnboarding = useSettingsStore((s) => s.completeOnboarding);
-
-  const settingsTourSteps: TourStep[] = useMemo(
-    () => [
-      {
-        targetRef: getTourRef(TOUR_KEYS.INCOME_ROW),
-        title: "Configura tu ingreso",
-        message: "Aquí puedes definir cuánto ganas al mes para calcular tu presupuesto.",
-        buttonLabel: "Configurar",
-        onAction: () => {
-          setOnboardingStep(2);
-          setBudgetModal(true);
-        },
-      },
-      {
-        targetRef: getTourRef(TOUR_KEYS.BACK_BTN),
-        title: "¡Todo listo!",
-        message:
-          "Tu ingreso está configurado. Vuelve al inicio para registrar tu primer movimiento.",
-        buttonLabel: "Volver al inicio",
-        onAction: () => {
-          setOnboardingStep(3);
-          router.back();
-        },
-      },
-    ],
-    [],
-  );
-
-  const settingsTourVisible =
-    hasSelectedCategories &&
-    !hasCompletedOnboarding &&
-    (onboardingStep === 1 || (onboardingStep === 2 && !budgetModal && monthlyBudget > 0));
-  const settingsTourIndex = onboardingStep === 1 ? 0 : 1;
 
   const transactions = useFinanceStore((s) => s.transactions);
 
@@ -2377,7 +2406,6 @@ export default function SettingsScreen() {
     >
       <StackedScreenHeader
         onBack={() => router.back()}
-        backRef={getTourRef(TOUR_KEYS.BACK_BTN)}
         title="Configuración"
       />
 
@@ -2393,15 +2421,13 @@ export default function SettingsScreen() {
         <Enter index={0} screenId="settings">
           <SectionHeader>CONTROL FINANCIERO</SectionHeader>
           <Card padded={false}>
-            <View ref={getTourRef(TOUR_KEYS.INCOME_ROW)} collapsable={false}>
-              <ListRow
-                label="Ingreso mensual"
-                icon={<Wallet size={16} color="#FFFFFF" strokeWidth={2} />}
-                iconBg={tokens.colors.state.success}
-                showChevron
-                onPress={() => setBudgetModal(true)}
-              />
-            </View>
+            <ListRow
+              label="Pago y período"
+              icon={<Wallet size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg={tokens.colors.state.success}
+              showChevron
+              onPress={() => setPeriodSheet(true)}
+            />
           </Card>
         </Enter>
 
@@ -2472,6 +2498,8 @@ export default function SettingsScreen() {
               onPress={() => setDarkSheet(true)}
             />
             <Divider inset={tokens.spacing.md * 2 + 34} />
+            <BiometricLockRow />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
             <ListRow
               label="Exportar datos"
               icon={<Download size={16} color="#FFFFFF" strokeWidth={2} />}
@@ -2500,15 +2528,7 @@ export default function SettingsScreen() {
 
       {/* ── Modales ───────────────────────────────────────────────────── */}
 
-      <InputModal
-        visible={budgetModal}
-        title="Ingreso mensual"
-        placeholder="Ej: 2000000"
-        value={monthlyBudget > 0 ? String(monthlyBudget) : ""}
-        keyboardType="numeric"
-        onConfirm={(v) => setMonthlyBudget(parseFloat(v.replace(/\D/g, "")) || 0)}
-        onClose={() => setBudgetModal(false)}
-      />
+      <DefaultPeriodSheet visible={periodSheet} onClose={() => setPeriodSheet(false)} />
 
       <SelectorModal
         visible={darkSheet}
@@ -2848,16 +2868,6 @@ export default function SettingsScreen() {
         confirmLabel="Entendido"
         onConfirm={() => setMinCatAlert(null)}
         onCancel={() => setMinCatAlert(null)}
-      />
-
-      {/* Guided Tour — usa Modal interno, siempre encima de todo */}
-      <GuidedTour
-        steps={settingsTourSteps}
-        currentStep={settingsTourIndex}
-        globalStep={onboardingStep}
-        totalSteps={5}
-        visible={settingsTourVisible}
-        onSkip={completeOnboarding}
       />
     </SafeAreaView>
   );

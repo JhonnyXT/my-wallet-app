@@ -10,8 +10,7 @@ export function getTourRef(key: string): RefObject<View | null> {
 
 export const TOUR_KEYS = {
   SETTINGS_BTN: "settings-btn",
-  INCOME_ROW: "income-row",
-  BACK_BTN: "back-btn",
+  PERIOD_BTN: "period-btn",
   MIC_FAB: "mic-fab",
   PLUS_BTN: "plus-btn",
 } as const;

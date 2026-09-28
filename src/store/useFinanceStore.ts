@@ -10,6 +10,7 @@ import {
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { checkAndNotifyBudget } from "@/src/services/notificationService";
 import { getCategoryName } from "@/src/constants/theme";
+import { budgetCycle, filterByRange } from "@/src/utils/periodCycles";
 
 export interface BatchTransactionItem {
   amount: number;
@@ -49,7 +50,7 @@ interface FinanceState {
   getTotalBalance: () => number;
 }
 
-// Calcula el gasto del mes actual para una categoría y dispara notificación si supera el presupuesto
+// Calcula el gasto del ciclo de presupuesto actual para una categoría y dispara notificación si supera el presupuesto
 async function notifyIfBudgetExceeded(
   transactions: TransactionRow[],
   categoryEmoji: string,
@@ -58,10 +59,9 @@ async function notifyIfBudgetExceeded(
   const budget = budgetByCategory[categoryEmoji];
   if (!budget || budget <= 0) return;
 
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const spent = transactions
-    .filter((t) => t.category_emoji === categoryEmoji && t.amount > 0 && new Date(t.date) >= start)
+  const { defaultPeriod } = useSettingsStore.getState();
+  const spent = filterByRange(transactions, budgetCycle(defaultPeriod, new Date()))
+    .filter((t) => t.category_emoji === categoryEmoji && t.amount > 0)
     .reduce((s, t) => s + t.amount, 0);
 
   const name = getCategoryName(categoryEmoji, userCategories);

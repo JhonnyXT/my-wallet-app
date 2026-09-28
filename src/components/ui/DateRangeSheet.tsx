@@ -27,7 +27,11 @@ function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 function isSameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 function isSameMonth(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
@@ -51,7 +55,20 @@ function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-const MONTH_ABBR = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const MONTH_ABBR = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sep",
+  "oct",
+  "nov",
+  "dic",
+];
 function formatShort(d: Date): string {
   return `${String(d.getDate()).padStart(2, "0")} ${MONTH_ABBR[d.getMonth()]} ${d.getFullYear()}`;
 }
@@ -62,6 +79,13 @@ export interface DateRangeSheetProps {
   initialEnd: Date | null;
   onApply: (start: Date, end: Date) => void;
   onClose: () => void;
+  title?: string;
+  /**
+   * "months" (default, tarjeta Tendencia de Promedios): exige al menos 2 meses y ofrece
+   * accesos 3/6/12 meses. "days" (rango personalizado del Dashboard): cualquier rango,
+   * incluso un solo día (tocar un día y aplicar), sin accesos rápidos.
+   */
+  mode?: "months" | "days";
 }
 
 const QUICK_PICKS = [
@@ -70,7 +94,16 @@ const QUICK_PICKS = [
   { label: "1 año", months: 12 },
 ] as const;
 
-export function DateRangeSheet({ visible, initialStart, initialEnd, onApply, onClose }: DateRangeSheetProps) {
+export function DateRangeSheet({
+  visible,
+  initialStart,
+  initialEnd,
+  onApply,
+  onClose,
+  title = "Rango de la tendencia",
+  mode = "months",
+}: DateRangeSheetProps) {
+  const isDaysMode = mode === "days";
   const tokens = useAppTokens();
   const s = useMemo(() => buildStyles(), []);
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -99,7 +132,11 @@ export function DateRangeSheet({ visible, initialStart, initialEnd, onApply, onC
 
   // La tarjeta "Tendencia" es una gráfica de barras mensuales — con un solo mes seleccionado
   // se ve una única barra flotando sin nada que comparar, así que exigimos al menos 2 meses.
-  const isValidRange = rangeStart && rangeEnd ? !isSameMonth(rangeStart, rangeEnd) : false;
+  const isValidRange = isDaysMode
+    ? rangeStart !== null
+    : rangeStart && rangeEnd
+      ? !isSameMonth(rangeStart, rangeEnd)
+      : false;
 
   const applyScale = useSharedValue(1);
   const applyAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: applyScale.value }] }));
@@ -110,7 +147,9 @@ export function DateRangeSheet({ visible, initialStart, initialEnd, onApply, onC
   }, [isValidRange]);
 
   const grid = useMemo(() => buildMonthGrid(viewMonth), [viewMonth]);
-  const monthLabel = capitalize(viewMonth.toLocaleDateString("es-CO", { month: "long", year: "numeric" }));
+  const monthLabel = capitalize(
+    viewMonth.toLocaleDateString("es-CO", { month: "long", year: "numeric" }),
+  );
   const nextMonthDisabled =
     viewMonth.getFullYear() === today.getFullYear() && viewMonth.getMonth() === today.getMonth();
 
@@ -139,35 +178,41 @@ export function DateRangeSheet({ visible, initialStart, initialEnd, onApply, onC
   }
 
   function confirm() {
-    if (rangeStart && rangeEnd && isValidRange) onApply(rangeStart, rangeEnd);
+    if (!isValidRange || !rangeStart) return;
+    if (rangeEnd) onApply(rangeStart, rangeEnd);
+    else if (isDaysMode) onApply(rangeStart, rangeStart);
   }
 
   return (
     <BottomSheet visible={visible} onClose={onClose} style={s.container}>
       <ThemedText variant="headline" style={{ fontSize: 17, marginBottom: tokens.spacing.md }}>
-        Rango de la tendencia
+        {title}
       </ThemedText>
 
       {/* Accesos rápidos */}
-      <View style={{ flexDirection: "row", gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}>
-        {QUICK_PICKS.map((q) => (
-          <PressableScale
-            key={q.label}
-            onPress={() => pickQuick(q.months)}
-            style={{
-              flex: 1,
-              paddingVertical: tokens.spacing.sm,
-              borderRadius: tokens.radius.full,
-              alignItems: "center",
-              backgroundColor: tokens.colors.surface.elevated,
-            }}
-          >
-            <ThemedText variant="footnote" style={{ fontWeight: "600" }}>
-              {q.label}
-            </ThemedText>
-          </PressableScale>
-        ))}
-      </View>
+      {!isDaysMode && (
+        <View
+          style={{ flexDirection: "row", gap: tokens.spacing.sm, marginBottom: tokens.spacing.lg }}
+        >
+          {QUICK_PICKS.map((q) => (
+            <PressableScale
+              key={q.label}
+              onPress={() => pickQuick(q.months)}
+              style={{
+                flex: 1,
+                paddingVertical: tokens.spacing.sm,
+                borderRadius: tokens.radius.full,
+                alignItems: "center",
+                backgroundColor: tokens.colors.surface.elevated,
+              }}
+            >
+              <ThemedText variant="footnote" style={{ fontWeight: "600" }}>
+                {q.label}
+              </ThemedText>
+            </PressableScale>
+          ))}
+        </View>
+      )}
 
       {/* Resumen del rango elegido a mano */}
       <View
@@ -184,7 +229,9 @@ export function DateRangeSheet({ visible, initialStart, initialEnd, onApply, onC
             {rangeStart ? formatShort(rangeStart) : "—"}
           </ThemedText>
         </View>
-        <View style={{ width: 1, alignSelf: "stretch", backgroundColor: tokens.colors.border.default }} />
+        <View
+          style={{ width: 1, alignSelf: "stretch", backgroundColor: tokens.colors.border.default }}
+        />
         <View style={{ flex: 1, alignItems: "center" }}>
           <ThemedText variant="footnote" color="secondary">
             Hasta
@@ -262,6 +309,10 @@ export function DateRangeSheet({ visible, initialStart, initialEnd, onApply, onC
                     { backgroundColor: tokens.colors.accent.default },
                     roundLeft && s.connectorRoundLeft,
                     roundRight && s.connectorRoundRight,
+                    // Las celdas miden 100/7 % (bordes en fracciones de píxel): sin este
+                    // solape de 1px, el redondeo dejaba una rendija vertical entre días.
+                    !roundLeft && { left: -1 },
+                    !roundRight && { right: -1 },
                   ]}
                 />
               )}
@@ -273,7 +324,8 @@ export function DateRangeSheet({ visible, initialStart, initialEnd, onApply, onC
                     !inMonth && { color: tokens.colors.text.secondary, opacity: 0.5 },
                     isFuture && { opacity: 0.3 },
                     inRangeDay && { color: "#FFFFFF", fontWeight: "700" },
-                    isToday && !inRangeDay && { color: tokens.colors.text.accent, fontWeight: "700" },
+                    isToday &&
+                      !inRangeDay && { color: tokens.colors.text.accent, fontWeight: "700" },
                   ]}
                 >
                   {date.getDate()}
@@ -283,6 +335,20 @@ export function DateRangeSheet({ visible, initialStart, initialEnd, onApply, onC
           );
         })}
       </Animated.View>
+
+      {isDaysMode && (
+        <ThemedText
+          variant="footnote"
+          color="secondary"
+          style={{ textAlign: "center", marginTop: tokens.spacing.sm }}
+        >
+          {rangeStart && !rangeEnd
+            ? "Ahora toca la fecha final para seleccionar todo el rango, o aplica para ver solo ese día"
+            : rangeStart
+              ? " "
+              : "Toca un día para empezar"}
+        </ThemedText>
+      )}
 
       <Animated.View style={applyAnimStyle}>
         <PressableScale
@@ -294,7 +360,9 @@ export function DateRangeSheet({ visible, initialStart, initialEnd, onApply, onC
             borderRadius: tokens.radius.lg,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: isValidRange ? tokens.colors.accent.default : tokens.colors.surface.elevated,
+            backgroundColor: isValidRange
+              ? tokens.colors.accent.default
+              : tokens.colors.surface.elevated,
           }}
         >
           <ThemedText
@@ -304,7 +372,9 @@ export function DateRangeSheet({ visible, initialStart, initialEnd, onApply, onC
               color: isValidRange ? "#FFFFFF" : tokens.colors.text.secondary,
             }}
           >
-            {rangeStart && rangeEnd && !isValidRange ? "Elige un rango de al menos 2 meses" : "✓ Aplicar"}
+            {rangeStart && rangeEnd && !isValidRange
+              ? "Elige un rango de al menos 2 meses"
+              : "✓ Aplicar"}
           </ThemedText>
         </PressableScale>
       </Animated.View>

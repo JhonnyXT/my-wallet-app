@@ -100,6 +100,12 @@ const config: ExpoConfig = {
       },
     ],
     "expo-sharing",
+    [
+      "expo-local-authentication",
+      {
+        faceIDPermission: "MyWallet usa Face ID para desbloquear la app.",
+      },
+    ],
     "./plugins/withAllowBackupDisabled",
     "./plugins/withDisableStartingWindowPreview",
   ],

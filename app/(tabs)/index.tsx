@@ -12,7 +12,14 @@ import {
   BackHandler,
   PanResponder,
 } from "react-native";
-import Reanimated, { useAnimatedReaction, runOnJS } from "react-native-reanimated";
+import Reanimated, {
+  useAnimatedReaction,
+  runOnJS,
+  FadeInDown,
+  FadeOutUp,
+  LinearTransition,
+  useReducedMotion,
+} from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Settings, Search, X, Hash, ArrowDown, ArrowUp, Calendar } from "lucide-react-native";
@@ -24,12 +31,15 @@ import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useUIStore } from "@/src/store/useUIStore";
 
-import { FilterChips } from "@/src/components/ui/FilterChips";
 import { CategoryChart } from "@/src/components/ui/CategoryChart";
 import { TransactionItem } from "@/src/components/ui/TransactionItem";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
-import { MonthPickerModal } from "@/src/components/ui/MonthPickerModal";
+import { PeriodStrip } from "@/src/components/ui/PeriodStrip";
+import { PeriodMenu, type MenuAnchor, type PeriodMenuAction } from "@/src/components/ui/PeriodMenu";
+import { DateRangeSheet } from "@/src/components/ui/DateRangeSheet";
+import { DefaultPeriodSheet } from "@/src/components/ui/DefaultPeriodSheet";
+import { parseYMD, toYMD } from "@/src/utils/periodCycles";
 import { GuidedTour } from "@/src/components/ui/GuidedTour";
 import { RollingNumber } from "@/src/components/ui/RollingNumber";
 import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
@@ -46,9 +56,6 @@ import { TransactionDetailModal } from "@/src/components/dashboard/TransactionDe
 
 type TxRow = ReturnType<typeof useFinanceStore.getState>["transactions"][0];
 
-// Re-exportar PeriodFilter para que importadores externos no se rompan
-export type { PeriodFilter } from "@/src/utils/periodFilter";
-
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
@@ -57,7 +64,6 @@ export default function DashboardScreen() {
   const transactions = useFinanceStore((s) => s.transactions);
   const deleteTransaction = useFinanceStore((s) => s.deleteTransaction);
   const addTransaction = useFinanceStore((s) => s.addTransaction);
-  const monthlyBudget = useSettingsStore((s) => s.monthlyBudget);
   const userCategories = useSettingsStore((s) => s.userCategories);
   const resetExpense = useExpenseStore((s) => s.reset);
   const setExpenseCategory = useExpenseStore((s) => s.setCategory);
@@ -72,18 +78,86 @@ export default function DashboardScreen() {
 
   // ── Filtros de período y tipo ────────────────────────────────────────────
   const {
-    periodFilter,
-    setPeriodFilter,
+    cadence,
+    periodView,
+    setPeriodView,
+    resetPeriod,
+    isDefault,
+    periodRange,
+    periodLabel,
+    stripItems,
+    stripIndex,
     typeFilter,
     handlePillPress,
-    monthPickerOpen,
-    setMonthPickerOpen,
     filteredTransactions,
     typeFilteredTransactions,
-    chipLabel,
-    quickLabel,
     isCurrentPeriod,
   } = useTransactionFilters(transactions);
+
+  // ── Período: tira, menú del calendario, rango y período predeterminado ──
+  const reducedMotion = useReducedMotion();
+  const [stripVisible, setStripVisible] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<MenuAnchor | null>(null);
+  const [rangeSheetOpen, setRangeSheetOpen] = useState(false);
+  const [defaultSheetOpen, setDefaultSheetOpen] = useState(false);
+  const calendarBtnRef = useRef<View>(null);
+  const hasStrip = periodView.kind === "cycle" || periodView.kind === "year";
+  const stripShown = stripVisible && hasStrip;
+
+  const openPeriodMenu = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    calendarBtnRef.current?.measureInWindow((x, y, width, height) => {
+      setMenuAnchor({ x, y, width, height });
+      setMenuOpen(true);
+    });
+  }, []);
+
+  const handleCalendarPress = useCallback(() => {
+    // Sin tira que mostrar (todo el tiempo / rango), el toque abre el menú directo.
+    if (!hasStrip) {
+      openPeriodMenu();
+      return;
+    }
+    Haptics.selectionAsync();
+    setStripVisible((v) => !v);
+  }, [hasStrip, openPeriodMenu]);
+
+  const handleResetPeriod = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    resetPeriod();
+  }, [resetPeriod]);
+
+  const handleMenuAction = useCallback(
+    (action: PeriodMenuAction) => {
+      setMenuOpen(false);
+      // El menú es otro Modal: abrir una hoja mientras todavía se cierra da saltos en Android.
+      const afterClose = (fn: () => void) => setTimeout(fn, 160);
+      switch (action) {
+        case "cycle":
+          setPeriodView({ kind: "cycle", offset: 0 });
+          setStripVisible(true);
+          break;
+        case "year":
+          setPeriodView({ kind: "year", year: new Date().getFullYear() });
+          setStripVisible(true);
+          break;
+        case "all":
+          setPeriodView({ kind: "all" });
+          break;
+        case "range":
+          afterClose(() => setRangeSheetOpen(true));
+          break;
+        case "reset":
+          resetPeriod();
+          break;
+        case "changeDefault":
+          afterClose(() => setDefaultSheetOpen(true));
+          break;
+      }
+    },
+    [setPeriodView, resetPeriod],
+  );
 
   // ── Búsqueda ──────────────────────────────────────────────────────────────
   const baseSearchBottom = Math.max(insets.bottom, 0) + DOCK_BOTTOM_OFFSET + DOCK_HEIGHT + 10;
@@ -115,6 +189,7 @@ export default function DashboardScreen() {
     expenseTotal,
     incomeTotal,
     netBalance,
+    periodNet,
     allTimeNetBalance,
     budgetPct,
     activeStats,
@@ -122,6 +197,8 @@ export default function DashboardScreen() {
     activeBudget,
     allEmojis,
     overBudgetAmount,
+    expectedPayAmount,
+    payReceived,
   } = useDashboardTotals({
     transactions,
     filteredTransactions,
@@ -129,21 +206,17 @@ export default function DashboardScreen() {
     searchedTransactions,
     isSearching,
     typeFilter,
-    isCurrentPeriod,
+    viewedCycle: periodView.kind === "cycle" ? periodRange : null,
   });
+  const showPayBar = expectedPayAmount > 0 && !isSearching && typeFilter === null;
 
   // ── Scroll y animaciones ─────────────────────────────────────────────────
   const { scrollY, scrollHandler, headerParallaxStyle, pillsParallaxStyle, chartAnimKey } =
-    useDashboardScroll(typeFilter, periodFilter);
+    useDashboardScroll(typeFilter, periodLabel);
 
   // ── Tour de onboarding ───────────────────────────────────────────────────
-  const {
-    dashboardTourSteps,
-    dashboardTourVisible,
-    dashboardTourIndex,
-    onboardingStep,
-    completeOnboarding,
-  } = useDashboardTour();
+  const { dashboardTourSteps, dashboardTourVisible, dashboardTourIndex, completeOnboarding } =
+    useDashboardTour();
 
   // ── Filtro por categoría (tap corto en columna del chart) ───────────────
   const setCategoryFilter = useUIStore((s) => s.setCategoryFilter);
@@ -246,7 +319,17 @@ export default function DashboardScreen() {
 
   // ── Derivados de estado ───────────────────────────────────────────────────
   const isNewPeriod = filteredTransactions.length === 0 && isCurrentPeriod && !isSearching;
-  const newPeriodMessage = "Nuevo mes, ¡comienza ahora!";
+  const shownBalance = isSearching ? netBalance : periodNet;
+  const newPeriodMessage =
+    periodView.kind === "year"
+      ? "Nuevo año, ¡comienza ahora!"
+      : periodView.kind !== "cycle"
+        ? "¡Comienza ahora!"
+        : cadence.type === "weekly"
+          ? "Nueva semana, ¡comienza ahora!"
+          : cadence.type === "monthly" || cadence.type === "all"
+            ? "Nuevo mes, ¡comienza ahora!"
+            : "Nuevo período, ¡comienza ahora!";
 
   // ── ListHeader ────────────────────────────────────────────────────────────
   const listHeader = (
@@ -312,7 +395,7 @@ export default function DashboardScreen() {
               ? `${searchedTransactions.length} encontrados`
               : categoryFilter
                 ? `${displayedTransactions.length} ${displayedTransactions.length === 1 ? "registro" : "registros"}`
-                : chipLabel.toUpperCase()}
+                : periodLabel.toUpperCase()}
           </Text>
         </View>
       )}
@@ -340,7 +423,7 @@ export default function DashboardScreen() {
           : isNewPeriod
             ? ""
             : !isCurrentPeriod
-              ? "Usa el filtro de período para navegar a otro mes"
+              ? "Toca el calendario de arriba para ver otro período"
               : "Toca + o el micrófono para registrar tu primer gasto o ingreso."}
       </Text>
     </View>
@@ -355,22 +438,43 @@ export default function DashboardScreen() {
           HEADER FIJO — siempre visible
           ══════════════════════════════════════════════════════════════ */}
       <View style={styles.headerOuter}>
-        {/* Selector de período: posición absoluta arriba a la izquierda */}
-        <View style={styles.headerPeriod}>
-          <FilterChips
-            period={quickLabel}
-            periodLabel={chipLabel !== quickLabel ? chipLabel : undefined}
-            onPeriodChange={(label) => setPeriodFilter({ type: "quick", label })}
-            onOpenMonthPicker={() => setMonthPickerOpen(true)}
-          />
-        </View>
-
         {/* Íconos: posición absoluta para no afectar el centrado del contenido */}
         <View style={styles.headerActions}>
           <NotificationBadgeBtn />
-          <Pressable style={styles.settingsBtn} onPress={() => setMonthPickerOpen(true)}>
-            <Calendar size={22} color={theme.text} strokeWidth={1.6} />
-          </Pressable>
+          {/* Período: toque = mostrar/ocultar la tira; toque largo = menú. Con un
+              filtro distinto del predeterminado: punto rojo + "x" para quitarlo. */}
+          <View ref={getTourRef(TOUR_KEYS.PERIOD_BTN)} collapsable={false}>
+            <Reanimated.View
+              ref={calendarBtnRef}
+              collapsable={false}
+              layout={reducedMotion ? undefined : LinearTransition.duration(200)}
+              style={[styles.periodBtnGroup, !isDefault && styles.periodBtnGroupActive]}
+            >
+              <Pressable
+                style={styles.settingsBtn}
+                onPress={handleCalendarPress}
+                onLongPress={openPeriodMenu}
+                delayLongPress={320}
+                accessibilityRole="button"
+                accessibilityLabel={`Período: ${periodLabel}`}
+                accessibilityHint="Toca para ver los períodos; mantén presionado para más opciones"
+              >
+                <Calendar size={22} color={theme.text} strokeWidth={1.6} />
+                {!isDefault && <View style={styles.filterDot} />}
+              </Pressable>
+              {!isDefault && (
+                <Pressable
+                  onPress={handleResetPeriod}
+                  hitSlop={8}
+                  style={styles.clearFilterBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Quitar filtro de período"
+                >
+                  <X size={14} color={theme.textSub} strokeWidth={2.4} />
+                </Pressable>
+              )}
+            </Reanimated.View>
+          </View>
           <View ref={getTourRef(TOUR_KEYS.SETTINGS_BTN)} collapsable={false}>
             <Pressable style={styles.settingsBtn} onPress={() => router.push("/settings")}>
               <Settings size={22} color={theme.text} strokeWidth={1.6} />
@@ -379,43 +483,72 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.headerLeft}>
-          <Reanimated.View style={[styles.balanceSection, headerParallaxStyle as object]}>
-            {monthlyBudget > 0 &&
-              !isSearching &&
-              typeFilter === null &&
-              isCurrentPeriod &&
-              overBudgetAmount > 0 && (
-                <View style={styles.overBudgetBanner}>
-                  <Text style={styles.overBudgetText}>
-                    {formatBalance(overBudgetAmount)} sobre presupuesto
-                  </Text>
-                </View>
-              )}
+          {stripShown && (
+            <Reanimated.View
+              entering={reducedMotion ? undefined : FadeInDown.duration(220)}
+              exiting={reducedMotion ? undefined : FadeOutUp.duration(160)}
+              style={styles.stripWrapper}
+            >
+              <PeriodStrip
+                // Remontar al cambiar de ciclos a años (u otra frecuencia): mismo motivo que
+                // en PayPeriodForm, el resaltado quedaba en la posición de la lista anterior.
+                key={`${periodView.kind}-${cadence.type}-${stripItems[0]?.key}-${stripItems.length}`}
+                items={stripItems}
+                selectedIndex={stripIndex}
+                onSelect={(i) => setPeriodView(stripItems[i].view)}
+              />
+            </Reanimated.View>
+          )}
+          {!stripShown && !isDefault && (
+            <Reanimated.View
+              entering={reducedMotion ? undefined : FadeInDown.duration(200)}
+              exiting={reducedMotion ? undefined : FadeOutUp.duration(140)}
+            >
+              <Pressable
+                onPress={handleCalendarPress}
+                style={styles.periodChip}
+                accessibilityRole="button"
+              >
+                <Text style={styles.periodChipText}>{periodLabel}</Text>
+              </Pressable>
+            </Reanimated.View>
+          )}
+          <Reanimated.View
+            layout={reducedMotion ? undefined : LinearTransition.duration(220)}
+            style={[styles.balanceSection, headerParallaxStyle as object]}
+          >
+            {showPayBar && overBudgetAmount > 0 && (
+              <View style={styles.overBudgetBanner}>
+                <Text style={styles.overBudgetText}>
+                  {formatBalance(overBudgetAmount)} sobre tu pago
+                </Text>
+              </View>
+            )}
             <Text style={styles.balanceLabel}>
               {isSearching
                 ? `BÚSQUEDA  ·  ${searchedTransactions.length} resultado${searchedTransactions.length !== 1 ? "s" : ""}`
                 : "BALANCE NETO"}
             </Text>
-            {/* Fuera de una búsqueda, el balance es SIEMPRE sobre todo el historial
-                (allTimeNetBalance), no el del período/mes que esté viendo la gráfica —
-                sino al cambiar de mes (o si el mes nuevo aún no tiene transacciones)
-                se veía $0 en vez de la plata real que la persona tiene. Durante una
-                búsqueda sigue siendo el neto de los resultados encontrados. */}
+            {/* El balance sigue el período visto (ingresos − gastos del mes/año/rango);
+                en una búsqueda, el neto de los resultados. El saldo real de todo el
+                historial queda debajo, para no perderlo al mirar otro período. */}
             <RollingNumber
-              value={Math.abs(isSearching ? netBalance : allTimeNetBalance)}
-              prefix="$"
-              style={[
-                styles.balanceAmount,
-                (isSearching ? netBalance : allTimeNetBalance) < 0 && styles.balanceNegative,
-              ]}
+              value={Math.abs(shownBalance)}
+              prefix={shownBalance < 0 ? "-$" : "$"}
+              style={[styles.balanceAmount, shownBalance < 0 && styles.balanceNegative]}
             />
 
-            {/* Patrimonio neto: balance de caja menos el saldo pendiente de deudas.
-                Solo se muestra si hay deudas activas, para no agregar ruido cuando
-                la sección "Deudas" de Ajustes está vacía. */}
-            {totalDebt > 0 && !isSearching && typeFilter === null && (
+            {/* Saldo total (todo el historial) y patrimonio neto (saldo − deudas
+                pendientes, solo si hay deudas activas). */}
+            {!isSearching && (periodView.kind !== "all" || totalDebt > 0) && (
               <Text style={styles.netWorthText}>
-                Patrimonio neto: {formatBalance(allTimeNetBalance - totalDebt)}
+                {[
+                  periodView.kind !== "all" && `Saldo total: ${formatBalance(allTimeNetBalance)}`,
+                  totalDebt > 0 &&
+                    `Patrimonio neto: ${formatBalance(allTimeNetBalance - totalDebt)}`,
+                ]
+                  .filter(Boolean)
+                  .join("  ·  ")}
               </Text>
             )}
 
@@ -470,13 +603,15 @@ export default function DashboardScreen() {
                 />
               </TouchableOpacity>
             </Reanimated.View>
-            {monthlyBudget > 0 && !isSearching && typeFilter === null && isCurrentPeriod && (
+            {/* Gastado vs pago esperado del ciclo visto, con lo recibido de verdad al lado. */}
+            {showPayBar && (
               <View style={styles.budgetBar}>
                 <View style={styles.budgetTrack}>
                   <View style={[styles.budgetFill, { width: `${budgetPct}%` as `${number}%` }]} />
                 </View>
                 <Text style={styles.budgetBarPct}>
-                  {budgetPct}% de {formatBalance(monthlyBudget)}
+                  {budgetPct}% de {formatBalance(expectedPayAmount)} · recibido{" "}
+                  {formatBalance(payReceived)}
                 </Text>
               </View>
             )}
@@ -590,25 +725,29 @@ export default function DashboardScreen() {
         </View>
       </Animated.View>
 
-      {/* Selector de mes/año */}
-      <MonthPickerModal
-        visible={monthPickerOpen}
-        selectedYear={
-          periodFilter.type === "month"
-            ? periodFilter.year
-            : periodFilter.type === "year"
-              ? periodFilter.year
-              : null
-        }
-        selectedMonth={periodFilter.type === "month" ? periodFilter.month : null}
-        onApply={(year, month) => {
-          if (year === null) setPeriodFilter({ type: "all" });
-          else if (month === null) setPeriodFilter({ type: "year", year });
-          else setPeriodFilter({ type: "month", year, month });
-          setMonthPickerOpen(false);
-        }}
-        onClose={() => setMonthPickerOpen(false)}
+      {/* Período: menú del calendario, rango personalizado y período predeterminado */}
+      <PeriodMenu
+        visible={menuOpen}
+        anchor={menuAnchor}
+        cadence={cadence}
+        view={periodView}
+        isDefault={isDefault}
+        onAction={handleMenuAction}
+        onClose={() => setMenuOpen(false)}
       />
+      <DateRangeSheet
+        visible={rangeSheetOpen}
+        mode="days"
+        title="Rango personalizado"
+        initialStart={periodView.kind === "range" ? parseYMD(periodView.start) : null}
+        initialEnd={periodView.kind === "range" ? parseYMD(periodView.end) : null}
+        onApply={(start, end) => {
+          setPeriodView({ kind: "range", start: toYMD(start), end: toYMD(end) });
+          setRangeSheetOpen(false);
+        }}
+        onClose={() => setRangeSheetOpen(false)}
+      />
+      <DefaultPeriodSheet visible={defaultSheetOpen} onClose={() => setDefaultSheetOpen(false)} />
 
       {/* Modal de detalle de transacción */}
       <TransactionDetailModal
@@ -624,8 +763,8 @@ export default function DashboardScreen() {
       <GuidedTour
         steps={dashboardTourSteps}
         currentStep={dashboardTourIndex}
-        globalStep={onboardingStep}
-        totalSteps={5}
+        globalStep={dashboardTourIndex}
+        totalSteps={3}
         visible={dashboardTourVisible}
         onSkip={completeOnboarding}
       />
@@ -659,12 +798,6 @@ function createStyles(t: AppTheme) {
       gap: 4,
       zIndex: 10,
     },
-    headerPeriod: {
-      position: "absolute",
-      top: 14,
-      left: 20,
-      zIndex: 10,
-    },
     headerLeft: {
       flexDirection: "column",
       gap: 10,
@@ -682,6 +815,53 @@ function createStyles(t: AppTheme) {
       shadowRadius: 6,
       shadowOffset: { width: 0, height: 1 },
       elevation: t.isDark ? 0 : 2,
+    },
+
+    // ── Período ─────────────────────────────────────────────────────────────
+    periodBtnGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderRadius: 9999,
+    },
+    periodBtnGroupActive: {
+      backgroundColor: t.isDark ? t.itemBg : t.surface,
+      paddingRight: 8,
+    },
+    filterDot: {
+      position: "absolute",
+      bottom: 9,
+      right: 8,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: "#E53E3E",
+      borderWidth: 1.5,
+      borderColor: t.isDark ? t.itemBg : t.surface,
+    },
+    clearFilterBtn: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    stripWrapper: {
+      alignSelf: "stretch",
+      marginHorizontal: -28,
+      marginTop: -8,
+    },
+    periodChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      borderRadius: 9999,
+      borderWidth: 1.5,
+      borderColor: t.border,
+      backgroundColor: t.isDark ? t.itemBg : t.surface,
+    },
+    periodChipText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: t.textSub,
     },
 
     // ── Balance ─────────────────────────────────────────────────────────────

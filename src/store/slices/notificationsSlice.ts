@@ -6,7 +6,8 @@ export interface NotificationsSlice {
   budgetAlertsEnabled: boolean;
   /** Umbral de alerta de presupuesto en % (0-100). Notifica cuando se supera este valor */
   budgetAlertThreshold: number;
-  /** emoji → "YYYY-MM" (último mes en que se notificó sobre ese presupuesto) */
+  /** "emoji:threshold"/"emoji:overspent" → clave del ciclo de presupuesto en que se notificó
+   * (fecha de inicio "YYYY-MM-DD", ver `budgetCycle()`/`cycleKey()` en periodCycles.ts) */
   budgetNotifiedMonth: Record<string, string>;
   /** IDs de metas ya notificadas como cumplidas */
   goalNotifiedIds: string[];
@@ -16,7 +17,8 @@ export interface NotificationsSlice {
   setBudgetAlertThreshold: (threshold: number) => void;
   markBudgetNotified: (emoji: string, month: string) => void;
   markGoalNotified: (goalId: string) => void;
-  clearExpiredBudgetNotifications: () => void;
+  /** Borra las marcas de ciclos anteriores; `currentKey` = `cycleKey(budgetCycle(...))`. */
+  clearExpiredBudgetNotifications: (currentKey: string) => void;
 }
 
 export const createNotificationsSlice: StateCreator<
@@ -51,13 +53,11 @@ export const createNotificationsSlice: StateCreator<
 
   markGoalNotified: (goalId) => set((s) => ({ goalNotifiedIds: [...s.goalNotifiedIds, goalId] })),
 
-  clearExpiredBudgetNotifications: () => {
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  clearExpiredBudgetNotifications: (currentKey) => {
     set((s) => {
       const cleaned: Record<string, string> = {};
-      for (const [emoji, month] of Object.entries(s.budgetNotifiedMonth)) {
-        if (month === currentMonth) cleaned[emoji] = month;
+      for (const [emoji, key] of Object.entries(s.budgetNotifiedMonth)) {
+        if (key === currentKey) cleaned[emoji] = key;
       }
       return { budgetNotifiedMonth: cleaned };
     });

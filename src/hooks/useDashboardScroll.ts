@@ -10,8 +10,6 @@ import {
   type SharedValue,
 } from "react-native-reanimated";
 import type { TypeFilter } from "@/src/hooks/useTransactionFilters";
-import type { PeriodFilter } from "@/src/utils/periodFilter";
-import { periodFilterLabel } from "@/src/utils/periodFilter";
 
 export interface UseDashboardScrollReturn {
   scrollY: SharedValue<number>;
@@ -23,7 +21,7 @@ export interface UseDashboardScrollReturn {
 
 export function useDashboardScroll(
   typeFilter: TypeFilter,
-  periodFilter: PeriodFilter,
+  periodKey: string,
 ): UseDashboardScrollReturn {
   const scrollY = useSharedValue(0);
 
@@ -53,9 +51,8 @@ export function useDashboardScroll(
 
   // animationKey para re-animar barras cuando el filtro cambia
   const chartAnimKey = useMemo(
-    () => `${typeFilter ?? "all"}-${periodFilterLabel(periodFilter)}`,
-
-    [typeFilter, periodFilter],
+    () => `${typeFilter ?? "all"}-${periodKey}`,
+    [typeFilter, periodKey],
   );
 
   return {

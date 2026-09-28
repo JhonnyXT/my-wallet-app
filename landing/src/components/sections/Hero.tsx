@@ -1,5 +1,5 @@
 import type { Dictionary, Locale } from '@/i18n/config';
-import { WaitlistForm } from '../WaitlistForm';
+import { WaitlistCta } from '../WaitlistCta';
 
 export function Hero({ t, locale }: { t: Dictionary; locale: Locale }) {
   return (
@@ -16,7 +16,7 @@ export function Hero({ t, locale }: { t: Dictionary; locale: Locale }) {
       </h1>
       <p className="mt-[18px] max-w-[620px] text-[17px] leading-relaxed text-dim sm:mt-6 sm:text-xl">{t.hero.subtitle}</p>
       <div id="avisame" className="mt-[26px] flex w-full scroll-mt-24 justify-center sm:mt-8">
-        <WaitlistForm t={t.waitlist} locale={locale} />
+        <WaitlistCta t={t.waitlist} locale={locale} />
       </div>
       <p className="mt-1 text-[13px] leading-normal text-faint sm:text-sm">
         {t.hero.finePrint}

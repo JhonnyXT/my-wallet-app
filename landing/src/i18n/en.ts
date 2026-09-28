@@ -22,15 +22,7 @@ export const en: Dictionary = {
   },
   waitlist: {
     label: 'Let me know when MyWallet is on Google Play',
-    placeholder: 'you@email.com',
     submit: 'Notify me',
-    sending: 'Sending…',
-    success: 'Done, you’re on the list!',
-    successDetail: 'We’ll write to {email} the day MyWallet is on Google Play. Nothing else.',
-    onList: 'You’re on the list',
-    change: 'Change',
-    invalid: 'Check your email, something seems to be missing.',
-    error: 'We couldn’t save your email. Please try again in a moment.',
   },
   unsubscribe: {
     okTitle: 'Done, you’re unsubscribed',

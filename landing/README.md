@@ -50,31 +50,14 @@ npm run lint
   verificadas contra `voiceParser.ts` y notificaciones de
   `notificationParser/fixtures.ts` pasadas por el pipeline real. Si el parser
   cambia, volver a verificarlas.
-- **Lista de espera** (en lugar de descarga, hasta que la app esté en Google
-  Play): `POST /api/waitlist` → `src/lib/waitlist.ts` → crea un contacto en
-  **Resend**, portado de Meld. Comparte cuenta/audiencia con
-  `meld-app/landing`, separado por **segmento** (`MyWallet — Waitlist`,
-  agrupa a quien se anota aquí) y **topic** (`MyWallet — Lanzamiento`,
-  suscripción propia): dar de baja hace `opt_out` de ese topic únicamente
-  (`PATCH /contacts/{email}/topics`), nunca el `unsubscribed` global del
-  contacto — eso sacaría a la persona también de la lista de Meld si
-  comparte el mismo email. IDs por defecto ya en el código (creados a mano
-  en el dashboard, 2026-09-24); `RESEND_SEGMENT_ID`/`RESEND_TOPIC_ID` en
-  `.env.example` solo hacen falta si se recrean. `RESEND_API_KEY` es
-  obligatoria (puede ser la misma key que usa Meld, con permiso de
-  contactos). Sin la key: en `next dev` solo loguea el email; en producción
-  responde 503 (nunca finge que guardó). Campo trampa `website` contra
-  bots. Baja: `GET /api/unsubscribe?email=…&lang=es` → página
-  `/[lang]/unsubscribed` (para el link del futuro email de lanzamiento).
-  `saveEmail()` primero hace `GET /contacts/{email}/topics` para saber si
-  ese email YA estaba `opt_in` en el topic de MyWallet antes de tocar nada
-  (`{ alreadyOnWaitlist }`, devuelto por `/api/waitlist` y usado por
-  `WaitlistForm.tsx`): así, quien reenvía un email ya anotado desde otro
-  navegador (sin el `localStorage` que lo recuerda) ve directo "ya estás en
-  la lista" en vez de la animación de bienvenida — el contacto puede
-  además ya existir en la cuenta por ser de Meld con el mismo email, sin
-  estar todavía en ESTA lista, y ese caso sí debe celebrarse como alta
-  nueva.
+- **Lista de espera**: vive en **joblan** (`joblan/joblan-web`). Los botones
+  (`src/components/WaitlistCta.tsx`) llevan a
+  `joblanstudio.vercel.app/<idioma>?app=mywallet#avisame`, que llega con la app ya
+  elegida y guarda en el mismo segmento (`MyWallet — Waitlist`) y topic
+  (`MyWallet — Lanzamiento`) de Resend de siempre. Aquí solo queda la baja:
+  `/api/unsubscribe` → `unsubscribeEmail` en `src/lib/waitlist.ts` (`opt_out`
+  del topic, nunca la baja global, que sacaría a la persona también de
+  Meld). `NEXT_PUBLIC_JOBLAN_URL` cambia la URL de joblan si hace falta.
 - **Enlaces externos**: `src/lib/links.ts` (`PRIVACY_URL` de referencia,
   `SUPPORT_EMAIL`). El footer ya no enlaza al repo de GitHub ni a Issues
   (`Soporte` es un `mailto:` directo); si se necesita reportar algo en

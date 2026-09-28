@@ -1,29 +1,14 @@
-// Lista de espera → contactos de Resend, en la MISMA audiencia que usa
-// `meld-app/landing` (repo hermano) — separados por segmento y topic para no
-// mezclar sus listas ni sus bajas:
-// - Segmento `MyWallet — Waitlist` (RESEND_SEGMENT_ID): agrupa a quien se
-//   anota aquí, para poder mandarle una campaña solo a esta lista.
-// - Topic `MyWallet — Lanzamiento` (RESEND_TOPIC_ID): suscripción propia de
-//   MyWallet. Darse de baja hace opt_out de este topic, no del `unsubscribed`
-//   global del contacto (que también saca a la persona de Meld si comparte
-//   cuenta) — ver `unsubscribeEmail()` más abajo.
+// Baja de la lista de espera de MyWallet (topic `MyWallet — Lanzamiento` en Resend). Las altas viven en
+// joblan (joblanstudio.vercel.app/?app=…#avisame), que escribe en el mismo segmento y topic de
+// siempre, en la cuenta que comparte con `meld-app/landing`.
 //
-// Variables de entorno (Vercel → Settings → Environment Variables, o
-// `landing/.env.local` en desarrollo):
-// - RESEND_API_KEY    (obligatoria) API key con permiso de contactos.
-// - RESEND_SEGMENT_ID (opcional, default abajo) segmento de la lista de espera.
-// - RESEND_TOPIC_ID   (opcional, default abajo) topic del lanzamiento.
-//
-// Sin RESEND_API_KEY: en desarrollo el email solo se loguea; en producción
-// se lanza `WaitlistNotConfiguredError` (el endpoint responde 503) en vez de
-// fingir que se guardó — nunca perder un email en silencio.
+// Variables de entorno: RESEND_API_KEY (obligatoria) y RESEND_TOPIC_ID (opcional, default abajo).
+// Sin RESEND_API_KEY: en desarrollo solo se loguea; en producción se lanza
+// `WaitlistNotConfiguredError` en vez de fingir que se procesó la baja.
 
 const RESEND_BASE = 'https://api.resend.com/contacts';
 
-// Defaults de esta audiencia (misma cuenta de Resend que Meld) — creados a
-// mano en el dashboard el 2026-09-24. Sobreescribibles por env var si algún
-// día se recrean o se mueve de audiencia.
-const DEFAULT_SEGMENT_ID = 'e70bd39d-3dc6-4ceb-943f-17b4816564e5';
+// Topic creado a mano en el dashboard el 2026-09-24; sobreescribible por env var.
 const DEFAULT_TOPIC_ID = 'bd6740fa-f14a-4c9a-8c26-20c7fbe694f5';
 
 export class WaitlistNotConfiguredError extends Error {}
@@ -34,9 +19,6 @@ function requireApiKey(): string {
   return apiKey;
 }
 
-function segmentId(): string {
-  return process.env.RESEND_SEGMENT_ID || DEFAULT_SEGMENT_ID;
-}
 
 function topicId(): string {
   return process.env.RESEND_TOPIC_ID || DEFAULT_TOPIC_ID;
@@ -53,56 +35,6 @@ async function resendFetch(apiKey: string, path: string, init: RequestInit): Pro
 async function parseError(res: Response): Promise<string> {
   const body = (await res.json().catch(() => null)) as { name?: string; message?: string } | null;
   return `Resend ${res.status}: ${body?.name ?? ''} ${body?.message ?? ''}`.trim();
-}
-
-/** `alreadyOnWaitlist` es la verdad del servidor (no del `localStorage` del
- * visitante): si ya estaba `opt_in` en el topic de MyWallet antes de esta
- * llamada. Se mira ANTES de tocar nada porque el contacto puede ya existir
- * en la cuenta por ser de Meld (mismo email, otra app) sin estar todavía en
- * ESTA lista — en ese caso es alta nueva para MyWallet, no un reenvío.
- * Formato de la respuesta verificado a mano contra la API real (GET
- * /contacts/{email}/topics → `{ data: [{ id, subscription }] }`). */
-export async function saveEmail(email: string, locale: string): Promise<{ alreadyOnWaitlist: boolean }> {
-  if (!process.env.RESEND_API_KEY && process.env.NODE_ENV !== 'production') {
-    console.log(`[waitlist] (dev, sin RESEND_API_KEY) ${email} · ${locale}`);
-    return { alreadyOnWaitlist: false };
-  }
-  const apiKey = requireApiKey();
-
-  const topicsRes = await resendFetch(apiKey, `/${encodeURIComponent(email)}/topics`, { method: 'GET' });
-  let alreadyOnWaitlist = false;
-  if (topicsRes.ok) {
-    const body = (await topicsRes.json().catch(() => null)) as { data?: { id: string; subscription: string }[] } | null;
-    alreadyOnWaitlist = body?.data?.some((topic) => topic.id === topicId() && topic.subscription === 'opt_in') ?? false;
-  } else if (topicsRes.status !== 404) {
-    throw new Error(await parseError(topicsRes));
-  }
-
-  // Crear el contacto. Si ya existe (anotado antes, o ya es contacto de Meld
-  // en esta misma cuenta), Resend responde "already exists" — no es un error:
-  // seguimos igual a agregarlo al segmento y al topic de MyWallet más abajo,
-  // para que anotarse aquí funcione también para quien ya estaba en la
-  // audiencia por otro motivo.
-  const createRes = await resendFetch(apiKey, '', {
-    method: 'POST',
-    body: JSON.stringify({ email, unsubscribed: false }),
-  });
-  if (!createRes.ok) {
-    const msg = await parseError(createRes);
-    if (!/already exist/i.test(msg)) throw new Error(msg);
-  }
-
-  const [segRes, topicRes] = await Promise.all([
-    resendFetch(apiKey, `/${encodeURIComponent(email)}/segments/${segmentId()}`, { method: 'POST' }),
-    resendFetch(apiKey, `/${encodeURIComponent(email)}/topics`, {
-      method: 'PATCH',
-      body: JSON.stringify([{ id: topicId(), subscription: 'opt_in' }]),
-    }),
-  ]);
-  if (!segRes.ok) throw new Error(await parseError(segRes));
-  if (!topicRes.ok) throw new Error(await parseError(topicRes));
-
-  return { alreadyOnWaitlist };
 }
 
 /** Baja de la lista de espera de MyWallet — opt_out del topic

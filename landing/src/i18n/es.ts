@@ -22,15 +22,7 @@ export const es = {
   },
   waitlist: {
     label: 'Avísame cuando MyWallet llegue a Google Play',
-    placeholder: 'tu@email.com',
     submit: 'Avísame',
-    sending: 'Enviando…',
-    success: '¡Listo, estás en la lista!',
-    successDetail: 'Te escribiremos a {email} el día que MyWallet esté en Google Play. Nada más.',
-    onList: 'Estás en la lista',
-    change: 'Cambiar',
-    invalid: 'Revisa tu email, parece que falta algo.',
-    error: 'No pudimos guardar tu email. Inténtalo de nuevo en un momento.',
   },
   unsubscribe: {
     okTitle: 'Listo, te diste de baja',

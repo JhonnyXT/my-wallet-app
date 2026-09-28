@@ -2,7 +2,7 @@
 
 // Réplica de `app/(tabs)/index.tsx` + `FloatingDock.tsx` (tema oscuro).
 
-import { ArrowDown, ArrowUp, Bell, Calendar, ChartColumn, ChevronsUpDown, Mic, Plus, Search, Settings, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Bell, Calendar, ChartColumn, Mic, Plus, Search, Settings, X } from 'lucide-react';
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { TODAY, expenseCategories, incomeCategories } from '../data';
 import { allTimeBalance, applyPeriod, isCurrentPeriod, periodLabel, type DemoApi } from '../useDemo';
@@ -179,6 +179,9 @@ export function Dashboard({ api }: { api: DemoApi }) {
   // ── Totales (useDashboardTotals) ──
   const expenseTotal = typeFiltered.filter((x) => x.amount > 0).reduce((s, x) => s + x.amount, 0);
   const incomeTotal = typeFiltered.filter((x) => x.amount < 0).reduce((s, x) => s - x.amount, 0);
+  // BALANCE NETO sigue el período visto (`periodNet` del hook real), no el histórico —
+  // el saldo de todo el historial queda como texto chico debajo ("Saldo total").
+  const periodNet = filtered.reduce((s, x) => s - x.amount, 0);
   const allTime = allTimeBalance(txs);
   const monthlyExpense = current
     ? txs.filter((x) => new Date(x.date) >= new Date(TODAY.getFullYear(), TODAY.getMonth(), 1) && x.amount > 0).reduce((s, x) => s + x.amount, 0)
@@ -229,13 +232,8 @@ export function Dashboard({ api }: { api: DemoApi }) {
     <div style={{ position: 'absolute', inset: 0, background: t.bg, display: 'flex', flexDirection: 'column', paddingTop: 28 }}>
       {/* Header fijo */}
       <div style={{ position: 'relative', padding: '64px 28px 20px' }}>
-        {/* Período, calendario y ajustes: fuera de la demo, solo se muestran. */}
-        <div style={{ position: 'absolute', top: 14, left: 20, zIndex: 10 }} aria-hidden>
-          <span style={{ ...row, gap: 5, background: t.itemBg, borderRadius: 9999, border: `1.5px solid ${t.border}`, padding: '8px 14px' }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: t.text, lineHeight: '20px' }}>{chipLabel}</span>
-            <ChevronsUpDown size={13} color={t.text} strokeWidth={2.2} />
-          </span>
-        </div>
+        {/* Calendario y ajustes: fuera de la demo, solo se muestran (sin punto rojo:
+            el período nunca cambia de su valor predeterminado en la demo). */}
         <div style={{ position: 'absolute', top: 14, right: 20, zIndex: 10, ...row, gap: 4 }}>
           {state.pending.length > 0 && (
             <Touchable onPress={() => dispatch({ type: 'openNotifReview' })} label="Transacciones detectadas" style={{ ...headerBtn, borderRadius: 12, background: t.surface, position: 'relative' }}>
@@ -276,16 +274,22 @@ export function Dashboard({ api }: { api: DemoApi }) {
           <div style={{ ...col, gap: 8, alignItems: 'center', transform: `translateY(${-5 * parallax}px) scale(${1 - 0.06 * parallax})` }}>
             {state.monthlyBudget > 0 && typeFilter === null && current && overBudget > 0 && (
               <span style={{ background: 'rgba(220,38,38,0.18)', padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, color: '#DC2626', letterSpacing: 0.2 }}>
-                {bal(overBudget)} sobre presupuesto
+                {bal(overBudget)} sobre tu pago
               </span>
             )}
             <span style={{ fontSize: 11, fontWeight: 700, color: t.textSub, letterSpacing: 2, textTransform: 'uppercase', textAlign: 'center' }}>BALANCE NETO</span>
-            <RollingNumber
-              value={Math.abs(allTime)}
-              lineHeight={64}
-              style={{ fontSize: 56, fontWeight: 800, letterSpacing: -2.5, color: allTime < 0 ? '#DC2626' : t.text }}
-            />
-            <div style={{ ...row, gap: 6, background: t.itemBg, borderRadius: 999, padding: 5 }}>
+            <span style={{ ...row, alignItems: 'flex-end' }}>
+              {periodNet < 0 && <span style={{ fontSize: 56, fontWeight: 800, letterSpacing: -2.5, lineHeight: '64px', color: '#DC2626' }}>-</span>}
+              <RollingNumber
+                value={Math.abs(periodNet)}
+                lineHeight={64}
+                style={{ fontSize: 56, fontWeight: 800, letterSpacing: -2.5, color: periodNet < 0 ? '#DC2626' : t.text }}
+              />
+            </span>
+            {/* Saldo total (todo el historial): se muestra siempre, ya que la demo no tiene
+                una vista "Todo el tiempo" donde coincidiría con el balance de arriba. */}
+            <span style={{ fontSize: 12, fontWeight: 600, color: t.textSub, marginTop: -4 }}>Saldo total: {bal(allTime)}</span>
+            <div style={{ ...row, gap: 6, background: t.itemBg, borderRadius: 999, padding: 5, marginTop: 2 }}>
               <Touchable onPress={() => dispatch({ type: 'toggleType', filter: 'expense' })} style={pill(typeFilter !== 'income', '#FEE2E2')} label="Filtrar gastos">
                 <ArrowDown size={13} strokeWidth={2.8} color={typeFilter !== 'income' ? '#E53E3E' : t.textSub} />
                 <RollingNumber
@@ -309,7 +313,7 @@ export function Dashboard({ api }: { api: DemoApi }) {
                   <div style={{ height: 4, borderRadius: 9999, background: '#2D5BFF', width: `${budgetPct}%`, transition: 'width 400ms ease-out' }} />
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 500, color: t.textSub, letterSpacing: 0.1, textAlign: 'center' }}>
-                  {budgetPct}% de {bal(state.monthlyBudget)}
+                  {budgetPct}% de {bal(state.monthlyBudget)} · recibido {bal(incomeTotal)}
                 </span>
               </div>
             )}

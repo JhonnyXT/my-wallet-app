@@ -4,7 +4,7 @@ import { BUDGETS, BUDGET_ALERT, CATEGORY, DEBT, GOAL, cop } from '@/content/app'
 import { Progress, SectionHead } from './shared';
 
 export function Control({ t }: { t: Dictionary['control'] }) {
-  const card = 'flex flex-col gap-4 rounded-[20px] border border-line bg-card p-5 sm:rounded-[22px] sm:p-6';
+  const card = 'float-card flex flex-col gap-4 rounded-[20px] border border-line bg-card p-5 sm:rounded-[22px] sm:p-6';
   const goalPct = Math.round((GOAL.saved / GOAL.target) * 100);
   const debtPaid = Math.round(((DEBT.total - DEBT.remaining) / DEBT.total) * 100);
 
@@ -13,9 +13,9 @@ export function Control({ t }: { t: Dictionary['control'] }) {
       <SectionHead title={t.title} subtitle={t.subtitle} />
 
       {/* Notificación real de la alerta de presupuesto */}
-      <div className="flex w-full max-w-[440px] items-start gap-3 rounded-[22px] bg-[#2b3038] px-4 py-3.5 shadow-[0_14px_30px_rgba(0,0,0,0.45)]">
+      <div className="notif-hop flex w-full max-w-[440px] items-start gap-3 rounded-[22px] bg-[#2b3038] px-4 py-3.5 shadow-[0_14px_30px_rgba(0,0,0,0.45)]">
         <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-brand" aria-hidden>
-          <Bell size={15} className="text-white" />
+          <Bell size={15} className="bell-ring text-white" />
         </span>
         <span className="flex flex-col gap-0.5">
           <span className="text-[11px] text-dim">MyWallet · ahora</span>
@@ -25,7 +25,7 @@ export function Control({ t }: { t: Dictionary['control'] }) {
       </div>
 
       <div className="grid w-full grid-cols-1 gap-3.5 sm:gap-[18px] md:grid-cols-3">
-        <div className={card}>
+        <div className={card} style={{ animationDelay: '0s' }}>
           <h3 className="text-[15px] font-bold sm:text-base">{t.budget.title}</h3>
           {BUDGETS.map((b) => {
             const cat = CATEGORY[b.key];
@@ -50,7 +50,7 @@ export function Control({ t }: { t: Dictionary['control'] }) {
           })}
         </div>
 
-        <div className={card}>
+        <div className={card} style={{ animationDelay: '-1.7s' }}>
           <h3 className="text-[15px] font-bold sm:text-base">{t.goal.title}</h3>
           <div className="flex items-center gap-3">
             <span className="flex size-12 items-center justify-center rounded-2xl bg-surface-2 text-2xl" aria-hidden>
@@ -70,7 +70,7 @@ export function Control({ t }: { t: Dictionary['control'] }) {
           </span>
         </div>
 
-        <div className={card}>
+        <div className={card} style={{ animationDelay: '-3.4s' }}>
           <h3 className="text-[15px] font-bold sm:text-base">{t.debt.title}</h3>
           <div className="flex items-center gap-3">
             <span className="flex size-12 items-center justify-center rounded-2xl bg-surface-2 text-2xl" aria-hidden>

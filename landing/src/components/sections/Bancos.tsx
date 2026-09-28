@@ -43,12 +43,19 @@ export function Bancos({ t }: { t: Dictionary['bancos'] }) {
       />
 
       <ul className="flex w-full flex-col gap-5 sm:gap-6">
-        {BANK_NOTIFS.map((n) => (
+        {BANK_NOTIFS.map((n, i) => (
           <li key={n.text} className="grid grid-cols-1 items-center gap-2.5 md:grid-cols-[1fr_40px_1fr] md:gap-4">
-            <Notification n={n} />
-            <ArrowRight className="mx-auto rotate-90 text-faint md:rotate-0" size={20} aria-hidden />
+            <div className="float-card" style={{ animationDelay: `-${i * 1.3}s` }}>
+              <Notification n={n} />
+            </div>
+            <ArrowRight
+              className="arrow-nudge mx-auto rotate-90 text-faint md:rotate-0"
+              style={{ animationDelay: `-${i * 0.45}s` }}
+              size={20}
+              aria-hidden
+            />
             {n.detected ? (
-              <div className="flex flex-col gap-1.5">
+              <div className="float-card flex flex-col gap-1.5" style={{ animationDelay: `-${i * 1.3 + 0.7}s` }}>
                 <span className="flex items-center gap-1.5 pl-1 font-mono text-[11px] font-bold tracking-[0.08em] text-income uppercase">
                   <Check size={13} strokeWidth={3} aria-hidden />
                   {t.detected}
@@ -56,7 +63,10 @@ export function Bancos({ t }: { t: Dictionary['bancos'] }) {
                 <TxRow tx={n.detected} />
               </div>
             ) : (
-              <span className="flex items-center gap-2 rounded-2xl border border-dashed border-line px-4 py-4 text-sm text-dim">
+              <span
+                className="float-card flex items-center gap-2 rounded-2xl border border-dashed border-line px-4 py-4 text-sm text-dim"
+                style={{ animationDelay: `-${i * 1.3 + 0.7}s` }}
+              >
                 <Ban size={16} className="shrink-0 text-faint" aria-hidden />
                 {t.ignored}
               </span>

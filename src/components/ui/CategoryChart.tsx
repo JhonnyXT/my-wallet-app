@@ -28,6 +28,7 @@ import {
 import ReAnimated, {
   useSharedValue,
   useAnimatedStyle,
+  useDerivedValue,
   withDelay,
   withTiming,
   Easing,
@@ -40,6 +41,7 @@ import * as Haptics from "expo-haptics";
 import { ArrowUp, ArrowDown } from "lucide-react-native";
 import { getCategoryColor, getCategoryName } from "@/src/constants/theme";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { useAllListCategories } from "@/src/hooks/useAllListCategories";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
 import { useTheme } from "@/src/context/ThemeContext";
 
@@ -59,6 +61,8 @@ interface CategoryChartProps {
   allEmojis: string[];
   totalExpenses: number;
   budgetByCategory?: Record<string, number>;
+  /** Gasto que mide el presupuesto por categoría (por defecto, el total de la columna). */
+  budgetSpentByCategory?: Record<string, number>;
   onNewTransaction?: (emoji: string, categoryName: string) => void;
   /** Tap corto en una categoría — el dashboard activa el filtro por esa categoría */
   onCategoryTap?: (emoji: string, categoryName: string) => void;
@@ -91,7 +95,8 @@ const BAR_GAP = 14;
 const H_PAD = 20;
 const MAX_BAR_H = 280; // altura máxima de una columna en pantalla
 const MIN_GHOST_H = 44; // mínimo para que el ghost siempre sea visible
-const RADIUS = 14;
+const RADIUS = 22;
+const CAP_H = RADIUS * 2;
 export const CHART_H = MAX_BAR_H + 24; // espacio extra para labels y padding
 const MIN_FILL_H = 52; // altura mínima comprimida del fill (cabe layout horizontal)
 const PCT_MIN_RATIO = 0.4; // umbral mínimo (40%) para mostrar el % dentro del fill
@@ -133,6 +138,15 @@ function getBarVisual(
   // para que el usuario vea visualmente el límite. Color rojo solo si supera el 100%.
   if (ratio >= 1.0) return { fillColor: "#EF4444", hasBorder: true };
   return { fillColor: accent, hasBorder: true };
+}
+
+/** "rgba(r,g,b,a)" o "#RRGGBBAA" → color sólido + su alpha; otro formato → alpha 1. */
+function splitAlpha(color: string): { solid: string; alpha: number } {
+  const rgba = color.match(/^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)$/);
+  if (rgba) return { solid: `rgb(${rgba[1]}, ${rgba[2]}, ${rgba[3]})`, alpha: Number(rgba[4]) };
+  const hex8 = color.match(/^#([0-9a-f]{6})([0-9a-f]{2})$/i);
+  if (hex8) return { solid: `#${hex8[1]}`, alpha: parseInt(hex8[2], 16) / 255 };
+  return { solid: color, alpha: 1 };
 }
 
 function fmtAmount(n: number): string {
@@ -408,16 +422,29 @@ function AnimatedBar({
   const localScrollY = useSharedValue(0);
   const sv = scrollY ?? localScrollY;
 
-  // Fill height = animación de entrada ∩ compresión por scroll.
-  // `fill` tiene height:MAX_BAR_H fijo (ver styles.fill) — acá solo escalamos
-  // en Y desde el fondo (transformOrigin:"bottom"), nunca animamos `height`.
-  const fillHeightStyle = useAnimatedStyle(() => {
+  // Altura visible del fill = animación de entrada ∩ compresión por scroll. Nunca se anima
+  // `height` (layout): todo va con transforms en GPU. Un solo `scaleY` aplastaba también las
+  // esquinas (radio de 18px quedaba en ~4px en una barra corta), así que el fill son tres
+  // piezas: tapa inferior y superior de tamaño fijo (esquinas siempre redondas) y un cuerpo
+  // que se estira entre ellas. Con menos de 2·RADIUS se escala el conjunto entero.
+  const fillH_ = useDerivedValue(() => {
     "worklet";
     const ratio = interpolate(sv.value, [0, COMPRESS_END], [0, 1], Extrapolation.CLAMP);
     const minH = Math.min(fillH, MIN_FILL_H);
     const scrolledH = fillH - (fillH - minH) * ratio; // fillH → minH
-    const targetH = Math.min(heightAnim.value, scrolledH);
-    return { transform: [{ scaleY: MAX_BAR_H > 0 ? targetH / MAX_BAR_H : 0 }] };
+    return Math.max(Math.min(heightAnim.value, scrolledH), 0);
+  });
+  const fillGroupStyle = useAnimatedStyle(() => {
+    "worklet";
+    return { transform: [{ scaleY: Math.min(fillH_.value / CAP_H, 1) }] };
+  });
+  const fillBodyStyle = useAnimatedStyle(() => {
+    "worklet";
+    return { transform: [{ scaleY: Math.max(fillH_.value - CAP_H, 0) / MAX_BAR_H }] };
+  });
+  const fillTopCapStyle = useAnimatedStyle(() => {
+    "worklet";
+    return { transform: [{ translateY: -Math.max(fillH_.value - CAP_H, 0) }] };
   });
 
   // Ghost: permanece visible hasta el 85% del scroll, solo desaparece al final
@@ -546,13 +573,26 @@ function AnimatedBar({
 
   const labelColor = isDark ? "#F1F5F9" : "#1E293B";
   const borderColor = isDark ? BORDER_DARK : BORDER_LIGHT;
+  // Las piezas del fill se solapan: con un color semitransparente (el gris neutro) el
+  // solape se veía como franjas más oscuras. Se pintan sólidas y la transparencia va una
+  // sola vez en el grupo (composición offscreen), igual que una barra de una pieza.
+  const { solid: fillSolid, alpha: fillAlpha } = splitAlpha(fillColor);
 
   return (
     <View style={styles.column}>
-      {/* 1. Fill: crece desde abajo hasta fillH. fillOpacity 0.68 con color, 1.0 con gris neutro */}
+      {/* 1. Fill: crece desde abajo hasta fillH. fillOpacity 0.68 con color, 1.0 con gris neutro.
+          La opacidad va en el grupo con composición offscreen: si no, donde se solapan las
+          piezas la transparencia se suma y se verían franjas más oscuras. */}
       <ReAnimated.View
-        style={[styles.fill, fillHeightStyle, { backgroundColor: fillColor, opacity: fillOpacity }]}
-      />
+        style={[styles.fill, fillGroupStyle, { opacity: fillOpacity * fillAlpha }]}
+        needsOffscreenAlphaCompositing
+      >
+        <View style={[styles.fillCap, { backgroundColor: fillSolid }]} />
+        <ReAnimated.View style={[styles.fillBody, fillBodyStyle, { backgroundColor: fillSolid }]} />
+        <ReAnimated.View
+          style={[styles.fillCap, fillTopCapStyle, { backgroundColor: fillSolid }]}
+        />
+      </ReAnimated.View>
 
       {/* 2. Ghost border — se desvanece al comprimir (no hay espacio en modo compacto) */}
       {hasBorder && ghostH > 0 && (
@@ -769,6 +809,7 @@ export function CategoryChart({
   allEmojis,
   totalExpenses,
   budgetByCategory = {},
+  budgetSpentByCategory,
   onNewTransaction,
   onCategoryTap,
   alertColors = true,
@@ -777,7 +818,8 @@ export function CategoryChart({
   scrollY,
 }: CategoryChartProps) {
   const { isDark } = useTheme();
-  const userCategories = useSettingsStore((s) => s.userCategories);
+  // Nombres/colores de columnas: todas las listas (Personal incluye lo pagado en otras).
+  const userCategories = useAllListCategories();
   const savingsGoals = useSettingsStore((s) => s.savingsGoals);
   const [popup, setPopup] = useState<PopupState | null>(null);
   const [budgetEdit, setBudgetEdit] = useState<BudgetEditState | null>(null);
@@ -902,7 +944,7 @@ export function CategoryChart({
               ghostH = 0; // sin ghost en ingresos
               displayPct = Math.round(ratio * 100);
             } else if (budgetAmt && budgetAmt > 0) {
-              ratio = stat.total / budgetAmt;
+              ratio = (budgetSpentByCategory?.[emoji] ?? stat.total) / budgetAmt;
               // Mínimo de MIN_FILL_H cuando hay gasto real, para que los labels siempre quepan dentro del fill
               fillH =
                 stat.total > 0
@@ -1042,7 +1084,24 @@ const styles = StyleSheet.create({
     right: 0,
     height: MAX_BAR_H,
     transformOrigin: "bottom",
-    borderRadius: RADIUS, // redondeado en las 4 esquinas
+  },
+  // Tapa de altura fija 2·RADIUS: sus esquinas nunca se deforman.
+  fillCap: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: CAP_H,
+    borderRadius: RADIUS,
+  },
+  // Cuerpo entre las tapas: arranca a RADIUS del fondo y se estira con scaleY.
+  fillBody: {
+    position: "absolute",
+    bottom: RADIUS,
+    left: 0,
+    right: 0,
+    height: MAX_BAR_H,
+    transformOrigin: "bottom",
   },
   // Labels verticales: emoji + monto + % apilados al fondo del fill
   labelsInner: {

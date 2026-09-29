@@ -17,7 +17,6 @@ import {
   Platform,
   StatusBar,
   Dimensions,
-  PanResponder,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -25,146 +24,13 @@ import * as Haptics from "expo-haptics";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
-import {
-  EXPENSE_PRESETS,
-  INCOME_PRESETS,
-  CURATED_EMOJIS,
-  CATEGORY_EMOJI_VARIANTS,
-  type UserCategory,
-} from "@/src/constants/categoryPresets";
+import { CURATED_EMOJIS, type UserCategory } from "@/src/constants/categoryPresets";
 import { HueColorPicker } from "@/src/components/ui/HueColorPicker";
 import { PressableScale } from "@/src/components/ui/PressableScale";
+import { CategoryPickerGrid, useCategoryPicker } from "@/src/components/ui/CategoryPickerGrid";
 import { hueToColors } from "@/src/utils/colorUtils";
 
 const { width: SCREEN_W } = Dimensions.get("window");
-const CARD_GAP = 12;
-const CARD_W = (SCREEN_W - 48 - CARD_GAP * 2) / 3;
-
-// Presets "principales" mostrados en el onboarding — el resto de EXPENSE_PRESETS/
-// INCOME_PRESETS sigue existiendo (resuelve nombres/colores de categorías ya
-// guardadas y queda disponible vía "+ Añadir"), solo se oculta de esta grilla.
-const PRINCIPAL_EXPENSE_IDS = new Set([
-  "preset_shopping", // Compras
-  "preset_clothing", // Ropa
-  "preset_eating_out", // Comer afuera
-  "preset_home", // Hogar (en vez de Lujo)
-  "preset_car", // Vehículo
-  "preset_education", // Educación (en vez de Mascotas)
-]);
-const PRINCIPAL_INCOME_IDS = new Set([
-  "preset_salary",
-  "preset_freelance",
-  "preset_investments",
-  "preset_other_income",
-]);
-
-// ─── Tarjeta de categoría — deslizar el ícono cambia de variante de emoji ─────
-function CategoryTile({
-  cat,
-  active,
-  emojiIdx,
-  onChangeEmojiIdx,
-  onToggle,
-  theme,
-  st,
-}: {
-  cat: UserCategory;
-  active: boolean;
-  emojiIdx: number;
-  onChangeEmojiIdx: (next: number) => void;
-  onToggle: () => void;
-  theme: AppTheme;
-  st: ReturnType<typeof buildStyles>;
-}) {
-  const variants = CATEGORY_EMOJI_VARIANTS[cat.id];
-  const hasVariants = !!variants && variants.length > 1;
-  const displayEmoji = hasVariants ? variants[emojiIdx] : cat.emoji;
-  const [pressed, setPressed] = useState(false);
-
-  // PanResponder reclamando el toque desde onStartShouldSetPanResponder (no en el
-  // move): así el tap y el swipe responden igual de rápido que un TouchableOpacity
-  // normal, incluso en la primera interacción. onPanResponderTerminationRequest:true
-  // deja que el ScrollView padre se quede con el gesto si detecta scroll vertical.
-  //
-  // IMPORTANTE: se recrea en cada render (sin useRef) — envolverlo en useRef lo crea
-  // una sola vez y sus callbacks quedan con `emojiIdx` congelado al valor del primer
-  // render, por lo que el swipe siempre calculaba el próximo índice desde 0 en vez
-  // del índice actual (bug: se quedaba alternando entre el 1° y 2°/último emoji).
-  const pan = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onPanResponderTerminationRequest: () => true,
-    onPanResponderGrant: () => setPressed(true),
-    onPanResponderRelease: (_, g) => {
-      setPressed(false);
-      const isSwipe = hasVariants && Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy) * 1.3;
-      if (isSwipe) {
-        Haptics.selectionAsync();
-        if (g.dx < 0) onChangeEmojiIdx((emojiIdx + 1) % variants.length);
-        else onChangeEmojiIdx((emojiIdx - 1 + variants.length) % variants.length);
-      } else if (Math.abs(g.dx) < 10 && Math.abs(g.dy) < 10) {
-        onToggle();
-      }
-    },
-    onPanResponderTerminate: () => setPressed(false),
-  });
-
-  return (
-    <View style={st.card}>
-      <View
-        style={[
-          st.iconBox,
-          {
-            backgroundColor: active
-              ? theme.isDark
-                ? cat.colorAccent + "26"
-                : cat.colorBg + "99"
-              : theme.isDark
-                ? "#1E293B"
-                : "#F8FAFC",
-          },
-          active && { borderColor: cat.colorAccent + "80", borderWidth: 1.5 },
-          pressed && { opacity: 0.8 },
-        ]}
-        {...pan.panHandlers}
-      >
-        <View style={st.iconZone}>
-          <Text style={st.cardEmoji}>{displayEmoji}</Text>
-          {hasVariants && (
-            <View style={st.dotsRow}>
-              {variants.map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    st.dot,
-                    {
-                      backgroundColor: theme.isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)",
-                    },
-                    i === emojiIdx && {
-                      backgroundColor: active ? cat.colorAccent : theme.textSub,
-                      width: 6,
-                      height: 6,
-                    },
-                  ]}
-                />
-              ))}
-            </View>
-          )}
-        </View>
-        {active && (
-          <View style={[st.checkBadge, { backgroundColor: cat.colorAccent }]}>
-            <Text style={st.checkMark}>✓</Text>
-          </View>
-        )}
-      </View>
-      <Text
-        style={[st.cardLabel, { color: active ? cat.colorAccent : theme.textSub }]}
-        numberOfLines={1}
-      >
-        {cat.name}
-      </Text>
-    </View>
-  );
-}
 
 export default function CategoryOnboarding() {
   const theme = useTheme();
@@ -180,150 +46,46 @@ export default function CategoryOnboarding() {
   // volver atrás en el onboarding mostraría por error el modo "Editar categorías".
   const isEditing = params.edit === "1";
 
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
-    if (userCategories.length > 0) return new Set(userCategories.map((c) => c.id));
-    return new Set();
-  });
-  const [customCats, setCustomCats] = useState<UserCategory[]>(() =>
-    userCategories.filter((c) => !c.isPreset),
-  );
+  const picker = useCategoryPicker(userCategories);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<"expense" | "income">("expense");
-  const [emojiIndices, setEmojiIndices] = useState<Record<string, number>>({});
-
-  const allExpense = useMemo(
-    () =>
-      [
-        ...EXPENSE_PRESETS.filter((c) => PRINCIPAL_EXPENSE_IDS.has(c.id)),
-        ...customCats.filter((c) => c.type === "expense"),
-      ].sort((a, b) => a.name.localeCompare(b.name, "es")),
-    [customCats],
-  );
-  const allIncome = useMemo(
-    () =>
-      [
-        ...INCOME_PRESETS.filter((c) => PRINCIPAL_INCOME_IDS.has(c.id)),
-        ...customCats.filter((c) => c.type === "income"),
-      ].sort((a, b) => a.name.localeCompare(b.name, "es")),
-    [customCats],
-  );
-
-  const toggleSelect = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
-  const selectedCount = selectedIds.size;
+  const selectedCount = picker.selectedIds.size;
 
   const handleSave = useCallback(() => {
-    const all = [...EXPENSE_PRESETS, ...INCOME_PRESETS, ...customCats];
-    const chosen = all
-      .filter((c) => selectedIds.has(c.id))
-      .map((c) => {
-        const variants = CATEGORY_EMOJI_VARIANTS[c.id];
-        const idx = emojiIndices[c.id] ?? 0;
-        const emoji = variants && variants.length > 1 ? variants[idx] : c.emoji;
-        return emoji === c.emoji ? c : { ...c, emoji };
-      });
-    setUserCategories(chosen);
+    setUserCategories(picker.chosen());
     completeCategories();
     if (isEditing) {
       router.back();
     } else {
       router.push("/pay-onboarding");
     }
-  }, [
-    selectedIds,
-    customCats,
-    emojiIndices,
-    setUserCategories,
-    completeCategories,
-    router,
-    isEditing,
-  ]);
+  }, [picker, setUserCategories, completeCategories, router, isEditing]);
 
-  const handleCreateCategory = useCallback((cat: UserCategory) => {
-    setCustomCats((prev) => [...prev, cat]);
-    setSelectedIds((prev) => new Set(prev).add(cat.id));
-    setModalVisible(false);
-  }, []);
+  const handleCreateCategory = useCallback(
+    (cat: UserCategory) => {
+      picker.addCustom(cat);
+      setModalVisible(false);
+    },
+    [picker],
+  );
 
-  const renderGrid = (cats: UserCategory[], type: "expense" | "income") => {
-    const rows: UserCategory[][] = [];
-    for (let i = 0; i < cats.length; i += 3) rows.push(cats.slice(i, i + 3));
-
-    return (
-      <>
-        {rows.map((row, ri) => (
-          <View key={ri} style={st.row}>
-            {row.map((cat) => {
-              const active = selectedIds.has(cat.id);
-              return (
-                <CategoryTile
-                  key={cat.id}
-                  cat={cat}
-                  active={active}
-                  emojiIdx={emojiIndices[cat.id] ?? 0}
-                  onChangeEmojiIdx={(next) =>
-                    setEmojiIndices((prev) => ({ ...prev, [cat.id]: next }))
-                  }
-                  onToggle={() => toggleSelect(cat.id)}
-                  theme={theme}
-                  st={st}
-                />
-              );
-            })}
-            {/* Fill empty slots */}
-            {row.length < 3 &&
-              Array.from({ length: 3 - row.length }).map((_, i) => {
-                if (ri === rows.length - 1 && i === 0) {
-                  return (
-                    <TouchableOpacity
-                      key="add"
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        setModalType(type);
-                        setModalVisible(true);
-                      }}
-                      style={[st.iconBox, st.addCard]}
-                    >
-                      <Text style={[st.addIcon, { color: theme.textSub }]}>+</Text>
-                      <Text style={[st.addLabel, { color: theme.textSub }]}>Añadir</Text>
-                    </TouchableOpacity>
-                  );
-                }
-                return (
-                  <View
-                    key={`empty-${i}`}
-                    style={[st.iconBox, { backgroundColor: "transparent", borderWidth: 0 }]}
-                  />
-                );
-              })}
-          </View>
-        ))}
-        {/* Add button if last row is full */}
-        {cats.length % 3 === 0 && (
-          <View style={st.row}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => {
-                setModalType(type);
-                setModalVisible(true);
-              }}
-              style={[st.iconBox, st.addCard]}
-            >
-              <Text style={[st.addIcon, { color: theme.textSub }]}>+</Text>
-              <Text style={[st.addLabel, { color: theme.textSub }]}>Añadir</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </>
-    );
+  const openAdd = (type: "expense" | "income") => {
+    setModalType(type);
+    setModalVisible(true);
   };
+
+  const renderGrid = (cats: UserCategory[], type: "expense" | "income") => (
+    <CategoryPickerGrid
+      cats={cats}
+      type={type}
+      selectedIds={picker.selectedIds}
+      emojiIndices={picker.emojiIndices}
+      onToggle={picker.toggle}
+      onChangeEmojiIdx={picker.setEmojiIdx}
+      onAdd={openAdd}
+      width={SCREEN_W - 48}
+    />
+  );
 
   return (
     <SafeAreaView style={st.screen} edges={["top", "bottom"]}>
@@ -348,11 +110,11 @@ export default function CategoryOnboarding() {
 
         {/* Gastos */}
         <Text style={st.sectionTitle}>Gastos</Text>
-        {renderGrid(allExpense, "expense")}
+        {renderGrid(picker.expenseCats, "expense")}
 
         {/* Ingresos */}
         <Text style={[st.sectionTitle, { marginTop: 28 }]}>Ingresos</Text>
-        {renderGrid(allIncome, "income")}
+        {renderGrid(picker.incomeCats, "income")}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -524,50 +286,6 @@ function buildStyles(t: AppTheme) {
       textTransform: "uppercase",
       letterSpacing: 0.5,
     },
-    row: { flexDirection: "row", gap: CARD_GAP, marginBottom: CARD_GAP },
-    // Contenedor externo: solo da el ancho de columna, sin fondo/borde propios —
-    // el nombre de la categoría vive acá afuera, debajo de iconBox.
-    card: { width: CARD_W, alignItems: "center" },
-    iconBox: {
-      width: CARD_W,
-      aspectRatio: 0.92,
-      borderRadius: 20,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1.5,
-      borderColor: t.border,
-      position: "relative",
-    },
-    iconZone: { alignItems: "center", justifyContent: "center", paddingVertical: 4 },
-    cardEmoji: { fontSize: 36, marginBottom: 8 },
-    cardLabel: {
-      fontSize: 12.5,
-      fontWeight: "700",
-      textAlign: "center",
-      paddingHorizontal: 4,
-      marginTop: 8,
-    },
-    dotsRow: { flexDirection: "row", gap: 3, marginBottom: 6 },
-    dot: { width: 4, height: 4, borderRadius: 2 },
-    checkBadge: {
-      position: "absolute",
-      top: 8,
-      right: 8,
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    checkMark: { color: "#FFF", fontSize: 11, fontWeight: "800" },
-    addCard: {
-      borderStyle: "dashed",
-      borderWidth: 2,
-      borderColor: t.border,
-      backgroundColor: "transparent",
-    },
-    addIcon: { fontSize: 28, fontWeight: "300", marginBottom: 4 },
-    addLabel: { fontSize: 11, fontWeight: "600" },
     bottomBar: {
       position: "absolute",
       bottom: 0,

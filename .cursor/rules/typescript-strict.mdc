@@ -74,9 +74,19 @@ interface TransactionRow {
   date: string;
   tags: string;          // JSON: '["#trabajo","#comida"]'
   payment_method: string; // 'cash' | 'debit' | 'credit' | 'transfer' | custom
+  list_id: string;        // WalletList.id; "personal" por defecto
+  paid_by: string;        // "" (SELF_PAYER) = tú; si no, ListMember.id
 }
 ```
 Referencia: `@/src/db/db.ts`
+
+### Lógica de slice que se puede testear sin Zustand: exportarla como función pura
+Cuando un `action` de un slice hace más que un `set()` directo (combina varios campos, tiene una
+regla de negocio no trivial), extraerla como función pura exportada aparte que reciba el estado
+relevante como parámetro y devuelva el patch — el `action` del slice queda como un wrapper de una
+línea (`set((s) => fn(s, arg))`). Así se puede testear con Jest sin montar el store. Referencia:
+`swapActiveList()` en `src/store/slices/listsSlice.ts` (con tests en `listsSlice.test.ts`),
+consumida por la acción `switchList` del slice.
 
 ### Props de componentes
 - Siempre interface con nombre `XxxProps`.

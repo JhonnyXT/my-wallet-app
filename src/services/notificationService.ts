@@ -5,6 +5,7 @@
 import * as Notifications from "expo-notifications";
 import { Linking, Platform } from "react-native";
 import { useSettingsStore, type Debt } from "@/src/store/useSettingsStore";
+import { DEFAULT_LIST_ID } from "@/src/constants/lists";
 import { formatCOP } from "@/src/utils/formatMoney";
 import { budgetCycle, cycleKey } from "@/src/utils/periodCycles";
 import { shortenDescription } from "@/src/utils/notificationParser/descriptionExtractor";
@@ -124,9 +125,15 @@ export async function checkAndNotifyBudget(
   const isOver = ratio >= 1.0;
 
   // Claves compuestas para permitir dos notificaciones por categoría por ciclo de presupuesto:
-  // una al cruzar el umbral, otra al superar el 100%
-  const keyThreshold = `${categoryEmoji}:threshold`;
-  const keyOverspent = `${categoryEmoji}:overspent`;
+  // una al cruzar el umbral, otra al superar el 100%. Cada lista tiene sus presupuestos: fuera
+  // de Personal la clave lleva la lista, para que el mismo emoji en dos listas no choque
+  // (Personal conserva las claves de siempre).
+  const list = store.lists.find((l) => l.id === store.activeListId);
+  const inOtherList = store.activeListId !== DEFAULT_LIST_ID && !!list;
+  const prefix = inOtherList ? `${store.activeListId}|` : "";
+  const where = inOtherList ? ` en ${list.emoji} ${list.name}` : "";
+  const keyThreshold = `${prefix}${categoryEmoji}:threshold`;
+  const keyOverspent = `${prefix}${categoryEmoji}:overspent`;
 
   if (isOver) {
     // Notificar cuando se supera el 100% del presupuesto (máximo una vez por mes)
@@ -137,7 +144,7 @@ export async function checkAndNotifyBudget(
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "Presupuesto superado",
-        body: `Superaste el límite de "${categoryName}" por ${formatCOP(over)}.`,
+        body: `Superaste el límite de "${categoryName}"${where} por ${formatCOP(over)}.`,
         sound: true,
         ...(Platform.OS === "android" && { channelId: CHANNEL_BUDGET }),
       },
@@ -154,7 +161,7 @@ export async function checkAndNotifyBudget(
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "Alerta de presupuesto",
-        body: `Llevas el ${pct}% de tu presupuesto en "${categoryName}".`,
+        body: `Llevas el ${pct}% de tu presupuesto en "${categoryName}"${where}.`,
         sound: true,
         ...(Platform.OS === "android" && { channelId: CHANNEL_BUDGET }),
       },

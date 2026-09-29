@@ -74,11 +74,12 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Deudas *(nuevo)* | Crear/editar/pagar/eliminar deudas (modal full-screen): nombre, emoji, monto total, cuota mensual, día de pago recurrente. Al pagar se crea transacción de gasto automáticamente (tag #deuda) y se reduce el saldo pendiente. Recordatorio push mensual en el día de pago; notificación al liquidar la deuda | ✅ Implementado |
 | Modo oscuro | Sistema / Claro / Oscuro (dark mode completo) — fila dentro de la sección "Sistema" | ✅ Implementado |
 | Bloqueo con huella | Pide huella/rostro/PIN del sistema al abrir la app y al volver de background; activar y desactivar requieren autenticarse. Sin biometría ni PIN configurados no se puede activar | ✅ Implementado |
-| Exportar datos | CSV con columnas id/fecha/tipo/descripcion/categoria/monto/metodo_pago/tags. Compartido con `Share` nativo de React Native (sin módulos externos) | ✅ Implementado |
-| Limpiar datos | Elimina todas las transacciones (con confirmación vía diálogo custom animado) | ✅ Implementado |
-| Diseño Material (2026-08-17) | Header con flecha llana + título inline (reemplaza el header estilo iOS con botón circular flotante), íconos de fila circulares, secciones reordenadas (Control financiero → Gestión → Detección automática → Sistema) | ✅ Implementado |
-| Sección "Sistema" fusionada (2026-09-02) | Las secciones antes independientes Apariencia (Modo oscuro), Sistema (Exportar/Borrar) y Acerca de (Versión) se unieron en una sola sección "Sistema" (hoy: Modo oscuro, Bloqueo con huella, Exportar datos, Borrar historial, Versión) | ✅ Implementado |
+| Exportar/Importar CSV *(por lista)* | Exportar escribe un `.csv` real (`expo-file-system`) con id/fecha/tipo/descripción/categoría/monto/método de pago/tags/quién pagó, y lo comparte con la hoja del sistema (`expo-sharing`). Importar (`expo-document-picker`) agrega los movimientos de un `.csv` a la lista activa sin duplicar los que ya están. Reemplaza al antiguo "Exportar datos" (texto plano vía `Share`) | ✅ Implementado |
+| Limpiar datos | Desde Personal elimina las transacciones de todas las listas; desde otra lista, solo las suyas (con confirmación vía diálogo custom animado) | ✅ Implementado |
+| Diseño Material (2026-08-17) | Header con flecha llana + título inline (reemplaza el header estilo iOS con botón circular flotante), íconos de fila circulares | ✅ Implementado |
+| Sección "Sistema" fusionada (2026-09-02) | Las secciones antes independientes Apariencia (Modo oscuro), Sistema (Exportar/Borrar) y Acerca de (Versión) se unieron en una sola sección "Sistema" (hoy: Modo oscuro, Bloqueo con huella, Borrar historial, Versión) | ✅ Implementado |
 | Tarjetas sin borde (2026-09-02) | `Card` perdió el `borderWidth` que había ganado en el rediseño Material — se distingue del fondo solo por color de relleno | ✅ Implementado |
+| Secciones reordenadas (listas) | Orden actual: Listas (Tus listas) → En tu lista (Categorías, Presupuestos, Pago y período, Mostrar ingresos, Compartir lista, Exportar/Importar CSV) → Gestión (Métodos de pago, Metas, Deudas) → Detección automática → Sistema | ✅ Implementado |
 
 ### 2.7 Sistema de Notificaciones (dos capas)
 
@@ -188,9 +189,12 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | ID | Historia | Estado |
 |----|---------|--------|
-| HU 4.1 | Como usuario, quiero exportar mis datos como CSV y compartirlos por email, WhatsApp, Drive u otra app usando el diálogo nativo del sistema | ✅ |
+| HU 4.1 | Como usuario, quiero exportar los movimientos de una lista como CSV y compartirlos por email, WhatsApp, Drive u otra app usando el diálogo nativo del sistema | ✅ |
 | HU 4.2 | Como usuario, quiero que toda la app funcione sin internet | ✅ |
 | HU 4.3 | Como usuario, quiero proteger la app con mi huella, rostro o PIN del teléfono, para que nadie con mi teléfono desbloqueado vea mis finanzas | ✅ |
+| HU 4.4 | Como usuario, quiero importar un CSV a una lista para recuperar o traspasar movimientos, sin que se dupliquen los que ya tengo | ✅ |
+| HU 4.5 | Como usuario, quiero separar mis movimientos en listas (un viaje, un negocio…) con su propio período, categorías y presupuesto, y ver en Personal también lo que pagué en esas listas | ✅ |
+| HU 4.6 | Como usuario, quiero registrar quién pagó cada gasto en una lista con más personas y ver quién le debe a quién, para repartir gastos compartidos sin depender de otra app | ✅ |
 
 ### Épica 5: Personalización
 

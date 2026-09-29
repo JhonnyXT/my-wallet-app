@@ -48,6 +48,7 @@ type ReviewItem = {
   categoryName: string;
   isExpense: boolean;
   paymentMethod: string;
+  tags: string[];
 };
 
 function pendingToReviewItem(t: PendingTransaction, idx: number): ReviewItem {
@@ -59,6 +60,7 @@ function pendingToReviewItem(t: PendingTransaction, idx: number): ReviewItem {
     categoryName: t.categoryName ?? "General",
     isExpense: t.isExpense ?? true,
     paymentMethod: "cash",
+    tags: t.tags ?? [],
   };
 }
 
@@ -452,6 +454,7 @@ export default function VoiceBatchReview() {
             categoryName: pendingManualItem.categoryName,
             isExpense: pendingManualItem.isExpense,
             paymentMethod: pendingManualItem.paymentMethod,
+            tags: [],
           },
         ]);
         clearPendingManualItem();
@@ -499,7 +502,7 @@ export default function VoiceBatchReview() {
         amount: item.isExpense ? item.amount : -item.amount,
         description: item.description,
         categoryEmoji: item.categoryEmoji,
-        tags: [],
+        tags: item.tags,
         paymentMethod: item.paymentMethod,
       }));
 

@@ -1,3 +1,4 @@
+import { ALL_PRESETS } from "@/src/constants/categoryPresets";
 import { normalizeMoneyText, replaceAmountInNote, processVoiceInput } from "./voiceParser";
 
 describe("normalizeMoneyText", () => {
@@ -13,6 +14,12 @@ describe("normalizeMoneyText", () => {
 describe("replaceAmountInNote", () => {
   it("reemplaza un monto en miles por su formato COP", () => {
     expect(replaceAmountInNote("gasté 40 mil en comida", 40000)).toBe("gasté $40.000 en comida");
+  });
+
+  it("conserva el espacio después de un monto en millones", () => {
+    expect(replaceAmountInNote("me gasté 2 millones en mi viaje", 2000000)).toBe(
+      "me gasté $2.000.000 en mi viaje",
+    );
   });
 
   it("devuelve el texto original si el monto es 0 o negativo", () => {
@@ -145,5 +152,53 @@ describe("processVoiceInput — categoría NO cruza gasto/ingreso (bug real 2026
     const r = processVoiceInput("gasté 30 mil en un regalo para mi mamá", userCats);
     expect(r.isExpense).toBe(true);
     expect(r.categoryName).toBe("Regalos");
+  });
+});
+
+describe("processVoiceInput — viajes", () => {
+  it("lee el apóstrofo colombiano de millones ('2'800.000')", () => {
+    expect(processVoiceInput("me gasté 2'800.000 en mis vacaciones a Seúl").amount).toBe(2800000);
+  });
+
+  it("categoriza en Viajes, etiqueta #viaje y deja la descripción corta", () => {
+    const r = processVoiceInput("me gasté 2'800.000 en mis vacaciones a Seúl");
+    expect(r.isExpense).toBe(true);
+    expect(r.categoryEmoji).toBe("✈️");
+    expect(r.categoryName).toBe("Viajes");
+    expect(r.tags).toEqual(["#viaje"]);
+    expect(r.note).toBe("Vacaciones a Seúl");
+    expect(r.rawTranscript).toBe("me gasté $2.800.000 en mis vacaciones a Seúl");
+  });
+
+  it("usa la categoría Viajes del usuario si la tiene", () => {
+    const r = processVoiceInput("pagué 400 mil en el hotel", ALL_PRESETS);
+    expect(r.categoryName).toBe("Viajes");
+    expect(r.tags).toEqual(["#viaje"]);
+    expect(r.note).toBe("Hotel");
+  });
+
+  it("quita el 'hoy' final de la descripción (ya es la fecha)", () => {
+    const r = processVoiceInput("gasté 45 mil en almuerzo hoy");
+    expect(r.note).toBe("Almuerzo");
+    expect(r.date).toBe("today");
+  });
+
+  it("una frase sin la forma verbo + monto + conector conserva la nota completa", () => {
+    expect(processVoiceInput("uber 15 mil").note).toBe("uber $15.000");
+  });
+
+  it("con monto en millones dictado, arma la descripción corta", () => {
+    const r = processVoiceInput("me gasté 2 millones en mi viaje de vacaciones");
+    expect(r.amount).toBe(2000000);
+    expect(r.note).toBe("Viaje de vacaciones");
+    expect(r.categoryName).toBe("Viajes");
+  });
+
+  it("un gasto que no es de viaje no lleva etiqueta", () => {
+    expect(processVoiceInput("gasté 30 mil en almuerzo").tags).toEqual([]);
+  });
+
+  it("un ingreso con palabra de viaje no lleva #viaje", () => {
+    expect(processVoiceInput("recibí 100 mil de reembolso del hotel").tags).toEqual([]);
   });
 });

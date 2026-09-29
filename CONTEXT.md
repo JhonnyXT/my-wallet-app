@@ -2,7 +2,7 @@
 
 > **Propósito:** Este documento es la referencia técnica completa del proyecto. Cualquier desarrollador, IA o colaborador que lea este archivo tendrá TODO el contexto necesario para desarrollar, modificar o extender la aplicación sin perder consistencia.
 >
-> **Última actualización:** 2026-09-28 | **Versión:** 1.5.0
+> **Última actualización:** 2026-09-29 | **Versión:** 1.5.0
 >
 > Nota de cobertura: este documento se actualiza incrementalmente por sesión de trabajo — algunas
 > secciones (ej. pantallas de onboarding `notification-onboarding.tsx`/`bank-selection-onboarding.tsx`,
@@ -19,6 +19,7 @@
 4. [Arquitectura de la Aplicación](#4-arquitectura-de-la-aplicación)
 5. [Sistema de Navegación](#5-sistema-de-navegación)
 6. [Estado Global (Zustand Stores)](#6-estado-global-zustand-stores)
+6b. [Listas y Gasto Compartido](#6b-listas-y-gasto-compartido)
 7. [Base de Datos (SQLite)](#7-base-de-datos-sqlite)
 8. [Sistema de Temas (Light / Dark)](#8-sistema-de-temas-light--dark)
 9. [Sistema NLP (Procesamiento de Lenguaje Natural)](#9-sistema-nlp-procesamiento-de-lenguaje-natural)
@@ -101,9 +102,9 @@ my-wallet-app/
 │   ├── pay-onboarding.tsx        # Onboarding paso 2: frecuencia de pago y pago esperado (PayPeriodForm, omitible)
 │   ├── notification-onboarding.tsx     # Onboarding paso 3: detección automática
 │   ├── bank-selection-onboarding.tsx   # Onboarding paso 4: bancos a rastrear
-│   ├── active-expense.tsx        # Modal: nuevo gasto/ingreso
+│   ├── active-expense.tsx        # Modal: nuevo gasto/ingreso (incluye secciones LISTA/PAGÓ)
 │   ├── reports.tsx               # Modal "Promedios": promedio mensual histórico por categoría + tendencia
-│   ├── settings.tsx              # Modal: configuración (incluye sección Detección automática)
+│   ├── settings.tsx              # Modal: configuración (incluye Tus listas, EN TU LISTA, Detección automática)
 │   ├── voice-input.tsx           # Modal: entrada por voz
 │   ├── voice-batch-review.tsx    # Modal: revisión de transacciones multi-voz
 │   ├── notification-review.tsx   # Modal: revisión de transacciones detectadas desde notificaciones bancarias
@@ -121,6 +122,7 @@ my-wallet-app/
 │   │   ├── Card.tsx              # Card / SectionHeader / Divider (capa de tokens)
 │   │   ├── CategoryChart.tsx     # Gráfica de categorías (barras + animaciones scroll)
 │   │   ├── ConfirmDialog.tsx     # Diálogo de confirmación reutilizable (danger/warning/info)
+│   │   ├── CategoryPickerGrid.tsx # Grilla de categorías (tocar=marcar, swipe=variante emoji); category-onboarding + ListEditorSheet
 │   │   ├── DateRangeSheet.tsx    # Calendario de rango dibujado a mano: mode "months" (reports.tsx) / "days" (rango del Dashboard)
 │   │   ├── DefaultPeriodSheet.tsx # Hoja "Pago y período" (Ajustes y menú del calendario), envuelve PayPeriodForm
 │   │   ├── Enter.tsx             # Animación de entrada escalonada de secciones
@@ -128,12 +130,16 @@ my-wallet-app/
 │   │   ├── FloatingDock.tsx      # Dock flotante + FAB micrófono
 │   │   ├── FloatingInput.tsx     # Overlay input/búsqueda flotante
 │   │   ├── HueColorPicker.tsx    # Slider continuo de tono (PanResponder + LinearGradient) para categorías
+│   │   ├── ListEditorSheet.tsx   # Crear/editar lista: info+personas, y al crear, categorías (CategoryPickerGrid)
+│   │   ├── ListMenu.tsx          # Menú anclado del botón "Personal ▾" del Dashboard: elegir/compartir/editar/nueva
 │   │   ├── ListRow.tsx           # Fila de lista agrupada (capa de tokens)
+│   │   ├── ListsSheet.tsx        # "Tus listas" en Ajustes
 │   │   ├── PayPeriodForm.tsx     # Formulario frecuencia + pago esperado, con páginas internas
 │   │   ├── PeriodMenu.tsx        # Menú flotante del toque largo en el calendario del Dashboard
 │   │   ├── PeriodStrip.tsx       # Tira horizontal deslizable de ciclos/años con su neto
 │   │   ├── PressableScale.tsx    # Pressable con spring de escala
 │   │   ├── RollingNumber.tsx     # Odómetro tipo ruleta por dígito (Reanimated) — usado en Dashboard
+│   │   ├── SettlementSheet.tsx   # Detalle de cuentas de una lista compartida: quién pagó, quién debe a quién
 │   │   ├── StackedScreenHeader.tsx # Barra Material (flecha + título)
 │   │   ├── ThemedText.tsx        # Texto con variantes tipográficas de tokens
 │   │   └── TransactionItem.tsx   # Item transacción + swipe-delete + tap-to-detail
@@ -141,14 +147,15 @@ my-wallet-app/
 │   ├── constants/
 │   │   ├── categoryPresets.ts    # UserCategory, presets, paleta colores, emojis curados
 │   │   ├── layout.ts             # DOCK_HEIGHT, scrollBottomPadding
+│   │   ├── lists.ts              # DEFAULT_LIST_ID ("personal"), LIST_EMOJIS — aparte de src/db/ para que el store no arrastre expo-sqlite
 │   │   └── theme.ts              # COLORS, CATEGORY_MAP (legacy), getCategoryColor/Name
 │   │
 │   ├── context/
 │   │   └── ThemeContext.tsx       # Proveedor de tema claro/oscuro
 │   │
 │   ├── db/
-│   │   ├── db.ts                 # SQLite: transactions, CRUD
-│   │   └── queries.ts            # Consultas agregadas (totales, stats)
+│   │   ├── db.ts                 # SQLite: transactions (list_id, paid_by), CRUD, LIST_SCOPE_SQL
+│   │   └── queries.ts            # Consultas agregadas (totales, stats), todas acotadas por LIST_SCOPE_SQL
 │   │
 │   ├── features/
 │   │   └── chat/useLocalNLP.ts   # Hook de NLP local para el chat experimental
@@ -158,11 +165,11 @@ my-wallet-app/
 │   │   └── notificationHeadlessTask.ts  # HeadlessJS task: procesa notif. bancarias en background
 │   │
 │   ├── store/
-│   │   ├── useFinanceStore.ts       # Transacciones (Zustand + SQLite)
+│   │   ├── useFinanceStore.ts       # Transacciones (Zustand + SQLite) + switchList/deleteList
 │   │   ├── useExpenseStore.ts       # Formulario gasto/ingreso en curso
 │   │   ├── useNotificationStore.ts  # Cola persistida (AsyncStorage) de transacciones detectadas de notificaciones bancarias
 │   │   ├── useSettingsStore.ts      # Config usuario (persist AsyncStorage) + flags de notificaciones
-│   │   │   └── slices/               # 7 slices por dominio: categories, budget, payments, goals, debts, prefs, notifications
+│   │   │   └── slices/               # 8 slices por dominio: categories, budget, payments, goals, debts, prefs, notifications, lists
 │   │   ├── useUIStore.ts            # Estado de UI (búsqueda, filtro por categoría, overlay NLP)
 │   │   └── useVoiceStore.ts         # Estado de reconocimiento de voz
 │   │
@@ -171,11 +178,14 @@ my-wallet-app/
 │   │
 │   └── utils/
 │       ├── colorUtils.ts           # hueToColors, hslToHex, hexToHsl, hexToHue — conversiones HSL↔Hex
+│       ├── csv.ts                  # transactionsToCsv/parseTransactionsCsv/duplicateKey — exportar/importar CSV por lista
 │       ├── formatMoney.ts          # formatMoneyInput, formatMoneyDisplay, formatCOP
 │       ├── fuzzyMatch.ts           # levenshtein, fuzzyIncludes — tolerancia a typos en NLP de voz/texto
+│       ├── listShareText.ts        # Texto para compartir una lista (WhatsApp/correo): período, totales, cuentas
 │       ├── nlp.ts                  # parseExpenseInput (texto rápido)
 │       ├── notificationParser/     # Parser de notificaciones bancarias (carpeta, un módulo por responsabilidad — ver sección 9b)
 │       ├── periodCycles.ts         # Frecuencias de pago, ciclos, vistas de período, budgetCycle, expectedPay (reemplaza periodFilter.ts)
+│       ├── settlement.ts           # computeSettlement/transferText/settlementHeadline — reparto de gastos compartidos
 │       ├── tourRefs.ts             # Registro global de refs para el GuidedTour (getTourRef, TOUR_KEYS)
 │       └── voiceParser.ts          # Parseo de transcripción de voz
 │
@@ -214,7 +224,8 @@ my-wallet-app/
 │  src/hooks/ (Hooks de dominio para pantallas)            │
 │  useDashboardScroll, useDashboardSearch,                 │
 │  useDashboardTotals, useDashboardTour,                   │
-│  useTransactionFilters                                   │
+│  useTransactionFilters, useActiveListShare,              │
+│  useAllListCategories, useCsvTransfer, useListEditor     │
 ├─────────────────────────────────────────────────────────┤
 │  src/components/ui/ (Componentes reutilizables)          │
 │  Agnósticos a la pantalla, reciben props                 │
@@ -319,6 +330,12 @@ interface BatchTransactionItem {
 ```
 **Patrón:** SQLite es la fuente de verdad. El store es un cache en memoria. `addTransactionBatch` usa un loop secuencial (`for...of`) para evitar bloqueos concurrentes de SQLite, y llama `getAllTransactions()` una sola vez al terminar para eficiencia.
 
+`addTransaction`/`updateTransaction` ganaron dos parámetros opcionales al final: `listId` (por
+defecto la lista activa) y `paidBy` (por defecto `SELF_PAYER`, "" = tú). `switchList(id)` hace el
+swap de `useSettingsStore` (ver `listsSlice` más abajo) y recarga `transactions` desde SQLite con
+la nueva lista activa. `deleteList(id)` borra la lista de los ajustes y TODAS sus transacciones
+(`deleteTransactionsOfList()`), sin deshacer; Personal no se puede borrar.
+
 ### useExpenseStore (no persistido)
 ```typescript
 interface ActiveExpense {
@@ -337,10 +354,10 @@ interface ActiveExpense {
 **Patrón:** Estado efímero del formulario en curso. Se resetea al guardar/cerrar.
 
 ### useSettingsStore (persistido en AsyncStorage)
-Internamente organizado en 7 slices por dominio en `src/store/slices/` (`categoriesSlice`,
-`budgetSlice`, `paymentsSlice`, `goalsSlice`, `debtsSlice`, `prefsSlice`, `notificationsSlice`),
-combinados en un único store con
-`SettingsState = CategoriesSlice & BudgetSlice & PaymentsSlice & GoalsSlice & DebtsSlice & PrefsSlice & NotificationsSlice`.
+Internamente organizado en 8 slices por dominio en `src/store/slices/` (`categoriesSlice`,
+`budgetSlice`, `paymentsSlice`, `goalsSlice`, `debtsSlice`, `prefsSlice`, `notificationsSlice`,
+`listsSlice`), combinados en un único store con
+`SettingsState = CategoriesSlice & BudgetSlice & PaymentsSlice & GoalsSlice & DebtsSlice & PrefsSlice & NotificationsSlice & ListsSlice`.
 La API pública es idéntica a la de un store plano — ningún importador externo cambia.
 ```typescript
 {
@@ -386,7 +403,36 @@ addDebt(debt): Debt                       // remainingAmount = totalAmount si no
 updateDebtBalance(id, remaining): void    // flujo "Pagar" — solo el saldo pendiente
 editDebt(id, updates): void               // edita nombre/emoji/monto total/cuota/día, no el saldo
 removeDebt(id): void
+
+// listsSlice (nuevo) — src/store/slices/listsSlice.ts
+interface ListMember { id: string; name: string }   // otra persona; tú eres siempre SELF_PAYER ("")
+interface WalletList {
+  id: string; name: string; emoji: string
+  members?: ListMember[]         // solo listas ≠ Personal
+  period: PeriodCadence          // guardado de la lista; el de la ACTIVA vive en defaultPeriod (swap)
+  categories?: UserCategory[]    // guardado; el de la ACTIVA vive en userCategories (swap)
+  budgets?: Record<string, number>  // guardado; el de la ACTIVA vive en budgetByCategory (swap)
+  showIncome?: boolean           // default true; false = el Dashboard oculta los ingresos de esta lista
+}
+lists: WalletList[]          // lists[0] / find(id===DEFAULT_LIST_ID) siempre es Personal
+activeListId: string         // DEFAULT_LIST_ID = "personal" por defecto
+addList(name, emoji, categories): string   // period: {type:"all"}, budgets:{}, showIncome:true; no activa
+setShowIncome(listId, show): void
+editList(id, name, emoji): void            // no toca members ni period/categories/budgets
+removeList(id): void                       // Personal no se puede borrar; si era la activa, switchList a Personal
+switchList(id): void                       // hace el swap descrito abajo; recargar transacciones es cosa del llamador
+setMembers(listId, members): void          // reemplaza members; Personal ignora la llamada
 ```
+
+**Patrón de "intercambio" (`swapActiveList`, función pura, tests en `listsSlice.test.ts`):** solo
+existe UNA copia "viva" de `defaultPeriod`/`userCategories`/`budgetByCategory` en el store — la de
+la lista activa. Al hacer `switchList(id)`, se guarda el valor actual de esos tres campos dentro
+de la `WalletList` saliente (`lists[].period/categories/budgets`) y se cargan los de la entrante en
+`defaultPeriod`/`userCategories`/`budgetByCategory`. Así ningún consumidor existente de esos tres
+campos (Dashboard, presupuestos, `PayPeriodForm`…) tuvo que cambiar para soportar listas. Una lista
+sin `categories` propias (recién creada sin categorías, o migrada) recibe una copia de las de
+Personal la primera vez que se activa. `useFinanceStore.switchList(id)` es la versión completa que
+además recarga `transactions` desde SQLite — usar esa desde UI, no la del slice directamente.
 
 ```typescript
 // prefsSlice
@@ -498,6 +544,75 @@ getPendingItemAfterHydration(id: string): Promise<PendingNotificationItem | null
 
 ---
 
+## 6b. Listas y Gasto Compartido *(nuevo)*
+
+Las listas son "mundos" de transacciones separados: Personal (fija, todo tu dinero) y las que crea
+el usuario (un viaje, un negocio, la casa compartida…). Cada una tiene su propio período, sus
+propias categorías/presupuestos y, si tiene más personas, permite registrar quién pagó cada gasto
+y calcular quién le debe a quién — todo 100% offline, sin cuentas ni sincronización entre
+dispositivos (ver `project_ai_voice_spike_rejected` en la memoria del agente: este proyecto
+rechazó explícitamente sumar servicios en la nube).
+
+### Modelo y componentes
+- **`WalletList`/`ListMember`** (`listsSlice.ts`, sección 6) y **`DEFAULT_LIST_ID`/`LIST_EMOJIS`**
+  (`src/constants/lists.ts`, fuera de `src/db/` para que el store no arrastre `expo-sqlite`).
+- **`paid_by`** en `transactions` (`src/db/db.ts`): `SELF_PAYER = ""` = tú; si no, el `id` de un
+  `ListMember` de la lista donde quedó el movimiento.
+- **UI:** botón "Personal ▾" del Dashboard → `ListMenu` (elegir/compartir/editar/nueva) y "Tus
+  listas" de Ajustes → `ListsSheet`; ambos comparten `useListEditor()` (`src/hooks/useListEditor.tsx`)
+  para crear/editar (`ListEditorSheet`, con `CategoryPickerGrid` al crear) y borrar.
+- **`app/active-expense.tsx`** gana filas "LISTA" (2+ listas) y "PAGÓ" (lista con `members`) arriba
+  de Categoría — ver sección 12.
+
+### El "intercambio" al cambiar de lista
+Ver el bloque `listsSlice` en la sección 6 (`swapActiveList`, con tests). En resumen:
+`defaultPeriod`/`userCategories`/`budgetByCategory` siguen siendo los mismos campos de siempre —
+solo que ahora representan "los de la lista activa", y `switchList()` los intercambia por los
+guardados de la lista destino. Ningún consumidor de esos tres campos tuvo que enterarse de que
+existen listas.
+
+### Alcance de datos por lista
+`LIST_SCOPE_SQL` (`src/db/db.ts`, sección 7) decide qué ve cada lista: Personal ve sus propios
+movimientos más lo que pagó el dueño del teléfono en otras listas; el resto ve solo lo suyo. Los
+**presupuestos por categoría también son por lista** — `notifyIfBudgetExceeded()`
+(`useFinanceStore`) solo evalúa si el movimiento cayó en la lista activa, y mide el gasto filtrando
+también por `list_id`, así en Personal lo que pagaste en un viaje no cuenta contra el presupuesto
+de "Comida" de Personal. `budgetNotifiedMonth` usa la clave con prefijo `"<listId>|..."` fuera de
+Personal para no mezclar las marcas de "ya notificado" entre listas.
+
+**"Mostrar ingresos" por lista** (`WalletList.showIncome`, default `true`): en `false`, el
+Dashboard filtra los ingresos ANTES de calcular nada — lista visible, balance, pills, tira de
+períodos y gráfica —, útil para una lista que es solo de gastos (ej. "la casa").
+
+### Gasto compartido: quién pagó y quién le debe a quién
+- **`src/utils/settlement.ts`** (`computeSettlement`, con tests): reparte SOLO los gastos
+  (`amount > 0`; los ingresos no se reparten) en partes iguales entre `SELF_PAYER` + los `members`
+  de la lista, y emparienta al que más debe con al que más le deben para minimizar transferencias.
+- **`useActiveListShare.ts`**: `useActiveListSettlement()` calcula el settlement sobre TODO el
+  historial de la lista activa (no el período visto); `useShareActiveList()` arma el texto
+  (`src/utils/listShareText.ts`) y abre la hoja del sistema (`Share.share`) — desde el Dashboard
+  comparte el período que se está viendo, desde Ajustes comparte "Todo el tiempo".
+- **UI:** chip "Ana te debe $X ›" bajo los pills del Dashboard (`settlementHeadline()`) → abre
+  `SettlementSheet` con el detalle completo (quién pagó cuánto, cuánto le toca a cada uno, las
+  transferencias necesarias).
+
+### Categorías de otras listas visibles en Personal
+Como Personal muestra movimientos de otras listas, sus `category_emoji` pueden no existir en
+`userCategories` (las de la lista activa). **`useAllListCategories()`** arma la unión (activa
+primero, luego el resto, sin duplicar por emoji) para que `TransactionItem`,
+`TransactionDetailModal`, `CategoryChart` y `reports.tsx` resuelvan nombre/color reales en vez de
+caer al fallback genérico "General".
+
+### CSV por lista
+Reemplaza al viejo "Exportar datos" de Ajustes (compartía CSV como texto plano con `Share`).
+`src/utils/csv.ts` (`transactionsToCsv`/`parseTransactionsCsv`/`duplicateKey`, con tests) define el
+formato; `src/hooks/useCsvTransfer.ts` exporta (escribe un `.csv` real con `expo-file-system` y lo
+comparte con `expo-sharing`) e importa (`expo-document-picker`) sobre la **lista activa**, sin
+duplicar movimientos ya existentes (misma fecha+monto+descripción). Ambas son dependencias de
+producción nuevas — agregarlas o quitarlas exige recompilar el build nativo.
+
+---
+
 ## 7. Base de Datos (SQLite)
 
 ### Archivo: `mywallet.db` (WAL mode)
@@ -511,25 +626,40 @@ CREATE TABLE IF NOT EXISTS transactions (
   category_emoji  TEXT NOT NULL DEFAULT '💰',
   date            TEXT NOT NULL DEFAULT (datetime('now','localtime')),
   tags            TEXT NOT NULL DEFAULT '',  -- JSON: '["#trabajo","#comida"]'
-  payment_method  TEXT NOT NULL DEFAULT 'cash'
+  payment_method  TEXT NOT NULL DEFAULT 'cash',
+  list_id         TEXT NOT NULL DEFAULT 'personal',  -- WalletList.id (useSettingsStore.lists)
+  paid_by         TEXT NOT NULL DEFAULT ''            -- '' = tú (SELF_PAYER); si no, ListMember.id
 );
 ```
+`list_id` y `paid_by` llegaron por migración aditiva (`ALTER TABLE ... ADD COLUMN`), igual que
+`tags`/`payment_method` antes.
 
 **Convención de signos:**
 - `amount > 0` → **Gasto**
 - `amount < 0` → **Ingreso**
 - Balance neto = `SUM(amount)` donde negativo es positivo para el usuario
 
+**Alcance por lista (`LIST_SCOPE_SQL` + `listScopeParams()`, `db.ts`):** casi toda query sobre
+`transactions` debe filtrar por la lista activa con esta cláusula reutilizable —
+`((? = 'personal' AND paid_by = '') OR list_id = ?)`. Personal ("todo tu dinero") ve sus propios
+movimientos MÁS lo que pagó el dueño del teléfono (`paid_by = ''`) en cualquier otra lista; otra
+lista ve solo lo suyo, sin filtrar por quién pagó. `_activeListId` es un módulo-global de `db.ts`
+(`setActiveListId()`/`getActiveListId()`), fijado por `useFinanceStore.loadTransactions()` tras
+rehidratar `useSettingsStore`. Una query nueva que no use `LIST_SCOPE_SQL` se sale del alcance de
+la lista activa sin avisar (ni error de tipos, ni warning en runtime).
+
 ### Operaciones disponibles (db.ts)
 | Función | Descripción |
 |---------|-------------|
-| `initDatabase()` | Crea tabla + migración de `tags` |
-| `insertTransaction(amount, desc, emoji, tags, date?, paymentMethod?)` | INSERT con fecha local ISO |
+| `initDatabase()` | Crea tabla + migraciones de `tags`/`payment_method`/`list_id`/`paid_by` |
+| `insertTransaction(amount, desc, emoji, tags, date?, paymentMethod?, listId?, paidBy?)` | INSERT con fecha local ISO; `listId` default = lista activa, `paidBy` default = `SELF_PAYER` |
+| `updateTransaction(id, amount, desc, emoji, tags, date?, paymentMethod?, listId?, paidBy?)` | UPDATE real; sin `listId`/`paidBy` conserva los actuales (`COALESCE`) |
 | `deleteTransaction(id)` | DELETE por ID |
-| `getAllTransactions()` | SELECT * ORDER BY date DESC |
-| `hasAnyTransactions()` | COUNT > 0 |
-| `clearTransactions()` | DELETE ALL |
-| `getMonthlyTotal()` | SUM del mes actual |
+| `getAllTransactions()` | SELECT * WHERE `LIST_SCOPE_SQL` ORDER BY date DESC |
+| `deleteTransactionsOfList(listId)` | DELETE todas las de una lista (al borrarla) |
+| `hasAnyTransactions()` | COUNT > 0, acotado a la lista activa |
+| `clearTransactions()` | Desde Personal: DELETE ALL; desde otra lista: solo la suya |
+| `getMonthlyTotal()` | SUM del mes actual, acotado a la lista activa |
 
 ### Operaciones de consulta (queries.ts)
 | Función | Descripción |
@@ -552,6 +682,9 @@ CREATE TABLE IF NOT EXISTS transactions (
 - WAL mode está habilitado en `initDatabase()`
 - Las migraciones se hacen con `ALTER TABLE ... ADD COLUMN` envuelto en try/catch
 - NUNCA almacenar datos bancarios reales en la DB
+- Toda query nueva sobre `transactions` debe incluir `LIST_SCOPE_SQL`/`listScopeParams()` (ver
+  arriba), salvo que exista una razón explícita para ignorar la lista activa (ej.
+  `deleteTransactionsOfList`, que borra por `list_id` exacto al eliminar una lista)
 
 ---
 
@@ -826,6 +959,14 @@ Definidos en `src/constants/categoryPresets.ts`:
 ### 10.5 Regla
 Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las categorías custom se crean desde la UI y se guardan automáticamente en el store.
 
+### 10.6 Categorías por lista *(nuevo)*
+`userCategories` sigue siendo un array plano, pero ahora representa "las de la lista activa" — el
+sistema de listas (sección 6b) intercambia su contenido al cambiar de lista (`swapActiveList`). La
+grilla de selección (tocar = marcar, deslizar el ícono = cambiar de variante de emoji) se extrajo
+de `category-onboarding.tsx` a `src/components/ui/CategoryPickerGrid.tsx`
+(`CategoryPickerGrid`/`useCategoryPicker`), porque `ListEditorSheet` la reutiliza al crear una
+lista con categorías propias — el onboarding y "Tus listas" comparten la misma UI de selección.
+
 ---
 
 ## 11. Componentes UI Reutilizables
@@ -898,6 +1039,23 @@ Para agregar una categoría preset, solo modificar `categoryPresets.ts`. Las cat
 - Bloquea al abrir y cada vez que la app va a background; `ready` (splash terminado) retrasa el primer prompt. `authenticatingRef` evita el ciclo de re-bloqueo cuando el prompt con PIN abre otra `Activity`.
 - Sin huella/rostro/PIN configurados (`SecurityLevel.NONE`) desbloquea en vez de dejar al usuario afuera. Hasta que `useSettingsStore` rehidrata (tope 1.5s) tapa el contenido con el fondo.
 - Pantalla: icono de la app, "MyWallet está bloqueada", botón "Desbloquear" (`PressableScale`, `#135BEC`); sale con `FadeOut`.
+
+### Componentes de Listas *(nuevo)*
+- **`ListMenu`**: menú flotante anclado al botón "Personal ▾" del Dashboard (mismo patrón que
+  `PeriodMenu`: `Modal` transparente, crece desde la esquina superior izquierda con spring,
+  `StatusBar.currentHeight` sumado al `top`). Filas: cada lista (check en la activa), y 3 acciones
+  sobre la lista ACTIVA — Compartir, Editar, Nueva.
+- **`ListEditorSheet`** (`BottomSheet`): crear o editar una lista. Al crear, 2 pasos (info+nombre+
+  emoji+personas, luego categorías con `CategoryPickerGrid`); al editar, un solo paso (las
+  categorías se editan aparte, desde Ajustes). Botón eliminar solo al editar.
+- **`ListsSheet`**: "Tus listas" en Ajustes — mismo listado que `ListMenu` pero como pantalla
+  completa de un `BottomSheet`, con acceso a editar cada una y crear una nueva.
+- **`SettlementSheet`**: detalle de las cuentas de una lista con más personas — quién pagó cuánto,
+  cuánto le toca a cada uno (partes iguales) y las transferencias para quedar a mano
+  (`transferText()`). Se abre desde el chip de resumen bajo los pills del Dashboard.
+- **`useListEditor()`** (`src/hooks/useListEditor.tsx`, no es un componente pero va de la mano):
+  hook compartido por el Dashboard y Ajustes con el estado del editor (abrir nueva/editar, guardar,
+  confirmar borrado) — evita un miembro con movimientos ya registrados (quedaría huérfano).
 
 ### DateRangeSheet *(nuevo, rediseñado 2026-08-18)*
 - Calendario de selección de **rango** (desde–hasta) dibujado a mano, igual patrón que `CalendarSheet` (grid mensual sin librería externa, fade entre meses con Reanimated) — pero para dos fechas, no una.
@@ -1005,6 +1163,10 @@ del Dashboard/`AppTheme` — afecta el fondo de `app/settings.tsx` main + sus `F
 - Barra de búsqueda: `keyboardExtraAnim` sube la barra sobre el teclado al abrirse
 - **Guided Tour:** integración con `GuidedTour` (3 pasos, solo primera vez, todos en el Dashboard): calendario (`PERIOD_BTN`) → voz (`MIC_FAB`) → manual (`PLUS_BTN`). Refs de targets registrados en `tourRefs.ts`. Persistido con `hasCompletedOnboarding` + `onboardingStep` (0 → 3 → 4 → completado; 1 y 2 eran el antiguo desvío a Ajustes y se tratan como el paso de voz)
 - **Eliminado:** chip de categoría, estilos de metas de ahorro, ScrollView+map, banner in-app de presupuesto excedido (reemplazado por notificación push), todo el sistema de toasts.
+- **Botón "Personal ▾" en el header** *(nuevo)*, a la izquierda (simétrico a los íconos de la derecha): abre `ListMenu` para elegir/compartir/editar la lista activa o crear una nueva. Ver sección 6b.
+- **`showIncome` de la lista activa** *(nuevo)*: si es `false`, `displayedTransactions` filtra los ingresos antes de calcular balance/pills/tira/gráfica, y el filtro de tipo (pills) fuerza "Gastos" (no se puede elegir "Ingresos").
+- **Chip de cuentas** *(nuevo)*, bajo los pills, solo con lista activa ≠ Personal y con `members`: `settlementHeadline()` resume el estado ("Ana te debe $X", "Están a mano", "N cuentas pendientes") y abre `SettlementSheet` al tocarlo. Oculto durante una búsqueda o con `categoryFilter` activo.
+- **Lista agrupada por día** *(nuevo, `groupTransactionsByDay`/`dayLabel` en `transactionFormatters.ts`)*: cada grupo de la `FlatList` muestra su etiqueta ("Hoy"/"Ayer"/fecha) y el neto del día, no solo filas sueltas de `TransactionItem`.
 
 ### Active Expense (`app/active-expense.tsx`) — rediseñado 2026-08-12
 - Título dinámico: "Nuevo Gasto" / "Nuevo Ingreso". **Header solo con botón atrás (X)** — el botón de confirmar que antes vivía arriba a la derecha se movió al footer.
@@ -1024,6 +1186,7 @@ del Dashboard/`AppTheme` — afecta el fondo de `app/settings.tsx` main + sus `F
 - **Tres bugs corregidos en la tarjeta IMPORTE (2026-08-14):** (1) el tamaño de fuente dinámico (`dynamicAmountStyle`) leía `store.amount` (valor ya confirmado) en vez de `amountDisplay` (lo que se teclea en vivo) — con montos grandes no se achicaba a tiempo; (2) se quitó `selectTextOnFocus` del `TextInput` del monto — en Android reseleccionaba todo el texto en momentos inesperados (típicamente cerca del 3er dígito) y el siguiente dígito sobrescribía en vez de insertarse; (3) se quitó `includeFontPadding: false` (recortaba el primer glifo, ej. el "1" de "1.000"), reemplazado por `paddingHorizontal: 4`.
 - **Panel de descripción/tags**: se quitó `onBlur` del `TextInput` de la nota (cerraba el panel al tocar el input de tags, otro `TextInput` del mismo panel, antes de que el tag recibiera el toque). Ahora solo cierra al volver a tocar la fila de descripción o con un botón ✓ nuevo en la esquina superior derecha del panel (`Keyboard.dismiss()` + `setDescOpen(false)`).
 - **`src/components/ui/BottomSheet.tsx`:** wrapper reutilizable para bottom sheets — tap fuera del contenido y swipe-down desde el handle cierran el sheet (sin necesitar botón "X"). Usado por `CalendarSheet`, el sheet de "Métodos de pago" de esta pantalla, y `SelectorModal`/`DayOfMonthSheet` de `app/settings.tsx`.
+- **Secciones LISTA y PAGÓ** *(nuevo)*, arriba de Categoría: "LISTA" (chips horizontales) aparece con 2+ listas y fuera de `batch-review`/`notification-edit`; deja mover el movimiento a otra lista (`listId` arranca en la activa, o en la de la transacción al editar). "PAGÓ" aparece solo si la lista elegida tiene `members` (con "Tú" siempre primero); cambiar a una lista donde el pagador elegido no existe vuelve a `SELF_PAYER`. El presupuesto y su notificación de "excedido" (`checkAndNotifyBudget`) solo se evalúan si `listId === activeListId` — ver sección 6b.
 
 ### Voice Input (`app/voice-input.tsx`)
 - Orb animado que indica estado de escucha
@@ -1074,15 +1237,19 @@ lleva `borderWidth: 1.5` + `border.default` (mismo lenguaje que el pill "Este me
 círculo completo (34px, `radius.full`).
 
 **Secciones, en orden** (todas sobre la capa de tokens, `Card` + `SectionHeader` + `ListRow` +
-`Divider` — ver sección 11b). Reordenadas de nuevo 2026-09-02 (ver abajo):
-1. **CONTROL FINANCIERO** — "Pago y período" (ícono `Wallet`, chevron → `DefaultPeriodSheet`).
-   Reemplazó a "Ingreso mensual" (`InputModal` sobre `monthlyBudget`, eliminado en 61957c1).
-2. **GESTIÓN** — una sola `Card` con 5 filas separadas por `Divider` (no una tarjeta por fila,
-   se probó y se revirtió a pedido del usuario): Categorías, Métodos de pago, Presupuesto por
-   categoría, **Metas de ahorro** (ya no inline en la pantalla principal — ahora abre su propio
-   `FullScreenModal`, mismo patrón que las otras filas de esta sección) y **Deudas** *(nuevo)*.
-3. **DETECCIÓN AUTOMÁTICA** — `AutoDetectSection` (solo "Detectar transacciones" + "Bancos activos")
-4. **SISTEMA** — Modo oscuro, Bloqueo con huella, Exportar datos, Borrar historial de transacciones, Versión
+`Divider` — ver sección 11b). Reordenadas de nuevo con el sistema de listas (ver abajo):
+1. **LISTAS** *(nuevo)* — "Tus listas" (ícono `Layers`, detail = cantidad, chevron → `ListsSheet`).
+2. **EN TU LISTA · {emoji} {nombre}** *(nuevo, título dinámico con la lista activa)* — Categorías,
+   Presupuestos, "Pago y período" (ícono `Wallet`, chevron → `DefaultPeriodSheet`, reemplazó a
+   "Ingreso mensual"/`monthlyBudget`, eliminado en 61957c1), "Mostrar ingresos" (`Switch`),
+   "Compartir lista" (`useShareActiveList`), "Exportar CSV"/"Importar CSV" (`useCsvTransfer`).
+3. **GESTIÓN** — una sola `Card` con 3 filas separadas por `Divider` (no una tarjeta por fila,
+   se probó y se revirtió a pedido del usuario), **global, no por lista**: Métodos de pago,
+   Metas de ahorro, Deudas.
+4. **DETECCIÓN AUTOMÁTICA** — `AutoDetectSection` (solo "Detectar transacciones" + "Bancos activos")
+5. **SISTEMA** — Modo oscuro, Bloqueo con huella, Borrar historial de transacciones, Versión (ya
+   no tiene "Exportar datos": reemplazada por "Exportar CSV"/"Importar CSV" de la sección
+   EN TU LISTA, ver más abajo)
 
 **Bloqueo con huella** (`BiometricLockRow`, ícono `Fingerprint` sobre `#4F46E5`): fila con `Switch`
 en el slot `right`. Activar y desactivar piden autenticarse (`LocalAuthentication.authenticateAsync`,
@@ -1147,8 +1314,10 @@ rosa `#DB2777` (Metas), rojo oscuro `#9F1239` (Deudas), rojo (Borrar historial),
     ícono `BatteryWarning` y el import de `Linking` se removieron de `settings.tsx` por quedar sin
     uso. Ya no hay atajo de UI a `Linking.openSettings()` para excluir la app de la optimización de
     batería del fabricante; el problema de fondo (ver ANR intermitente en AGENTS.md) sigue latente.
-- Sistema: exportar CSV, limpiar datos.
-- **Exportar CSV:** usa `Share` de `react-native`. No usa `expo-sharing` ni `expo-file-system`.
+- Sistema: borrar historial de transacciones (por lista, ver más abajo).
+- **CSV, por lista *(nuevo, reemplaza el viejo "Exportar datos")*:** `useCsvTransfer()` — "Exportar CSV" escribe un `.csv` real (`expo-file-system`) y lo comparte con la hoja del sistema (`expo-sharing`, ahora sí usada); "Importar CSV" elige un archivo (`expo-document-picker`) y agrega sus movimientos a la lista activa sin duplicar los que ya están. Ambas dependencias son de producción, no transitivas — agregarlas exigió recompilar el build nativo. Detalle completo en sección 6b.
+- **"Compartir lista"** *(nuevo)*: `useShareActiveList()` arma un resumen (período, gastos, ingresos, balance y, si hay más personas, quién pagó cuánto) y abre la hoja del sistema con `Share.share` — sin archivo, solo texto.
+- **"Borrar historial de transacciones"**: desde Personal borra TODO (todas las listas); desde otra lista, solo borra la suya (`clearTransactions()`, sección 7).
 - **Confirmaciones:** Todas las alertas usan `ConfirmDialog` (componente custom con animación y variantes).
 - **Sin Guided Tour:** el tour ya no pasa por Ajustes (se quitaron los pasos sobre "Ingreso mensual" y el botón ←, `TOUR_KEYS.INCOME_ROW`/`BACK_BTN`); el pago se configura en el onboarding (`pay-onboarding.tsx`).
 
@@ -1482,6 +1651,8 @@ en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún
   "expo": "~55.0.4",
   "expo-blur": "~55.0.8",
   "expo-constants": "~55.0.7",
+  "expo-document-picker": "~55.0.17",
+  "expo-file-system": "~55.0.26",
   "expo-font": "~55.0.4",
   "expo-haptics": "^55.0.8",
   "expo-linear-gradient": "~55.0.8",
@@ -1511,6 +1682,9 @@ en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún
 ```
 > `expo-web-browser` y `expo-symbols` se eliminaron de aquí (nunca se usaron directamente —
 > ver deuda técnica resuelta B13 en `AGENTS.md`).
+> `expo-document-picker`/`expo-file-system` se agregaron con el sistema de listas (sección 6b),
+> exclusivas de `src/hooks/useCsvTransfer.ts` (exportar/importar CSV por lista); antes
+> `expo-file-system` solo existía como dependencia transitiva.
 
 ### Desarrollo
 ```json

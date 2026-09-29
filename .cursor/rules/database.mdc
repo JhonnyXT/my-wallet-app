@@ -23,15 +23,42 @@ CREATE TABLE IF NOT EXISTS transactions (
   category_emoji  TEXT NOT NULL DEFAULT '💰',
   date            TEXT NOT NULL DEFAULT (datetime('now','localtime')),
   tags            TEXT NOT NULL DEFAULT '',
-  payment_method  TEXT NOT NULL DEFAULT 'cash'
+  payment_method  TEXT NOT NULL DEFAULT 'cash',
+  list_id         TEXT NOT NULL DEFAULT 'personal',
+  paid_by         TEXT NOT NULL DEFAULT ''
 );
 ```
+
+`list_id` referencia `WalletList.id` (`useSettingsStore.lists`, ver `AGENTS.md` § Listas y gasto
+compartido); `paid_by` es `""` (`SELF_PAYER`, el dueño del teléfono) o el `id` de un `ListMember`
+de esa lista.
 
 ## Convención de signos
 
 - `amount > 0` → **Gasto**
 - `amount < 0` → **Ingreso**
 - Balance neto = `SUM(amount)` donde negativo es positivo para el usuario.
+
+## Alcance por lista — CRÍTICO
+
+Casi toda query sobre `transactions` debe filtrar por la lista activa con la cláusula reutilizable
+`LIST_SCOPE_SQL` + `listScopeParams()` (`src/db/db.ts`):
+
+```typescript
+const rows = await db.getAllAsync(
+  `SELECT * FROM transactions WHERE ${LIST_SCOPE_SQL} AND ...`,
+  [...listScopeParams(), ...otrosParams],
+);
+```
+
+`LIST_SCOPE_SQL` = `((? = 'personal' AND paid_by = '') OR list_id = ?)`: la lista Personal ve sus
+propios movimientos MÁS lo que pagó el dueño del teléfono (`paid_by = ''`) en cualquier otra lista;
+cualquier otra lista ve solo lo suyo (`list_id` exacto), sin importar quién pagó. `_activeListId`
+es un módulo-global de `db.ts` (`setActiveListId()`/`getActiveListId()`) fijado por
+`useFinanceStore.loadTransactions()`. Una query nueva que no use `LIST_SCOPE_SQL` se sale del
+alcance de la lista activa sin ningún error visible — solo cuando sea intencional (ej.
+`deleteTransactionsOfList(listId)`, que borra por `list_id` exacto al eliminar una lista completa),
+saltarse el filtro.
 
 ## Fechas — CRÍTICO
 
@@ -58,6 +85,8 @@ En `queries.ts` usar el mismo patrón `localISO()` para parámetros de comparaci
 - NUNCA borrar columnas existentes.
 - NUNCA cambiar tipos de columnas existentes.
 - SIEMPRE actualizar `TransactionRow` interface en `db.ts` al agregar columnas.
+- `list_id`/`paid_by` llegaron así, como migración aditiva sobre una tabla que antes no las tenía —
+  mismo patrón que `tags`/`payment_method` antes: ver `initDatabase()` en `db.ts`.
 
 ## Queries
 

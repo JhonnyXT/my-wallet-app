@@ -79,3 +79,45 @@ export function extractTagsFromTx(tx: {
   const matches = (tx.description ?? "").match(/#(\w+)/g);
   return matches ? matches.map((t) => t.toLowerCase()) : [];
 }
+
+// ─── Agrupación por día (lista del Dashboard) ─────────────────────────────────
+
+const WEEKDAY_SHORT = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"] as const;
+
+export type DayGroupRow<T> =
+  { kind: "day"; key: string; label: string; net: number } | { kind: "tx"; key: string; tx: T };
+
+/** "Hoy", "Ayer", "lun 22 sep" o "lun 22 sep 2025" (otro año). `ymd` = "YYYY-MM-DD" local. */
+export function dayLabel(ymd: string, now: Date = new Date()): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((today.getTime() - date.getTime()) / 86_400_000);
+  if (diffDays === 0) return "Hoy";
+  if (diffDays === 1) return "Ayer";
+  const base = `${WEEKDAY_SHORT[date.getDay()]} ${d} ${MONTH_ABBR[m - 1].toLowerCase()}`;
+  return y === now.getFullYear() ? base : `${base} ${y}`;
+}
+
+/**
+ * Intercala un encabezado por día (etiqueta + neto del día: ingresos − gastos) antes de
+ * sus transacciones. Espera la lista ya ordenada por fecha descendente, como viene de la
+ * base; el día sale del ISO local (`localISOString`), no de UTC.
+ */
+export function groupTransactionsByDay<T extends { id: number; date: string; amount: number }>(
+  transactions: T[],
+  now: Date = new Date(),
+): DayGroupRow<T>[] {
+  const rows: DayGroupRow<T>[] = [];
+  let current: { kind: "day"; key: string; label: string; net: number } | null = null;
+  for (const tx of transactions) {
+    const ymd = tx.date.slice(0, 10);
+    if (!current || current.key !== `day-${ymd}`) {
+      current = { kind: "day", key: `day-${ymd}`, label: dayLabel(ymd, now), net: 0 };
+      rows.push(current);
+    }
+    current.net -= tx.amount;
+    rows.push({ kind: "tx", key: String(tx.id), tx });
+  }
+  return rows;
+}

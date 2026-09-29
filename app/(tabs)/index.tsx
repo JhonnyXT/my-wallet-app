@@ -14,7 +14,10 @@ import {
 } from "react-native";
 import Reanimated, {
   useAnimatedReaction,
+  useAnimatedRef,
   runOnJS,
+  runOnUI,
+  scrollTo,
   FadeInDown,
   FadeOutUp,
   LinearTransition,
@@ -22,14 +25,27 @@ import Reanimated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Settings, Search, X, Hash, ArrowDown, ArrowUp, Calendar } from "lucide-react-native";
+import {
+  Settings,
+  Search,
+  X,
+  Hash,
+  ArrowDown,
+  ArrowUp,
+  Calendar,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react-native";
 import { router } from "expo-router";
 import { scrollBottomPadding, DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
-import type { TransactionRow } from "@/src/db/db";
+import { SELF_PAYER, type TransactionRow } from "@/src/db/db";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useUIStore } from "@/src/store/useUIStore";
+import { useAllListCategories } from "@/src/hooks/useAllListCategories";
+import { useListEditor } from "@/src/hooks/useListEditor";
+import { useActiveListSettlement, useShareActiveList } from "@/src/hooks/useActiveListShare";
 
 import { CategoryChart } from "@/src/components/ui/CategoryChart";
 import { TransactionItem } from "@/src/components/ui/TransactionItem";
@@ -39,11 +55,20 @@ import { PeriodStrip } from "@/src/components/ui/PeriodStrip";
 import { PeriodMenu, type MenuAnchor, type PeriodMenuAction } from "@/src/components/ui/PeriodMenu";
 import { DateRangeSheet } from "@/src/components/ui/DateRangeSheet";
 import { DefaultPeriodSheet } from "@/src/components/ui/DefaultPeriodSheet";
+import { ListMenu } from "@/src/components/ui/ListMenu";
+import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
+import { DEFAULT_LIST_ID } from "@/src/constants/lists";
 import { parseYMD, toYMD } from "@/src/utils/periodCycles";
 import { GuidedTour } from "@/src/components/ui/GuidedTour";
 import { RollingNumber } from "@/src/components/ui/RollingNumber";
 import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
-import { formatBalance } from "@/src/utils/transactionFormatters";
+import { settlementHeadline } from "@/src/utils/settlement";
+import { SettlementSheet } from "@/src/components/ui/SettlementSheet";
+import {
+  formatBalance,
+  groupTransactionsByDay,
+  type DayGroupRow,
+} from "@/src/utils/transactionFormatters";
 import { useTransactionFilters } from "@/src/hooks/useTransactionFilters";
 import { useDashboardSearch } from "@/src/hooks/useDashboardSearch";
 import { useDashboardTotals } from "@/src/hooks/useDashboardTotals";
@@ -55,6 +80,10 @@ import { TransactionDetailModal } from "@/src/components/dashboard/TransactionDe
 // ─── Tipo local ───────────────────────────────────────────────────────────────
 
 type TxRow = ReturnType<typeof useFinanceStore.getState>["transactions"][0];
+type ListRowItem = DayGroupRow<TxRow>;
+
+/** Arrastre (px) desde el tope de la lista que quita el filtro de categoría al soltar. */
+const PULL_CLEAR_DISTANCE = 90;
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -62,9 +91,18 @@ export default function DashboardScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const transactions = useFinanceStore((s) => s.transactions);
+  // "Mostrar ingresos" apagado en la lista activa: la lista es solo de gastos (un viaje…). Los
+  // ingresos salen antes de todo (lista, balance, tira, gráfica y pills).
+  const showIncome = useSettingsStore(
+    (s) => s.lists.find((l) => l.id === s.activeListId)?.showIncome !== false,
+  );
+  const visibleTransactions = useMemo(
+    () => (showIncome ? transactions : transactions.filter((t) => t.amount > 0)),
+    [showIncome, transactions],
+  );
   const deleteTransaction = useFinanceStore((s) => s.deleteTransaction);
   const addTransaction = useFinanceStore((s) => s.addTransaction);
-  const userCategories = useSettingsStore((s) => s.userCategories);
+  const allListCategories = useAllListCategories();
   const resetExpense = useExpenseStore((s) => s.reset);
   const setExpenseCategory = useExpenseStore((s) => s.setCategory);
   const paymentMethods = useSettingsStore((s) => s.paymentMethods);
@@ -75,6 +113,7 @@ export default function DashboardScreen() {
 
   // ── Detalle de transacción (long-press) ──────────────────────────────────
   const [detailTx, setDetailTx] = useState<TransactionRow | null>(null);
+  const [confirmDeleteTx, setConfirmDeleteTx] = useState<TransactionRow | null>(null);
 
   // ── Filtros de período y tipo ────────────────────────────────────────────
   const {
@@ -92,7 +131,7 @@ export default function DashboardScreen() {
     filteredTransactions,
     typeFilteredTransactions,
     isCurrentPeriod,
-  } = useTransactionFilters(transactions);
+  } = useTransactionFilters(visibleTransactions);
 
   // ── Período: tira, menú del calendario, rango y período predeterminado ──
   const reducedMotion = useReducedMotion();
@@ -159,6 +198,46 @@ export default function DashboardScreen() {
     [setPeriodView, resetPeriod],
   );
 
+  // ── Listas: selector "Personal ▾", menú, crear/editar/eliminar ──────────
+  const lists = useSettingsStore((s) => s.lists);
+  const activeListId = useSettingsStore((s) => s.activeListId);
+  const activeList = lists.find((l) => l.id === activeListId) ?? lists[0];
+  const listById = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists]);
+  const memberNameById = useMemo(
+    () => new Map(lists.flatMap((l) => (l.members ?? []).map((m) => [m.id, m.name] as const))),
+    [lists],
+  );
+  const listBtnRef = useRef<View>(null);
+  const [listMenuOpen, setListMenuOpen] = useState(false);
+  const [listMenuAnchor, setListMenuAnchor] = useState<MenuAnchor | null>(null);
+  // Crear/editar/borrar listas (compartido con "Tus listas" de Ajustes). Al cambiar de lista,
+  // la tira de períodos de la anterior no significa nada aquí.
+  const listEditor = useListEditor({ onListChanged: () => setStripVisible(false) });
+  const [settleSheetOpen, setSettleSheetOpen] = useState(false);
+
+  const openListMenu = useCallback(() => {
+    Haptics.selectionAsync();
+    listBtnRef.current?.measureInWindow((x, y, width, height) => {
+      setListMenuAnchor({ x, y, width, height });
+      setListMenuOpen(true);
+    });
+  }, []);
+
+  const handleSelectList = useCallback(
+    (id: string) => {
+      setListMenuOpen(false);
+      if (id !== activeListId) listEditor.goToList(id);
+    },
+    [activeListId, listEditor],
+  );
+
+  // Cuentas de la lista activa si tiene más personas: sobre todo su historial (no el período).
+  const { settlement, payerLabel } = useActiveListSettlement();
+  const shareActiveList = useShareActiveList();
+
+  // Las deudas son del día a día: el patrimonio neto solo se muestra en Personal.
+  const listDebt = activeListId === DEFAULT_LIST_ID ? totalDebt : 0;
+
   // ── Búsqueda ──────────────────────────────────────────────────────────────
   const baseSearchBottom = Math.max(insets.bottom, 0) + DOCK_BOTTOM_OFFSET + DOCK_HEIGHT + 10;
   const {
@@ -182,7 +261,11 @@ export default function DashboardScreen() {
     closeSearch,
     categoryFilter,
     clearCategoryFilter,
-  } = useDashboardSearch({ transactions, typeFilteredTransactions, baseSearchBottom });
+  } = useDashboardSearch({
+    transactions: visibleTransactions,
+    typeFilteredTransactions,
+    baseSearchBottom,
+  });
 
   // ── Totales y estadísticas ───────────────────────────────────────────────
   const {
@@ -195,20 +278,36 @@ export default function DashboardScreen() {
     activeStats,
     activeTotalForChart,
     activeBudget,
+    budgetSpentByCategory,
     allEmojis,
     overBudgetAmount,
     expectedPayAmount,
     payReceived,
+    categoryFilterAllTimeNet,
   } = useDashboardTotals({
-    transactions,
+    transactions: visibleTransactions,
     filteredTransactions,
     typeFilteredTransactions,
     searchedTransactions,
     isSearching,
     typeFilter,
     viewedCycle: periodView.kind === "cycle" ? periodRange : null,
+    categoryFilter,
   });
-  const showPayBar = expectedPayAmount > 0 && !isSearching && typeFilter === null;
+  // Si se ocultan los ingresos estando en el pill de ingresos, vuelve a la vista normal.
+  useEffect(() => {
+    if (!showIncome && typeFilter === "income") handlePillPress("income");
+  }, [showIncome, typeFilter, handlePillPress]);
+
+  // Compartir (menú de listas): resumen de lo que se ve de la lista activa. En la fase de
+  // listas compartidas en la nube, este mismo botón enviará el link de invitación.
+  const handleShareList = useCallback(
+    () => shareActiveList({ periodLabel, expense: payReceived - periodNet, income: payReceived }),
+    [shareActiveList, periodLabel, payReceived, periodNet],
+  );
+
+  const showPayBar =
+    expectedPayAmount > 0 && !isSearching && !categoryFilter && typeFilter === null;
 
   // ── Scroll y animaciones ─────────────────────────────────────────────────
   const { scrollY, scrollHandler, headerParallaxStyle, pillsParallaxStyle, chartAnimKey } =
@@ -239,42 +338,83 @@ export default function DashboardScreen() {
     return () => sub.remove();
   }, [categoryFilter, clearCategoryFilter]);
 
-  // ── Pull-down sin spinner para limpiar el filtro de categoría ───────────
-  // Refleja en JS si el FlatList está en el tope (solo cambia al cruzar el umbral,
-  // sin disparar runOnJS en cada frame).
-  const atTopRef = useRef(true);
-  const setAtTop = useCallback((v: boolean) => {
-    atTopRef.current = v;
-  }, []);
+  // ── Pull-down para salir del filtro de categoría ─────────────────────────
+  // En Android el ScrollView nativo se queda con cualquier arrastre vertical (incluido el
+  // estiramiento del borde) y cancela los toques de JS antes de que un PanResponder llegue
+  // a su umbral: el pull-down casi nunca se activaba. Por eso, con filtro activo y la lista
+  // en el tope, el scroll nativo se desactiva y el gesto entero lo maneja JS: hacia abajo
+  // anima el emoji del encabezado → "x" y suelta pasado el umbral quita el filtro; hacia
+  // arriba desplaza la lista a mano, y al despegarse del tope el scroll nativo vuelve.
+  const listRef = useAnimatedRef<Reanimated.FlatList<ListRowItem>>();
+  const [atTop, setAtTop] = useState(true);
   useAnimatedReaction(
     () => scrollY.value <= 4,
-    (atTop, prev) => {
+    (isTop, prev) => {
       "worklet";
-      if (atTop !== prev) runOnJS(setAtTop)(atTop);
+      if (isTop !== prev) runOnJS(setAtTop)(isTop);
     },
     [scrollY],
   );
+  const pullMode = !!categoryFilter && atTop;
 
-  // PanResponder en capa de captura: solo intercepta cuando hay filtro activo,
-  // estamos en el tope del scroll y el gesto es claramente vertical descendente.
-  // Si suelta tras arrastrar > 80 px, limpia el filtro. No muestra ningún spinner.
+  // 0 → 1 a los PULL_CLEAR_DISTANCE px: alimenta la transición emoji → "x" del encabezado.
+  const pullDownProgress = useRef(new Animated.Value(0)).current;
+  const pullArmedRef = useRef(false);
+  const resetPullDownProgress = useCallback(() => {
+    pullArmedRef.current = false;
+    Animated.spring(pullDownProgress, {
+      toValue: 0,
+      useNativeDriver: true,
+      speed: 20,
+      bounciness: 4,
+    }).start();
+  }, [pullDownProgress]);
+
+  const scrollListTo = useCallback(
+    (y: number, animated: boolean) => {
+      runOnUI(() => {
+        "worklet";
+        scrollTo(listRef, 0, y, animated);
+      })();
+    },
+    [listRef],
+  );
+
   const pullDownPan = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponderCapture: () => false,
+        // Captura solo gestos verticales: taps y swipes horizontales de las filas siguen igual.
         onMoveShouldSetPanResponderCapture: (_, gs) =>
-          !!categoryFilter && atTopRef.current && gs.dy > 14 && gs.dy > Math.abs(gs.dx) * 1.2,
-        onPanResponderGrant: () => {
-          Haptics.selectionAsync();
+          pullMode && Math.abs(gs.dy) > 6 && Math.abs(gs.dy) > Math.abs(gs.dx) * 1.2,
+        onPanResponderTerminationRequest: () => true,
+        onPanResponderMove: (_, gs) => {
+          if (gs.dy <= 0) {
+            pullDownProgress.setValue(0);
+            scrollListTo(-gs.dy, false);
+            return;
+          }
+          const progress = Math.min(gs.dy / PULL_CLEAR_DISTANCE, 1);
+          pullDownProgress.setValue(progress);
+          const armed = progress >= 1;
+          if (armed !== pullArmedRef.current) {
+            pullArmedRef.current = armed;
+            if (armed) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }
         },
         onPanResponderRelease: (_, gs) => {
-          if (gs.dy > 80) {
+          const armed = pullArmedRef.current;
+          resetPullDownProgress();
+          if (gs.dy < 0) {
+            // Conserva algo de inercia del gesto al soltar hacia arriba.
+            scrollListTo(Math.max(-gs.dy - gs.vy * 220, 0), true);
+          } else if (armed) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             clearCategoryFilter();
           }
         },
+        onPanResponderTerminate: resetPullDownProgress,
       }),
-    [categoryFilter, clearCategoryFilter],
+    [pullMode, clearCategoryFilter, pullDownProgress, resetPullDownProgress, scrollListTo],
   );
 
   // ── Handlers ─────────────────────────────────────────────────────────────
@@ -284,7 +424,13 @@ export default function DashboardScreen() {
     router.push("/active-expense");
   }
 
-  const keyExtractor = useCallback((item: TxRow) => item.id.toString(), []);
+  // La lista va agrupada por día: un encabezado ("Hoy", "Ayer", "lun 22 sep") con el neto
+  // del día, y debajo sus movimientos.
+  const listRows = useMemo(
+    () => groupTransactionsByDay(displayedTransactions),
+    [displayedTransactions],
+  );
+  const keyExtractor = useCallback((item: ListRowItem) => item.key, []);
 
   const handleDetail = useCallback((tx: TransactionRow) => setDetailTx(tx), []);
 
@@ -302,24 +448,63 @@ export default function DashboardScreen() {
   }, []);
 
   const renderItem = useCallback(
-    ({ item, index }: { item: TxRow; index: number }) => (
-      <View style={styles.txItem}>
-        <TransactionItem
-          transaction={item}
-          index={index}
-          dimmed={false}
-          onDelete={handleDeleteTransaction}
-          onEdit={handleEditTransaction}
-          onDetail={handleDetail}
-        />
-      </View>
-    ),
-    [handleDeleteTransaction, handleEditTransaction, handleDetail, styles.txItem],
+    ({ item: row, index }: { item: ListRowItem; index: number }) => {
+      if (row.kind === "day") {
+        return (
+          <View style={styles.dayGroupHeader}>
+            <Text style={styles.dayGroupLabel}>{row.label}</Text>
+            <Text style={[styles.dayGroupNet, row.net > 0 && styles.dayGroupNetPositive]}>
+              {row.net < 0 ? "-" : row.net > 0 ? "+" : ""}
+              {formatBalance(Math.abs(row.net))}
+            </Text>
+          </View>
+        );
+      }
+      const item = row.tx;
+      return (
+        <View style={styles.txItem}>
+          <TransactionItem
+            transaction={item}
+            index={index}
+            dimmed={false}
+            onDelete={handleDeleteTransaction}
+            onEdit={handleEditTransaction}
+            onDetail={handleDetail}
+            listBadge={
+              // Personal ve todas las listas: marca de dónde viene cada movimiento ajeno.
+              activeListId === DEFAULT_LIST_ID && item.list_id !== DEFAULT_LIST_ID
+                ? (listById.get(item.list_id) ?? null)
+                : null
+            }
+            payerName={
+              item.paid_by !== SELF_PAYER ? (memberNameById.get(item.paid_by) ?? null) : null
+            }
+          />
+        </View>
+      );
+    },
+    [
+      handleDeleteTransaction,
+      handleEditTransaction,
+      handleDetail,
+      styles.txItem,
+      styles.dayGroupHeader,
+      styles.dayGroupLabel,
+      styles.dayGroupNet,
+      styles.dayGroupNetPositive,
+      activeListId,
+      listById,
+      memberNameById,
+    ],
   );
 
   // ── Derivados de estado ───────────────────────────────────────────────────
   const isNewPeriod = filteredTransactions.length === 0 && isCurrentPeriod && !isSearching;
-  const shownBalance = isSearching ? netBalance : periodNet;
+  const shownBalance = isSearching
+    ? netBalance
+    : categoryFilter
+      ? (categoryFilterAllTimeNet ?? 0)
+      : periodNet;
   const newPeriodMessage =
     periodView.kind === "year"
       ? "Nuevo año, ¡comienza ahora!"
@@ -334,16 +519,6 @@ export default function DashboardScreen() {
   // ── ListHeader ────────────────────────────────────────────────────────────
   const listHeader = (
     <>
-      {/* Chip de filtro de categoría activo (informativo, sin botón de cierre) */}
-      {categoryFilter && (
-        <View style={styles.catFilterRow}>
-          <View style={styles.catFilterChip}>
-            <Text style={styles.catFilterEmoji}>{categoryFilter.emoji}</Text>
-            <Text style={styles.catFilterText}>{categoryFilter.name}</Text>
-          </View>
-        </View>
-      )}
-
       {/* Chart: oculto durante búsqueda o filtro de categoría */}
       {!isSearching && !categoryFilter && (
         <View style={styles.chartWrapper}>
@@ -366,6 +541,7 @@ export default function DashboardScreen() {
               allEmojis={allEmojis}
               totalExpenses={activeTotalForChart}
               budgetByCategory={activeBudget}
+              budgetSpentByCategory={budgetSpentByCategory}
               onNewTransaction={handleNewTransactionFromChart}
               onCategoryTap={handleCategoryTap}
               alertColors={typeFilter !== "income"}
@@ -438,9 +614,141 @@ export default function DashboardScreen() {
           HEADER FIJO — siempre visible
           ══════════════════════════════════════════════════════════════ */}
       <View style={styles.headerOuter}>
+        {/* Selector de lista: absoluto a la izquierda, simétrico a los íconos de la derecha */}
+        <View style={styles.listSelectorWrap}>
+          <Pressable
+            ref={listBtnRef}
+            collapsable={false}
+            onPress={openListMenu}
+            style={styles.listSelector}
+            accessibilityRole="button"
+            accessibilityLabel={`Lista: ${activeList.name}`}
+            accessibilityHint="Toca para cambiar de lista o crear una nueva"
+          >
+            {activeListId !== DEFAULT_LIST_ID && (
+              <Text style={styles.listSelectorEmoji}>{activeList.emoji}</Text>
+            )}
+            <Text style={styles.listSelectorText} numberOfLines={1}>
+              {activeList.name}
+            </Text>
+            <ChevronDown size={16} color={theme.textSub} strokeWidth={2.2} />
+          </Pressable>
+        </View>
         {/* Íconos: posición absoluta para no afectar el centrado del contenido */}
         <View style={styles.headerActions}>
           <NotificationBadgeBtn />
+          {/* Filtro de categoría activo: su emoji + "x" para salir (mismo patrón que el
+              botón de período con filtro). */}
+          {categoryFilter && (
+            <Reanimated.View
+              entering={reducedMotion ? undefined : FadeInDown.duration(200)}
+              exiting={reducedMotion ? undefined : FadeOutUp.duration(160)}
+              style={[styles.periodBtnGroup, styles.periodBtnGroupActive]}
+            >
+              {/* Al deslizar la lista hacia abajo, el emoji se transforma en una "x" roja
+                  (pullDownProgress 0 → 1); al soltar pasado el umbral se quita el filtro. */}
+              <Animated.View
+                style={[
+                  styles.settingsBtn,
+                  {
+                    transform: [
+                      {
+                        scale: pullDownProgress.interpolate({
+                          inputRange: [0, 0.9, 1],
+                          outputRange: [1, 1.04, 1.12],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+                accessible
+                accessibilityLabel={`Filtro: ${categoryFilter.name}`}
+              >
+                <Animated.View
+                  style={[styles.catFilterDangerBg, { opacity: pullDownProgress }]}
+                  pointerEvents="none"
+                />
+                <Animated.Text
+                  style={[
+                    styles.catFilterHeaderEmoji,
+                    {
+                      opacity: pullDownProgress.interpolate({
+                        inputRange: [0, 0.6],
+                        outputRange: [1, 0],
+                        extrapolate: "clamp",
+                      }),
+                      transform: [
+                        {
+                          scale: pullDownProgress.interpolate({
+                            inputRange: [0, 0.6],
+                            outputRange: [1, 0.4],
+                            extrapolate: "clamp",
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  {categoryFilter.emoji}
+                </Animated.Text>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.catFilterPullX,
+                    {
+                      opacity: pullDownProgress.interpolate({
+                        inputRange: [0.4, 1],
+                        outputRange: [0, 1],
+                        extrapolate: "clamp",
+                      }),
+                      transform: [
+                        {
+                          scale: pullDownProgress.interpolate({
+                            inputRange: [0.4, 1],
+                            outputRange: [0.4, 1],
+                            extrapolate: "clamp",
+                          }),
+                        },
+                        {
+                          rotate: pullDownProgress.interpolate({
+                            inputRange: [0.4, 1],
+                            outputRange: ["-90deg", "0deg"],
+                            extrapolate: "clamp",
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  <X size={20} color="#DC2626" strokeWidth={2.8} />
+                </Animated.View>
+              </Animated.View>
+              {/* Durante el pull-down el emoji ya se vuelve la "x": esta se oculta para no
+                  mostrar dos. */}
+              <Animated.View
+                style={{
+                  opacity: pullDownProgress.interpolate({
+                    inputRange: [0, 0.25],
+                    outputRange: [1, 0],
+                    extrapolate: "clamp",
+                  }),
+                }}
+              >
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    clearCategoryFilter();
+                  }}
+                  hitSlop={8}
+                  style={styles.clearFilterBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Quitar filtro de categoría ${categoryFilter.name}`}
+                >
+                  <X size={14} color={theme.textSub} strokeWidth={2.4} />
+                </Pressable>
+              </Animated.View>
+            </Reanimated.View>
+          )}
           {/* Período: toque = mostrar/ocultar la tira; toque largo = menú. Con un
               filtro distinto del predeterminado: punto rojo + "x" para quitarlo. */}
           <View ref={getTourRef(TOUR_KEYS.PERIOD_BTN)} collapsable={false}>
@@ -527,7 +835,9 @@ export default function DashboardScreen() {
             <Text style={styles.balanceLabel}>
               {isSearching
                 ? `BÚSQUEDA  ·  ${searchedTransactions.length} resultado${searchedTransactions.length !== 1 ? "s" : ""}`
-                : "BALANCE NETO"}
+                : categoryFilter
+                  ? `${categoryFilter.name.toUpperCase()}  ·  TODO EL TIEMPO`
+                  : "BALANCE NETO"}
             </Text>
             {/* El balance sigue el período visto (ingresos − gastos del mes/año/rango);
                 en una búsqueda, el neto de los resultados. El saldo real de todo el
@@ -540,12 +850,11 @@ export default function DashboardScreen() {
 
             {/* Saldo total (todo el historial) y patrimonio neto (saldo − deudas
                 pendientes, solo si hay deudas activas). */}
-            {!isSearching && (periodView.kind !== "all" || totalDebt > 0) && (
+            {!isSearching && !categoryFilter && (periodView.kind !== "all" || listDebt > 0) && (
               <Text style={styles.netWorthText}>
                 {[
                   periodView.kind !== "all" && `Saldo total: ${formatBalance(allTimeNetBalance)}`,
-                  totalDebt > 0 &&
-                    `Patrimonio neto: ${formatBalance(allTimeNetBalance - totalDebt)}`,
+                  listDebt > 0 && `Patrimonio neto: ${formatBalance(allTimeNetBalance - listDebt)}`,
                 ]
                   .filter(Boolean)
                   .join("  ·  ")}
@@ -579,30 +888,50 @@ export default function DashboardScreen() {
                 />
               </TouchableOpacity>
 
-              {/* Ingreso activo solo cuando typeFilter === "income" */}
-              <TouchableOpacity
-                onPress={() => handlePillPress("income")}
-                activeOpacity={0.75}
-                style={[
-                  styles.pill,
-                  typeFilter === "income" ? styles.pillIncomeActive : styles.pillInactive,
-                ]}
-              >
-                <ArrowUp
-                  size={13}
-                  strokeWidth={2.8}
-                  color={typeFilter === "income" ? "#16A34A" : theme.textSub}
-                />
-                <RollingNumber
-                  value={incomeTotal}
-                  prefix="$"
+              {/* Ingreso activo solo cuando typeFilter === "income". Oculto si la lista no
+                  muestra ingresos. */}
+              {showIncome && (
+                <TouchableOpacity
+                  onPress={() => handlePillPress("income")}
+                  activeOpacity={0.75}
                   style={[
-                    styles.pillText,
-                    typeFilter === "income" ? styles.pillIncomeText : styles.pillInactiveText,
+                    styles.pill,
+                    typeFilter === "income" ? styles.pillIncomeActive : styles.pillInactive,
                   ]}
-                />
-              </TouchableOpacity>
+                >
+                  <ArrowUp
+                    size={13}
+                    strokeWidth={2.8}
+                    color={typeFilter === "income" ? "#16A34A" : theme.textSub}
+                  />
+                  <RollingNumber
+                    value={incomeTotal}
+                    prefix="$"
+                    style={[
+                      styles.pillText,
+                      typeFilter === "income" ? styles.pillIncomeText : styles.pillInactiveText,
+                    ]}
+                  />
+                </TouchableOpacity>
+              )}
             </Reanimated.View>
+            {/* Cuentas de una lista con más personas: una línea; el detalle, en una hoja. */}
+            {settlement && !isSearching && !categoryFilter && (
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setSettleSheetOpen(true);
+                }}
+                style={styles.settleChip}
+                accessibilityRole="button"
+                accessibilityHint="Toca para ver el detalle de las cuentas"
+              >
+                <Text style={styles.settleChipText}>
+                  {settlementHeadline(settlement, SELF_PAYER, payerLabel, formatBalance)}
+                </Text>
+                <ChevronRight size={16} color={theme.textSub} strokeWidth={2.2} />
+              </Pressable>
+            )}
             {/* Gastado vs pago esperado del ciclo visto, con lo recibido de verdad al lado. */}
             {showPayBar && (
               <View style={styles.budgetBar}>
@@ -624,7 +953,9 @@ export default function DashboardScreen() {
           ══════════════════════════════════════════════════════════════ */}
       <View style={styles.list} {...pullDownPan.panHandlers}>
         <Reanimated.FlatList
-          data={displayedTransactions}
+          ref={listRef}
+          scrollEnabled={!pullMode}
+          data={listRows}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           ListHeaderComponent={listHeader}
@@ -748,15 +1079,69 @@ export default function DashboardScreen() {
         onClose={() => setRangeSheetOpen(false)}
       />
       <DefaultPeriodSheet visible={defaultSheetOpen} onClose={() => setDefaultSheetOpen(false)} />
+      <SettlementSheet
+        visible={settleSheetOpen}
+        settlement={settlement}
+        selfId={SELF_PAYER}
+        nameOf={payerLabel}
+        onClose={() => setSettleSheetOpen(false)}
+      />
+
+      {/* Listas: menú del selector, crear/editar y confirmación de borrado */}
+      <ListMenu
+        visible={listMenuOpen}
+        anchor={listMenuAnchor}
+        lists={lists}
+        activeListId={activeListId}
+        onSelect={handleSelectList}
+        onShare={() => {
+          setListMenuOpen(false);
+          // La hoja del sistema es otra Activity: se abre cuando el menú ya se cerró.
+          setTimeout(handleShareList, 160);
+        }}
+        onEdit={() => {
+          setListMenuOpen(false);
+          setTimeout(() => listEditor.openEdit(activeListId), 160);
+        }}
+        onNew={() => {
+          setListMenuOpen(false);
+          setTimeout(listEditor.openNew, 160);
+        }}
+        onClose={() => setListMenuOpen(false)}
+      />
+      {listEditor.element}
 
       {/* Modal de detalle de transacción */}
       <TransactionDetailModal
         visible={detailTx !== null}
         onClose={() => setDetailTx(null)}
         transaction={detailTx}
-        userCategories={userCategories}
+        userCategories={allListCategories}
         savingsGoals={savingsGoals}
         paymentMethods={paymentMethods}
+        lists={lists}
+        onEdit={(tx) => {
+          setDetailTx(null);
+          handleEditTransaction(tx);
+        }}
+        onDelete={(tx) => {
+          setDetailTx(null);
+          // Dos Modal apilados en Android se comportan mal: confirma al cerrar la hoja.
+          setTimeout(() => setConfirmDeleteTx(tx), 220);
+        }}
+      />
+      <ConfirmDialog
+        visible={confirmDeleteTx !== null}
+        variant="danger"
+        title="¿Eliminar movimiento?"
+        message="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={() => {
+          const tx = confirmDeleteTx;
+          setConfirmDeleteTx(null);
+          if (tx) handleDeleteTransaction(tx.id);
+        }}
+        onCancel={() => setConfirmDeleteTx(null)}
       />
 
       {/* Guided Tour — usa Modal interno, siempre encima de todo */}
@@ -797,6 +1182,37 @@ function createStyles(t: AppTheme) {
       alignItems: "center",
       gap: 4,
       zIndex: 10,
+    },
+    listSelectorWrap: {
+      position: "absolute",
+      top: 14,
+      left: 20,
+      zIndex: 10,
+    },
+    listSelector: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      height: 40,
+      maxWidth: 170,
+      paddingLeft: 14,
+      paddingRight: 10,
+      borderRadius: 9999,
+      backgroundColor: t.isDark ? t.itemBg : t.surface,
+      shadowColor: "#000",
+      shadowOpacity: t.isDark ? 0 : 0.06,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: t.isDark ? 0 : 2,
+    },
+    listSelectorEmoji: {
+      fontSize: 15,
+    },
+    listSelectorText: {
+      flexShrink: 1,
+      fontSize: 14,
+      fontWeight: "600",
+      color: t.text,
     },
     headerLeft: {
       flexDirection: "column",
@@ -1009,37 +1425,57 @@ function createStyles(t: AppTheme) {
       paddingHorizontal: 28,
     },
 
-    // ── Chip de filtro de categoría activa ──────────────────────────────────
-    catFilterRow: {
-      flexDirection: "row",
-      paddingHorizontal: 28,
-      paddingTop: 8,
-      paddingBottom: 4,
+    // ── Filtro de categoría activo (encabezado) ─────────────────────────────
+    catFilterHeaderEmoji: {
+      fontSize: 18,
+      lineHeight: 22,
     },
-    catFilterChip: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      backgroundColor: t.surface,
+    catFilterDangerBg: {
+      ...StyleSheet.absoluteFillObject,
       borderRadius: 9999,
-      paddingLeft: 12,
-      paddingRight: 10,
-      paddingVertical: 6,
-      borderWidth: 1,
-      borderColor: t.border,
+      backgroundColor: t.isDark ? "rgba(220,38,38,0.22)" : "#FEE2E2",
     },
-    catFilterEmoji: {
-      fontSize: 14,
-      lineHeight: 18,
-    },
-    catFilterText: {
-      fontSize: 13,
-      fontWeight: "700",
-      color: t.text,
-      letterSpacing: 0.1,
+    catFilterPullX: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: "center",
+      justifyContent: "center",
     },
 
     // ── Cabecera de sección ─────────────────────────────────────────────────
+    settleChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "center",
+      gap: 4,
+      marginTop: 10,
+      paddingVertical: 6,
+      paddingLeft: 14,
+      paddingRight: 10,
+      borderRadius: 9999,
+      backgroundColor: t.isDark ? t.itemBg : t.surface,
+    },
+    settleChipText: { fontSize: 13, fontWeight: "600", color: t.text },
+    dayGroupHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 32,
+      paddingTop: 14,
+      paddingBottom: 8,
+    },
+    dayGroupLabel: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: t.textSub,
+    },
+    dayGroupNet: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: t.textSub,
+    },
+    dayGroupNetPositive: {
+      color: "#059669",
+    },
     dayHeader: {
       flexDirection: "row",
       alignItems: "center",

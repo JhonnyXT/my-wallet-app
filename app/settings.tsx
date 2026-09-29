@@ -16,6 +16,7 @@ import { PressableScale } from "@/src/components/ui/PressableScale";
 import { StackedScreenHeader } from "@/src/components/ui/StackedScreenHeader";
 import { ThemedText } from "@/src/components/ui/ThemedText";
 import { AUTO_DETECT_ENABLED_KEY, ALLOWED_BANKS_KEY } from "@/src/constants/banks";
+import { DEFAULT_LIST_ID } from "@/src/constants/lists";
 import { CURATED_EMOJIS, type UserCategory } from "@/src/constants/categoryPresets";
 import { useTheme } from "@/src/context/ThemeContext";
 import {
@@ -26,6 +27,10 @@ import {
   scheduleDebtReminder,
 } from "@/src/services/notificationService";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
+import { ListsSheet } from "@/src/components/ui/ListsSheet";
+import { useShareActiveList } from "@/src/hooks/useActiveListShare";
+import { useCsvTransfer, type ImportResult } from "@/src/hooks/useCsvTransfer";
+import { useListEditor } from "@/src/hooks/useListEditor";
 import {
   useSettingsStore,
   type Debt,
@@ -48,18 +53,22 @@ import {
   ChevronRight,
   CreditCard,
   Download,
+  Eye,
   Fingerprint,
   HandCoins,
   Info,
   Landmark,
+  Layers,
   LayoutGrid,
   Moon,
   Pencil,
   PiggyBank,
   Plus,
   Radar,
+  Share2,
   Target,
   Trash2,
+  Upload,
   Wallet,
   X,
 } from "lucide-react-native";
@@ -72,7 +81,6 @@ import {
   PanResponder,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Switch,
   Text,
@@ -333,6 +341,151 @@ function FullScreenModal({
     </Modal>
   );
 }
+
+// ─── Hoja de categorías ─────────────────────────────────────────────────────────
+// Lista estilo "Tus listas": emoji en círculo, nombre y tipo debajo; "+" arriba para
+// agregar/gestionar. Tocar una fila la edita. Estilos estáticos + android_ripple:
+// dentro de un Modal, el estilo en función de `pressed` se perdía (ver AGENTS.md).
+
+function CategoriesSheet({
+  visible,
+  categories,
+  listLabel,
+  onClose,
+  onEdit,
+  onDelete,
+  onManage,
+}: {
+  visible: boolean;
+  categories: UserCategory[];
+  /** Lista a la que pertenecen (cada lista tiene sus categorías). */
+  listLabel: string;
+  onClose: () => void;
+  onEdit: (cat: UserCategory) => void;
+  onDelete: (cat: UserCategory) => void;
+  onManage: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const tokens = useAppTokens();
+  const c = tokens.colors;
+  const sections = [
+    { title: "Gastos", items: categories.filter((cat) => cat.type === "expense") },
+    { title: "Ingresos", items: categories.filter((cat) => cat.type === "income") },
+  ].filter((s) => s.items.length > 0);
+
+  return (
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      style={{ paddingBottom: insets.bottom + 12, maxHeight: "85%" }}
+    >
+      <View style={catSheet.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={[catSheet.title, { color: c.text.primary }]}>Tus categorías</Text>
+          <Text style={[catSheet.subtitle, { color: c.text.secondary }]}>
+            {listLabel} · Toca una para editarla
+          </Text>
+        </View>
+        <PressableScale
+          onPress={onManage}
+          style={[catSheet.addBtn, { backgroundColor: c.surface.elevated }]}
+          accessibilityRole="button"
+          accessibilityLabel="Agregar o gestionar categorías"
+        >
+          <Plus size={20} color={c.text.primary} strokeWidth={2} />
+        </PressableScale>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={catSheet.list}>
+        {sections.map((section) => (
+          <View key={section.title}>
+            <Text style={[catSheet.sectionLabel, { color: c.text.secondary }]}>
+              {`${section.title} · ${section.items.length}`}
+            </Text>
+            {section.items.map((cat) => (
+              <Pressable
+                key={cat.id}
+                onPress={() => onEdit(cat)}
+                android_ripple={{ color: c.border.default }}
+                style={catSheet.row}
+                accessibilityRole="button"
+                accessibilityLabel={`Editar categoría ${cat.name}`}
+              >
+                <View style={[catSheet.emojiCircle, { backgroundColor: cat.colorBg }]}>
+                  <Text style={catSheet.emoji}>{cat.emoji}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[catSheet.name, { color: c.text.primary }]} numberOfLines={1}>
+                    {cat.name}
+                  </Text>
+                  <Text style={[catSheet.meta, { color: c.text.secondary }]}>
+                    {cat.isPreset ? "Predefinida" : "Personalizada"}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => onDelete(cat)}
+                  hitSlop={10}
+                  style={catSheet.deleteBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Eliminar categoría ${cat.name}`}
+                >
+                  <Trash2 size={16} color={c.text.secondary} strokeWidth={1.8} />
+                </Pressable>
+              </Pressable>
+            ))}
+          </View>
+        ))}
+      </ScrollView>
+    </BottomSheet>
+  );
+}
+
+const catSheet = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 2,
+    paddingBottom: 12,
+  },
+  title: { fontSize: 22, fontWeight: "700", letterSpacing: -0.3 },
+  subtitle: { fontSize: 13, marginTop: 2 },
+  addBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  list: { paddingBottom: 16 },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  emojiCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emoji: { fontSize: 20 },
+  name: { fontSize: 16, fontWeight: "600" },
+  meta: { fontSize: 12, marginTop: 2 },
+  deleteBtn: { padding: 6 },
+});
 
 // ─── Modal de edición genérico (campo de texto + número) ──────────────────────
 
@@ -2335,9 +2488,7 @@ export default function SettingsScreen() {
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [showDebtsModal, setShowDebtsModal] = useState(false);
   const [editingCat, setEditingCat] = useState<UserCategory | null>(null);
-  const [deleteCatDialog, setDeleteCatDialog] = useState<{ id: string; name: string } | null>(
-    null,
-  );
+  const [deleteCatDialog, setDeleteCatDialog] = useState<{ id: string; name: string } | null>(null);
   // Impide dejar un tipo (gasto/ingreso) sin ninguna categoría activa — mismo criterio
   // que "Debes tener al menos un método de pago activo" en Métodos de pago.
   const [minCatAlert, setMinCatAlert] = useState<"expense" | "income" | null>(null);
@@ -2355,35 +2506,43 @@ export default function SettingsScreen() {
   const [exportErrorDialog, setExportErrorDialog] = useState(false);
   const [notifPermDialog, setNotifPermDialog] = useState(false);
 
-  const transactions = useFinanceStore((s) => s.transactions);
+  // ── Lista activa: sus ajustes (categorías, presupuestos, período, ingresos…) ──
+  const lists = useSettingsStore((s) => s.lists);
+  const activeListId = useSettingsStore((s) => s.activeListId);
+  const setShowIncome = useSettingsStore((s) => s.setShowIncome);
+  const activeList = lists.find((l) => l.id === activeListId) ?? lists[0];
+  // "Borrar historial" actúa sobre la lista activa; fuera de Personal se nombra.
+  const activeListName = activeListId === DEFAULT_LIST_ID ? null : activeList.name;
+  const showIncome = activeList.showIncome !== false;
 
-  // ── Exportar CSV ────────────────────────────────────────────────────────────
+  const listEditor = useListEditor();
+  const [listsSheetOpen, setListsSheetOpen] = useState(false);
+  const afterSheet = (fn: () => void) => {
+    setListsSheetOpen(false);
+    // Dos Modal apilados en Android se comportan mal: la siguiente hoja al cerrar esta.
+    setTimeout(fn, 220);
+  };
+
+  const shareActiveList = useShareActiveList();
+  const { exportCsv, importCsv } = useCsvTransfer();
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  // ── Exportar / importar CSV (de la lista activa) ────────────────────────────
   async function handleExport() {
+    if (!(await exportCsv())) setExportErrorDialog(true);
+  }
+
+  async function handleImport() {
+    if (importing) return;
+    setImporting(true);
     try {
-      const header = "id,fecha,tipo,descripcion,categoria,monto,metodo_pago,tags\n";
-      const rows = transactions
-        .map((t) =>
-          [
-            t.id ?? "",
-            t.date ?? "",
-            (t.amount ?? 0) > 0 ? "Gasto" : "Ingreso",
-            `"${(t.description ?? "").replace(/"/g, '""')}"`,
-            t.category_emoji ?? "",
-            Math.abs(t.amount ?? 0),
-            t.payment_method ?? "cash",
-            `"${t.tags ?? ""}"`,
-          ].join(","),
-        )
-        .join("\n");
-
-      const csv = header + rows;
-
-      await Share.share(
-        { title: "MyWallet — Exportar transacciones", message: csv },
-        { dialogTitle: "Exportar transacciones" },
-      );
+      const result = await importCsv();
+      if (result) setImportResult(result);
     } catch {
-      setExportErrorDialog(true);
+      setImportResult({ recognized: false, imported: 0, duplicates: 0, invalid: 0 });
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -2404,10 +2563,7 @@ export default function SettingsScreen() {
       style={{ flex: 1, backgroundColor: tokens.colors.surface.primary }}
       edges={["top"]}
     >
-      <StackedScreenHeader
-        onBack={() => router.back()}
-        title="Configuración"
-      />
+      <StackedScreenHeader onBack={() => router.back()} title="Configuración" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -2417,23 +2573,24 @@ export default function SettingsScreen() {
           gap: tokens.spacing.lg,
         }}
       >
-        {/* ── CONTROL FINANCIERO ───────────────────────────────────────── */}
+        {/* ── LISTAS ───────────────────────────────────────────────────── */}
         <Enter index={0} screenId="settings">
-          <SectionHeader>CONTROL FINANCIERO</SectionHeader>
+          <SectionHeader>LISTAS</SectionHeader>
           <Card padded={false}>
             <ListRow
-              label="Pago y período"
-              icon={<Wallet size={16} color="#FFFFFF" strokeWidth={2} />}
-              iconBg={tokens.colors.state.success}
+              label="Tus listas"
+              icon={<Layers size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg={tokens.colors.accent.default}
+              detail={String(lists.length)}
               showChevron
-              onPress={() => setPeriodSheet(true)}
+              onPress={() => setListsSheetOpen(true)}
             />
           </Card>
         </Enter>
 
-        {/* ── GESTIÓN ──────────────────────────────────────────────────── */}
+        {/* ── EN TU LISTA ACTUAL: todo lo de aquí cambia con la lista activa ── */}
         <Enter index={1} screenId="settings">
-          <SectionHeader>GESTIÓN</SectionHeader>
+          <SectionHeader>{`EN TU LISTA · ${activeList.emoji} ${activeList.name}`}</SectionHeader>
           <Card padded={false}>
             <ListRow
               label="Categorías"
@@ -2444,19 +2601,72 @@ export default function SettingsScreen() {
             />
             <Divider inset={tokens.spacing.md * 2 + 34} />
             <ListRow
+              label="Presupuestos"
+              icon={<PiggyBank size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg="#7C3AED"
+              showChevron
+              onPress={() => setShowCatBudgetModal(true)}
+            />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
+            <ListRow
+              label="Pago y período"
+              icon={<Wallet size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg={tokens.colors.state.success}
+              showChevron
+              onPress={() => setPeriodSheet(true)}
+            />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
+            <ListRow
+              label="Mostrar ingresos"
+              icon={<Eye size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg="#16A34A"
+              onPress={() => setShowIncome(activeListId, !showIncome)}
+              right={
+                <Switch
+                  value={showIncome}
+                  onValueChange={(v) => setShowIncome(activeListId, v)}
+                  trackColor={{ true: "#135BEC", false: tokens.colors.border.default }}
+                  thumbColor={showIncome ? "#fff" : tokens.colors.text.secondary}
+                />
+              }
+            />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
+            <ListRow
+              label="Compartir lista"
+              icon={<Share2 size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg="#0891B2"
+              showChevron
+              onPress={() => shareActiveList()}
+            />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
+            <ListRow
+              label="Exportar CSV"
+              icon={<Download size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg={tokens.colors.text.secondary}
+              showChevron
+              onPress={handleExport}
+            />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
+            <ListRow
+              label={importing ? "Importando…" : "Importar CSV"}
+              icon={<Upload size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg={tokens.colors.text.secondary}
+              showChevron
+              onPress={handleImport}
+            />
+          </Card>
+        </Enter>
+
+        {/* ── GESTIÓN (de todas las listas) ───────────────────────────── */}
+        <Enter index={2} screenId="settings">
+          <SectionHeader>GESTIÓN</SectionHeader>
+          <Card padded={false}>
+            <ListRow
               label="Métodos de pago"
               icon={<CreditCard size={16} color="#FFFFFF" strokeWidth={2} />}
               iconBg={tokens.colors.accent.default}
               showChevron
               onPress={() => setShowPaymentModal(true)}
-            />
-            <Divider inset={tokens.spacing.md * 2 + 34} />
-            <ListRow
-              label="Presupuesto por categoría"
-              icon={<PiggyBank size={16} color="#FFFFFF" strokeWidth={2} />}
-              iconBg="#7C3AED"
-              showChevron
-              onPress={() => setShowCatBudgetModal(true)}
             />
             <Divider inset={tokens.spacing.md * 2 + 34} />
             <ListRow
@@ -2478,7 +2688,7 @@ export default function SettingsScreen() {
         </Enter>
 
         {/* ── DETECCIÓN AUTOMÁTICA ──────────────────────────────────────── */}
-        <Enter index={2} screenId="settings">
+        <Enter index={3} screenId="settings">
           <SectionHeader>DETECCIÓN AUTOMÁTICA</SectionHeader>
           <AutoDetectSection />
         </Enter>
@@ -2487,7 +2697,7 @@ export default function SettingsScreen() {
         {/* Fusiona lo que antes eran 3 secciones separadas (Apariencia, Sistema,
             Acerca de) en una sola, a pedido del usuario (2026-09-02) — Modo oscuro
             y Versión no ameritaban su propia sección con una sola fila cada una. */}
-        <Enter index={3} screenId="settings">
+        <Enter index={4} screenId="settings">
           <SectionHeader>SISTEMA</SectionHeader>
           <Card padded={false}>
             <ListRow
@@ -2499,14 +2709,6 @@ export default function SettingsScreen() {
             />
             <Divider inset={tokens.spacing.md * 2 + 34} />
             <BiometricLockRow />
-            <Divider inset={tokens.spacing.md * 2 + 34} />
-            <ListRow
-              label="Exportar datos"
-              icon={<Download size={16} color="#FFFFFF" strokeWidth={2} />}
-              iconBg={tokens.colors.text.secondary}
-              showChevron
-              onPress={handleExport}
-            />
             <Divider inset={tokens.spacing.md * 2 + 34} />
             <ListRow
               label="Borrar historial de transacciones"
@@ -2529,6 +2731,46 @@ export default function SettingsScreen() {
       {/* ── Modales ───────────────────────────────────────────────────── */}
 
       <DefaultPeriodSheet visible={periodSheet} onClose={() => setPeriodSheet(false)} />
+
+      <ListsSheet
+        visible={listsSheetOpen}
+        lists={lists}
+        activeListId={activeListId}
+        onSelect={(id) => {
+          setListsSheetOpen(false);
+          if (id !== activeListId) listEditor.goToList(id);
+        }}
+        onEditActive={() => afterSheet(() => listEditor.openEdit(activeListId))}
+        onNew={() => afterSheet(listEditor.openNew)}
+        onClose={() => setListsSheetOpen(false)}
+      />
+      {listEditor.element}
+
+      <ConfirmDialog
+        visible={importResult !== null}
+        variant={importResult?.recognized && importResult.imported > 0 ? "info" : "warning"}
+        title={importResult?.recognized ? "Importación lista" : "No se pudo importar"}
+        message={
+          !importResult
+            ? ""
+            : !importResult.recognized
+              ? "El archivo no es un CSV exportado desde MyWallet. Usa Exportar CSV en la app para generarlo."
+              : [
+                  `Se importaron ${importResult.imported} movimientos en ${activeList.emoji} ${activeList.name}.`,
+                  importResult.duplicates > 0
+                    ? `${importResult.duplicates} ya estaban y se omitieron.`
+                    : "",
+                  importResult.invalid > 0
+                    ? `${importResult.invalid} filas no se pudieron leer.`
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+        }
+        confirmLabel="Entendido"
+        onConfirm={() => setImportResult(null)}
+        onCancel={() => setImportResult(null)}
+      />
 
       <SelectorModal
         visible={darkSheet}
@@ -2570,128 +2812,22 @@ export default function SettingsScreen() {
         <DebtsSection />
       </FullScreenModal>
 
-      {/* ── Modal pantalla completa: Categorías ─────────────────────── */}
-      <FullScreenModal
+      {/* ── Bottom sheet: Categorías ─────────────────────────────────── */}
+      <CategoriesSheet
         visible={showCategoriesModal}
-        title="Categorías"
+        categories={userCategories}
+        listLabel={`${activeList.emoji} ${activeList.name}`}
         onClose={() => setShowCategoriesModal(false)}
-      >
-        {/* Gastos */}
-        {userCategories.filter((c) => c.type === "expense").length > 0 && (
-          <View>
-            <SectionHeader>{`GASTOS (${userCategories.filter((c) => c.type === "expense").length})`}</SectionHeader>
-            <Card padded={false}>
-              {userCategories
-                .filter((c) => c.type === "expense")
-                .map((cat, i, arr) => (
-                  <View key={cat.id}>
-                    <ListRow
-                      label={cat.name}
-                      icon={<Text style={{ fontSize: 15 }}>{cat.emoji}</Text>}
-                      iconBg={cat.colorBg}
-                      detail={cat.isPreset ? "Predefinida" : "Personalizada"}
-                      right={
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: tokens.spacing.sm,
-                          }}
-                        >
-                          <Pencil size={14} color={tokens.colors.text.secondary} strokeWidth={2} />
-                          <TouchableOpacity
-                            onPress={() => confirmDeleteCategory(cat)}
-                            hitSlop={8}
-                            style={{ padding: 4 }}
-                            accessibilityLabel={`Eliminar categoría ${cat.name}`}
-                            accessibilityRole="button"
-                          >
-                            <Trash2 size={14} color={tokens.colors.state.danger} strokeWidth={2} />
-                          </TouchableOpacity>
-                        </View>
-                      }
-                      onPress={() => {
-                        setShowCategoriesModal(false);
-                        setEditingCat(cat);
-                      }}
-                    />
-                    {i < arr.length - 1 && <Divider inset={tokens.spacing.md * 2 + 34} />}
-                  </View>
-                ))}
-            </Card>
-          </View>
-        )}
-
-        {/* Ingresos */}
-        {userCategories.filter((c) => c.type === "income").length > 0 && (
-          <View>
-            <SectionHeader>{`INGRESOS (${userCategories.filter((c) => c.type === "income").length})`}</SectionHeader>
-            <Card padded={false}>
-              {userCategories
-                .filter((c) => c.type === "income")
-                .map((cat, i, arr) => (
-                  <View key={cat.id}>
-                    <ListRow
-                      label={cat.name}
-                      icon={<Text style={{ fontSize: 15 }}>{cat.emoji}</Text>}
-                      iconBg={cat.colorBg}
-                      detail={cat.isPreset ? "Predefinida" : "Personalizada"}
-                      right={
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: tokens.spacing.sm,
-                          }}
-                        >
-                          <Pencil size={14} color={tokens.colors.text.secondary} strokeWidth={2} />
-                          <TouchableOpacity
-                            onPress={() => confirmDeleteCategory(cat)}
-                            hitSlop={8}
-                            style={{ padding: 4 }}
-                            accessibilityLabel={`Eliminar categoría ${cat.name}`}
-                            accessibilityRole="button"
-                          >
-                            <Trash2 size={14} color={tokens.colors.state.danger} strokeWidth={2} />
-                          </TouchableOpacity>
-                        </View>
-                      }
-                      onPress={() => {
-                        setShowCategoriesModal(false);
-                        setEditingCat(cat);
-                      }}
-                    />
-                    {i < arr.length - 1 && <Divider inset={tokens.spacing.md * 2 + 34} />}
-                  </View>
-                ))}
-            </Card>
-          </View>
-        )}
-
-        {/* Botón gestionar categorías */}
-        <TouchableOpacity
-          onPress={() => {
-            setShowCategoriesModal(false);
-            router.push("/category-onboarding?edit=1");
-          }}
-          activeOpacity={0.7}
-          style={{
-            paddingVertical: 14,
-            borderRadius: tokens.radius.md,
-            borderWidth: 1.5,
-            borderStyle: "dashed",
-            borderColor: tokens.colors.border.default,
-            alignItems: "center",
-          }}
-        >
-          <ThemedText
-            variant="subheadline"
-            style={{ color: tokens.colors.accent.default, fontWeight: "600" }}
-          >
-            + Gestionar categorías
-          </ThemedText>
-        </TouchableOpacity>
-      </FullScreenModal>
+        onEdit={(cat) => {
+          setShowCategoriesModal(false);
+          setEditingCat(cat);
+        }}
+        onDelete={confirmDeleteCategory}
+        onManage={() => {
+          setShowCategoriesModal(false);
+          router.push("/category-onboarding?edit=1");
+        }}
+      />
 
       {/* ── Modal editar categoría ─────────────────────────────────────── */}
       {editingCat && (
@@ -2713,7 +2849,7 @@ export default function SettingsScreen() {
       {/* ── Modal pantalla completa: Presupuesto por categoría ───────── */}
       <FullScreenModal
         visible={showCatBudgetModal}
-        title="Presupuestos"
+        title={`Presupuestos · ${activeList.name}`}
         onClose={() => setShowCatBudgetModal(false)}
       >
         {/* Sección: Alertas de presupuesto */}
@@ -2831,7 +2967,11 @@ export default function SettingsScreen() {
         visible={clearDataDialog}
         variant="danger"
         title="Borrar historial"
-        message="Se eliminarán todos tus registros de ingresos y gastos. Tu configuración, categorías, presupuestos y metas se conservarán. Esta acción no se puede deshacer."
+        message={
+          activeListName
+            ? `Se eliminarán todos los registros de la lista "${activeListName}". Tus otras listas, configuración, categorías, presupuestos y metas se conservarán. Esta acción no se puede deshacer.`
+            : "Se eliminarán todos tus registros de ingresos y gastos, de todas tus listas. Tu configuración, categorías, presupuestos y metas se conservarán. Esta acción no se puede deshacer."
+        }
         confirmLabel="Borrar historial"
         onConfirm={executeClearData}
         onCancel={() => setClearDataDialog(false)}
@@ -2841,7 +2981,7 @@ export default function SettingsScreen() {
         visible={exportErrorDialog}
         variant="warning"
         title="Error al exportar"
-        message="No se pudo generar el archivo CSV. Intenta de nuevo."
+        message="No se pudo generar o compartir el archivo CSV. Intenta de nuevo."
         confirmLabel="Entendido"
         onConfirm={() => setExportErrorDialog(false)}
         onCancel={() => setExportErrorDialog(false)}

@@ -127,13 +127,16 @@ selección de baja frecuencia (emoji picker, chips) donde el feedback de escala 
 
 ### Bottom sheets: `BottomSheet`, sin botón "X" propio
 
-Cualquier sheet que aparece desde abajo (`animationType="slide"`, `borderTopLeftRadius`/
-`borderTopRightRadius`, handle) usa `@/src/components/ui/BottomSheet` — ya trae tap-fuera-para-
-cerrar y swipe-down-para-cerrar desde el handle (`PanResponder`, ver implementación). No agregar
-un botón "X" de cierre: es redundante con el swipe. Si el sheet necesita una animación de entrada
-más elaborada que la de `BottomSheet` (spring custom, ver `FloatingInput.tsx`), no reemplazar el
-componente — replicar el mismo `PanResponder`/umbrales (`CLOSE_DISTANCE`/`CLOSE_VELOCITY`) sobre
-el handle en un `Animated.View` de RN core anidado dentro del wrapper de animación de entrada.
+Cualquier sheet que aparece desde abajo (`borderTopLeftRadius`/`borderTopRightRadius`, handle) usa
+`@/src/components/ui/BottomSheet` — ya trae tap-fuera-para-cerrar y swipe-down-para-cerrar desde el
+handle (`PanResponder`, ver implementación). No agregar un botón "X" de cierre: es redundante con
+el swipe. Internamente `BottomSheet` monta el `Modal` con `animationType="none"` y anima backdrop +
+`translateY` a mano con `Animated` de RN core (no `animationType="slide"` nativo: en Android daba
+un flash negro de un frame al abrir/cerrar) — no reintroducir `animationType="slide"` en el
+`Modal` interno. Si el sheet necesita una animación de entrada más elaborada que la de
+`BottomSheet` (spring custom, ver `FloatingInput.tsx`), no reemplazar el componente — replicar el
+mismo `PanResponder`/umbrales (`CLOSE_DISTANCE`/`CLOSE_VELOCITY`) sobre el handle en un
+`Animated.View` de RN core anidado dentro del wrapper de animación de entrada.
 
 ### Modales de Android (`Modal`, `BottomSheet`, menús flotantes)
 
@@ -150,7 +153,9 @@ el handle en un `Animated.View` de RN core anidado dentro del wrapper de animaci
   `paddingBottom` del contenido (ver `DefaultPeriodSheet.tsx`).
 - **Anclar un menú a un botón:** el `Modal` dibuja desde el borde superior de la pantalla, pero
   `measureInWindow` cuenta desde debajo de la barra de estado. Sumar
-  `StatusBar.currentHeight ?? 0` (solo Android) al `top` calculado (ver `PeriodMenu.tsx`).
+  `StatusBar.currentHeight ?? 0` (solo Android) al `top` calculado (ver `PeriodMenu.tsx`). El tipo
+  `MenuAnchor` (`{ x, y, width, height }`, exportado de `PeriodMenu.tsx`) se reutiliza para
+  cualquier menú anclado nuevo (ver `ListMenu.tsx`) en vez de redefinirlo.
 
 ### Calendarios: dibujados a mano, sin librería externa
 

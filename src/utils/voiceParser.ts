@@ -6,6 +6,22 @@
 import type { ActiveExpense, DateOption } from "@/src/store/useExpenseStore";
 import { fuzzyIncludes } from "@/src/utils/fuzzyMatch";
 
+// Palabras que marcan un gasto de viaje: asignan la categoría Viajes (si la
+// persona no tiene una propia que coincida) y la etiqueta automática #viaje.
+const TRAVEL_KEYWORDS = [
+  "viaje",
+  "vacaciones",
+  "hotel",
+  "hostal",
+  "hospedaje",
+  "airbnb",
+  "turismo",
+  "museo",
+  "excursion",
+  "tour",
+];
+const TRAVEL_TAG = "#viaje";
+
 // ─── Mapa de categorías (gastos + ingresos) ───────────────────────────────────
 // `type` es obligatorio: algunas palabras se repiten entre gasto e ingreso con
 // significado distinto (ej. "mensualidad" es una suscripción que pagas O el
@@ -13,8 +29,12 @@ import { fuzzyIncludes } from "@/src/utils/fuzzyMatch";
 // regalan) — sin filtrar por tipo, `extractCategory` podía asignarle una
 // categoría de gasto a un ingreso real (o viceversa) solo por coincidir en la
 // palabra. Bug real encontrado 2026-09-23.
-const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string; type: "expense" | "income" }[] =
-  [
+const CATEGORY_MAP: {
+  keywords: string[];
+  emoji: string;
+  name: string;
+  type: "expense" | "income";
+}[] = [
   // ── Gastos ──────────────────────────────────────────────────────────────────
   {
     type: "expense",
@@ -47,6 +67,14 @@ const CATEGORY_MAP: { keywords: string[]; emoji: string; name: string; type: "ex
     ],
     emoji: "🍔",
     name: "Comida",
+  },
+  // Va antes de Transporte: "vacaciones"/"hotel"/"museo" describen un viaje, y el
+  // gasto completo de un viaje no debería caer en una categoría del día a día.
+  {
+    type: "expense",
+    keywords: TRAVEL_KEYWORDS,
+    emoji: "✈️",
+    name: "Viajes",
   },
   {
     type: "expense",
@@ -279,7 +307,28 @@ function normalize(text: string): string {
  * para mostrar siempre en formato COP.
  */
 export function normalizeMoneyText(text: string): string {
-  return text.replace(/(\d{1,3})(,(\d{3}))+/g, (match) => match.replace(/,/g, "."));
+  return (
+    text
+      // Apóstrofo colombiano de millones: "2'800.000" → "2.800.000"
+      .replace(/(\d)['’´](?=\d{3}\b)/g, "$1.")
+      .replace(/(\d{1,3})(,(\d{3}))+/g, (match) => match.replace(/,/g, "."))
+  );
+}
+
+/**
+ * Descripción corta a partir de la frase dictada: quita el verbo de gasto/ingreso,
+ * el monto y el conector ("en mis", "de la"…) del inicio.
+ *   "me gasté $2.800.000 en mis vacaciones a Seúl" → "Vacaciones a Seúl"
+ * Si la frase no tiene esa forma, devuelve null y se conserva la frase completa.
+ */
+function extractShortDescription(note: string): string | null {
+  const m = note.match(
+    /^\s*(?:hoy\s+)?(?:me\s+)?(?:gast[eé]|pagu[eé]|compr[eé]|recib[ií]|me\s+pagaron|me\s+cost[oó])\s+\$[\d.]+\s+(?:en|de|por|para)\s+(?:(?:mi|mis|el|la|los|las|un|una|unos|unas)\s+)?(.+)$/i,
+  );
+  // "hoy" al final ya se detecta como fecha: no aporta a la descripción.
+  const rest = m?.[1]?.replace(/\s+hoy\s*$/i, "").trim();
+  if (!rest) return null;
+  return rest.charAt(0).toUpperCase() + rest.slice(1);
 }
 
 /**
@@ -311,6 +360,8 @@ export function replaceAmountInNote(raw: string, amount: number): string {
     if (pattern.test(raw)) {
       let result = raw.replace(pattern, formatted);
       result = result.replace(/([a-záéíóúñA-ZÁÉÍÓÚÑ])\$/g, "$1 $");
+      // Los patrones de "millones" se comen el espacio siguiente: "$2.000.000en mi viaje".
+      result = result.replace(/(\$[\d.]+)(?=[a-záéíóúñA-ZÁÉÍÓÚÑ])/g, "$1 ");
       return result;
     }
   }
@@ -609,21 +660,25 @@ export function processVoiceInput(
   _categoryDetected: boolean;
   _dateDetected: boolean;
 } {
+  // Normalizar primero: el monto se lee del texto ya normalizado ("2'800.000").
+  const text = normalizeMoneyText(raw);
   // isExpense se calcula primero: extractCategory lo usa para no cruzar
   // categorías de gasto/ingreso (ver comentario de CATEGORY_MAP).
-  const isExpense = extractIsExpense(raw);
-  const category = extractCategory(raw, userCats, isExpense);
-  const date = extractDate(raw);
-  const amount = extractAmount(raw);
-  // Normalizar texto y convertir expresión de dinero textual a dígitos formateados
-  const normalizedRaw = normalizeMoneyText(raw);
-  const cleanNote = replaceAmountInNote(normalizedRaw, amount);
+  const isExpense = extractIsExpense(text);
+  const category = extractCategory(text, userCats, isExpense);
+  const date = extractDate(text);
+  const amount = extractAmount(text);
+  // Convertir la expresión de dinero textual a dígitos formateados
+  const cleanNote = replaceAmountInNote(text, amount);
+  const normalizedText = normalize(text);
+  const isTravel =
+    isExpense !== false && TRAVEL_KEYWORDS.some((kw) => fuzzyIncludes(normalizedText, kw));
 
   const result: Partial<ActiveExpense> & { _categoryDetected: boolean; _dateDetected: boolean } = {
     amount,
-    note: cleanNote,
+    note: extractShortDescription(cleanNote) ?? cleanNote,
     rawTranscript: cleanNote,
-    tags: [],
+    tags: isTravel ? [TRAVEL_TAG] : [],
     _categoryDetected: category !== null,
     _dateDetected: date !== null,
   };
@@ -658,6 +713,7 @@ export function processMultiVoiceInput(
   raw: string,
   userCats?: import("@/src/constants/categoryPresets").UserCategory[],
 ): MultiVoiceResult {
+  raw = normalizeMoneyText(raw);
   const spans = findAmountSpans(raw);
 
   // Un solo monto → flujo estándar

@@ -175,14 +175,17 @@ export function useDashboardSearch({
 
   const isSearching = searchOpen && hasActiveSearch;
 
-  // Lista mostrada: prioridad búsqueda → filtro de categoría → tipo/período
+  // Lista mostrada: prioridad búsqueda → filtro de categoría (todo el tiempo) → tipo/período.
+  // El filtro de categoría se sale a propósito del período visto (sobre `transactions`,
+  // sin acotar) para que algo como un viaje quede encapsulado sin importar en qué ciclo
+  // cayeron sus gastos.
   const displayedTransactions = useMemo(() => {
     if (isSearching) return searchedTransactions;
     if (categoryFilter) {
-      return typeFilteredTransactions.filter((tx) => tx.category_emoji === categoryFilter.emoji);
+      return transactions.filter((tx) => tx.category_emoji === categoryFilter.emoji);
     }
     return typeFilteredTransactions;
-  }, [isSearching, searchedTransactions, categoryFilter, typeFilteredTransactions]);
+  }, [isSearching, searchedTransactions, categoryFilter, transactions, typeFilteredTransactions]);
 
   return {
     searchInputRef,

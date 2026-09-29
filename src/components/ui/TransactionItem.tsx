@@ -7,6 +7,7 @@ import type { TransactionRow } from "@/src/db/db";
 import { EMOJI_TO_CATEGORY_NAME, getCategoryColor } from "@/src/constants/theme";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { useAllListCategories } from "@/src/hooks/useAllListCategories";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import type { AppTheme } from "@/src/theme";
 
@@ -23,6 +24,10 @@ interface TransactionItemProps {
   onDelete?: (id: number) => void;
   onEdit?: (tx: TransactionRow) => void;
   onDetail?: (tx: TransactionRow) => void;
+  /** Lista de otro "mundo" (se muestra en Personal, que ve todas): ej. ✈️ Vacaciones. */
+  listBadge?: { emoji: string; name: string } | null;
+  /** Quién pagó, si no fuiste tú (listas con más personas). */
+  payerName?: string | null;
 }
 
 const SHORT_MONTHS = [
@@ -83,10 +88,13 @@ export function TransactionItem({
   onDelete,
   onEdit,
   onDetail,
+  listBadge,
+  payerName,
 }: TransactionItemProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const userCategories = useSettingsStore((s) => s.userCategories);
+  // Todas las listas: en Personal se ven movimientos de otras con sus propias categorías.
+  const userCategories = useAllListCategories();
   const savingsGoals = useSettingsStore((s) => s.savingsGoals);
   const palette = getCategoryColor(transaction.category_emoji);
   const categoryName = resolveCategoryName(
@@ -268,10 +276,28 @@ export function TransactionItem({
               <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
                 {title}
               </Text>
-              {tags.length > 0 && (
-                <Text style={styles.tagsText} numberOfLines={1}>
-                  {tags.join("  ")}
-                </Text>
+              {(listBadge || payerName || tags.length > 0) && (
+                <View style={styles.metaRow}>
+                  {payerName && (
+                    <View style={styles.payerBadge}>
+                      <Text style={styles.payerBadgeText} numberOfLines={1}>
+                        {payerName}
+                      </Text>
+                    </View>
+                  )}
+                  {listBadge && (
+                    <View style={styles.listBadge}>
+                      <Text style={styles.listBadgeText} numberOfLines={1}>
+                        {`${listBadge.emoji} ${listBadge.name}`}
+                      </Text>
+                    </View>
+                  )}
+                  {tags.length > 0 && (
+                    <Text style={styles.tagsText} numberOfLines={1}>
+                      {tags.join("  ")}
+                    </Text>
+                  )}
+                </View>
               )}
             </View>
 
@@ -427,12 +453,46 @@ function createStyles(t: AppTheme) {
       lineHeight: 21,
       letterSpacing: -0.2,
     },
+    metaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginTop: 2,
+    },
+    listBadge: {
+      flexShrink: 1,
+      maxWidth: "70%",
+      paddingHorizontal: 7,
+      paddingVertical: 1,
+      borderRadius: 9999,
+      backgroundColor: t.isDark ? "rgba(75,130,239,0.18)" : "#135BEC14",
+    },
+    payerBadge: {
+      flexShrink: 1,
+      maxWidth: "50%",
+      paddingHorizontal: 7,
+      paddingVertical: 1,
+      borderRadius: 9999,
+      backgroundColor: t.isDark ? "rgba(217,119,6,0.2)" : "#FEF3C7",
+    },
+    payerBadgeText: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: t.isDark ? "#F59E0B" : "#B45309",
+      lineHeight: 16,
+    },
+    listBadgeText: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: t.isDark ? "#4B82EF" : "#135BEC",
+      lineHeight: 16,
+    },
     tagsText: {
+      flexShrink: 1,
       fontSize: 11,
       fontWeight: "500",
       color: t.textSub,
       lineHeight: 16,
-      marginTop: 2,
     },
     amountPill: {
       backgroundColor: t.pillNeutral,

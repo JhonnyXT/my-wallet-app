@@ -69,3 +69,4 @@ specs/
 !.claude/skills/add-screen
 !.claude/skills/debug-react-native
 !.claude/skills/wallet-validator
+__pycache__/

@@ -36,7 +36,13 @@ export interface UseDashboardTotalsReturn {
   activeStats: CategoryStat[];
   activeTotalForChart: number;
   activeBudget: Record<string, number>;
+  /** Gasto del período por categoría registrado en Personal: lo que mide el presupuesto. */
+  budgetSpentByCategory: Record<string, number>;
   allEmojis: string[];
+  /** Neto (ingresos − gastos) de TODO el historial de la categoría filtrada; null si no hay filtro. */
+  categoryFilterAllTimeNet: number | null;
+  /** Cantidad de transacciones de esa categoría en todo el historial. */
+  categoryFilterCount: number;
 }
 
 interface UseDashboardTotalsParams {
@@ -48,6 +54,7 @@ interface UseDashboardTotalsParams {
   typeFilter: TypeFilter;
   /** Rango del ciclo visto si la vista es un ciclo de la frecuencia; null en año/todo/rango. */
   viewedCycle: DateRange | null;
+  categoryFilter: { emoji: string; name: string } | null;
 }
 
 export function useDashboardTotals({
@@ -58,18 +65,26 @@ export function useDashboardTotals({
   isSearching,
   typeFilter,
   viewedCycle,
+  categoryFilter,
 }: UseDashboardTotalsParams): UseDashboardTotalsReturn {
   const budgetByCategory = useSettingsStore((s) => s.budgetByCategory);
+  const activeListId = useSettingsStore((s) => s.activeListId);
   const userCategories = useSettingsStore((s) => s.userCategories);
   const defaultPeriod = useSettingsStore((s) => s.defaultPeriod);
 
   // ── Totales de gastos e ingresos ─────────────────────────────────────────
+  // Con filtro de categoría, los pills siguen al balance: todo el historial de esa
+  // categoría, no el período visto.
   const { expenseTotal, incomeTotal } = useMemo(() => {
-    const source = isSearching ? searchedTransactions : typeFilteredTransactions;
+    const source = isSearching
+      ? searchedTransactions
+      : categoryFilter
+        ? transactions.filter((t) => t.category_emoji === categoryFilter.emoji)
+        : typeFilteredTransactions;
     const exp = source.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
     const inc = source.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
     return { expenseTotal: exp, incomeTotal: inc };
-  }, [isSearching, searchedTransactions, typeFilteredTransactions]);
+  }, [isSearching, searchedTransactions, categoryFilter, transactions, typeFilteredTransactions]);
 
   const netBalance = incomeTotal - expenseTotal;
 
@@ -87,10 +102,22 @@ export function useDashboardTotals({
   // usuario (2026-09-02): el Dashboard usa este valor para "BALANCE NETO"/"Patrimonio
   // neto" en vez de `netBalance` cuando no está buscando.
   const allTimeNetBalance = useMemo(() => {
-    const income = transactions.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+    const income = transactions
+      .filter((t) => t.amount < 0)
+      .reduce((s, t) => s + Math.abs(t.amount), 0);
     const expense = transactions.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
     return income - expense;
   }, [transactions]);
+
+  // Total all-time de la categoría filtrada (tap en el chart): el filtro de
+  // categoría ignora el período visto a propósito, para que algo como un viaje
+  // ("Viajes") quede encapsulado sin importar en qué ciclo cayeron sus gastos.
+  const { categoryFilterAllTimeNet, categoryFilterCount } = useMemo(() => {
+    if (!categoryFilter) return { categoryFilterAllTimeNet: null, categoryFilterCount: 0 };
+    const catTxs = transactions.filter((t) => t.category_emoji === categoryFilter.emoji);
+    const net = catTxs.reduce((s, t) => s - t.amount, 0);
+    return { categoryFilterAllTimeNet: net, categoryFilterCount: catTxs.length };
+  }, [transactions, categoryFilter]);
 
   // ── Pago del ciclo: gastado vs pago esperado (y lo recibido de verdad) ────
   // Solo cuando la vista es un ciclo de la frecuencia (mes, quincena, semana…):
@@ -109,7 +136,8 @@ export function useDashboardTotals({
   const budgetPct =
     expectedPayAmount > 0 ? Math.min(Math.round((cycleExpense / expectedPayAmount) * 100), 100) : 0;
   // Monto gastado por encima del pago esperado (sin capar a 100%).
-  const overBudgetAmount = expectedPayAmount > 0 ? Math.max(cycleExpense - expectedPayAmount, 0) : 0;
+  const overBudgetAmount =
+    expectedPayAmount > 0 ? Math.max(cycleExpense - expectedPayAmount, 0) : 0;
 
   // ── Estadísticas por categoría para la gráfica ───────────────────────────
   const categoryStats = useMemo(() => {
@@ -144,7 +172,17 @@ export function useDashboardTotals({
 
   const activeStats = typeFilter === "income" ? incomeStats : categoryStats;
   const activeTotalForChart = typeFilter === "income" ? totalIncome : totalExpenses;
+  // Cada lista tiene sus presupuestos (`budgetByCategory` es el de la activa) y los mide con
+  // sus propios movimientos: en Personal no cuenta lo que pagaste en otras listas.
   const activeBudget = typeFilter === "income" ? {} : budgetByCategory;
+  const budgetSpentByCategory = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const tx of filteredTransactions) {
+      if (tx.amount <= 0 || tx.list_id !== activeListId) continue;
+      map[tx.category_emoji] = (map[tx.category_emoji] ?? 0) + tx.amount;
+    }
+    return map;
+  }, [filteredTransactions, activeListId]);
 
   const allEmojis = useMemo(() => {
     const cats =
@@ -178,6 +216,9 @@ export function useDashboardTotals({
     activeStats,
     activeTotalForChart,
     activeBudget,
+    budgetSpentByCategory,
     allEmojis,
+    categoryFilterAllTimeNet,
+    categoryFilterCount,
   };
 }

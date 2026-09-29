@@ -28,7 +28,7 @@ import {
   type MonthlyTotal,
 } from "@/src/db/queries";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
-import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { useAllListCategories } from "@/src/hooks/useAllListCategories";
 import { useAppTokens } from "@/src/theme/tokens";
 import { formatCOP } from "@/src/utils/formatMoney";
 
@@ -65,10 +65,13 @@ export default function ReportsScreen() {
   const tokens = useAppTokens();
   const styles = useMemo(() => buildStyles(), []);
   const transactions = useFinanceStore((s) => s.transactions);
-  const userCategories = useSettingsStore((s) => s.userCategories);
+  // Nombres de todas las listas: los promedios de Personal incluyen lo pagado en otras.
+  const userCategories = useAllListCategories();
 
   const [type, setType] = useState<ReportType>("expense");
-  const [averages, setAverages] = useState<{ months: number; items: CategoryAverage[] } | null>(null);
+  const [averages, setAverages] = useState<{ months: number; items: CategoryAverage[] } | null>(
+    null,
+  );
   const [trendRange, setTrendRange] = useState(defaultTrendRange);
   const [trendSheetOpen, setTrendSheetOpen] = useState(false);
   const [trend, setTrend] = useState<MonthlyTotal[] | null>(null);
@@ -108,7 +111,10 @@ export default function ReportsScreen() {
   const trendRangeLabel = `${MONTH_ABBR[trendRange.start.getMonth()]} ${trendRange.start.getFullYear()} – ${MONTH_ABBR[trendRange.end.getMonth()]} ${trendRange.end.getFullYear()}`;
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: tokens.colors.surface.primary }]} edges={["top"]}>
+    <SafeAreaView
+      style={[styles.screen, { backgroundColor: tokens.colors.surface.primary }]}
+      edges={["top"]}
+    >
       <StackedScreenHeader title="Promedios" onBack={() => router.back()} />
 
       <ScrollView
@@ -147,7 +153,9 @@ export default function ReportsScreen() {
             {/* ── Hero: anillo + estadísticas ─────────────────────────────── */}
             <Enter index={1}>
               <Card style={{ borderRadius: tokens.radius.xl }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.md }}>
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.md }}
+                >
                   <View style={{ flex: 1, gap: tokens.spacing.md }}>
                     <View>
                       <ThemedText variant="headline" style={{ fontSize: 17 }}>
@@ -237,7 +245,12 @@ export default function ReportsScreen() {
                 <ThemedText variant="headline" style={{ fontSize: 17 }}>
                   Tendencia
                 </ThemedText>
-                <ThemedText variant="footnote" color="secondary" style={{ marginTop: 2 }} numberOfLines={1}>
+                <ThemedText
+                  variant="footnote"
+                  color="secondary"
+                  style={{ marginTop: 2 }}
+                  numberOfLines={1}
+                >
                   {trendRangeLabel}
                 </ThemedText>
               </View>
@@ -325,7 +338,10 @@ export default function ReportsScreen() {
         initialStart={trendRange.start}
         initialEnd={trendRange.end}
         onApply={(start, end) => {
-          setTrendRange({ start: new Date(start.getFullYear(), start.getMonth(), 1), end: new Date(end.getFullYear(), end.getMonth(), 1) });
+          setTrendRange({
+            start: new Date(start.getFullYear(), start.getMonth(), 1),
+            end: new Date(end.getFullYear(), end.getMonth(), 1),
+          });
           setTrendSheetOpen(false);
         }}
         onClose={() => setTrendSheetOpen(false)}
@@ -473,7 +489,15 @@ function AverageRow({
   return (
     <View style={{ gap: tokens.spacing.sm, padding: tokens.spacing.md }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm, flex: 1, minWidth: 0 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: tokens.spacing.sm,
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
           <View
             style={{
               width: 40,

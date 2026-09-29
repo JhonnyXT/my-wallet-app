@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Animated,
   Modal,
@@ -35,13 +35,41 @@ export function BottomSheet({ visible, onClose, children, style }: BottomSheetPr
   const s = useMemo(() => buildStyles(theme), [theme]);
   const reduceMotion = useReduceMotion();
 
-  const translateY = useRef(new Animated.Value(0)).current;
+  const [mounted, setMounted] = useState(visible);
+  const translateY = useRef(new Animated.Value(600)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
+  // El Modal nativo se mantiene montado (animationType="none") mientras
+  // corre la animación de salida propia: así evitamos la transición de
+  // ventana de Android, que deja ver un flash negro detrás al cerrar.
   useEffect(() => {
-    if (visible) translateY.setValue(0);
-  }, [visible, translateY]);
+    if (visible) {
+      setMounted(true);
+      if (reduceMotion) {
+        translateY.setValue(0);
+        backdropOpacity.setValue(1);
+        return;
+      }
+      translateY.setValue(600);
+      backdropOpacity.setValue(0);
+      Animated.parallel([
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 4 }),
+      ]).start();
+    } else if (mounted) {
+      if (reduceMotion) {
+        setMounted(false);
+        return;
+      }
+      Animated.parallel([
+        Animated.timing(backdropOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 600, duration: 180, useNativeDriver: true }),
+      ]).start(() => setMounted(false));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -53,15 +81,7 @@ export function BottomSheet({ visible, onClose, children, style }: BottomSheetPr
       onPanResponderRelease: (_, g) => {
         const shouldClose = g.dy > CLOSE_DISTANCE || g.vy > CLOSE_VELOCITY;
         if (shouldClose) {
-          if (reduceMotion) {
-            onCloseRef.current();
-            return;
-          }
-          Animated.timing(translateY, {
-            toValue: 600,
-            duration: 180,
-            useNativeDriver: true,
-          }).start(() => onCloseRef.current());
+          onCloseRef.current();
         } else {
           Animated.spring(translateY, {
             toValue: 0,
@@ -73,10 +93,12 @@ export function BottomSheet({ visible, onClose, children, style }: BottomSheetPr
     }),
   ).current;
 
+  if (!mounted) return null;
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={mounted} transparent animationType="none" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
-        <View style={s.backdrop} />
+        <Animated.View style={[s.backdrop, { opacity: backdropOpacity }]} />
       </TouchableWithoutFeedback>
       <Animated.View style={[s.sheet, style, { transform: [{ translateY }] }]}>
         <View {...panResponder.panHandlers} style={s.grabZone}>

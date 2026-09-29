@@ -6,6 +6,8 @@ import {
   formatBalance,
   normalize,
   extractTagsFromTx,
+  groupTransactionsByDay,
+  dayLabel,
 } from "./transactionFormatters";
 
 describe("resolveCategory", () => {
@@ -71,5 +73,37 @@ describe("extractTagsFromTx", () => {
 
   it("devuelve array vacío si no hay tags ni hashtags en la descripción", () => {
     expect(extractTagsFromTx({ description: "Mercado del mes" })).toEqual([]);
+  });
+});
+
+describe("groupTransactionsByDay", () => {
+  const now = new Date(2026, 8, 29, 10, 0); // 29 sep 2026 (martes)
+  const tx = (id: number, date: string, amount: number) => ({ id, date, amount });
+
+  it("intercala un encabezado por día con el neto del día", () => {
+    const rows = groupTransactionsByDay(
+      [
+        tx(1, "2026-09-29T09:00:00.000", 50000),
+        tx(2, "2026-09-29T08:00:00.000", -20000),
+        tx(3, "2026-09-28T20:00:00.000", 10000),
+      ],
+      now,
+    );
+    expect(rows.map((r) => (r.kind === "day" ? `${r.label}:${r.net}` : r.key))).toEqual([
+      "Hoy:-30000",
+      "1",
+      "2",
+      "Ayer:-10000",
+      "3",
+    ]);
+  });
+
+  it("usa día de la semana y fecha, con año solo si es otro año", () => {
+    expect(dayLabel("2026-09-22", now)).toBe("mar 22 sep");
+    expect(dayLabel("2025-12-31", now)).toBe("mié 31 dic 2025");
+  });
+
+  it("lista vacía no produce encabezados", () => {
+    expect(groupTransactionsByDay([], now)).toEqual([]);
   });
 });

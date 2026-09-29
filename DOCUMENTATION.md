@@ -352,10 +352,11 @@ Toca el ícono de **lupa (🔍)** en el dock flotante. Una barra de búsqueda ap
 
 Accede tocando ⚙️ en la esquina superior derecha del Dashboard.
 
-La pantalla está organizada en secciones, en este orden: **Control financiero** (Pago y
-período) → **Gestión** (Categorías, Métodos de pago, Presupuesto por categoría, Metas de
-ahorro, Deudas) → **Detección automática** → **Sistema** (Modo oscuro, Bloqueo con huella,
-Exportar datos, Borrar historial, Versión).
+La pantalla está organizada en secciones, en este orden: **Listas** (Tus listas) → **En tu
+lista** (Categorías, Presupuestos, Pago y período, Mostrar ingresos, Compartir lista, Exportar
+CSV, Importar CSV — todo referido a la lista que tienes activa) → **Gestión** (Métodos de pago,
+Metas de ahorro, Deudas — comunes a todas tus listas) → **Detección automática** → **Sistema**
+(Modo oscuro, Bloqueo con huella, Borrar historial, Versión).
 
 ### Control Financiero
 
@@ -468,8 +469,7 @@ Algunos fabricantes (Samsung, Xiaomi, Huawei...) detienen apps en segundo plano 
 |--------|---------|
 | Modo oscuro | Sistema (sigue el tema del dispositivo) / Claro / Oscuro — se aplica en **todas las pantallas** de la app |
 | Bloqueo con huella | Al activarlo, la app pide tu huella, rostro o PIN del teléfono cada vez que la abres o vuelves a ella. Activarlo y desactivarlo también piden confirmar tu identidad. Si tu teléfono no tiene huella, rostro ni PIN configurados, no se puede activar (la app te avisa) |
-| Exportar datos | Genera un CSV con todas tus transacciones (id, fecha, tipo, descripción, categoría, monto, método de pago, tags) y abre el diálogo nativo del sistema para compartirlo (email, WhatsApp, Drive, copiar, etc.) |
-| Borrar historial de transacciones | ⚠️ **Acción irreversible.** Elimina todos los registros de ingresos y gastos. Tu configuración (categorías, presupuestos, metas) se conserva intacta. Muestra un diálogo de confirmación antes de proceder |
+| Borrar historial de transacciones | ⚠️ **Acción irreversible.** Desde **Personal**, elimina todos los registros de ingresos y gastos de **todas tus listas**; desde otra lista, solo borra los suyos. Tu configuración (categorías, presupuestos, metas) se conserva intacta. Muestra un diálogo de confirmación antes de proceder |
 | Versión | Solo informativa — la versión instalada de la app |
 
 ---

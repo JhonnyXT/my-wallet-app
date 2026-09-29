@@ -32,7 +32,7 @@ import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useNotificationStore } from "@/src/store/useNotificationStore";
-import { localISOString } from "@/src/db/db";
+import { localISOString, SELF_PAYER } from "@/src/db/db";
 
 import { checkAndNotifyBudget } from "@/src/services/notificationService";
 import { NewCategoryModal } from "@/app/category-onboarding";
@@ -124,6 +124,23 @@ export default function ActiveExpenseScreen() {
   const budgetByCategory = useSettingsStore((s) => s.budgetByCategory);
   const savingsGoals = useSettingsStore((s) => s.savingsGoals);
   const transactions = useFinanceStore((s) => s.transactions);
+  // Lista a la que va el movimiento: arranca en la activa; al editar, en la suya.
+  // Cambiarla mueve el movimiento de lista (ej. un gasto del viaje registrado en Personal).
+  const lists = useSettingsStore((s) => s.lists);
+  const activeListId = useSettingsStore((s) => s.activeListId);
+  const [listId, setListId] = useState(activeListId);
+  const showListPicker = lists.length > 1 && !fromBatchReview && !fromNotificationEdit;
+  // Quién pagó: tú por defecto; en una lista con más personas se elige entre ellas.
+  const [paidBy, setPaidBy] = useState(SELF_PAYER);
+  const listMembers = useMemo(
+    () => lists.find((l) => l.id === listId)?.members ?? [],
+    [lists, listId],
+  );
+  const showPayerPicker = listMembers.length > 0 && !fromBatchReview && !fromNotificationEdit;
+  // Al cambiar a una lista donde esa persona no está, vuelve a "Tú".
+  useEffect(() => {
+    if (paidBy !== SELF_PAYER && !listMembers.some((m) => m.id === paidBy)) setPaidBy(SELF_PAYER);
+  }, [listMembers, paidBy]);
 
   const expenseCatOptions = useMemo(
     () =>
@@ -170,6 +187,8 @@ export default function ActiveExpenseScreen() {
     const tx = transactions.find((t) => t.id === editingId);
     if (!tx) return;
     editInitDone.current = true;
+    setListId(tx.list_id);
+    setPaidBy(tx.paid_by);
     const catName = resolveCategory(tx.category_emoji, userCategories, savingsGoals);
     store.setFromVoice({
       amount: Math.abs(tx.amount),
@@ -238,7 +257,9 @@ export default function ActiveExpenseScreen() {
     const text = store.note?.trim() ?? "";
     if (text.length < 2) return;
 
-    const parsed = processVoiceInput(text);
+    // Con las categorías del usuario primero: sin ellas, una categoría propia
+    // (ej. "Vacaciones") quedaba pisada por la del mapa interno del parser.
+    const parsed = processVoiceInput(text, userCategories);
 
     // El monto ya no se sincroniza desde el texto libre: tiene su propio campo
     // editable (tap en el importe de la tarjeta) — sincronizarlo aquí también
@@ -317,6 +338,8 @@ export default function ActiveExpenseScreen() {
         store.tags,
         txDate,
         store.account,
+        listId,
+        paidBy,
       );
     } else {
       await addTx(
@@ -326,10 +349,13 @@ export default function ActiveExpenseScreen() {
         store.tags,
         txDate,
         store.account,
+        listId,
+        paidBy,
       );
     }
 
-    if (savedIsExp) {
+    // Cada lista mide sus presupuestos con lo suyo; los cargados son los de la activa.
+    if (savedIsExp && listId === activeListId) {
       const budget = budgetByCategory[savedEmoji];
       if (budget && budget > 0) {
         const now = new Date();
@@ -339,6 +365,7 @@ export default function ActiveExpenseScreen() {
             .filter(
               (t) =>
                 t.amount > 0 &&
+                t.list_id === activeListId &&
                 t.category_emoji === savedEmoji &&
                 t.date.startsWith(thisMonth) &&
                 (!isEditMode || t.id !== editingId),
@@ -568,6 +595,87 @@ export default function ActiveExpenseScreen() {
               </View>
             </ScrollView>
           </Animated.View>
+        )}
+
+        {/* ── LISTA — a qué lista va el movimiento (solo si hay más de una) ─── */}
+        {showListPicker && (
+          <>
+            <Text style={st.sectionLabel}>LISTA</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={st.listRow}
+            >
+              {lists.map((l) => {
+                const isSel = l.id === listId;
+                return (
+                  <TouchableOpacity
+                    key={l.id}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setListId(l.id);
+                    }}
+                    style={[
+                      st.listChip,
+                      isSel && { backgroundColor: accent + "14", borderColor: accent },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSel }}
+                    accessibilityLabel={`Lista ${l.name}`}
+                  >
+                    <Text style={st.listChipEmoji}>{l.emoji}</Text>
+                    <Text
+                      style={[st.listChipText, isSel && { color: accent, fontWeight: "700" }]}
+                      numberOfLines={1}
+                    >
+                      {l.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </>
+        )}
+
+        {/* ── PAGÓ — quién pagó (solo en listas con más personas) ───────────── */}
+        {showPayerPicker && (
+          <>
+            <Text style={st.sectionLabel}>PAGÓ</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={st.listRow}
+            >
+              {[{ id: SELF_PAYER, name: "Tú" }, ...listMembers].map((m) => {
+                const isSel = m.id === paidBy;
+                return (
+                  <TouchableOpacity
+                    key={m.id || "self"}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setPaidBy(m.id);
+                    }}
+                    style={[
+                      st.listChip,
+                      isSel && { backgroundColor: accent + "14", borderColor: accent },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSel }}
+                    accessibilityLabel={`Pagó ${m.name}`}
+                  >
+                    <Text
+                      style={[st.listChipText, isSel && { color: accent, fontWeight: "700" }]}
+                      numberOfLines={1}
+                    >
+                      {m.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </>
         )}
 
         {/* ── CATEGORÍA — lista horizontal siempre visible ─────────────────── */}
@@ -932,6 +1040,22 @@ function buildS(t: AppTheme) {
       letterSpacing: 0.1,
     },
     catItemLabelSelected: { color: t.text, fontWeight: "700" },
+
+    listRow: { flexDirection: "row", gap: 8, paddingRight: 8 },
+    listChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      maxWidth: 200,
+      paddingVertical: 9,
+      paddingHorizontal: 14,
+      borderRadius: 9999,
+      borderWidth: 1.5,
+      borderColor: t.border,
+      backgroundColor: card,
+    },
+    listChipEmoji: { fontSize: 15 },
+    listChipText: { flexShrink: 1, fontSize: 13, fontWeight: "600", color: t.textSub },
 
     accList: {
       backgroundColor: card,

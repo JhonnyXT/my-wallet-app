@@ -9,6 +9,7 @@
  *   - debtsSlice:          deudas y su saldo pendiente
  *   - prefsSlice:          preferencias visuales (tema, nombre)
  *   - notificationsSlice:  configuración de notificaciones del sistema
+ *   - listsSlice:          listas de transacciones separadas (Personal, un viaje…) y la activa
  *
  * La API pública es idéntica a la versión anterior: todos los importadores
  * existentes funcionan sin cambios.
@@ -31,10 +32,24 @@ import { createGoalsSlice, type GoalsSlice, type SavingsGoal } from "./slices/go
 import { createDebtsSlice, type DebtsSlice, type Debt } from "./slices/debtsSlice";
 import { createPrefsSlice, type PrefsSlice, type DarkModeOption } from "./slices/prefsSlice";
 import { createNotificationsSlice, type NotificationsSlice } from "./slices/notificationsSlice";
+import {
+  createListsSlice,
+  type ListsSlice,
+  type WalletList,
+  type ListMember,
+} from "./slices/listsSlice";
 
 // ─── Re-exportar tipos públicos (sin cambios para los importadores) ────────────
 
-export type { DarkModeOption, PaymentMethodType, PaymentMethod, SavingsGoal, Debt };
+export type {
+  DarkModeOption,
+  PaymentMethodType,
+  PaymentMethod,
+  SavingsGoal,
+  Debt,
+  WalletList,
+  ListMember,
+};
 
 // ─── Tipo combinado del store ─────────────────────────────────────────────────
 
@@ -44,7 +59,8 @@ export type SettingsState = CategoriesSlice &
   GoalsSlice &
   DebtsSlice &
   PrefsSlice &
-  NotificationsSlice;
+  NotificationsSlice &
+  ListsSlice;
 
 // ─── Helpers de categorías (misma API pública) ────────────────────────────────
 
@@ -72,6 +88,7 @@ export const useSettingsStore = create<SettingsState>()(
       ...createDebtsSlice(...a),
       ...createPrefsSlice(...a),
       ...createNotificationsSlice(...a),
+      ...createListsSlice(...a),
     }),
     {
       name: "mywallet-settings",
@@ -94,3 +111,19 @@ export const useSettingsStore = create<SettingsState>()(
     },
   ),
 );
+
+/**
+ * Espera a que `persist` rehidrate los ajustes (tope 1.5s). `loadTransactions()` la
+ * necesita para leer la lista activa real antes de la primera consulta: sin esto, un
+ * cold start con otra lista activa cargaba las transacciones de Personal.
+ */
+export async function waitForSettingsHydration(): Promise<void> {
+  if (useSettingsStore.persist.hasHydrated()) return;
+  await new Promise<void>((resolve) => {
+    const unsub = useSettingsStore.persist.onFinishHydration(() => {
+      unsub();
+      resolve();
+    });
+    setTimeout(resolve, 1500);
+  });
+}

@@ -167,8 +167,9 @@ y borrado lógico.
   "Cerrar sesión" (T9), **"Eliminar cuenta"** (obligatorio en Google Play: borra la cuenta y su
   data en la nube).
 - [ ] `src/sync/` creado, con el cliente de Firebase y la sesión; nada fuera de ahí importa Firebase.
-- [ ] Pasar los datos reales del usuario de `dev` a `test` (ver Riesgos) y actualizar `AGENTS.md`
-  → "Build variants" (hoy dice que `dev` conserva los datos reales).
+- [ ] Actualizar `AGENTS.md` → "Build variants" con T10 (hoy dice que `dev` conserva los datos
+  reales del usuario; pasa a ser solo pruebas locales contra el emulador, y `test` la app de uso
+  real, que arranca desde cero).
 
 **Hecho cuando:** se puede iniciar y cerrar sesión con Google, desde el onboarding y desde
 Ajustes, y la app sigue funcionando igual sin sesión y sin internet.
@@ -234,13 +235,9 @@ Decidido 2026-09-29: en Android solo Google. Cuando se publique la app en iOS:
   activa subiría datos viejos (ver inventario).
 - **Límites gratis:** holgados para uso personal y amigos; vigilar las lecturas si un día se usan
   listeners en tiempo real en vez de pull incremental.
-- **Tus datos reales hoy viven en el variant `dev`** (`com.mywallet.app`), no en `test`. Con T10,
-  `dev` pasa a ser solo para pruebas locales contra el emulador y `test` es donde el usuario tendrá
-  sus datos reales. Hay que **pasar esos datos de `dev` a `test`** antes de que `dev` deje de ser
-  la app del día a día: exportar CSV por lista en `dev` e importarlo en `test` (ya existe), más
-  categorías/metas/deudas/métodos a mano o con un script (pendiente, ver Fase 2). Probar las
-  migraciones de la Fase 1 con respaldo previo (`scripts/seed-dev-data.py` ya respalda en
-  `~/mywallet-backups/`).
+- **Datos de `dev`:** hoy la app `dev` (`com.mywallet.app`) tiene datos de prueba. Decidido
+  2026-09-29: no se migran, `test` arranca desde cero. Probar las migraciones de la Fase 1 con
+  respaldo previo igual (`scripts/seed-dev-data.py` ya respalda en `~/mywallet-backups/`).
 - **Dependencia de Google:** si algún día se quiere salir, el modelo por documentos y los ids
   estables facilitan migrar (ej. a Supabase + PowerSync).
 

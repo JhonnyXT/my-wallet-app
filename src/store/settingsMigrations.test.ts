@@ -79,7 +79,17 @@ describe("migrateSettings v1 → v2", () => {
     expect(strip(out.paymentMethods)).toEqual(input.paymentMethods);
     expect(strip(out.savingsGoals)).toEqual(input.savingsGoals);
     expect(strip(out.debts)).toEqual(input.debts);
-    const { lists, paymentMethods, savingsGoals, debts, tombstones, ...rest } = out;
+    // profileUpdatedAt/settingsUpdatedAt los agrega el paso v2 → v3 (se prueba aparte).
+    const {
+      lists,
+      paymentMethods,
+      savingsGoals,
+      debts,
+      tombstones,
+      profileUpdatedAt,
+      settingsUpdatedAt,
+      ...rest
+    } = out;
     const { lists: _l, paymentMethods: _p, savingsGoals: _s, debts: _d, ...inputRest } = input;
     expect(rest).toEqual(inputRest);
   });
@@ -103,12 +113,34 @@ describe("migrateSettings v1 → v2", () => {
 
   it("tolera colecciones ausentes (estado parcial)", () => {
     const out = migrateSettings({ userName: "Ana" }, 1, NOW);
-    expect(out).toEqual({ userName: "Ana", tombstones: EMPTY_TOMBSTONES });
+    expect(out).toEqual({
+      userName: "Ana",
+      tombstones: EMPTY_TOMBSTONES,
+      profileUpdatedAt: 0,
+      settingsUpdatedAt: 0,
+    });
   });
 
   it("un estado ya en v2 queda igual", () => {
     const v2 = migrateSettings(v1State(), 1, NOW);
     expect(migrateSettings(v2, 2, NOW + 1000)).toEqual(v2);
+  });
+});
+
+describe("migrateSettings v2 → v3", () => {
+  it("agrega las fechas de edición de perfil y ajustes en 0", () => {
+    const v2 = migrateSettings(v1State(), 1, NOW);
+    delete v2.profileUpdatedAt;
+    delete v2.settingsUpdatedAt;
+    const out = migrateSettings(v2, 2, NOW);
+    expect(out.profileUpdatedAt).toBe(0);
+    expect(out.settingsUpdatedAt).toBe(0);
+  });
+
+  it("conserva las que ya existan", () => {
+    const out = migrateSettings({ profileUpdatedAt: 5, settingsUpdatedAt: 6 }, 2, NOW);
+    expect(out.profileUpdatedAt).toBe(5);
+    expect(out.settingsUpdatedAt).toBe(6);
   });
 });
 

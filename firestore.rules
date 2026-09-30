@@ -1,10 +1,13 @@
 rules_version = '2';
 
-// Sync Fase 2: todavía no se sincroniza nada, así que se niega todo. Las reglas reales
-// (users/{uid} solo su dueño, spaces/{id} solo sus miembros) llegan en la Fase 3 con sus tests
-// contra el emulador. Ver SYNC_ROADMAP.md.
+// Sync Fase 3 (SYNC_ROADMAP.md): cada usuario solo lee y escribe lo suyo, bajo users/{uid}.
+// Todo lo demás se niega (los espacios compartidos, spaces/{id}, llegan en la Fase 4).
+// Tests: firestore-tests/rules.test.ts (npm run test:rules, contra el emulador).
 service cloud.firestore {
   match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

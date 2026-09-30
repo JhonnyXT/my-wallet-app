@@ -20,6 +20,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { UserCategory } from "@/src/constants/categoryPresets";
 import { migrateSettings, SETTINGS_VERSION } from "./settingsMigrations";
+import { applySettingsPatch, type RemoteSettingsPatch } from "./remoteSettings";
 
 import { createCategoriesSlice, type CategoriesSlice } from "./slices/categoriesSlice";
 import { createBudgetSlice, type BudgetSlice } from "./slices/budgetSlice";
@@ -120,4 +121,16 @@ export async function waitForSettingsHydration(): Promise<void> {
     });
     setTimeout(resolve, 1500);
   });
+}
+
+// ─── Sync (Fase 3): las usa src/sync/, sin que el store importe Firebase ─────────
+
+/** Aplica lo traído de la nube (ya unido); respeta el intercambio de la lista activa. */
+export function applyRemoteSettings(patch: RemoteSettingsPatch): void {
+  useSettingsStore.setState((s) => applySettingsPatch(s, patch));
+}
+
+/** "Borrar de este teléfono": vuelve al estado de una instalación nueva (y lo persiste así). */
+export function resetSettingsStore(): void {
+  useSettingsStore.setState(useSettingsStore.getInitialState(), true);
 }

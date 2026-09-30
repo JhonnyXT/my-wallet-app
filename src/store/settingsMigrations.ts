@@ -6,7 +6,7 @@
 import { DEFAULT_CADENCE, type PeriodCadence } from "@/src/utils/periodCycles";
 import { EMPTY_TOMBSTONES } from "./slices/tombstonesSlice";
 
-export const SETTINGS_VERSION = 2;
+export const SETTINGS_VERSION = 3;
 
 /** Colecciones que se sincronizan ítem por ítem (cada ítem lleva `updatedAt`). */
 const SYNCED_COLLECTIONS = ["lists", "paymentMethods", "savingsGoals", "debts"] as const;
@@ -40,6 +40,13 @@ export function migrateSettings(
       );
     }
     if (!state.tombstones) state.tombstones = EMPTY_TOMBSTONES;
+  }
+
+  // v2 → v3 (Sync Fase 3): fecha de edición de los documentos únicos (perfil y ajustes). En 0:
+  // nada editado todavía, así al unir con la nube gana lo que ya estaba respaldado.
+  if (version < 3) {
+    if (typeof state.profileUpdatedAt !== "number") state.profileUpdatedAt = 0;
+    if (typeof state.settingsUpdatedAt !== "number") state.settingsUpdatedAt = 0;
   }
 
   return state;

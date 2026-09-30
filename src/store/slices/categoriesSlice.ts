@@ -1,6 +1,7 @@
 import type { StateCreator } from "zustand";
 import type { UserCategory } from "@/src/constants/categoryPresets";
 import { touchList, type ListsSlice } from "./listsSlice";
+import type { PrefsSlice } from "./prefsSlice";
 
 export interface CategoriesSlice {
   userCategories: UserCategory[];
@@ -25,7 +26,7 @@ const touchActive = (s: ListsSlice) => ({
 });
 
 export const createCategoriesSlice: StateCreator<
-  CategoriesSlice & ListsSlice,
+  CategoriesSlice & ListsSlice & PrefsSlice,
   [],
   [],
   CategoriesSlice
@@ -48,8 +49,10 @@ export const createCategoriesSlice: StateCreator<
       userCategories: s.userCategories.map((c) => (c.id === id ? { ...c, ...partial } : c)),
       ...touchActive(s),
     })),
-  completeCategories: () => set({ hasSelectedCategories: true }),
+  // El onboarding hecho se respalda (perfil): al restaurar no se repite.
+  completeCategories: () => set({ hasSelectedCategories: true, profileUpdatedAt: Date.now() }),
 
   setOnboardingStep: (step) => set({ onboardingStep: step }),
-  completeOnboarding: () => set({ hasCompletedOnboarding: true, onboardingStep: 5 }),
+  completeOnboarding: () =>
+    set({ hasCompletedOnboarding: true, onboardingStep: 5, profileUpdatedAt: Date.now() }),
 });

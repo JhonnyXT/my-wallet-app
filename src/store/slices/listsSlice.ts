@@ -43,6 +43,24 @@ export interface WalletList {
   updatedAt: number;
 }
 
+/**
+ * Las listas con los datos VIVOS de la activa (su período, categorías y presupuestos reales viven
+ * en `defaultPeriod`/`userCategories`/`budgetByCategory`). Es lo que se respalda: la copia en
+ * `lists[]` de la activa está desactualizada.
+ */
+export function withLiveActiveList(state: SwapState): WalletList[] {
+  return state.lists.map((l) =>
+    l.id === state.activeListId
+      ? {
+          ...l,
+          period: state.defaultPeriod,
+          categories: state.userCategories,
+          budgets: state.budgetByCategory,
+        }
+      : l,
+  );
+}
+
 /** Marca una lista como editada ahora. */
 export function touchList(lists: WalletList[], id: string, now: number): WalletList[] {
   return lists.map((l) => (l.id === id ? { ...l, updatedAt: now } : l));

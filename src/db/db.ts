@@ -282,6 +282,113 @@ export async function purgeSyncedTombstones(now = Date.now()): Promise<number> {
   return result.changes;
 }
 
+// ─── Sync (Fase 3): sin red, las llama src/sync/ ─────────────────────────────────
+// Leen y escriben TODAS las listas (el respaldo es de todo), así que a propósito no usan
+// LIST_SCOPE_SQL; `listScope.test.ts` las tiene en su lista de excepciones.
+
+/** Fila tal como llega de la nube (sin `id` local ni `sync_state`). */
+export type SyncedTransaction = Omit<TransactionRow, "id" | "sync_state">;
+
+/** Pendientes de subir, borrados incluidos (un borrado también hay que avisarlo). */
+export async function getPendingTransactions(limit: number): Promise<TransactionRow[]> {
+  const db = await getNativeDatabase();
+  return db.getAllAsync<TransactionRow>(
+    `SELECT * FROM transactions WHERE sync_state = 'pending' ORDER BY updated_at LIMIT ?`,
+    [limit],
+  );
+}
+
+export async function countPendingTransactions(): Promise<number> {
+  const db = await getNativeDatabase();
+  const row = await db.getFirstAsync<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM transactions WHERE sync_state = 'pending'`,
+  );
+  return row?.n ?? 0;
+}
+
+/**
+ * Marca como subidas las versiones confirmadas por la nube. Solo si la fila no cambió mientras se
+ * subía (`updated_at` igual): una edición hecha durante la subida sigue pendiente.
+ */
+export async function markTransactionsSynced(
+  versions: { uid: string; updated_at: number }[],
+): Promise<void> {
+  if (versions.length === 0) return;
+  const db = await getNativeDatabase();
+  await db.withTransactionAsync(async () => {
+    for (const v of versions) {
+      await db.runAsync(
+        `UPDATE transactions SET sync_state = 'synced' WHERE uid = ? AND updated_at = ?`,
+        [v.uid, v.updated_at],
+      );
+    }
+  });
+}
+
+/** Versión local de cada `uid` (para decidir qué gana al traer). */
+export async function getTransactionVersions(
+  uids: string[],
+): Promise<Map<string, { updated_at: number; deleted_at: number | null }>> {
+  const db = await getNativeDatabase();
+  const out = new Map<string, { updated_at: number; deleted_at: number | null }>();
+  // SQLite limita los parámetros por consulta: por tandas.
+  for (let i = 0; i < uids.length; i += 500) {
+    const chunk = uids.slice(i, i + 500);
+    const rows = await db.getAllAsync<{
+      uid: string;
+      updated_at: number;
+      deleted_at: number | null;
+    }>(
+      `SELECT uid, updated_at, deleted_at FROM transactions WHERE uid IN (${chunk.map(() => "?").join(",")})`,
+      chunk,
+    );
+    for (const r of rows) out.set(r.uid, { updated_at: r.updated_at, deleted_at: r.deleted_at });
+  }
+  return out;
+}
+
+/**
+ * Aplica transacciones traídas que ya ganaron a la copia local (la decisión la toma
+ * `transactionsToApply`). Quedan `synced`: no se vuelven a subir.
+ */
+export async function applyRemoteTransactions(rows: SyncedTransaction[]): Promise<void> {
+  if (rows.length === 0) return;
+  const db = await getNativeDatabase();
+  await db.withTransactionAsync(async () => {
+    for (const r of rows) {
+      await db.runAsync(
+        `INSERT INTO transactions (amount, description, category_emoji, date, tags, payment_method, list_id, paid_by, uid, updated_at, deleted_at, sync_state)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced')
+         ON CONFLICT(uid) DO UPDATE SET
+           amount = excluded.amount, description = excluded.description,
+           category_emoji = excluded.category_emoji, date = excluded.date, tags = excluded.tags,
+           payment_method = excluded.payment_method, list_id = excluded.list_id,
+           paid_by = excluded.paid_by, updated_at = excluded.updated_at,
+           deleted_at = excluded.deleted_at, sync_state = 'synced'`,
+        [
+          r.amount,
+          r.description,
+          r.category_emoji,
+          r.date,
+          r.tags,
+          r.payment_method,
+          r.list_id,
+          r.paid_by,
+          r.uid,
+          r.updated_at,
+          r.deleted_at,
+        ],
+      );
+    }
+  });
+}
+
+/** "Borrar de este teléfono" (cerrar sesión): borrado físico de todo. Ya está en la nube. */
+export async function wipeAllTransactions(): Promise<void> {
+  const db = await getNativeDatabase();
+  await db.runAsync(`DELETE FROM transactions`);
+}
+
 export async function getMonthlyTotal(): Promise<number> {
   const db = await getNativeDatabase();
   const now = new Date();

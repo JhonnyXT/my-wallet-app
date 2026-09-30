@@ -11,6 +11,11 @@ export interface PrefsSlice {
   biometricLockEnabled: boolean;
   /** Cómo se corta el tiempo en el Dashboard (y el ciclo del presupuesto si es mensual). */
   defaultPeriod: PeriodCadence;
+  /**
+   * Última edición (epoch ms) del perfil que se respalda: nombre, modo oscuro, onboarding hecho
+   * (sync Fase 3, documento `meta/profile`). 0 = nunca editado: al restaurar gana la nube.
+   */
+  profileUpdatedAt: number;
 
   setUserName: (name: string) => void;
   setDarkMode: (mode: DarkModeOption) => void;
@@ -25,9 +30,10 @@ export const createPrefsSlice: StateCreator<PrefsSlice & ListsSlice, [], [], Pre
   darkMode: "system",
   biometricLockEnabled: false,
   defaultPeriod: DEFAULT_CADENCE,
+  profileUpdatedAt: 0,
 
-  setUserName: (name) => set({ userName: name }),
-  setDarkMode: (mode) => set({ darkMode: mode }),
+  setUserName: (name) => set({ userName: name, profileUpdatedAt: Date.now() }),
+  setDarkMode: (mode) => set({ darkMode: mode, profileUpdatedAt: Date.now() }),
   setBiometricLockEnabled: (enabled) => set({ biometricLockEnabled: enabled }),
   // El período vivo es el de la lista activa (patrón de intercambio): cambiarlo es editarla.
   setDefaultPeriod: (cadence) =>

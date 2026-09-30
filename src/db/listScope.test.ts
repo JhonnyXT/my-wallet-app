@@ -7,8 +7,13 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 
-// Lecturas que a propósito no filtran: la relectura de una fila por id tras editarla.
-const ALLOWED = [/FROM transactions WHERE id = \?/];
+// Lecturas que a propósito no filtran: la relectura de una fila por id tras editarla, y las de
+// la sync (Fase 3), que respaldan todas las listas y también los borrados.
+const ALLOWED = [
+  /FROM transactions WHERE id = \?/,
+  /FROM transactions WHERE sync_state = 'pending'/,
+  /FROM transactions WHERE uid IN \(/,
+];
 
 function readQueries(file: string): string[] {
   const src = readFileSync(join(__dirname, file), "utf8");

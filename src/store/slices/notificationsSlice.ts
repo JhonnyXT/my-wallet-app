@@ -11,6 +11,11 @@ export interface NotificationsSlice {
   budgetNotifiedMonth: Record<string, string>;
   /** IDs de metas ya notificadas como cumplidas */
   goalNotifiedIds: string[];
+  /**
+   * Última edición (epoch ms) de lo que se respalda de aquí: alertas activadas y umbral (sync
+   * Fase 3, documento `meta/settings`). Las marcas de "ya notificado" no se respaldan.
+   */
+  settingsUpdatedAt: number;
 
   setNotificationsEnabled: (enabled: boolean) => void;
   setBudgetAlertsEnabled: (enabled: boolean) => void;
@@ -33,17 +38,20 @@ export const createNotificationsSlice: StateCreator<
 
   budgetNotifiedMonth: {},
   goalNotifiedIds: [],
+  settingsUpdatedAt: 0,
 
   setNotificationsEnabled: (enabled) => set({ notificationsEnabled: enabled }),
   setBudgetAlertsEnabled: (enabled) =>
     set((s) => ({
       budgetAlertsEnabled: enabled,
+      settingsUpdatedAt: Date.now(),
       // Al activar las alertas, limpiar el historial para que se re-evalúe
       budgetNotifiedMonth: enabled ? {} : s.budgetNotifiedMonth,
     })),
   setBudgetAlertThreshold: (threshold) =>
     set((s) => ({
       budgetAlertThreshold: Math.min(100, Math.max(0, Math.round(threshold))),
+      settingsUpdatedAt: Date.now(),
       // Al cambiar el umbral, limpiar las notificaciones del mes para re-evaluar
       budgetNotifiedMonth: {},
     })),

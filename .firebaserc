@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "mywallet-test-jb",
+    "test": "mywallet-test-jb",
+    "prod": "mywallet-prod"
+  }
+}

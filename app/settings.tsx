@@ -5,6 +5,7 @@
  * Habit Tracker. Header de pantalla apilada (StackedScreenHeader) en vez de header
  * nativo, título grande en el body.
  */
+import { AccountSection } from "@/src/components/ui/AccountSection";
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
 import {
   SHEET_PADDING_X,
@@ -2379,8 +2380,14 @@ export default function SettingsScreen() {
           gap: tokens.spacing.lg,
         }}
       >
-        {/* ── LISTAS ───────────────────────────────────────────────────── */}
+        {/* ── CUENTA (opcional: sin sesión la app funciona igual) ──────── */}
         <Enter index={0} screenId="settings">
+          <SectionHeader>CUENTA</SectionHeader>
+          <AccountSection />
+        </Enter>
+
+        {/* ── LISTAS ───────────────────────────────────────────────────── */}
+        <Enter index={1} screenId="settings">
           <SectionHeader>LISTAS</SectionHeader>
           <Card padded={false}>
             <ListRow
@@ -2395,7 +2402,7 @@ export default function SettingsScreen() {
         </Enter>
 
         {/* ── EN TU LISTA ACTUAL: todo lo de aquí cambia con la lista activa ── */}
-        <Enter index={1} screenId="settings">
+        <Enter index={2} screenId="settings">
           <SectionHeader>{`EN TU LISTA · ${activeList.emoji} ${activeList.name}`}</SectionHeader>
           <Card padded={false}>
             <ListRow
@@ -2464,7 +2471,7 @@ export default function SettingsScreen() {
         </Enter>
 
         {/* ── GESTIÓN (de todas las listas) ───────────────────────────── */}
-        <Enter index={2} screenId="settings">
+        <Enter index={3} screenId="settings">
           <SectionHeader>GESTIÓN</SectionHeader>
           <Card padded={false}>
             <ListRow
@@ -2494,7 +2501,7 @@ export default function SettingsScreen() {
         </Enter>
 
         {/* ── DETECCIÓN AUTOMÁTICA ──────────────────────────────────────── */}
-        <Enter index={3} screenId="settings">
+        <Enter index={4} screenId="settings">
           <SectionHeader>DETECCIÓN AUTOMÁTICA</SectionHeader>
           <AutoDetectSection />
         </Enter>
@@ -2503,7 +2510,7 @@ export default function SettingsScreen() {
         {/* Fusiona lo que antes eran 3 secciones separadas (Apariencia, Sistema,
             Acerca de) en una sola, a pedido del usuario (2026-09-02) — Modo oscuro
             y Versión no ameritaban su propia sección con una sola fila cada una. */}
-        <Enter index={4} screenId="settings">
+        <Enter index={5} screenId="settings">
           <SectionHeader>SISTEMA</SectionHeader>
           <Card padded={false}>
             <ListRow

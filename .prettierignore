@@ -19,3 +19,6 @@ docs/
 
 # Web en Next.js: proyecto npm aparte con su propio lint/formato.
 landing/
+
+# google-services.json: se versionan tal como los descarga Firebase (apps:sdkconfig)
+firebase/google-services.*.json

@@ -39,11 +39,11 @@ no `app.json` estático) — una tabla `variants` define `name`/`package`/`schem
 por variant, seleccionado con la env var `APP_VARIANT` (`dev` por defecto si no se define). Un
 `APP_VARIANT` desconocido **lanza excepción** al resolver la config, no hay fallback silencioso.
 
-| Variant | `applicationId` | Para qué | Cómo se construye |
-|---|---|---|---|
-| `dev` | `com.mywallet.app` (el original — conserva los datos ya instalados) | Iterar día a día | Local, `npm run build:dev` (`assembleDebug`) |
-| `test` | `com.mywallet.app.test` | Probar un build "limpio" sin Metro, DB vacía | Local, `npm run build:test` (`assembleRelease`) |
-| `prod` | `com.mywallet` | La versión que se distribuye (GitHub Releases) | Solo EAS, `npm run eas:prod` — nunca local |
+| Variant | `applicationId` | Para qué | Firebase (T10) | Cómo se construye |
+|---|---|---|---|---|
+| `dev` | `com.mywallet.app` | Iterar día a día; solo pruebas de desarrollo (sus datos no se migran a ningún lado) | **Firebase Emulator** local (Auth + Firestore); del proyecto `mywallet-test-jb` solo usa el cliente OAuth del login | Local, `npm run build:dev` (`assembleDebug`) |
+| `test` | `com.mywallet.app.test` | Build sin Metro; la app de uso real del usuario y de testers, arranca desde cero | Proyecto `mywallet-test-jb` | Local, `npm run build:test` (`assembleRelease`) |
+| `prod` | `com.mywallet` | La versión que se distribuye (Google Play / GitHub Releases) | Proyecto `mywallet-prod` | Solo EAS, `npm run eas:prod` — nunca local |
 
 Los tres se instalan **uno al lado del otro** en el mismo dispositivo (`applicationId` distinto =
 apps distintas para Android, cada una con su propia base de datos SQLite). El código de la app
@@ -74,6 +74,32 @@ proyecto (`owner: "jhonnyxt"` en `app.config.ts`) y consume cuota de build de es
 ejecutar sin que el usuario lo pida explícitamente**, es la última pieza del proceso de release
 (ver también el proceso manual de subir el APK a GitHub Releases, sección Landing page más abajo).
 
+### Firebase por variant y emulador (Sync Fase 2)
+
+Proyectos en la cuenta personal del usuario (`jonathanblandon1017@gmail.com`): `mywallet-test-jb`
+(`mywallet-test` estaba tomado; ids únicos en todo Google Cloud) y `mywallet-prod`. Firestore en
+`nam5`. `app.config.ts` elige `firebase/google-services.test.json` (dev y test: un mismo proyecto
+con las dos apps Android) o `firebase/google-services.prod.json` (prod), y saca de ahí el
+`webClientId` de Google Sign-In (`firebase/googleServices.js`, CommonJS porque el cargador de
+config de Expo no transpila los `.ts` que importa `app.config.ts`). Los `google-services.json` se
+versionan: no son secretos (la seguridad son las reglas de `firestore.rules`). Descargarlos de
+nuevo: `npx firebase-tools apps:sdkconfig android <appId> --project <id> -o firebase/…json`.
+
+Login con Google exige la SHA-1 de la firma registrada en la app de Firebase. `dev`/`test` firman
+con la debug keystore estándar de Expo (`android/app/debug.keystore`, SHA-1
+`5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25`, igual en cada `prebuild --clean`),
+ya registrada. La de `prod` la genera EAS: registrarla en `mywallet-prod` antes de probar el login
+en un build de EAS (Fase 5).
+
+Para usar la cuenta en `dev`, el emulador tiene que estar corriendo en el computador:
+```bash
+npm run emulators           # Auth :9099, Firestore :8080, UI :4000; guarda datos en .firebase-emulator/
+npm run emulators:reverse   # adb reverse de 9099/8080 para el teléfono físico
+```
+`src/sync/firebase.ts` conecta a `localhost`; `firebase.json` → `react-native.
+android_bypass_emulator_url_remap: true` evita que RNFirebase lo reescriba a `10.0.2.2` (solo sirve
+en el emulador de Android). Sin el emulador corriendo la app funciona igual; solo falla el login.
+
 ### Build local directo (sin variants, referencia)
 ```bash
 cd android
@@ -95,7 +121,7 @@ de los build variants, es lo que usan los workflows `/arrancar`/`/build-apk`/`/d
 python3 scripts/seed-dev-data.py            # carga 6 meses de movimientos de prueba
 python3 scripts/seed-dev-data.py --remove   # borra solo esos
 ```
-Escribe en la base de la app `dev` (`com.mywallet.app`, la de los datos reales del usuario) por
+Escribe en la base de la app `dev` (`com.mywallet.app`) por
 `adb exec-out run-as`, así que exige un build **debug** de dev instalado y el dispositivo
 conectado; cierra la app durante la operación. Antes de tocar nada respalda la base completa en
 `~/mywallet-backups/<fecha>/` (SQLite y `RKStorage`/AsyncStorage, esta última porque las listas
@@ -144,10 +170,10 @@ descubre sus comandos, subagentes y skills automáticamente de sus carpetas.
 | Componentes UI | Propios (`src/components/ui/`) + lucide-react-native | ^0.576.0 |
 | Routing | Expo Router (file-based, Stack + Tabs) | ~55.0.3 |
 | Estado | Zustand (6 stores, 2 persistidos con AsyncStorage) | ^5.0.11 |
-| Red / Sync | Solo el SDK de Firebase dentro de la capa de sync (Firestore + Auth) — en implementación, ver `SYNC_ROADMAP.md`. Hoy la app aún no hace ninguna llamada de red | — |
+| Red / Sync | Solo `@react-native-firebase` (app/auth/firestore) + `@react-native-google-signin/google-signin`, encapsulados en `src/sync/` (`sync.boundary.test.ts` lo vigila). Hoy solo hay cuenta; subir/bajar datos llega en la Fase 3 de `SYNC_ROADMAP.md` | ^26.4.0 / ^16.1.5 |
 | Base de datos | expo-sqlite (WAL mode) | ^55.0.10 |
 | ORM | Sin ORM (SQL directo con placeholders) | — |
-| Auth | Hoy sin cuentas; planeado: Firebase Auth con Google (opcional, la app sigue usable sin cuenta). Bloqueo opcional con huella/rostro/PIN del sistema (expo-local-authentication) | ~55.0.18 |
+| Auth | Firebase Auth con Google, opcional (la app sigue usable sin cuenta): onboarding paso 0 (`login-onboarding.tsx`) y Ajustes → CUENTA. Bloqueo opcional con huella/rostro/PIN del sistema (expo-local-authentication) | ~55.0.18 |
 | Testing | Jest (utilidades puras y `notificationParser`; componentes/stores/`src/db/` fuera de alcance) | ^30.4.2 |
 | Lint / Format | ESLint (`eslint-config-expo`, flat config) + Prettier (`.md`/`.mdc`/`docs/` excluidos vía `.prettierignore`) | ^9.39.5 / ^3.9.6 |
 | Package manager | npm | — |
@@ -174,6 +200,7 @@ my-wallet-app/
 │   │   └── wallet.tsx                # Placeholder (href: null)
 │   ├── active-expense.tsx            # Modal: nuevo gasto/ingreso, también edición (?editId=)
 │   ├── reports.tsx                   # Modal "Promedios": promedio mensual histórico por categoría + tendencia
+│   ├── login-onboarding.tsx          # Onboarding paso 0: cuenta de Google (saltable)
 │   ├── category-onboarding.tsx       # Onboarding paso 1: selección de categorías
 │   ├── pay-onboarding.tsx            # Onboarding paso 2: frecuencia de pago y pago esperado (omitible)
 │   ├── notification-onboarding.tsx   # Onboarding paso 3: explica la detección automática
@@ -193,6 +220,7 @@ my-wallet-app/
 │   ├── features/                     # chat/useLocalNLP.ts
 │   ├── hooks/                        # useDashboardScroll, useDashboardSearch, useDashboardTotals, useDashboardTour, useTransactionFilters, useActiveListShare, useAllListCategories, useCsvTransfer, useListEditor
 │   ├── services/                     # notificationService.ts, notificationHeadlessTask.ts
+│   ├── sync/                         # ÚNICA capa con red: firebase.ts (cliente + emulador en dev), session.ts (login/cerrar/eliminar cuenta), useSession, errors
 │   ├── store/                        # 6 stores Zustand (useSettingsStore + useNotificationStore persistidos)
 │   │   ├── settingsMigrations.ts     # migrateSettings(): migrate puro de useSettingsStore (v0→v1→v2), con tests
 │   │   └── slices/                   # 9 slices de useSettingsStore: budget, categories, debts, goals, lists, notifications, payments, prefs, tombstones
@@ -240,6 +268,7 @@ my-wallet-app/
 | `/active-expense` | `app/active-expense.tsx` | fullScreenModal ↑ | Formulario nuevo gasto/ingreso |
 | `/settings` | `app/settings.tsx` | fullScreenModal ↑ | Configuración completa |
 | `/reports` | `app/reports.tsx` | fullScreenModal ↑ | "Promedios": promedio mensual histórico de gasto/ingreso por categoría, con tarjeta de tendencia mensual acotable por rango de fechas |
+| `/login-onboarding` | `app/login-onboarding.tsx` | fade | Onboarding paso 0: "Continuar con Google" o "Ahora no" (aviso de que puede hacerlo en Ajustes → Cuenta) |
 | `/category-onboarding` | `app/category-onboarding.tsx` | fade | Onboarding paso 1: selección inicial de categorías |
 | `/pay-onboarding` | `app/pay-onboarding.tsx` | fade | Onboarding paso 2: cada cuánto y cuánto te pagan (`PayPeriodForm`); "Omitir" deja mensual sin pago |
 | `/notification-onboarding` | `app/notification-onboarding.tsx` | fade | Onboarding paso 3: explica la detección automática de notificaciones bancarias |
@@ -397,7 +426,7 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
 ### Navegación y arranque
 
 - **Splash sin flash de la pantalla anterior:** `<AnimatedSplash>` se monta siempre que `!splashDone` (no depende de `appReady`); el splash nativo se oculta apenas React pinta el primer frame, y `AnimatedSplash` recibe `ready={appReady}` para no hacer fade-out antes de que termine el bootstrap. En cada cold start sin deep link de notificación, `_layout.tsx` hace `router.replace("/(tabs)")` bajo el splash: en OneUI el `Stack` a veces resuelve su ruta inicial a la última pantalla visitada.
-- **Onboarding:** `category-onboarding` → `pay-onboarding` → `notification-onboarding` → `bank-selection-onboarding` usan `router.push` (para que atrás funcione). Como `_layout.tsx` entra al onboarding con `router.replace("/category-onboarding")`, `goToApp()` debe hacer `router.dismissAll()` antes de `router.replace("/(tabs)")`; si no, un `dismissAll()` posterior (ej. al guardar un gasto) vuelve al onboarding.
+- **Onboarding:** `login-onboarding` → `category-onboarding` → `pay-onboarding` → `notification-onboarding` → `bank-selection-onboarding` usan `router.push` (para que atrás funcione). `_layout.tsx` entra al onboarding (si `!hasSelectedCategories`) con `router.replace("/login-onboarding")`; quien ya lo completó no ve el login y usa Ajustes → Cuenta. Como se entra con `replace`, `goToApp()` debe hacer `router.dismissAll()` antes de `router.replace("/(tabs)")`; si no, un `dismissAll()` posterior (ej. al guardar un gasto) vuelve al onboarding.
 - **Tour del Dashboard** (`useDashboardTour`, 3 pasos): calendario (`TOUR_KEYS.PERIOD_BTN`) → voz (`MIC_FAB`) → manual (`PLUS_BTN`). `onboardingStep` va 0 → 3 → 4 → completado; 1 y 2 quedan sin uso (eran el desvío a Ajustes, que ya no existe: el pago se configura en `pay-onboarding`) y se tratan como el paso de voz.
 - **Bloqueo con huella:** `BiometricLockGate` se monta en `_layout.tsx` como **capa hermana encima** del `Stack` (`absoluteFill`, `zIndex` alto), no envolviéndolo: el `Stack` tiene que seguir montado para que el deep link de una push bancaria y el `router.replace("/(tabs)")` del arranque funcionen bajo el bloqueo. Bloquea al abrir y cada vez que la app va a background; `authenticatingRef` evita re-bloquear cuando el prompt con PIN (otra `Activity`) manda la app a background, que si no entraría en un ciclo de prompts. Si el teléfono ya no tiene huella/rostro/PIN (`SecurityLevel.NONE`), desbloquea en vez de dejar al usuario afuera. Hasta que `useSettingsStore` rehidrata (tope 1.5s) tapa el contenido con el color de fondo. Activar/desactivar desde Ajustes pide autenticarse y no bloquea en el momento. Usa `expo-local-authentication` (plugin en `app.config.ts`: requiere rebuild nativo).
 
@@ -425,7 +454,7 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
 
 ### Ajustes (`app/settings.tsx`)
 
-- Secciones en este orden: **LISTAS** ("Tus listas", detail = cantidad, abre `ListsSheet`) → **EN TU LISTA · {emoji} {nombre}** (título dinámico con la lista activa: Categorías, Presupuestos, "Pago y período", "Mostrar ingresos" con `Switch`, "Compartir lista", "Exportar CSV", "Importar CSV") → GESTIÓN, global no por lista (Métodos de pago, Metas de ahorro, Deudas) → DETECCIÓN AUTOMÁTICA ("Detectar transacciones", "Bancos activos") → SISTEMA (Modo oscuro, Bloqueo con huella, Borrar historial, Versión — ya no tiene "Exportar datos", reemplazada por "Exportar CSV"/"Importar CSV" dentro de "EN TU LISTA").
+- Secciones en este orden: **CUENTA** (`AccountSection`: "Iniciar sesión con Google", o correo + "Cerrar sesión" + "Eliminar cuenta"; cerrar sesión NUNCA borra datos del teléfono hasta la Fase 3, ver `SYNC_ROADMAP.md`) → **LISTAS** ("Tus listas", detail = cantidad, abre `ListsSheet`) → **EN TU LISTA · {emoji} {nombre}** (título dinámico con la lista activa: Categorías, Presupuestos, "Pago y período", "Mostrar ingresos" con `Switch`, "Compartir lista", "Exportar CSV", "Importar CSV") → GESTIÓN, global no por lista (Métodos de pago, Metas de ahorro, Deudas) → DETECCIÓN AUTOMÁTICA ("Detectar transacciones", "Bancos activos") → SISTEMA (Modo oscuro, Bloqueo con huella, Borrar historial, Versión — ya no tiene "Exportar datos", reemplazada por "Exportar CSV"/"Importar CSV" dentro de "EN TU LISTA").
 - **"Pago y período" reemplaza al antiguo "Ingreso mensual":** ya no existe `monthlyBudget`; el pago esperado vive en `defaultPeriod.pay` (por día de pago en `semimonthly`, `Record<string, number>` con el día como clave string para sobrevivir a JSON). `useSettingsStore` persiste con `version: 1` y un `migrate` que pasa un `monthlyBudget > 0` de v0 a `defaultPeriod.pay`. Cualquier otro cambio incompatible del estado persistido debe subir `version` y extender ese `migrate`.
 - "Bloqueo con huella" (`BiometricLockRow`) es una fila con `Switch` en el slot `right`; activar y desactivar piden autenticarse, para que nadie con el teléfono desbloqueado lo quite. Sin huella/rostro/PIN configurados, activar muestra un `ConfirmDialog` informativo en vez del prompt. No hay secciones "APARIENCIA" ni "ACERCA DE", ni párrafos explicativos.
 - Cada sección es una sola `Card` con `Divider` entre filas (`inset={tokens.spacing.md * 2 + 34}`), no una tarjeta por fila; el usuario lo prefirió así. Íconos con color propio por fila (verde, azul, morado `#7C3AED`, rojo, gris, `Radar` `#0D9488`, `Landmark` `#EA580C`), no monocromáticos.

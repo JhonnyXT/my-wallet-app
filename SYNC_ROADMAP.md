@@ -5,7 +5,7 @@ para respaldar toda la data en la nube y compartir espacios con otras personas. 
 2026-09-29. Cada fase deja la app funcionando y se puede probar sola; para implementar una fase
 con detalle, generar su spec con `/sdd` a partir de la sección correspondiente.
 
-**Estado:** Fases 0 y 1 hechas. Siguiente: Fase 2.
+**Estado:** Fases 0, 1 y 2 hechas. Siguiente: Fase 3.
 
 ---
 
@@ -158,27 +158,30 @@ versionado, `specs/` está en `.gitignore`): `specs/sync-fase-1-datos-locales/`.
 **Hecho cuando:** la app funciona igual que hoy y cada registro tiene id único, fecha de edición
 y borrado lógico.
 
-### Fase 2 — Firebase + cuentas (Google) · M
-- [ ] Entornos según T10: Firebase Emulator Suite para `dev`; proyecto `mywallet-test` con la app
-  `com.mywallet.app.test`; proyecto `mywallet-prod` con la app `com.mywallet`. Registrar los SHA-1
-  (debug keystore local para `test`, keystore de EAS para `prod`) para que funcione Google Sign-In.
-  Un `google-services.json` por variant, elegido en `app.config.ts` según `APP_VARIANT`.
-- [ ] `@react-native-firebase/app`, `/auth`, `/firestore` + `@react-native-google-signin/google-signin`
-  (config plugins en `app.config.ts`). Son nativos: rebuild con `npm run build:dev`.
-- [ ] Onboarding paso 0 nuevo: "Inicia sesión con Google", con opción discreta para saltarlo
-  (T7). Al saltar: aviso de que puede hacerlo después desde Ajustes → Cuenta para respaldar su
-  información si cambia o pierde el celular. Después, el onboarding actual. Si la cuenta ya tenía datos (reinstalación), va a la Fase 3 y
-  salta el resto del onboarding.
-- [ ] Ajustes → sección **CUENTA**: quién está conectado, "Iniciar sesión" si no hay cuenta,
-  "Cerrar sesión" (T9), **"Eliminar cuenta"** (obligatorio en Google Play: borra la cuenta y su
-  data en la nube).
-- [ ] `src/sync/` creado, con el cliente de Firebase y la sesión; nada fuera de ahí importa Firebase.
-- [ ] Actualizar `AGENTS.md` → "Build variants" con T10 (hoy dice que `dev` conserva los datos
-  reales del usuario; pasa a ser solo pruebas locales contra el emulador, y `test` la app de uso
-  real, que arranca desde cero).
-
-**Hecho cuando:** se puede iniciar y cerrar sesión con Google, desde el onboarding y desde
-Ajustes, y la app sigue funcionando igual sin sesión y sin internet.
+### Fase 2 — Firebase + cuentas (Google) · M ✅ (2026-09-30)
+Spec local (no versionado): `specs/sync-fase-2-cuentas/spec.md`.
+- [x] Entornos según T10: `dev` → Firebase Emulator (`npm run emulators`, necesita JDK 21 en
+  `~/.local/jdk-21`); `test` → proyecto **`mywallet-test-jb`** (`mywallet-test` estaba tomado en
+  Google Cloud) con `com.mywallet.app.test` y `com.mywallet.app` (dev, solo para el cliente OAuth);
+  `prod` → **`mywallet-prod`** con `com.mywallet`. Firestore en `nam5`, reglas que niegan todo hasta
+  la Fase 3. SHA-1 de la debug keystore registrada en las dos apps de test.
+- [x] `@react-native-firebase/app`/`auth`/`firestore` 26.4 + `@react-native-google-signin/google-signin`
+  16.1 (versión gratis), plugins en `app.config.ts`, un `google-services.json` por variant en
+  `firebase/` (versionados) y el `webClientId` sacado de ahí al compilar.
+- [x] Onboarding paso 0 (`app/login-onboarding.tsx`): "Continuar con Google" o "Ahora no" con el
+  aviso de Ajustes → Cuenta (T7).
+- [x] Ajustes → **CUENTA**: iniciar sesión, cerrar sesión, eliminar cuenta. Cerrar sesión **no**
+  ofrece borrar los datos del teléfono todavía: sin respaldo en la nube se perdería todo; la
+  pregunta de T9 se agrega en la Fase 3.
+- [x] `src/sync/` con el cliente y la sesión; `sync.boundary.test.ts` falla si algo fuera de ahí
+  importa Firebase.
+- [x] `AGENTS.md` → Build variants con T10.
+- Verificado en el teléfono (dev + emulador): login con Google, cerrar sesión y eliminar cuenta;
+  el usuario aparece y desaparece en el emulador, nunca en la nube, y los datos locales no cambian.
+- Pendiente de probar: el onboarding nuevo en una instalación limpia de `test` contra
+  `mywallet-test-jb`, y el login sin internet (mensaje de error).
+- Para la Fase 3: `deleteAccount()` debe borrar `users/{uid}` en Firestore antes del usuario de Auth;
+  registrar la SHA-1 de EAS en `mywallet-prod` antes del primer build de producción.
 
 ### Fase 3 — Respaldo en la nube de toda la data · L
 - [ ] Push de todo lo del inventario marcado ✅ (transacciones, listas, categorías, presupuestos,

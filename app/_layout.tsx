@@ -170,10 +170,10 @@ export default function RootLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Después del splash, si no ha seleccionado categorías → onboarding
+  // Después del splash, si no ha seleccionado categorías → onboarding (paso 0: cuenta, saltable).
   useEffect(() => {
     if (splashDone && !hasSelectedCategories) {
-      router.replace("/category-onboarding");
+      router.replace("/login-onboarding");
     }
   }, [splashDone, hasSelectedCategories]);
 
@@ -182,6 +182,13 @@ export default function RootLayout() {
       <StatusBar style={theme.isDark ? "light" : "dark"} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="login-onboarding"
+          options={{
+            animation: "fade",
+            headerShown: false,
+          }}
+        />
         <Stack.Screen
           name="category-onboarding"
           options={{

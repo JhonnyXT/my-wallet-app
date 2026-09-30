@@ -44,6 +44,12 @@ commit-msg.txt
 /ios
 /android
 
+# Firebase Emulator (npm run emulators): datos locales de dev y logs
+.firebase-emulator/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
 # SDD specs — documentos de trabajo locales, no se suben al repo
 specs/
 

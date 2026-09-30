@@ -1,4 +1,6 @@
+import { existsSync, readFileSync } from "fs";
 import type { ExpoConfig } from "expo/config";
+import { webClientIdFrom } from "./firebase/googleServices";
 
 // ─── Build variants ─────────────────────────────────────────────────────────
 // Patrón portado de habit-tracker (ver AGENTS.md → Build variants). Cada variant
@@ -41,6 +43,20 @@ function resolveVariant(): Variant {
 const variant = resolveVariant();
 const current = variants[variant];
 
+// ─── Firebase (SYNC_ROADMAP.md, T10) ────────────────────────────────────────
+// dev y test comparten el proyecto mywallet-test-jb: dev lo usa solo para el cliente OAuth del
+// login (sus datos van al Firebase Emulator, ver src/sync/firebase.ts). prod → mywallet-prod.
+const googleServicesFile =
+  variant === "prod"
+    ? "./firebase/google-services.prod.json"
+    : "./firebase/google-services.test.json";
+
+// Google Sign-In (versión gratis) no detecta el webClientId: se saca del mismo JSON al compilar.
+// Sin el archivo (clon nuevo) la config sigue resolviendo; el build nativo sí lo exige.
+const googleWebClientId = existsSync(googleServicesFile)
+  ? webClientIdFrom(JSON.parse(readFileSync(googleServicesFile, "utf8")), current.package)
+  : undefined;
+
 const config: ExpoConfig = {
   name: current.name,
   slug: "my-wallet-app",
@@ -69,6 +85,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: current.package,
+    googleServicesFile,
     versionCode: 2,
     softwareKeyboardLayoutMode: "resize",
     adaptiveIcon: {
@@ -109,6 +126,9 @@ const config: ExpoConfig = {
     "./plugins/withAllowBackupDisabled",
     "./plugins/withDisableStartingWindowPreview",
     "./plugins/withoutNotificationListenerBootReceiver",
+    "@react-native-firebase/app",
+    "@react-native-firebase/auth",
+    "@react-native-google-signin/google-signin",
   ],
   experiments: {
     typedRoutes: true,
@@ -119,6 +139,7 @@ const config: ExpoConfig = {
     },
     router: {},
     appVariant: variant,
+    googleWebClientId,
   },
   runtimeVersion: {
     policy: "appVersion",

@@ -43,7 +43,7 @@
 **MyWallet** es una aplicación personal de control financiero diseñada bajo el principio de **"Minimalismo Funcional"** y **"Cero Fricción"**:
 
 - **Registro en un corto tiempo** mediante texto libre con NLP o entrada por voz
-- **100% offline** — datos locales en SQLite, sin servidores ni suscripciones
+- **Local-first** — funciona completa sin internet con datos locales en SQLite; con internet y sesión iniciada (Google, opcional) sincroniza con Firebase para respaldo y espacios compartidos, sin servidor propio ni suscripciones (en implementación, ver `SYNC_ROADMAP.md`)
 - **Moneda:** Pesos colombianos ($ COP), separador de miles con puntos
 - **Idioma UI:** Español (todo texto visible al usuario debe estar en español)
 - **Plataforma objetivo:** Android (iOS en desarrollo)
@@ -267,7 +267,7 @@ Usuario → Pantalla (app/) → Store (Zustand) → DB (SQLite)
 2. **Store por dominio:** Cada store maneja un solo aspecto (finanzas, formulario, settings, UI, voz)
 3. **DB como fuente de verdad:** Las transacciones viven en SQLite; el store de finanzas las carga en memoria para rendimiento
 4. **Tema por contexto:** `ThemeContext` distribuye tokens de color; los estilos se generan con `useMemo` + funciones `buildStyles(theme)`
-5. **Sin APIs externas:** Todo funciona offline (NLP, voz, cálculos)
+5. **Local-first:** Todo funciona sin internet (NLP, voz, cálculos, registro). La única red es el SDK de Firebase dentro de la capa de sync (`src/sync/`), en segundo plano y sin bloquear la UI — ver `SYNC_ROADMAP.md`
 
 ---
 
@@ -541,7 +541,7 @@ getPendingItemAfterHydration(id: string): Promise<PendingNotificationItem | null
 **`getPendingItemAfterHydration(id)` (2026-09-02):** como el `persist` de este store rehidrata desde AsyncStorage de forma asíncrona, y el listener de deep link de `_layout.tsx` puede correr en un cold start antes de que termine, esta función espera `persist.onFinishHydration()` (con timeout de seguridad de 1.5s) antes de buscar el item — sin esto, el primer tap tras un cold start podía fallar en encontrar el item aunque sí estuviera guardado.
 
 ### Regla crítica de stores
-- **NUNCA** mezclar lógica de servidor/API en los stores (la app es offline)
+- **NUNCA** mezclar lógica de red/Firebase en los stores: los stores escriben en SQLite/AsyncStorage y la capa de sync (`src/sync/`) se encarga de subir/bajar cambios
 - **NUNCA** almacenar datos financieros sensibles (números de cuenta/tarjeta) en los stores
 - Usar selectores específicos para evitar re-renders innecesarios
 
@@ -552,9 +552,11 @@ getPendingItemAfterHydration(id: string): Promise<PendingNotificationItem | null
 Las listas son "mundos" de transacciones separados: Personal (fija, todo tu dinero) y las que crea
 el usuario (un viaje, un negocio, la casa compartida…). Cada una tiene su propio período, sus
 propias categorías/presupuestos y, si tiene más personas, permite registrar quién pagó cada gasto
-y calcular quién le debe a quién — todo 100% offline, sin cuentas ni sincronización entre
-dispositivos (ver `project_ai_voice_spike_rejected` en la memoria del agente: este proyecto
-rechazó explícitamente sumar servicios en la nube).
+y calcular quién le debe a quién. **Hoy** todo es local, sin cuentas ni sincronización entre
+dispositivos: los "miembros" son solo nombres. **Planeado (2026-09-29):** espacios compartidos de
+verdad vía Firebase, donde cada miembro usa su propio teléfono y los cambios se traen con
+pull-to-refresh — ver `SYNC_ROADMAP.md`. (El rechazo previo a la nube, `project_ai_voice_spike_rejected`,
+fue para IA en el parser de voz, no para sincronización.)
 
 ### Modelo y componentes
 - **`WalletList`/`ListMember`** (`listsSlice.ts`, sección 6) y **`DEFAULT_LIST_ID`/`LIST_EMOJIS`**
@@ -801,7 +803,7 @@ Parseo simple para el campo de texto del formulario:
 - Más ligero, se ejecuta en cada keystroke
 
 ### Reglas para extender NLP
-- Mantener offline: **NUNCA** llamar APIs externas
+- Mantener local: **NUNCA** llamar APIs externas (ni siquiera Firebase) desde el NLP — el parser corre 100% en el dispositivo
 - Los retornos de `extractCategory` y `extractDate` son `null` si no hay match (no forzar defaults)
 - Usar `\b` (word boundaries) para evitar falsos positivos en regex
 - **`guessCategoryEmoji`/`extractCategory` no deben buscar keywords cruzando gasto/ingreso cuando se conoce el tipo** (2026-09-23): pasar siempre `isExpense` al llamador si el dato está disponible (ej. `item.isExpense` de una notificación bancaria ya clasificada, o `true`/`false` fijo cuando la función es de un solo flujo conocido) — sin ese filtro, palabras ambiguas entre categorías ("mensualidad", "regalo") devuelven la primera coincidencia del array sin importar el tipo real de la transacción

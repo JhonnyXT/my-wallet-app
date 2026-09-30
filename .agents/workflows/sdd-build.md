@@ -6,8 +6,8 @@ Entra en **SDD_MODE**. Implementa la feature a partir del spec: $ARGUMENTS (bús
   de carpetas, `buildStyles(t: AppTheme)` + `useMemo`, patrones de store Zustand, convenciones SQLite
   (WAL, `localISOString()`), formato COP. No introduzcas Clean/Hexagonal Architecture de servidor —
   este es un frontend puro.
-- Respeta las "Reglas inmutables" de `AGENTS.md` sin excepción (offline-first, no-edición de
-  transacciones, no datos bancarios sensibles, etc.). Si una tarea de `tasks.md` entra en conflicto
+- Respeta las "Reglas inmutables" de `AGENTS.md` sin excepción (local-first con sync solo vía
+  `src/sync/`, no datos bancarios sensibles, etc.). Si una tarea de `tasks.md` entra en conflicto
   con una regla inmutable, detente y avisa — no la implementes igual.
 - Avanza **tarea por tarea** (`tasks.md`), marcando cada una como completada según avanzas. Respeta el
   orden de dependencias declarado al final de `tasks.md`.

@@ -1,8 +1,10 @@
 Entra en **SDD_MODE**. Objetivo: $ARGUMENTS
 
-Este proyecto es frontend puro (React Native + Expo, sin backend) — no apliques Clean/Hexagonal
-Architecture de servidor. Organiza el diseño por capas de la app: pantalla (Expo Router) → store
-(Zustand) → acceso a datos (SQLite/AsyncStorage) → componentes UI, siguiendo la estructura y
+Este proyecto es mobile local-first sin backend propio (React Native + Expo; Firebase solo como
+capa de sync/respaldo) — no apliques Clean/Hexagonal Architecture de servidor. Organiza el diseño
+por capas de la app: pantalla (Expo Router) → store (Zustand) → acceso a datos
+(SQLite/AsyncStorage, siempre la fuente de verdad) → capa de sync (`src/sync/`, Firebase) →
+componentes UI, siguiendo la estructura y
 convenciones ya documentadas en `AGENTS.md` y `.cursor/rules/*.mdc`.
 
 Produce los artefactos de spec de forma completa y trazable, sin recortar por ahorro de tokens:

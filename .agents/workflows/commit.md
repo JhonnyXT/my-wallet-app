@@ -13,7 +13,7 @@ Mostrar archivos modificados al usuario.
 Ejecutar mentalmente (o invocar la skill `wallet-validator`) los puntos críticos sobre los archivos cambiados:
 - Sin `toLocaleString()` para moneda
 - Fechas con `localISOString()`
-- Sin llamadas a APIs externas
+- Sin llamadas de red fuera de `src/sync/` (Firebase), y nada en la UI esperando la red
 - Imports con `@/`
 
 ### Paso 3 — Revisar documentación

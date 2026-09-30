@@ -1,20 +1,24 @@
 ---
-description: "Restricciones globales inmutables del proyecto MyWallet — moneda COP, offline-first, arquitectura Feature-Sliced, convenciones de código"
+description: "Restricciones globales inmutables del proyecto MyWallet — moneda COP, local-first con sync opcional a Firebase, arquitectura Feature-Sliced, convenciones de código"
 alwaysApply: true
 ---
 
 # MyWallet — Convenciones de Proyecto
 
 ## Identidad
-- **App**: Control financiero personal para Android, 100% offline.
+- **App**: Control financiero personal para Android, local-first: funciona completa sin internet; con internet y sesión iniciada sincroniza con Firebase (en implementación, ver `SYNC_ROADMAP.md`).
 - **Moneda**: Pesos colombianos ($ COP), puntos de miles, sin decimales.
 - **Idioma**: UI en español, código en inglés, comentarios en español.
 - **Diseño**: Minimalismo Funcional inspirado en Google Stitch.
 
 ## Restricciones inmutables
 
-### Offline-first
-Cero llamadas a APIs externas. SQLite + AsyncStorage son las únicas fuentes de persistencia. NUNCA agregar `fetch()`, `axios`, `http://` ni `https://` en código de producción.
+### Local-first, con y sin internet
+- SQLite + AsyncStorage en el dispositivo son SIEMPRE la fuente de verdad: toda lectura y escritura de la UI va contra ellos, nunca directo contra la nube.
+- La app funciona completa sin internet. Ninguna pantalla ni acción puede bloquearse esperando la red (registrar un gasto, editar, borrar, ver reportes): la sync corre en segundo plano y sus errores nunca impiden usar la app.
+- La **única** red permitida es el SDK de Firebase (Auth + Firestore), y solo dentro de la capa de sync (`src/sync/`). NUNCA `fetch()`, `axios`, `http://`/`https://` sueltos ni otras APIs externas en pantallas, stores o utilidades; los stores no importan Firebase directamente.
+- Iniciar sesión (Google) es opcional: sin cuenta todo funciona igual, sin respaldo ni espacios compartidos.
+- Todo registro que se sincroniza lleva un id estable entre dispositivos (uuid), fecha de última edición y borrado lógico (tombstone), ver `SYNC_ROADMAP.md`.
 
 ### Moneda COP
 Formatear siempre con:
@@ -87,9 +91,9 @@ src/theme/          → Tokens de tema light/dark.
 
 ## Prohibiciones
 - NO usar `toLocaleString()` para moneda.
-- NO llamar APIs externas (todo offline).
+- NO llamar APIs externas fuera de la capa de sync con Firebase (`src/sync/`), ni bloquear la UI esperando la red.
 - ~~NO implementar edición de transacciones (solo crear y eliminar)~~ — revertido 2026-08-14 a pedido explícito del usuario: las transacciones SÍ son editables (`updateTransaction()` en `db.ts`/`useFinanceStore`, swipe derecho en `TransactionItem` → `active-expense.tsx?editId=<id>`).
 - NO hacer push automático a remoto.
-- NO almacenar datos bancarios reales (números de cuenta/tarjeta).
+- NO almacenar datos bancarios reales (números de cuenta/tarjeta), ni local ni en la nube. El texto crudo de notificaciones bancarias no se sube a Firebase.
 - NO usar class components — solo funcionales con hooks.
 - NO recrear `src/features/voice/` — la carpeta se eliminó junto con `useVoiceExpense.ts`; la lógica de voz vive en `src/utils/voiceParser.ts` y `useVoiceStore`.

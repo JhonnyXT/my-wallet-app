@@ -19,8 +19,8 @@ Verifica específicamente:
 5. **Ambigüedades sin resolver**: marcadores `[NEEDS CLARIFICATION]` que sobrevivieron — si existen,
    sugiere correr `/sdd-clarify` antes de continuar.
 6. **Contradicción con reglas del proyecto**: cualquier requisito o decisión de diseño que viole las
-   "Reglas inmutables" de `AGENTS.md` (offline-first, formato COP, fechas locales, no-edición de
-   transacciones, no datos bancarios sensibles) — esto es bloqueante, repórtalo con prioridad alta.
+   "Reglas inmutables" de `AGENTS.md` (local-first: nada bloquea esperando la red y la red solo
+   vía la capa de sync con Firebase; formato COP, fechas locales, no datos bancarios sensibles) — esto es bloqueante, repórtalo con prioridad alta.
 
 Presenta el resultado como una tabla:
 

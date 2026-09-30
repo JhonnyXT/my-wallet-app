@@ -10,7 +10,7 @@
 
 - **Principio de diseño:** Minimalismo funcional — cero fricción, registro en menos de 3 segundos
 - **Estética:** Interfaz limpia inspirada en Google Stitch Design System y MonAI
-- **Dato fundamental:** 100% offline, datos locales en SQLite, sin servidores ni suscripciones
+- **Dato fundamental:** local-first — 100% funcional sin internet con datos locales en SQLite, sin servidor propio ni suscripciones. Con cuenta (Google, opcional) y conexión, respaldo en la nube y espacios compartidos vía Firebase (en implementación, ver `SYNC_ROADMAP.md`)
 - **Público objetivo:** Usuarios en Colombia que quieren controlar su dinero de forma rápida, simple y visual
 
 ---
@@ -436,7 +436,7 @@ Las categorías se pueden crear desde **tres contextos**:
 | Rendimiento | Registro < 3s, scroll 60fps, queries < 100ms |
 | Almacenamiento | SQLite local, ~1KB por transacción |
 | Accesibilidad | Textos escalables, contraste suficiente en ambos temas |
-| Offline | 100% funcional sin internet |
+| Offline | 100% funcional sin internet; la sync con la nube nunca bloquea la app |
 | Idioma | UI en español, código en inglés |
 | Seguridad | Sin datos sensibles, sin transmisión de datos; bloqueo opcional con huella/rostro/PIN del sistema |
 | Tamaño APK | < 30MB (build de producción) |

@@ -3,7 +3,7 @@ name: wallet-validator
 description: |
   Valida la integridad técnica del proyecto MyWallet antes de commit o merge.
   Verifica convenciones de moneda COP, fechas ISO, tema dinámico, arquitectura
-  Feature-Sliced, offline-first y TypeScript strict. Usar cuando se revisen
+  Feature-Sliced, local-first (red solo vía la capa de sync con Firebase) y TypeScript strict. Usar cuando se revisen
   cambios, se haga code review, se prepare un commit, o se pida "validar",
   "verificar" o "revisar el código".
 license: MIT
@@ -33,7 +33,7 @@ Para cada archivo modificado, verificar:
 Validación MyWallet:
 - [ ] 1. Moneda COP: sin toLocaleString(), formato con regex custom
 - [ ] 2. Fechas: localISOString(), nunca toISOString()
-- [ ] 3. Offline: sin fetch/axios/http/API calls en código de producción
+- [ ] 3. Local-first: sin fetch/axios/http ni APIs externas fuera de src/sync/; Firebase solo se importa en src/sync/; ninguna acción de UI espera a la red
 - [ ] 4. Categorías: consulta userCategories antes de mapas legacy
 - [ ] 5. Tema: useTheme() + useMemo + buildStyles() — o useAppTokens() en la capa de tokens (ver ui-components.mdc) —, sin colores hardcodeados
 - [ ] 6. Arquitectura: pantallas en app/, componentes en src/components/ui/
@@ -55,8 +55,9 @@ rg "toLocaleString" --type ts
 # Fechas
 rg "toISOString|toJSON" src/db/
 
-# Offline
-rg "fetch\(|axios|http://|https://" src/ app/ --type ts
+# Local-first: red solo en la capa de sync
+rg "fetch\(|axios|http://|https://" src/ app/ --type ts -g '!src/sync/**'
+rg "@react-native-firebase" src/ app/ --type ts -g '!src/sync/**'
 
 # Colores hardcodeados (fuera de buildStyles)
 rg "color:\s*[\"']#" app/ src/components/ --type ts

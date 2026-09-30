@@ -1,6 +1,6 @@
 # AGENTS.md — MyWallet
 
-Aplicación personal de control financiero para Android. 100% offline, datos en SQLite + AsyncStorage, moneda COP, UI en español. Principio de diseño: "Minimalismo Funcional" inspirado en Google Stitch.
+Aplicación personal de control financiero para Android. **Local-first**: funciona completa sin internet con SQLite + AsyncStorage en el dispositivo; con internet y sesión iniciada sincroniza con Firebase (respaldo en la nube y espacios compartidos — en implementación, ver [`SYNC_ROADMAP.md`](SYNC_ROADMAP.md)). Moneda COP, UI en español. Principio de diseño: "Minimalismo Funcional" inspirado en Google Stitch.
 
 ---
 
@@ -144,10 +144,10 @@ descubre sus comandos, subagentes y skills automáticamente de sus carpetas.
 | Componentes UI | Propios (`src/components/ui/`) + lucide-react-native | ^0.576.0 |
 | Routing | Expo Router (file-based, Stack + Tabs) | ~55.0.3 |
 | Estado | Zustand (6 stores, 2 persistidos con AsyncStorage) | ^5.0.11 |
-| HTTP/Fetch | N/A (100% offline) | — |
+| Red / Sync | Solo el SDK de Firebase dentro de la capa de sync (Firestore + Auth) — en implementación, ver `SYNC_ROADMAP.md`. Hoy la app aún no hace ninguna llamada de red | — |
 | Base de datos | expo-sqlite (WAL mode) | ^55.0.10 |
 | ORM | Sin ORM (SQL directo con placeholders) | — |
-| Auth | Sin cuentas ni servidor; bloqueo opcional con huella/rostro/PIN del sistema (expo-local-authentication) | ~55.0.18 |
+| Auth | Hoy sin cuentas; planeado: Firebase Auth con Google (opcional, la app sigue usable sin cuenta). Bloqueo opcional con huella/rostro/PIN del sistema (expo-local-authentication) | ~55.0.18 |
 | Testing | Jest (utilidades puras y `notificationParser`; componentes/stores/`src/db/` fuera de alcance) | ^30.4.2 |
 | Lint / Format | ESLint (`eslint-config-expo`, flat config) + Prettier (`.md`/`.mdc`/`docs/` excluidos vía `.prettierignore`) | ^9.39.5 / ^3.9.6 |
 | Package manager | npm | — |
@@ -157,7 +157,7 @@ descubre sus comandos, subagentes y skills automáticamente de sus carpetas.
 ---
 
 ## Clasificación del proyecto
-**Frontend puro (mobile)** — App React Native/Expo sin backend. Toda la lógica y datos son locales.
+**Mobile local-first + BaaS** — App React Native/Expo sin backend propio. Toda la lógica y los datos viven en el dispositivo; Firebase (Auth + Firestore, gestionado por Google) es solo una capa de sincronización y respaldo, nunca la fuente de verdad. No hay servidor propio que mantener (sin Cloud Functions mientras se pueda evitar).
 
 ---
 
@@ -206,7 +206,8 @@ my-wallet-app/
 ├── landing/                          # Landing nueva en Next.js 16 + Tailwind v4 (proyecto npm aparte, ver landing/README.md)
 ├── CONTEXT.md                        # Ventana de contexto técnico completo (~1650 líneas)
 ├── DOCUMENTATION.md                  # Guía de usuario
-└── PRODUCT_REQUIREMENTS.md           # Historias de usuario y requisitos
+├── PRODUCT_REQUIREMENTS.md           # Historias de usuario y requisitos
+└── SYNC_ROADMAP.md                   # Plan por fases: cuenta con Google + sync con Firebase
 ```
 
 ---
@@ -260,12 +261,12 @@ my-wallet-app/
 
 ## Reglas inmutables
 
-1. **Offline-first**: cero llamadas a APIs externas. SQLite + AsyncStorage son las únicas fuentes de persistencia.
+1. **Local-first, con y sin internet**: SQLite + AsyncStorage en el dispositivo son SIEMPRE la fuente de verdad para leer y escribir. La app funciona completa sin internet y **ninguna pantalla ni acción puede bloquearse esperando la red** (nada de spinners obligatorios, ni "sin conexión, intenta más tarde" para registrar un gasto). Con internet y sesión iniciada, los cambios se sincronizan con Firebase (Firestore) en segundo plano: respaldo de toda la data del usuario y espacios compartidos. La **única** vía de red permitida es el SDK de Firebase, encapsulado en la capa de sync (`src/sync/`); nada de `fetch`/`axios`/`http(s)://` sueltos ni otras APIs externas en pantallas, stores o utilidades. Iniciar sesión es opcional: sin cuenta la app funciona igual, solo que sin respaldo ni espacios compartidos. Plan y estado en [`SYNC_ROADMAP.md`](SYNC_ROADMAP.md).
 2. **Moneda COP**: formatear con regex `replace(/\B(?=(\d{3})+(?!\d))/g, ".")`. NUNCA `toLocaleString()`.
 3. **Fechas locales**: usar `localISOString()` de `src/db/db.ts`. NUNCA `toISOString()`.
 4. **Categorías dinámicas**: consultar `userCategories` del store antes de fallbacks legacy.
 5. **Git manual**: nunca push automático.
-6. **No datos bancarios sensibles**: nunca almacenar números de cuenta/tarjeta.
+6. **No datos bancarios sensibles**: nunca almacenar números de cuenta/tarjeta, ni en el dispositivo ni en la nube. El texto crudo de las notificaciones bancarias (cola de pendientes) no se sube a Firebase: solo los movimientos que el usuario confirma.
 7. **Botón primario**: `#135BEC` fijo (no `t.accent`) para consistencia entre temas.
 
 ---

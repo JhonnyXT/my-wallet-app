@@ -688,7 +688,7 @@ function PaymentMethodSheet({
     // Si coincide con el del tipo no se guarda: así sigue al tipo si luego cambia.
     const emoji = icon.emoji === PAYMENT_TYPE_EMOJI[type] ? undefined : icon.emoji;
     if (target) updateMethod(target.id, trimmed, type, emoji);
-    else addMethod({ id: Date.now().toString(), name: trimmed, type, emoji });
+    else addMethod({ name: trimmed, type, emoji });
     onClose();
   };
 

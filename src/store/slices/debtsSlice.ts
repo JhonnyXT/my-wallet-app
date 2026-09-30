@@ -1,5 +1,7 @@
 import type { StateCreator } from "zustand";
 import { localISOString } from "@/src/db/db";
+import { newId } from "@/src/utils/ids";
+import { addTombstone, type TombstonesSlice } from "./tombstonesSlice";
 
 export interface Debt {
   id: string;
@@ -14,13 +16,17 @@ export interface Debt {
   /** Día del mes (1-31) del recordatorio de pago. */
   dueDay: number;
   createdAt: string;
+  /** Última edición, epoch ms (sync). */
+  updatedAt: number;
 }
 
 export interface DebtsSlice {
   debts: Debt[];
 
   addDebt: (
-    debt: Omit<Debt, "id" | "createdAt" | "remainingAmount"> & { remainingAmount?: number },
+    debt: Omit<Debt, "id" | "createdAt" | "updatedAt" | "remainingAmount"> & {
+      remainingAmount?: number;
+    },
   ) => Debt;
   /** Actualiza el saldo pendiente (flujo "Pagar") — no toca los demás datos. */
   updateDebtBalance: (id: string, remaining: number) => void;
@@ -32,15 +38,18 @@ export interface DebtsSlice {
   removeDebt: (id: string) => void;
 }
 
-export const createDebtsSlice: StateCreator<DebtsSlice, [], [], DebtsSlice> = (set) => ({
+export const createDebtsSlice: StateCreator<DebtsSlice & TombstonesSlice, [], [], DebtsSlice> = (
+  set,
+) => ({
   debts: [],
 
   addDebt: (debt) => {
     const newDebt: Debt = {
       ...debt,
       remainingAmount: debt.remainingAmount ?? debt.totalAmount,
-      id: Date.now().toString(),
+      id: newId(),
       createdAt: localISOString(),
+      updatedAt: Date.now(),
     };
     set((s) => ({ debts: [...s.debts, newDebt] }));
     return newDebt;
@@ -49,12 +58,18 @@ export const createDebtsSlice: StateCreator<DebtsSlice, [], [], DebtsSlice> = (s
   updateDebtBalance: (id, remaining) =>
     set((s) => ({
       debts: s.debts.map((d) =>
-        d.id === id ? { ...d, remainingAmount: Math.max(0, remaining) } : d,
+        d.id === id ? { ...d, remainingAmount: Math.max(0, remaining), updatedAt: Date.now() } : d,
       ),
     })),
 
   editDebt: (id, updates) =>
-    set((s) => ({ debts: s.debts.map((d) => (d.id === id ? { ...d, ...updates } : d)) })),
+    set((s) => ({
+      debts: s.debts.map((d) => (d.id === id ? { ...d, ...updates, updatedAt: Date.now() } : d)),
+    })),
 
-  removeDebt: (id) => set((s) => ({ debts: s.debts.filter((d) => d.id !== id) })),
+  removeDebt: (id) =>
+    set((s) => ({
+      debts: s.debts.filter((d) => d.id !== id),
+      tombstones: addTombstone(s.tombstones, "debts", id, Date.now()),
+    })),
 });

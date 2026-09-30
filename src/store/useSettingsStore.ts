@@ -10,6 +10,7 @@
  *   - prefsSlice:          preferencias visuales (tema, nombre)
  *   - notificationsSlice:  configuración de notificaciones del sistema
  *   - listsSlice:          listas de transacciones separadas (Personal, un viaje…) y la activa
+ *   - tombstonesSlice:     borrados de listas/métodos/metas/deudas, para la sync
  *
  * La API pública es idéntica a la versión anterior: todos los importadores
  * existentes funcionan sin cambios.
@@ -18,7 +19,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { UserCategory } from "@/src/constants/categoryPresets";
-import { DEFAULT_CADENCE, type PeriodCadence } from "@/src/utils/periodCycles";
+import { migrateSettings, SETTINGS_VERSION } from "./settingsMigrations";
 
 import { createCategoriesSlice, type CategoriesSlice } from "./slices/categoriesSlice";
 import { createBudgetSlice, type BudgetSlice } from "./slices/budgetSlice";
@@ -38,6 +39,7 @@ import {
   type WalletList,
   type ListMember,
 } from "./slices/listsSlice";
+import { createTombstonesSlice, type TombstonesSlice } from "./slices/tombstonesSlice";
 
 // ─── Re-exportar tipos públicos (sin cambios para los importadores) ────────────
 
@@ -62,7 +64,8 @@ export type SettingsState = CategoriesSlice &
   DebtsSlice &
   PrefsSlice &
   NotificationsSlice &
-  ListsSlice;
+  ListsSlice &
+  TombstonesSlice;
 
 // ─── Helpers de categorías (misma API pública) ────────────────────────────────
 
@@ -91,25 +94,14 @@ export const useSettingsStore = create<SettingsState>()(
       ...createPrefsSlice(...a),
       ...createNotificationsSlice(...a),
       ...createListsSlice(...a),
+      ...createTombstonesSlice(...a),
     }),
     {
       name: "mywallet-settings",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
-      migrate: (persisted, version) => {
-        const state = persisted as Record<string, unknown>;
-        // v0 → v1: el antiguo "Ingreso mensual" (monthlyBudget) pasa a ser el pago
-        // esperado del período predeterminado, que en v0 siempre era mensual.
-        if (version < 1) {
-          const monthly = typeof state.monthlyBudget === "number" ? state.monthlyBudget : 0;
-          const period = (state.defaultPeriod as PeriodCadence | undefined) ?? DEFAULT_CADENCE;
-          if (monthly > 0 && period.type !== "semimonthly" && !period.pay) {
-            state.defaultPeriod = { ...period, pay: monthly };
-          }
-          delete state.monthlyBudget;
-        }
-        return state as unknown as SettingsState;
-      },
+      version: SETTINGS_VERSION,
+      migrate: (persisted, version) =>
+        migrateSettings(persisted, version, Date.now()) as unknown as SettingsState,
     },
   ),
 );

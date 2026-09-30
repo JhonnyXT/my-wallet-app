@@ -337,7 +337,7 @@ interface BatchTransactionItem {
 defecto la lista activa) y `paidBy` (por defecto `SELF_PAYER`, "" = tú). `switchList(id)` hace el
 swap de `useSettingsStore` (ver `listsSlice` más abajo) y recarga `transactions` desde SQLite con
 la nueva lista activa. `deleteList(id)` borra la lista de los ajustes y TODAS sus transacciones
-(`deleteTransactionsOfList()`), sin deshacer; Personal no se puede borrar.
+(`deleteTransactionsOfList()`, borrado lógico), sin deshacer; Personal no se puede borrar.
 
 ### useExpenseStore (no persistido)
 ```typescript
@@ -447,7 +447,9 @@ No existe `monthlyBudget` (el antiguo "Ingreso mensual"): el pago esperado vive 
 El presupuesto por categoría se mide por `budgetCycle(defaultPeriod, now)`: un mes que arranca en el
 `startDay` si la frecuencia es mensual, o el mes calendario con cualquier otra frecuencia.
 
-**Persistencia:** `zustand/middleware/persist` con `createJSONStorage(() => AsyncStorage)`, key `"mywallet-settings"`, `version: 1`. El `migrate` de v0 → v1 pasa un `monthlyBudget > 0` a `defaultPeriod.pay` (si la frecuencia no es quincenal y no hay pago ya) y borra la clave vieja. Los campos `hasCompletedOnboarding` y `onboardingStep` también se persisten.
+**Persistencia:** `zustand/middleware/persist` con `createJSONStorage(() => AsyncStorage)`, key `"mywallet-settings"`, `version: 2` (`SETTINGS_VERSION`). El `migrate` vive en `src/store/settingsMigrations.ts` (`migrateSettings()`, pura y con tests): v0 → v1 pasa un `monthlyBudget > 0` a `defaultPeriod.pay` (si la frecuencia no es quincenal y no hay pago ya) y borra la clave vieja; v1 → v2 (Sync Fase 1) agrega `updatedAt` a cada ítem de `lists`/`paymentMethods`/`savingsGoals`/`debts` y el registro `tombstones` vacío, sin tocar ids ni nada más.
+
+**Datos listos para sync (Fase 1):** cada ítem de `lists`/`paymentMethods`/`savingsGoals`/`debts` lleva `updatedAt` (epoch ms), que mueven sus acciones de alta/edición; los nuevos toman id de `newId()` (UUID v4, `src/utils/ids.ts`, `expo-crypto`), los existentes y los fijos (`personal`, `cash`, `savings`, `credit`) conservan el suyo. Los borrados no se marcan dentro del arreglo: `remove*` quita el ítem y anota `tombstones[kind][id] = deletedAt` (`tombstonesSlice`), así ningún consumidor filtra borrados. Editar `defaultPeriod`/`userCategories`/`budgetByCategory` mueve el `updatedAt` de la lista activa (`touchList()`); cambiar de lista no. `addPaymentMethod` ya no recibe id (lo genera el slice) y `setPaymentMethods` se eliminó (sin uso). Los campos `hasCompletedOnboarding` y `onboardingStep` también se persisten.
 
 ### useUIStore (no persistido)
 Estado de UI global: búsqueda (searchOpen, searchQuery, activeTags), filtro por categoría desde el chart (categoryFilter) y overlay de entrada rápida NLP (isExpenseInputOpen, prefillText). Acciones principales: setSearchOpen(), closeSearch(), setCategoryFilter(filter), clearCategoryFilter(), openExpenseInput(prefill?), closeExpenseInput().
@@ -633,37 +635,55 @@ CREATE TABLE IF NOT EXISTS transactions (
   tags            TEXT NOT NULL DEFAULT '',  -- JSON: '["#trabajo","#comida"]'
   payment_method  TEXT NOT NULL DEFAULT 'cash',
   list_id         TEXT NOT NULL DEFAULT 'personal',  -- WalletList.id (useSettingsStore.lists)
-  paid_by         TEXT NOT NULL DEFAULT ''            -- '' = tú (SELF_PAYER); si no, ListMember.id
+  paid_by         TEXT NOT NULL DEFAULT '',           -- '' = tú (SELF_PAYER); si no, ListMember.id
+  uid             TEXT,                               -- UUID v4 global (sync); índice único idx_tx_uid
+  updated_at      INTEGER NOT NULL DEFAULT 0,         -- última edición, epoch ms
+  deleted_at      INTEGER,                            -- borrado lógico, epoch ms; NULL = vivo
+  sync_state      TEXT NOT NULL DEFAULT 'pending'     -- 'pending' | 'synced'
 );
 ```
-`list_id` y `paid_by` llegaron por migración aditiva (`ALTER TABLE ... ADD COLUMN`), igual que
-`tags`/`payment_method` antes.
+`list_id`, `paid_by` y las 4 columnas de sync (Sync Fase 1, `SYNC_ROADMAP.md`) llegaron por
+migración aditiva (`ALTER TABLE ... ADD COLUMN`), igual que `tags`/`payment_method` antes. En cada
+arranque `initDatabase()` asigna `uid` (UUID armado en SQL con `randomblob`) a filas que no lo
+tengan y `updated_at` a las que tengan 0 — idempotente, cubre filas del seed y migraciones
+cortadas — y después crea `idx_tx_uid`. `id INTEGER` sigue siendo el id local (rutas `editId`,
+"Deshacer todo"); `uid` es el que se sincroniza.
+
+**Borrado lógico:** borrar ya no hace `DELETE`: fija `deleted_at`/`updated_at` y `sync_state =
+'pending'`, para que la sync avise del borrado a otros teléfonos. `updated_at`/`deleted_at` son
+epoch ms, no `localISOString()`: son instantes de máquina que se comparan entre teléfonos y zonas
+horarias (excepción acotada a la regla de fechas; `date` sigue en ISO local).
+`purgeSyncedTombstones()` borra físicamente solo tombstones `synced` de más de 30 días; se llama
+sin `await` en el bootstrap de `_layout.tsx` (en Fase 1 nada llega a `synced`, así que no borra).
 
 **Convención de signos:**
 - `amount > 0` → **Gasto**
 - `amount < 0` → **Ingreso**
 - Balance neto = `SUM(amount)` donde negativo es positivo para el usuario
 
-**Alcance por lista (`LIST_SCOPE_SQL` + `listScopeParams()`, `db.ts`):** casi toda query sobre
-`transactions` debe filtrar por la lista activa con esta cláusula reutilizable —
-`((? = 'personal' AND paid_by = '') OR list_id = ?)`. Personal ("todo tu dinero") ve sus propios
+**Alcance por lista (`LIST_SCOPE_SQL` + `listScopeParams()`, `db.ts`):** toda lectura de
+`transactions` debe filtrar con esta cláusula reutilizable —
+`(deleted_at IS NULL AND ((? = 'personal' AND paid_by = '') OR list_id = ?))`: excluye los
+borrados lógicos y aplica el alcance de la lista activa. Personal ("todo tu dinero") ve sus propios
 movimientos MÁS lo que pagó el dueño del teléfono (`paid_by = ''`) en cualquier otra lista; otra
 lista ve solo lo suyo, sin filtrar por quién pagó. `_activeListId` es un módulo-global de `db.ts`
 (`setActiveListId()`/`getActiveListId()`), fijado por `useFinanceStore.loadTransactions()` tras
 rehidratar `useSettingsStore`. Una query nueva que no use `LIST_SCOPE_SQL` se sale del alcance de
-la lista activa sin avisar (ni error de tipos, ni warning en runtime).
+la lista activa y muestra movimientos borrados sin avisar en runtime; `src/db/listScope.test.ts`
+lee el código de `db.ts`/`queries.ts` y falla si una lectura no usa la constante.
 
 ### Operaciones disponibles (db.ts)
 | Función | Descripción |
 |---------|-------------|
-| `initDatabase()` | Crea tabla + migraciones de `tags`/`payment_method`/`list_id`/`paid_by` |
-| `insertTransaction(amount, desc, emoji, tags, date?, paymentMethod?, listId?, paidBy?)` | INSERT con fecha local ISO; `listId` default = lista activa, `paidBy` default = `SELF_PAYER` |
-| `updateTransaction(id, amount, desc, emoji, tags, date?, paymentMethod?, listId?, paidBy?)` | UPDATE real; sin `listId`/`paidBy` conserva los actuales (`COALESCE`) |
-| `deleteTransaction(id)` | DELETE por ID |
+| `initDatabase()` | Crea tabla + migraciones de `tags`/`payment_method`/`list_id`/`paid_by`/`uid`/`updated_at`/`deleted_at`/`sync_state` + backfill de `uid`/`updated_at` + `idx_tx_uid` |
+| `insertTransaction(amount, desc, emoji, tags, date?, paymentMethod?, listId?, paidBy?)` | INSERT con fecha local ISO, `uid` nuevo (`newId()`), `updated_at` y `sync_state='pending'`; `listId` default = lista activa, `paidBy` default = `SELF_PAYER` |
+| `updateTransaction(id, amount, desc, emoji, tags, date?, paymentMethod?, listId?, paidBy?)` | UPDATE real (mueve `updated_at`, `sync_state='pending'`); sin `listId`/`paidBy` conserva los actuales (`COALESCE`) |
+| `deleteTransaction(id)` | Borrado lógico por ID |
 | `getAllTransactions()` | SELECT * WHERE `LIST_SCOPE_SQL` ORDER BY date DESC |
-| `deleteTransactionsOfList(listId)` | DELETE todas las de una lista (al borrarla) |
+| `deleteTransactionsOfList(listId)` | Borrado lógico de todas las de una lista (al borrarla) |
 | `hasAnyTransactions()` | COUNT > 0, acotado a la lista activa |
-| `clearTransactions()` | Desde Personal: DELETE ALL; desde otra lista: solo la suya |
+| `clearTransactions()` | Borrado lógico — desde Personal: todas; desde otra lista: solo la suya |
+| `purgeSyncedTombstones(now?)` | DELETE físico de tombstones `synced` con más de 30 días |
 | `getMonthlyTotal()` | SUM del mes actual, acotado a la lista activa |
 
 ### Operaciones de consulta (queries.ts)
@@ -683,13 +703,14 @@ la lista activa sin avisar (ni error de tipos, ni warning en runtime).
 | `queryMonthlyTotalsInRange(type, from, to)` | Total mensual (gasto/ingreso) entre dos fechas, meses calendario completos, incluye meses en $0 sin huecos. Usada por la tarjeta "Tendencia" de `app/reports.tsx` |
 
 ### Reglas de base de datos
-- Siempre usar `localISOString()` para fechas (evita desfase UTC)
+- Siempre usar `localISOString()` para fechas (evita desfase UTC); excepción: `updated_at`/`deleted_at` en epoch ms (sync)
 - WAL mode está habilitado en `initDatabase()`
 - Las migraciones se hacen con `ALTER TABLE ... ADD COLUMN` envuelto en try/catch
 - NUNCA almacenar datos bancarios reales en la DB
-- Toda query nueva sobre `transactions` debe incluir `LIST_SCOPE_SQL`/`listScopeParams()` (ver
+- Toda lectura nueva sobre `transactions` debe incluir `LIST_SCOPE_SQL`/`listScopeParams()` (ver
   arriba), salvo que exista una razón explícita para ignorar la lista activa (ej.
   `deleteTransactionsOfList`, que borra por `list_id` exacto al eliminar una lista)
+- Borrar es lógico (`deleted_at`), nunca `DELETE` salvo `purgeSyncedTombstones()`
 
 ---
 

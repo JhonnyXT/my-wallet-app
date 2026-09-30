@@ -27,6 +27,8 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import time
+import uuid
 from datetime import date, datetime, timedelta
 
 PKG = "com.mywallet.app"
@@ -238,7 +240,13 @@ def seed_budgets(state, con, now):
 def apply_seed_lists(state, add):
     """Quita las listas de prueba de los ajustes y, si `add`, las vuelve a crear."""
     lists = state.get("lists") or [
-        {"id": "personal", "name": "Personal", "emoji": "👤", "period": state.get("defaultPeriod")}
+        {
+            "id": "personal",
+            "name": "Personal",
+            "emoji": "👤",
+            "period": state.get("defaultPeriod"),
+            "updatedAt": 0,
+        }
     ]
     if str(state.get("activeListId", "personal")).startswith(SEED_LIST_PREFIX):
         # Estaba parado en una lista de prueba: vuelve a Personal con su período guardado.
@@ -264,6 +272,7 @@ def apply_seed_lists(state, add):
                     "categories": SEED_LIST_CATEGORIES[list_id],
                     "budgets": SEED_LIST_BUDGETS[list_id],
                     "showIncome": True,
+                    "updatedAt": now_ms(),
                 }
             )
     state["lists"] = lists
@@ -279,13 +288,29 @@ def seed_list_rows(now):
     return rows
 
 
+def now_ms():
+    """Instante de máquina en ms, como `updated_at`/`updatedAt` de la app (sync)."""
+    return int(time.time() * 1000)
+
+
 def ensure_columns(con):
-    """La app agrega list_id/paid_by al arrancar; el script no depende de que ya haya corrido."""
+    """La app agrega estas columnas al arrancar; el script no depende de que ya haya corrido."""
     cols = {r[1] for r in con.execute("PRAGMA table_info(transactions)")}
-    if "list_id" not in cols:
-        con.execute("ALTER TABLE transactions ADD COLUMN list_id TEXT NOT NULL DEFAULT 'personal'")
-    if "paid_by" not in cols:
-        con.execute("ALTER TABLE transactions ADD COLUMN paid_by TEXT NOT NULL DEFAULT ''")
+    for name, ddl in [
+        ("list_id", "TEXT NOT NULL DEFAULT 'personal'"),
+        ("paid_by", "TEXT NOT NULL DEFAULT ''"),
+        ("uid", "TEXT"),
+        ("updated_at", "INTEGER NOT NULL DEFAULT 0"),
+        ("deleted_at", "INTEGER"),
+        ("sync_state", "TEXT NOT NULL DEFAULT 'pending'"),
+    ]:
+        if name not in cols:
+            con.execute(f"ALTER TABLE transactions ADD COLUMN {name} {ddl}")
+
+
+def with_sync_cols(row):
+    """Agrega uid/updated_at a una fila (sync_state queda 'pending' por defecto)."""
+    return (*row, str(uuid.uuid4()), now_ms())
 
 
 def build_rows(categories, now):
@@ -360,16 +385,18 @@ def main():
         now = datetime.now()
         rows = build_rows(settings["state"]["userCategories"], now)
         con.executemany(
-            "INSERT INTO transactions (amount, description, category_emoji, date, tags, payment_method)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            rows,
+            "INSERT INTO transactions"
+            " (amount, description, category_emoji, date, tags, payment_method, uid, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [with_sync_cols(r) for r in rows],
         )
         list_rows = seed_list_rows(now)
         con.executemany(
             "INSERT INTO transactions"
-            " (amount, description, category_emoji, date, tags, payment_method, list_id, paid_by)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            list_rows,
+            " (amount, description, category_emoji, date, tags, payment_method, list_id, paid_by,"
+            " uid, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [with_sync_cols(r) for r in list_rows],
         )
         added = len(rows) + len(list_rows)
         budgets_prev = seed_budgets(settings["state"], con, now)

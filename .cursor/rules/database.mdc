@@ -25,9 +25,25 @@ CREATE TABLE IF NOT EXISTS transactions (
   tags            TEXT NOT NULL DEFAULT '',
   payment_method  TEXT NOT NULL DEFAULT 'cash',
   list_id         TEXT NOT NULL DEFAULT 'personal',
-  paid_by         TEXT NOT NULL DEFAULT ''
+  paid_by         TEXT NOT NULL DEFAULT '',
+  uid             TEXT,                            -- UUID v4 global (sync), índice único idx_tx_uid
+  updated_at      INTEGER NOT NULL DEFAULT 0,      -- última edición, epoch ms
+  deleted_at      INTEGER,                         -- borrado lógico, epoch ms; NULL = vivo
+  sync_state      TEXT NOT NULL DEFAULT 'pending'  -- 'pending' | 'synced'
 );
 ```
+
+`id` es el id local (rutas `editId`, "Deshacer todo"); `uid` es el que se sincroniza entre
+teléfonos. `initDatabase()` asigna `uid`/`updated_at` en cada arranque a las filas que no los
+tengan (idempotente) y después crea `idx_tx_uid`. Toda inserción nueva genera `uid` con `newId()`
+(`src/utils/ids.ts`) y toda escritura fija `updated_at = Date.now()` y `sync_state = 'pending'`.
+
+## Borrado lógico — CRÍTICO
+
+Borrar una transacción NUNCA hace `DELETE`: fija `deleted_at`, `updated_at` y `sync_state =
+'pending'` (con `AND deleted_at IS NULL`, para no re-fechar un borrado viejo). Así la sync puede
+avisar del borrado a otros teléfonos (`SYNC_ROADMAP.md`, T6). El único `DELETE` físico es
+`purgeSyncedTombstones()`: tombstones `synced` de más de 30 días.
 
 `list_id` referencia `WalletList.id` (`useSettingsStore.lists`, ver `AGENTS.md` § Listas y gasto
 compartido); `paid_by` es `""` (`SELF_PAYER`, el dueño del teléfono) o el `id` de un `ListMember`
@@ -51,7 +67,8 @@ const rows = await db.getAllAsync(
 );
 ```
 
-`LIST_SCOPE_SQL` = `((? = 'personal' AND paid_by = '') OR list_id = ?)`: la lista Personal ve sus
+`LIST_SCOPE_SQL` = `(deleted_at IS NULL AND ((? = 'personal' AND paid_by = '') OR list_id = ?))`:
+excluye los borrados lógicos, y la lista Personal ve sus
 propios movimientos MÁS lo que pagó el dueño del teléfono (`paid_by = ''`) en cualquier otra lista;
 cualquier otra lista ve solo lo suyo (`list_id` exacto), sin importar quién pagó. `_activeListId`
 es un módulo-global de `db.ts` (`setActiveListId()`/`getActiveListId()`) fijado por
@@ -73,6 +90,10 @@ function localISOString(date = new Date()): string {
 ```
 
 NUNCA usar `toISOString()` ni `toJSON()` — generan UTC y causan desfase de zona horaria.
+
+Excepción acotada: `updated_at`/`deleted_at` son epoch ms (`Date.now()`), no fechas locales. Son
+instantes de máquina para la sync (comparar ediciones entre teléfonos y zonas horarias), nunca se
+muestran al usuario. `date` sigue siempre en ISO local.
 
 En `queries.ts` usar el mismo patrón `localISO()` para parámetros de comparación SQL.
 

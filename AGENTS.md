@@ -109,7 +109,7 @@ probar el sistema de listas sin datos reales.
 npm test              # corre toda la suite (Jest)
 npm test -- <patrón>  # ej. npm test -- formatMoney
 ```
-Cobertura hoy: utilidades puras y parsing, con tests co-locados (`*.test.ts`): los fixtures de `notificationParser/fixtures.ts` (uno por `it()`), `formatMoney`, `periodCycles`, `colorUtils`, `transactionFormatters`, `voiceParser`, `nlp`, `descriptionExtractor`, `theme` (`guessCategoryEmoji`), `csv`, `settlement`, `listShareText`, `listsSlice` (`swapActiveList`, función pura sin Zustand de por medio) y `emojiSearch` (`suggestEmojis`). Componentes `.tsx`, stores "con efectos" y `src/db/` (SQLite) todavía no tienen estrategia de testing — ver Deuda técnica. Si un test importa (aunque sea transitivamente) algo de `src/db/`, mockear solo la función puntual usada, como hace `parseNotification.test.ts` con `localISOString`, para no arrastrar `expo-sqlite`.
+Cobertura hoy: utilidades puras y parsing, con tests co-locados (`*.test.ts`): los fixtures de `notificationParser/fixtures.ts` (uno por `it()`), `formatMoney`, `periodCycles`, `colorUtils`, `transactionFormatters`, `voiceParser`, `nlp`, `descriptionExtractor`, `theme` (`guessCategoryEmoji`), `csv`, `settlement`, `listShareText`, `listsSlice` (`swapActiveList`/`touchList`, funciones puras sin Zustand de por medio), `emojiSearch` (`suggestEmojis`), y lo de la Sync Fase 1: `ids` (`newId`), `syncMerge` (`pickWinner`), `tombstonesSlice` (`addTombstone`), `settingsMigrations` (`migrateSettings`) y `src/db/listScope.test.ts` (guardia estática: lee el código de `db.ts`/`queries.ts` y falla si una lectura de `transactions` no usa `LIST_SCOPE_SQL`). `expo-crypto` es nativo: Jest lo reemplaza por el `crypto` de Node vía `moduleNameMapper` (`jest/expoCryptoMock.js`). Componentes `.tsx`, stores "con efectos" y `src/db/` (SQLite) todavía no tienen estrategia de testing — ver Deuda técnica. Si un test importa (aunque sea transitivamente) algo de `src/db/`, mockear solo la función puntual usada, como hace `parseNotification.test.ts` con `localISOString`, para no arrastrar `expo-sqlite`.
 
 ### Lint
 ```bash
@@ -194,10 +194,11 @@ my-wallet-app/
 │   ├── hooks/                        # useDashboardScroll, useDashboardSearch, useDashboardTotals, useDashboardTour, useTransactionFilters, useActiveListShare, useAllListCategories, useCsvTransfer, useListEditor
 │   ├── services/                     # notificationService.ts, notificationHeadlessTask.ts
 │   ├── store/                        # 6 stores Zustand (useSettingsStore + useNotificationStore persistidos)
-│   │   └── slices/                   # 8 slices de useSettingsStore: budget, categories, debts, goals, lists, notifications, payments, prefs
+│   │   ├── settingsMigrations.ts     # migrateSettings(): migrate puro de useSettingsStore (v0→v1→v2), con tests
+│   │   └── slices/                   # 9 slices de useSettingsStore: budget, categories, debts, goals, lists, notifications, payments, prefs, tombstones
 │   ├── theme/index.ts                # Tokens AppTheme: light + dark
 │   ├── types/                        # chat.ts
-│   └── utils/                        # formatMoney, nlp, voiceParser, notificationParser, colorUtils, tourRefs, chatHelpers, periodCycles, transactionFormatters, fuzzyMatch, csv, listShareText, settlement, emojiSearch
+│   └── utils/                        # formatMoney, nlp, voiceParser, notificationParser, colorUtils, tourRefs, chatHelpers, periodCycles, transactionFormatters, fuzzyMatch, csv, listShareText, settlement, emojiSearch, ids (newId), syncMerge (pickWinner)
 │
 ├── scripts/                          # build-android.sh (build:dev/build:test), seed-dev-data.py (datos de prueba en dev)
 ├── index.js                          # Entrypoint: registra HeadlessJS task + delega a expo-router/entry
@@ -252,7 +253,7 @@ my-wallet-app/
 |-------|-----------|-----------------|
 | `useFinanceStore` | No (cache SQLite) | Transacciones CRUD + batch |
 | `useExpenseStore` | No | Formulario gasto/ingreso activo |
-| `useSettingsStore` | AsyncStorage (`version: 1`, con `migrate`) | Config: categorías, presupuesto por categoría, metas, deudas, métodos pago, período predeterminado + pago esperado (`defaultPeriod`), dark mode, bloqueo con huella, onboarding, **listas** (`lists`, `activeListId`, slice `listsSlice`) |
+| `useSettingsStore` | AsyncStorage (`version: 2`, `migrateSettings()`) | Config: categorías, presupuesto por categoría, metas, deudas, métodos pago, período predeterminado + pago esperado (`defaultPeriod`), dark mode, bloqueo con huella, onboarding, **listas** (`lists`, `activeListId`, slice `listsSlice`) |
 | `useVoiceStore` | No | Estado voz: transcript, pendingBatch, pendingManualItem |
 | `useNotificationStore` | AsyncStorage | Cola transacciones detectadas desde notificaciones bancarias |
 | `useUIStore` | No | Búsqueda (query, tags), filtro por categoría desde el chart, overlay de entrada rápida NLP |
@@ -342,6 +343,15 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
 - `reset()` en `useVoiceStore` debe llamarse ANTES de `setPendingBatch()`; al revés, el batch se pierde.
 - **`app/voice-input.tsx`: el stop por silencio (timer propio de 2s) no debe perder el dictado.** `expo-speech-recognition` no garantiza un `"result"` con `isFinal:true` antes de `"end"`. Por eso `transcriptTextRef` acumula el transcript en cada `"result"`, y `silenceStopRef` marca que el próximo `stop()` viene del timer. En `"end"`, si `silenceStopRef` está activo y hay texto pendiente, se llama a `handleDone(pending)`. Un stop manual (botón pausar) no activa `silenceStopRef` y queda en pausa sin enviar. Cuando `isFinal` dispara `handleDone`, se vacía `transcriptTextRef` antes de llamarlo, para que un `"end"` inmediato no reprocese el mismo texto.
 
+### Datos listos para sync (Sync Fase 1)
+
+- **Transacciones:** `uid` (UUID v4, el id que se sincroniza; `id INTEGER` sigue siendo el local de `editId`/"Deshacer todo"), `updated_at`/`deleted_at` (epoch ms) y `sync_state` (`pending`/`synced`). Borrar es **lógico** (`deleteTransaction`, `deleteTransactionsOfList`, `clearTransactions` fijan `deleted_at`), y `LIST_SCOPE_SQL` excluye `deleted_at IS NOT NULL` en todas las lecturas. El único `DELETE` físico es `purgeSyncedTombstones()` (tombstones `synced` de más de 30 días, sin `await` en el bootstrap). Detalle en `.cursor/rules/database.mdc`.
+- **`updated_at`/`deleted_at`/`updatedAt` son epoch ms (`Date.now()`), no `localISOString()`:** excepción acotada a la Regla inmutable #3, porque se comparan entre teléfonos y zonas horarias y nunca se muestran. `date` de la transacción sigue en ISO local.
+- **Listas, métodos de pago, metas y deudas:** `updatedAt` en cada ítem, movido por sus acciones de alta/edición; los nuevos toman id de `newId()` (`src/utils/ids.ts`, `expo-crypto` → exige rebuild nativo). Los ids existentes (`Date.now()`, `list_<ms>`) y los fijos (`personal`, `cash`, `savings`, `credit`) se conservan a propósito: los referencian `transactions.list_id`/`payment_method`, `budgetNotifiedMonth`, `goalNotifiedIds` y `debtReminderId()`.
+- **Borrar un ítem de ajustes NO deja `deletedAt` en el arreglo:** `remove*` lo quita y anota `tombstones[kind][id] = deletedAt` (`tombstonesSlice`). Los arreglos tienen solo lo vivo, así ningún consumidor filtra borrados; la sync (Fase 3) arma el `deletedAt` al subir.
+- **`updatedAt` de la lista activa:** como su período/categorías/presupuestos viven en `defaultPeriod`/`userCategories`/`budgetByCategory` (patrón de intercambio), esos setters también mueven `lists[activeListId].updatedAt` (`touchList()`). Cambiar de lista no cuenta como edición (`swapActiveList` solo toca la entrante si recibe la copia de categorías de Personal).
+- **Conflictos:** `pickWinner()` (`src/utils/syncMerge.ts`, pura): mayor `updatedAt` gana; empate → gana el borrado; empate sin borrados → local. Todavía sin consumidores (Fase 3).
+
 ### Listas y gasto compartido
 
 - **Modelo** (`src/store/slices/listsSlice.ts`, `src/constants/lists.ts`): `WalletList { id, name, emoji, members?, period, categories?, budgets?, showIncome? }`. Personal (`DEFAULT_LIST_ID = "personal"`) es fija, sin `members`, y siempre existe (`lists[0]`). `activeListId` marca cuál se ve/edita.
@@ -429,7 +439,7 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
 
 ### Deudas y metas
 
-- **Deudas** (`src/store/slices/debtsSlice.ts`, uno de los 8 slices de `useSettingsStore`): `Debt` = `id, name, emoji, totalAmount, remainingAmount, monthlyPayment, dueDay (1-31), createdAt`. Acciones: `addDebt`, `updateDebtBalance` (pagar, reduce saldo), `editDebt` (nombre/emoji/monto/cuota/día, no toca saldo), `removeDebt`. UI: `DebtsSection` con botones explícitos de editar/eliminar (no swipe), `NuevaDeudaModal` con `DayOfMonthSheet` (grilla 1-31: día que se repite cada mes, no una fecha), `AbonarDeudaModal` (crea un gasto con tag `#deuda` y reduce el saldo).
+- **Deudas** (`src/store/slices/debtsSlice.ts`, uno de los 9 slices de `useSettingsStore`): `Debt` = `id, name, emoji, totalAmount, remainingAmount, monthlyPayment, dueDay (1-31), createdAt, updatedAt`. Acciones: `addDebt`, `updateDebtBalance` (pagar, reduce saldo), `editDebt` (nombre/emoji/monto/cuota/día, no toca saldo), `removeDebt`. UI: `DebtsSection` con botones explícitos de editar/eliminar (no swipe), `NuevaDeudaModal` con `DayOfMonthSheet` (grilla 1-31: día que se repite cada mes, no una fecha), `AbonarDeudaModal` (crea un gasto con tag `#deuda` y reduce el saldo).
 - Recordatorio de deuda: `scheduleDebtReminder`/`cancelDebtReminder`/`notifyDebtPaidOff` en `notificationService.ts`, con trigger `SchedulableTriggerInputTypes.MONTHLY` el `dueDay` a las 9am. Si ese día no existe en un mes (31 en febrero), ese mes no dispara; es una limitación aceptada.
 - **Metas de ahorro** (`goalsSlice.ts`): `editSavingsGoal` edita nombre/emoji/monto objetivo; `updateSavingsGoal` solo registra abonos. `GoalItem` usa botones explícitos de editar/eliminar, igual que Deudas y Métodos de pago.
 

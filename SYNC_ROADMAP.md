@@ -5,7 +5,7 @@ para respaldar toda la data en la nube y compartir espacios con otras personas. 
 2026-09-29. Cada fase deja la app funcionando y se puede probar sola; para implementar una fase
 con detalle, generar su spec con `/sdd` a partir de la sección correspondiente.
 
-**Estado:** Fase 0 hecha. Siguiente: Fase 1.
+**Estado:** Fases 0 y 1 hechas. Siguiente: Fase 2.
 
 ---
 
@@ -136,18 +136,24 @@ Tamaño aproximado: S (días), M (1–2 semanas), L (2–4 semanas).
   `DOCUMENTATION.md`, `docs/privacy-policy.html`, `docs/index.html`, `landing/`. Se actualizan en
   la Fase 5, cuando la sync exista de verdad.
 
-### Fase 1 — Preparar los datos locales para sincronizar (sin red) · M
-Nada visible cambia; deja todo listo para que dos teléfonos no choquen.
-- [ ] `transactions`: columnas nuevas `uid` (uuid estable entre teléfonos), `updated_at`,
+### Fase 1 — Preparar los datos locales para sincronizar (sin red) · M ✅ (2026-09-29)
+Nada visible cambia; deja todo listo para que dos teléfonos no choquen. Spec local (no
+versionado, `specs/` está en `.gitignore`): `specs/sync-fase-1-datos-locales/`.
+- [x] `transactions`: columnas nuevas `uid` (uuid estable entre teléfonos), `updated_at`,
   `deleted_at`, `sync_state` (migración aditiva en `db.ts`, como `list_id`/`paid_by`). Backfill de
   uuids para las filas existentes.
-- [ ] Borrar una transacción pasa a borrado lógico (`deleted_at`) y todas las queries lo excluyen
+- [x] Borrar una transacción pasa a borrado lógico (`deleted_at`) y todas las queries lo excluyen
   (junto con `LIST_SCOPE_SQL`). Purga física de tombstones viejos ya sincronizados.
-- [ ] Ids estables en `lists`, `paymentMethods`, `savingsGoals`, `debts` (hoy `Date.now()` o
-  `list_${Date.now()}`, que pueden repetirse entre teléfonos) + `updatedAt`/`deletedAt` en cada
-  ítem. Migración del store persistido (`version: 2` y extender `migrate`, ver `AGENTS.md`).
-- [ ] Borrar lista/método/meta/deuda también como tombstone.
-- [ ] Tests de migraciones y de la lógica pura de "gana el más nuevo".
+- [x] Ids estables en `lists`, `paymentMethods`, `savingsGoals`, `debts` + `updatedAt` en cada
+  ítem. Migración del store persistido (`version: 2`, `migrateSettings()`). Decidido: los ids
+  existentes se conservan (los referencian transacciones, avisos y recordatorios); solo los nuevos
+  son UUID (`expo-crypto`).
+- [x] Borrar lista/método/meta/deuda también como tombstone — en un registro aparte
+  (`tombstones`), no como `deletedAt` dentro del arreglo, para no filtrar en cada consumidor.
+- [x] Tests de migraciones y de la lógica pura de "gana el más nuevo" (`pickWinner`).
+- Pendiente para la Fase 3: `updatedAt` de `profile`/`settings/app` y purga de los tombstones de
+  ajustes (definir junto con el estado "sincronizado"). Quien nunca inicia sesión no purga
+  tombstones de transacciones (nunca llegan a `synced`); evaluar en Fase 3.
 
 **Hecho cuando:** la app funciona igual que hoy y cada registro tiene id único, fecha de edición
 y borrado lógico.

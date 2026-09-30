@@ -1,5 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { UserCategory } from "@/src/constants/categoryPresets";
+import { touchList, type ListsSlice } from "./listsSlice";
 
 export interface CategoriesSlice {
   userCategories: UserCategory[];
@@ -18,21 +19,34 @@ export interface CategoriesSlice {
   completeOnboarding: () => void;
 }
 
-export const createCategoriesSlice: StateCreator<CategoriesSlice, [], [], CategoriesSlice> = (
-  set,
-) => ({
+// Las categorías vivas son las de la lista activa (patrón de intercambio): editarlas es editarla.
+const touchActive = (s: ListsSlice) => ({
+  lists: touchList(s.lists, s.activeListId, Date.now()),
+});
+
+export const createCategoriesSlice: StateCreator<
+  CategoriesSlice & ListsSlice,
+  [],
+  [],
+  CategoriesSlice
+> = (set) => ({
   userCategories: [],
   hasSelectedCategories: false,
   hasCompletedOnboarding: false,
   onboardingStep: 0,
 
-  setUserCategories: (cats) => set({ userCategories: cats }),
-  addUserCategory: (cat) => set((s) => ({ userCategories: [...s.userCategories, cat] })),
+  setUserCategories: (cats) => set((s) => ({ userCategories: cats, ...touchActive(s) })),
+  addUserCategory: (cat) =>
+    set((s) => ({ userCategories: [...s.userCategories, cat], ...touchActive(s) })),
   removeUserCategory: (id) =>
-    set((s) => ({ userCategories: s.userCategories.filter((c) => c.id !== id) })),
+    set((s) => ({
+      userCategories: s.userCategories.filter((c) => c.id !== id),
+      ...touchActive(s),
+    })),
   updateUserCategory: (id, partial) =>
     set((s) => ({
       userCategories: s.userCategories.map((c) => (c.id === id ? { ...c, ...partial } : c)),
+      ...touchActive(s),
     })),
   completeCategories: () => set({ hasSelectedCategories: true }),
 

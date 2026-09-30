@@ -2,6 +2,8 @@ import type { StateCreator } from "zustand";
 import type { UserCategory } from "@/src/constants/categoryPresets";
 import { DEFAULT_LIST_ID } from "@/src/constants/lists";
 import { DEFAULT_CADENCE, type PeriodCadence } from "@/src/utils/periodCycles";
+import { newId } from "@/src/utils/ids";
+import { addTombstone, type TombstonesSlice } from "./tombstonesSlice";
 import type { BudgetSlice } from "./budgetSlice";
 import type { CategoriesSlice } from "./categoriesSlice";
 import type { PrefsSlice } from "./prefsSlice";
@@ -34,6 +36,16 @@ export interface WalletList {
   budgets?: Record<string, number>;
   /** false = la lista es solo de gastos: se ocultan sus ingresos. Por defecto true. */
   showIncome?: boolean;
+  /**
+   * Última edición, epoch ms (sync). En la lista activa también la mueven los cambios de
+   * `defaultPeriod`/`userCategories`/`budgetByCategory` (ver `touchList`).
+   */
+  updatedAt: number;
+}
+
+/** Marca una lista como editada ahora. */
+export function touchList(lists: WalletList[], id: string, now: number): WalletList[] {
+  return lists.map((l) => (l.id === id ? { ...l, updatedAt: now } : l));
 }
 
 /** Lo que se intercambia al cambiar de lista. */
@@ -46,8 +58,13 @@ type SwapState = Pick<ListsSlice, "lists" | "activeListId"> &
  * Cambia la lista activa: guarda en la saliente su período, categorías y presupuestos, y
  * carga los de la entrante. Una lista que nunca tuvo categorías recibe una copia de las de
  * Personal (vacía no se podría registrar nada). Devuelve null si no hay nada que cambiar.
+ * Cambiar de lista no es editarla: `updatedAt` solo se mueve en la entrante que recibe esa copia.
  */
-export function swapActiveList(state: SwapState, id: string): SwapState | null {
+export function swapActiveList(
+  state: SwapState,
+  id: string,
+  now: number = Date.now(),
+): SwapState | null {
   const { lists, activeListId } = state;
   const target = lists.find((l) => l.id === id);
   if (!target || id === activeListId) return null;
@@ -67,9 +84,10 @@ export function swapActiveList(state: SwapState, id: string): SwapState | null {
       ? state.userCategories
       : (saved.find((l) => l.id === DEFAULT_LIST_ID)?.categories ?? state.userCategories);
   const categories = target.categories ?? personalCats;
+  const updatedAt = target.categories ? target.updatedAt : now;
 
   return {
-    lists: saved.map((l) => (l.id === id ? { ...l, categories } : l)),
+    lists: saved.map((l) => (l.id === id ? { ...l, categories, updatedAt } : l)),
     activeListId: id,
     defaultPeriod: target.period,
     userCategories: categories,
@@ -99,10 +117,12 @@ const PERSONAL_LIST: WalletList = {
   name: "Personal",
   emoji: "👤",
   period: DEFAULT_CADENCE,
+  // Igual en todos los teléfonos: con 0, cualquier edición real gana al unir.
+  updatedAt: 0,
 };
 
 export const createListsSlice: StateCreator<
-  ListsSlice & PrefsSlice & CategoriesSlice & BudgetSlice,
+  ListsSlice & PrefsSlice & CategoriesSlice & BudgetSlice & TombstonesSlice,
   [],
   [],
   ListsSlice
@@ -111,31 +131,51 @@ export const createListsSlice: StateCreator<
   activeListId: DEFAULT_LIST_ID,
 
   addList: (name, emoji, categories) => {
-    const id = `list_${Date.now()}`;
+    const id = newId();
     set((s) => ({
       lists: [
         ...s.lists,
-        { id, name, emoji, period: { type: "all" }, categories, budgets: {}, showIncome: true },
+        {
+          id,
+          name,
+          emoji,
+          period: { type: "all" },
+          categories,
+          budgets: {},
+          showIncome: true,
+          updatedAt: Date.now(),
+        },
       ],
     }));
     return id;
   },
 
   setShowIncome: (listId, show) =>
-    set((s) => ({ lists: s.lists.map((l) => (l.id === listId ? { ...l, showIncome: show } : l)) })),
+    set((s) => ({
+      lists: s.lists.map((l) =>
+        l.id === listId ? { ...l, showIncome: show, updatedAt: Date.now() } : l,
+      ),
+    })),
 
   editList: (id, name, emoji) =>
-    set((s) => ({ lists: s.lists.map((l) => (l.id === id ? { ...l, name, emoji } : l)) })),
+    set((s) => ({
+      lists: s.lists.map((l) => (l.id === id ? { ...l, name, emoji, updatedAt: Date.now() } : l)),
+    })),
 
   removeList: (id) => {
     if (id === DEFAULT_LIST_ID) return;
     if (get().activeListId === id) get().switchList(DEFAULT_LIST_ID);
-    set((s) => ({ lists: s.lists.filter((l) => l.id !== id) }));
+    set((s) => ({
+      lists: s.lists.filter((l) => l.id !== id),
+      tombstones: addTombstone(s.tombstones, "lists", id, Date.now()),
+    }));
   },
 
   setMembers: (listId, members) => {
     if (listId === DEFAULT_LIST_ID) return;
-    set((s) => ({ lists: s.lists.map((l) => (l.id === listId ? { ...l, members } : l)) }));
+    set((s) => ({
+      lists: s.lists.map((l) => (l.id === listId ? { ...l, members, updatedAt: Date.now() } : l)),
+    }));
   },
 
   switchList: (id) => {

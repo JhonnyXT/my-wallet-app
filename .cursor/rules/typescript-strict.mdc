@@ -44,8 +44,9 @@ export const useSettingsStore = create<State>()(
     {
       name: "mywallet-settings",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
-      migrate: (persisted, version) => { /* v0 → v1 … */ return persisted as State; },
+      version: SETTINGS_VERSION, // 2
+      migrate: (persisted, version) =>
+        migrateSettings(persisted, version, Date.now()) as unknown as State,
     }
   )
 );
@@ -53,8 +54,14 @@ export const useSettingsStore = create<State>()(
 
 - **Cambios incompatibles del estado persistido = subir `version` + extender `migrate`**, nunca
   renombrar/quitar un campo a secas: el usuario perdería lo guardado. Referencia: `useSettingsStore`
-  v1 pasa el antiguo `monthlyBudget` a `defaultPeriod.pay` y borra la clave vieja. Cada paso va en
-  un `if (version < N)` para que una instalación muy vieja aplique todos en orden.
+  v1 pasa el antiguo `monthlyBudget` a `defaultPeriod.pay` y borra la clave vieja; v2 agrega
+  `updatedAt` a los ítems sincronizables y `tombstones`. Cada paso va en un `if (version < N)`
+  dentro de `migrateSettings()` (`src/store/settingsMigrations.ts`, pura, con tests) para que una
+  instalación muy vieja aplique todos en orden.
+- **Ítems sincronizables (`WalletList`, `PaymentMethod`, `SavingsGoal`, `Debt`)**: toda acción que
+  los crea o edita fija `updatedAt: Date.now()`; los nuevos toman id de `newId()`; borrar = quitar
+  del arreglo + `addTombstone()` en el mismo `set` (`tombstonesSlice`), nunca un `deletedAt` dentro
+  del arreglo (obligaría a filtrar en cada consumidor).
 - **Datos persistidos van en tipos que sobreviven a JSON**: `Record<string, number>` con la clave
   como string (ej. `defaultPeriod.pay` en quincenal, clave = día), fechas como `"YYYY-MM-DD"` o
   ISO local, nunca `Date`/`Map`.
@@ -76,6 +83,10 @@ interface TransactionRow {
   payment_method: string; // 'cash' | 'debit' | 'credit' | 'transfer' | custom
   list_id: string;        // WalletList.id; "personal" por defecto
   paid_by: string;        // "" (SELF_PAYER) = tú; si no, ListMember.id
+  uid: string;            // UUID v4 global (sync)
+  updated_at: number;     // epoch ms
+  deleted_at: number | null; // borrado lógico, epoch ms
+  sync_state: SyncState;  // "pending" | "synced"
 }
 ```
 Referencia: `@/src/db/db.ts`

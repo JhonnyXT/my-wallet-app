@@ -1,5 +1,5 @@
 import type { UserCategory } from "@/src/constants/categoryPresets";
-import { swapActiveList, type WalletList } from "./listsSlice";
+import { swapActiveList, touchList, type WalletList } from "./listsSlice";
 
 const cat = (emoji: string, name: string): UserCategory => ({
   id: name,
@@ -28,7 +28,7 @@ function baseState(lists: WalletList[]) {
 describe("swapActiveList", () => {
   it("guarda lo de la saliente y carga lo de la entrante", () => {
     const state = baseState([
-      { id: "personal", name: "Personal", emoji: "👤", period: monthly },
+      { id: "personal", name: "Personal", emoji: "👤", period: monthly, updatedAt: 0 },
       {
         id: "viaje",
         name: "Viaje",
@@ -36,6 +36,7 @@ describe("swapActiveList", () => {
         period: all,
         categories: [cat("🏨", "Hotel")],
         budgets: { "🏨": 900000 },
+        updatedAt: 10,
       },
     ]);
     const next = swapActiveList(state, "viaje")!;
@@ -51,8 +52,8 @@ describe("swapActiveList", () => {
 
   it("una lista sin categorías recibe una copia de las de Personal y presupuestos vacíos", () => {
     const state = baseState([
-      { id: "personal", name: "Personal", emoji: "👤", period: monthly },
-      { id: "vieja", name: "Vieja", emoji: "⛱️", period: all },
+      { id: "personal", name: "Personal", emoji: "👤", period: monthly, updatedAt: 0 },
+      { id: "vieja", name: "Vieja", emoji: "⛱️", period: all, updatedAt: 10 },
     ]);
     const next = swapActiveList(state, "vieja")!;
     expect(next.userCategories.map((c) => c.name)).toEqual(["Comida"]);
@@ -64,8 +65,15 @@ describe("swapActiveList", () => {
 
   it("ida y vuelta conserva todo", () => {
     const state = baseState([
-      { id: "personal", name: "Personal", emoji: "👤", period: monthly },
-      { id: "viaje", name: "Viaje", emoji: "✈️", period: all, categories: [cat("🏨", "Hotel")] },
+      { id: "personal", name: "Personal", emoji: "👤", period: monthly, updatedAt: 0 },
+      {
+        id: "viaje",
+        name: "Viaje",
+        emoji: "✈️",
+        period: all,
+        categories: [cat("🏨", "Hotel")],
+        updatedAt: 10,
+      },
     ]);
     const there = swapActiveList(state, "viaje")!;
     const back = swapActiveList(there, "personal")!;
@@ -75,8 +83,49 @@ describe("swapActiveList", () => {
   });
 
   it("misma lista o lista inexistente no cambia nada", () => {
-    const state = baseState([{ id: "personal", name: "Personal", emoji: "👤", period: monthly }]);
+    const state = baseState([
+      { id: "personal", name: "Personal", emoji: "👤", period: monthly, updatedAt: 0 },
+    ]);
     expect(swapActiveList(state, "personal")).toBeNull();
     expect(swapActiveList(state, "nope")).toBeNull();
+  });
+
+  it("cambiar de lista no marca ninguna como editada", () => {
+    const state = baseState([
+      { id: "personal", name: "Personal", emoji: "👤", period: monthly, updatedAt: 0 },
+      {
+        id: "viaje",
+        name: "Viaje",
+        emoji: "✈️",
+        period: all,
+        categories: [cat("🏨", "Hotel")],
+        updatedAt: 10,
+      },
+    ]);
+    const there = swapActiveList(state, "viaje", 999)!;
+    const back = swapActiveList(there, "personal", 1999)!;
+    expect(back.lists.map((l) => l.updatedAt)).toEqual([0, 10]);
+  });
+
+  it("la entrante sin categorías queda editada (recibió la copia de Personal)", () => {
+    const state = baseState([
+      { id: "personal", name: "Personal", emoji: "👤", period: monthly, updatedAt: 0 },
+      { id: "vieja", name: "Vieja", emoji: "⛱️", period: all, updatedAt: 10 },
+    ]);
+    const next = swapActiveList(state, "vieja", 999)!;
+    expect(next.lists.find((l) => l.id === "vieja")!.updatedAt).toBe(999);
+    expect(next.lists.find((l) => l.id === "personal")!.updatedAt).toBe(0);
+  });
+});
+
+describe("touchList", () => {
+  it("mueve solo el updatedAt de la lista indicada", () => {
+    const lists: WalletList[] = [
+      { id: "personal", name: "Personal", emoji: "👤", period: monthly, updatedAt: 0 },
+      { id: "viaje", name: "Viaje", emoji: "✈️", period: all, updatedAt: 10 },
+    ];
+    const out = touchList(lists, "viaje", 500);
+    expect(out.map((l) => l.updatedAt)).toEqual([0, 500]);
+    expect(lists[1].updatedAt).toBe(10);
   });
 });

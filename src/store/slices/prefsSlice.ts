@@ -1,5 +1,6 @@
 import type { StateCreator } from "zustand";
 import { DEFAULT_CADENCE, type PeriodCadence } from "@/src/utils/periodCycles";
+import { touchList, type ListsSlice } from "./listsSlice";
 
 export type DarkModeOption = "system" | "light" | "dark";
 
@@ -17,7 +18,9 @@ export interface PrefsSlice {
   setDefaultPeriod: (cadence: PeriodCadence) => void;
 }
 
-export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (set) => ({
+export const createPrefsSlice: StateCreator<PrefsSlice & ListsSlice, [], [], PrefsSlice> = (
+  set,
+) => ({
   userName: "",
   darkMode: "system",
   biometricLockEnabled: false,
@@ -26,5 +29,10 @@ export const createPrefsSlice: StateCreator<PrefsSlice, [], [], PrefsSlice> = (s
   setUserName: (name) => set({ userName: name }),
   setDarkMode: (mode) => set({ darkMode: mode }),
   setBiometricLockEnabled: (enabled) => set({ biometricLockEnabled: enabled }),
-  setDefaultPeriod: (cadence) => set({ defaultPeriod: cadence }),
+  // El período vivo es el de la lista activa (patrón de intercambio): cambiarlo es editarla.
+  setDefaultPeriod: (cadence) =>
+    set((s) => ({
+      defaultPeriod: cadence,
+      lists: touchList(s.lists, s.activeListId, Date.now()),
+    })),
 });

@@ -410,8 +410,13 @@ export default function ActiveExpenseScreen() {
   });
   const accountOptions =
     paymentMethods.length > 0
-      ? paymentMethods.map((m) => ({ key: m.id, label: m.name, type: m.type }))
-      : ACCOUNT_OPTIONS.map((o) => ({ key: o.key, label: o.label, type: o.key }));
+      ? paymentMethods.map((m) => ({ key: m.id, label: m.name, type: m.type, emoji: m.emoji }))
+      : ACCOUNT_OPTIONS.map((o) => ({
+          key: o.key,
+          label: o.label,
+          type: o.key,
+          emoji: undefined as string | undefined,
+        }));
   const displayTags = store.tags.length > 0 ? store.tags : SUGGESTED_TAGS;
   const displayAmt =
     store.amount > 0
@@ -761,7 +766,11 @@ export default function ActiveExpenseScreen() {
                   style={[st.accRow, isSel && { backgroundColor: accent + "14" }]}
                 >
                   <View style={[st.accIconBox, isSel && { backgroundColor: accent + "22" }]}>
-                    <Icon size={20} color={isSel ? accent : theme.textSub} strokeWidth={1.8} />
+                    {opt.emoji ? (
+                      <Text style={{ fontSize: 18 }}>{opt.emoji}</Text>
+                    ) : (
+                      <Icon size={20} color={isSel ? accent : theme.textSub} strokeWidth={1.8} />
+                    )}
                   </View>
                   <Text style={[st.accName, isSel && { color: accent, fontWeight: "700" }]}>
                     {opt.label}

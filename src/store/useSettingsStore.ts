@@ -41,6 +41,8 @@ import {
 
 // ─── Re-exportar tipos públicos (sin cambios para los importadores) ────────────
 
+export { PAYMENT_TYPE_EMOJI, paymentMethodEmoji } from "./slices/paymentsSlice";
+
 export type {
   DarkModeOption,
   PaymentMethodType,

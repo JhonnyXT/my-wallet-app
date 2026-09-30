@@ -6,6 +6,14 @@
  * nativo, título grande en el body.
  */
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
+import {
+  SHEET_PADDING_X,
+  SheetActions,
+  SheetAddButton,
+  SheetHeader,
+  SheetLabel,
+  useSheetPadding,
+} from "@/src/components/ui/SheetParts";
 import { Card, SectionHeader, Divider } from "@/src/components/ui/Card";
 import { DefaultPeriodSheet } from "@/src/components/ui/DefaultPeriodSheet";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
@@ -17,7 +25,8 @@ import { StackedScreenHeader } from "@/src/components/ui/StackedScreenHeader";
 import { ThemedText } from "@/src/components/ui/ThemedText";
 import { AUTO_DETECT_ENABLED_KEY, ALLOWED_BANKS_KEY } from "@/src/constants/banks";
 import { DEFAULT_LIST_ID } from "@/src/constants/lists";
-import { CURATED_EMOJIS, type UserCategory } from "@/src/constants/categoryPresets";
+import { type UserCategory } from "@/src/constants/categoryPresets";
+import { EmojiSuggestPicker, useAutoEmoji } from "@/src/components/ui/EmojiSuggestPicker";
 import { useTheme } from "@/src/context/ThemeContext";
 import {
   cancelDebtReminder,
@@ -32,6 +41,8 @@ import { useShareActiveList } from "@/src/hooks/useActiveListShare";
 import { useCsvTransfer, type ImportResult } from "@/src/hooks/useCsvTransfer";
 import { useListEditor } from "@/src/hooks/useListEditor";
 import {
+  PAYMENT_TYPE_EMOJI,
+  paymentMethodEmoji,
   useSettingsStore,
   type Debt,
   type PaymentMethod,
@@ -50,7 +61,6 @@ import * as LocalAuthentication from "expo-local-authentication";
 import { router } from "expo-router";
 import {
   Check,
-  ChevronRight,
   CreditCard,
   Download,
   Eye,
@@ -76,8 +86,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   AppState,
-  KeyboardAvoidingView,
-  Modal,
   PanResponder,
   Pressable,
   ScrollView,
@@ -121,7 +129,7 @@ function formatCOP(value: number): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, ".")} COP`;
 }
 
-// ─── Wrapper modal pantalla completa ─────────────────────────────────────────
+// ─── Hojas de Ajustes ─────────────────────────────────────────────────────────
 
 /** Sección de Alertas de Presupuesto con toggle + slider custom */
 function BudgetAlertSection({
@@ -195,100 +203,110 @@ function BudgetAlertSection({
   const alertColor = tokens.colors.state.danger;
 
   return (
-    <View style={{ marginBottom: tokens.spacing.xs }}>
-      <Card padded={false}>
-        <ListRow
-          label="Alertas de presupuesto"
-          icon={<Text style={{ fontSize: 16 }}>🔔</Text>}
-          iconBg={alertColor}
-          right={
-            <Switch
-              value={enabled}
-              onValueChange={onToggle}
-              trackColor={{ false: tokens.colors.border.default, true: alertColor }}
-              thumbColor="#FFFFFF"
-            />
-          }
+    <View>
+      <Pressable
+        onPress={() => onToggle(!enabled)}
+        android_ripple={{ color: tokens.colors.border.default }}
+        style={[catSheet.row, { paddingHorizontal: 0 }]}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: enabled }}
+        accessibilityLabel="Alertas de presupuesto"
+      >
+        <View style={[catSheet.emojiCircle, { backgroundColor: "#FEE2E2" }]}>
+          <Text style={catSheet.emoji}>🔔</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[catSheet.name, { color: tokens.colors.text.primary }]} numberOfLines={1}>
+            Alertas de presupuesto
+          </Text>
+          <Text style={[catSheet.meta, { color: tokens.colors.text.secondary }]}>
+            {enabled ? `Aviso al ${liveValue}% del límite` : "Desactivadas"}
+          </Text>
+        </View>
+        <Switch
+          value={enabled}
+          onValueChange={onToggle}
+          trackColor={{ false: tokens.colors.border.default, true: alertColor }}
+          thumbColor="#FFFFFF"
         />
+      </Pressable>
 
-        {/* ── Slider — solo cuando activo ────────────────────────────── */}
-        {enabled && (
-          <Reanimated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
-            <Divider />
-            <View style={{ padding: tokens.spacing.md, paddingTop: tokens.spacing.sm + 2 }}>
-              <View style={bAS.sliderRow}>
-                <ThemedText variant="subheadline" color="secondary">
-                  Umbral de alerta
-                </ThemedText>
-                <ThemedText variant="body" style={{ fontWeight: "700" }}>
-                  {liveValue}%
-                </ThemedText>
-              </View>
-
-              <View
-                {...pan.panHandlers}
-                style={bAS.trackOuter}
-                onLayout={(e) => {
-                  trackWRef.current = e.nativeEvent.layout.width;
-                  setTrackWState(e.nativeEvent.layout.width);
-                }}
-              >
-                <View style={[bAS.trackBg, { backgroundColor: tokens.colors.border.default }]} />
-
-                {trackWState > 0 && (
-                  <Animated.View
-                    style={[
-                      bAS.trackFill,
-                      {
-                        backgroundColor: alertColor,
-                        width: offset.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [THUMB / 2, usableW + THUMB / 2],
-                          extrapolate: "clamp",
-                        }),
-                      },
-                    ]}
-                  />
-                )}
-
-                {trackWState > 0 && (
-                  <Animated.View
-                    style={[
-                      bAS.thumb,
-                      {
-                        width: THUMB,
-                        height: THUMB,
-                        borderRadius: THUMB / 2,
-                        backgroundColor: "#FFFFFF",
-                        elevation: 4,
-                        shadowColor: "#000",
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.22,
-                        shadowRadius: 3,
-                        transform: [
-                          {
-                            translateX: offset.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [0, usableW],
-                              extrapolate: "clamp",
-                            }),
-                          },
-                        ],
-                      },
-                    ]}
-                  />
-                )}
-              </View>
-
-              <ThemedText variant="footnote" color="secondary" style={{ marginTop: 2 }}>
-                {liveValue > 0
-                  ? `Te avisaré cuando alcances el ${liveValue}% del presupuesto de cada categoría.`
-                  : "Desliza para elegir el porcentaje de alerta. Se recomienda 80%."}
+      {/* ── Slider — solo cuando activo ────────────────────────────── */}
+      {enabled && (
+        <Reanimated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
+          <View style={{ paddingTop: tokens.spacing.sm }}>
+            <View style={bAS.sliderRow}>
+              <ThemedText variant="subheadline" color="secondary">
+                Umbral de alerta
+              </ThemedText>
+              <ThemedText variant="body" style={{ fontWeight: "700" }}>
+                {liveValue}%
               </ThemedText>
             </View>
-          </Reanimated.View>
-        )}
-      </Card>
+
+            <View
+              {...pan.panHandlers}
+              style={bAS.trackOuter}
+              onLayout={(e) => {
+                trackWRef.current = e.nativeEvent.layout.width;
+                setTrackWState(e.nativeEvent.layout.width);
+              }}
+            >
+              <View style={[bAS.trackBg, { backgroundColor: tokens.colors.border.default }]} />
+
+              {trackWState > 0 && (
+                <Animated.View
+                  style={[
+                    bAS.trackFill,
+                    {
+                      backgroundColor: alertColor,
+                      width: offset.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [THUMB / 2, usableW + THUMB / 2],
+                        extrapolate: "clamp",
+                      }),
+                    },
+                  ]}
+                />
+              )}
+
+              {trackWState > 0 && (
+                <Animated.View
+                  style={[
+                    bAS.thumb,
+                    {
+                      width: THUMB,
+                      height: THUMB,
+                      borderRadius: THUMB / 2,
+                      backgroundColor: "#FFFFFF",
+                      elevation: 4,
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.22,
+                      shadowRadius: 3,
+                      transform: [
+                        {
+                          translateX: offset.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, usableW],
+                            extrapolate: "clamp",
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                />
+              )}
+            </View>
+
+            <ThemedText variant="footnote" color="secondary" style={{ marginTop: 2 }}>
+              {liveValue > 0
+                ? `Te avisaré cuando alcances el ${liveValue}% del presupuesto de cada categoría.`
+                : "Desliza para elegir el porcentaje de alerta. Se recomienda 80%."}
+            </ThemedText>
+          </View>
+        </Reanimated.View>
+      )}
     </View>
   );
 }
@@ -301,44 +319,42 @@ const bAS = StyleSheet.create({
   thumb: { position: "absolute" },
 });
 
-function FullScreenModal({
+function SettingsSheet({
   visible,
   title,
+  subtitle,
   onClose,
   children,
 }: {
   visible: boolean;
   title: string;
+  subtitle?: string;
   onClose: () => void;
   children: React.ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const tokens = useAppTokens();
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onClose={onClose}
+      style={{ paddingBottom: insets.bottom + 12, maxHeight: "85%" }}
     >
-      <SafeAreaView
-        style={{ flex: 1, backgroundColor: tokens.colors.surface.primary }}
-        edges={["top"]}
+      <View style={{ paddingHorizontal: SHEET_PADDING_X }}>
+        <SheetHeader title={title} subtitle={subtitle} />
+      </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingHorizontal: SHEET_PADDING_X,
+          paddingBottom: insets.bottom + tokens.spacing.xl,
+          gap: tokens.spacing.md,
+        }}
+        keyboardShouldPersistTaps="handled"
       >
-        <StackedScreenHeader onBack={onClose} backAccessibilityLabel="Cerrar" title={title} />
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{
-            padding: tokens.spacing.md,
-            paddingBottom: insets.bottom + tokens.spacing.xl,
-            gap: tokens.spacing.md,
-          }}
-          keyboardShouldPersistTaps="handled"
-        >
-          {children}
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
+        {children}
+      </ScrollView>
+    </BottomSheet>
   );
 }
 
@@ -510,6 +526,7 @@ function InputModal({
 }) {
   const s = useStyles();
   const theme = useTheme();
+  const sheetPad = useSheetPadding();
   const isMoney = keyboardType === "numeric";
 
   const toDisplay = (raw: string) => (isMoney ? formatMoneyInput(raw) : raw);
@@ -537,40 +554,21 @@ function InputModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
-        <View style={s.modalCard}>
-          <Text style={s.modalTitle}>{title}</Text>
-          {!!subtitle && <Text style={s.modalSubtitle}>{subtitle}</Text>}
-          {isMoney && <Text style={s.modalMoneyPrefix}>$</Text>}
-          <TextInput
-            style={[s.modalInput, isMoney && s.modalInputMoney]}
-            value={display}
-            onChangeText={handleChange}
-            placeholder={placeholder}
-            placeholderTextColor={theme.textSub}
-            keyboardType={isMoney ? "number-pad" : keyboardType}
-            autoFocus
-          />
-          {isMoney && display.length > 0 && <Text style={s.modalMoneySuffix}>COP</Text>}
-          <View style={s.modalBtns}>
-            <PressableScale
-              style={s.modalBtnCancel}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onClose();
-              }}
-            >
-              <Text style={s.modalBtnCancelText}>Cancelar</Text>
-            </PressableScale>
-            <PressableScale style={s.modalBtnConfirm} onPress={handleConfirm}>
-              <Text style={s.modalBtnConfirmText}>Guardar</Text>
-            </PressableScale>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    <BottomSheet visible={visible} onClose={onClose} avoidKeyboard style={sheetPad}>
+      <SheetHeader title={title} subtitle={subtitle} />
+      {isMoney && <Text style={s.modalMoneyPrefix}>$</Text>}
+      <TextInput
+        style={[s.modalInput, isMoney && s.modalInputMoney]}
+        value={display}
+        onChangeText={handleChange}
+        placeholder={placeholder}
+        placeholderTextColor={theme.textSub}
+        keyboardType={isMoney ? "number-pad" : keyboardType}
+        autoFocus
+      />
+      {isMoney && display.length > 0 && <Text style={s.modalMoneySuffix}>COP</Text>}
+      <SheetActions onCancel={onClose} onConfirm={handleConfirm} />
+    </BottomSheet>
   );
 }
 
@@ -631,47 +629,162 @@ const PAYMENT_TYPE_OPTIONS: { key: PaymentMethodType; label: string }[] = [
   { key: "savings", label: "🐷 Ahorros" },
 ];
 
+const PAYMENT_TYPE_PLAIN: Record<PaymentMethodType, string> = {
+  cash: "Efectivo",
+  debit: "Débito / Tarjeta",
+  savings: "Ahorros",
+};
+
+const PAYMENT_ICON_CATALOG = [
+  "💵",
+  "💳",
+  "🐷",
+  "🏦",
+  "📱",
+  "💰",
+  "🪙",
+  "💸",
+  "👛",
+  "🏧",
+  "💼",
+  "🌐",
+];
+
+function PaymentMethodSheet({
+  visible,
+  target,
+  onClose,
+}: {
+  visible: boolean;
+  target: PaymentMethod | null;
+  onClose: () => void;
+}) {
+  const theme = useTheme();
+  const tokens = useAppTokens();
+  const sheetPad = useSheetPadding();
+  const addMethod = useSettingsStore((st) => st.addPaymentMethod);
+  const updateMethod = useSettingsStore((st) => st.updatePaymentMethod);
+
+  const [name, setName] = useState("");
+  const [type, setType] = useState<PaymentMethodType>("cash");
+  const icon = useAutoEmoji(PAYMENT_TYPE_EMOJI.cash);
+  const { reset } = icon;
+
+  useEffect(() => {
+    if (!visible) return;
+    setName(target?.name ?? "");
+    setType(target?.type ?? "cash");
+    reset(target ? paymentMethodEmoji(target) : PAYMENT_TYPE_EMOJI.cash, !!target);
+  }, [visible, target, reset]);
+
+  const handleType = (t: PaymentMethodType) => {
+    setType(t);
+    icon.onNameChange(name, PAYMENT_TYPE_EMOJI[t]);
+  };
+
+  const handleSave = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    // Si coincide con el del tipo no se guarda: así sigue al tipo si luego cambia.
+    const emoji = icon.emoji === PAYMENT_TYPE_EMOJI[type] ? undefined : icon.emoji;
+    if (target) updateMethod(target.id, trimmed, type, emoji);
+    else addMethod({ id: Date.now().toString(), name: trimmed, type, emoji });
+    onClose();
+  };
+
+  return (
+    <BottomSheet visible={visible} onClose={onClose} avoidKeyboard style={sheetPad}>
+      <SheetHeader
+        title={target ? "Editar método" : "Nuevo método de pago"}
+        subtitle="Dónde tienes o con qué mueves tu plata"
+      />
+      <SheetLabel first>Nombre</SheetLabel>
+      <TextInput
+        value={name}
+        onChangeText={(t) => {
+          setName(t);
+          icon.onNameChange(t, PAYMENT_TYPE_EMOJI[type]);
+        }}
+        placeholder="Ej: Nequi, Bancolombia…"
+        placeholderTextColor={theme.textTertiary}
+        style={{
+          backgroundColor: theme.inputBg,
+          borderRadius: 14,
+          paddingHorizontal: 16,
+          paddingVertical: 14,
+          fontSize: 15,
+          color: theme.text,
+        }}
+        maxLength={24}
+        autoCapitalize="words"
+      />
+
+      <SheetLabel>Tipo</SheetLabel>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        {PAYMENT_TYPE_OPTIONS.map((o) => {
+          const active = o.key === type;
+          return (
+            <Pressable
+              key={o.key}
+              onPress={() => handleType(o.key)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              style={{
+                flex: 1,
+                paddingVertical: 12,
+                borderRadius: 14,
+                alignItems: "center",
+                gap: 4,
+                backgroundColor: active ? "#DBEAFE" : theme.inputBg,
+                borderWidth: 2,
+                borderColor: active ? "#135BEC" : "transparent",
+              }}
+            >
+              <Text style={{ fontSize: 20 }}>{PAYMENT_TYPE_EMOJI[o.key]}</Text>
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 12,
+                  fontWeight: active ? "700" : "500",
+                  color: active ? "#135BEC" : tokens.colors.text.secondary,
+                }}
+              >
+                {PAYMENT_TYPE_PLAIN[o.key]}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <SheetLabel>Ícono</SheetLabel>
+      <EmojiSuggestPicker
+        query={name}
+        selected={icon.emoji}
+        onSelect={icon.pick}
+        catalog={PAYMENT_ICON_CATALOG}
+      />
+
+      <SheetActions
+        confirmLabel={target ? "Guardar" : "Agregar"}
+        onCancel={onClose}
+        onConfirm={handleSave}
+        disabled={!name.trim()}
+      />
+    </BottomSheet>
+  );
+}
+
 export function PaymentMethodsSection() {
   const tokens = useAppTokens();
   const methods = useSettingsStore((s) => s.paymentMethods);
-  const addMethod = useSettingsStore((s) => s.addPaymentMethod);
-  const updateMethod = useSettingsStore((s) => s.updatePaymentMethod);
   const removeMethod = useSettingsStore((s) => s.removePaymentMethod);
 
-  const [editTarget, setEditTarget] = useState<PaymentMethod | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editType, setEditType] = useState<PaymentMethodType>("cash");
-  const [typeSheet, setTypeSheet] = useState(false);
-  const [nameModal, setNameModal] = useState(false);
-  const [addMode, setAddMode] = useState(false);
-
+  const [form, setForm] = useState<{ open: boolean; target: PaymentMethod | null }>({
+    open: false,
+    target: null,
+  });
   const [deleteDialog, setDeleteDialog] = useState<{ id: string; name: string } | null>(null);
   const [minMethodAlert, setMinMethodAlert] = useState(false);
-
-  function openEdit(m: PaymentMethod) {
-    setEditTarget(m);
-    setEditName(m.name);
-    setEditType(m.type);
-  }
-
-  function openAdd() {
-    setEditTarget(null);
-    setEditName("");
-    setEditType("cash");
-    setAddMode(true);
-    setNameModal(true);
-  }
-
-  function saveEdit(name: string) {
-    if (!name.trim()) return;
-    if (addMode) {
-      addMethod({ id: Date.now().toString(), name: name.trim(), type: editType });
-      setAddMode(false);
-    } else if (editTarget) {
-      updateMethod(editTarget.id, name.trim(), editType);
-      setEditTarget(null);
-    }
-  }
 
   function confirmDelete(id: string, name: string) {
     if (methods.length <= 1) {
@@ -681,78 +794,60 @@ export function PaymentMethodsSection() {
     setDeleteDialog({ id, name });
   }
 
-  const typeLabel = (t: PaymentMethodType) =>
-    PAYMENT_TYPE_OPTIONS.find((o) => o.key === t)?.label ?? t;
-
   return (
     <>
-      <Card padded={false}>
-        {methods.map((m, i) => (
-          <View key={m.id}>
-            <ListRow
-              label={m.name}
-              detail={typeLabel(m.type)}
-              icon={
-                <Text style={{ fontSize: 15 }}>
-                  {m.type === "cash" ? "💵" : m.type === "savings" ? "🐷" : "💳"}
-                </Text>
-              }
-              iconBg={tokens.colors.text.secondary}
-              onPress={() => openEdit(m)}
-              accessibilityLabelOverride={`${m.name}, ${typeLabel(m.type)}`}
-              right={
-                <View
-                  style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm }}
-                >
-                  <Pencil size={15} color={tokens.colors.text.secondary} strokeWidth={2} />
-                  <TouchableOpacity
-                    onPress={() => confirmDelete(m.id, m.name)}
-                    hitSlop={8}
-                    style={{ padding: 4 }}
-                  >
-                    <Trash2 size={15} color={tokens.colors.state.danger} strokeWidth={2} />
-                  </TouchableOpacity>
-                </View>
-              }
-            />
-            {i < methods.length - 1 && <Divider inset={tokens.spacing.md * 2 + 34} />}
-          </View>
+      <View>
+        {methods.map((m) => (
+          <Pressable
+            key={m.id}
+            onPress={() => setForm({ open: true, target: m })}
+            android_ripple={{ color: tokens.colors.border.default }}
+            style={[catSheet.row, { paddingHorizontal: 0 }]}
+            accessibilityRole="button"
+            accessibilityLabel={`${m.name}, ${PAYMENT_TYPE_PLAIN[m.type]}`}
+          >
+            <View
+              style={[catSheet.emojiCircle, { backgroundColor: tokens.colors.surface.elevated }]}
+            >
+              <Text style={catSheet.emoji}>{paymentMethodEmoji(m)}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[catSheet.name, { color: tokens.colors.text.primary }]}
+                numberOfLines={1}
+              >
+                {m.name}
+              </Text>
+              <Text style={[catSheet.meta, { color: tokens.colors.text.secondary }]}>
+                {PAYMENT_TYPE_PLAIN[m.type]}
+              </Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm }}>
+              <Pencil size={15} color={tokens.colors.text.secondary} strokeWidth={2} />
+              <TouchableOpacity
+                onPress={() => confirmDelete(m.id, m.name)}
+                hitSlop={8}
+                style={{ padding: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Eliminar ${m.name}`}
+              >
+                <Trash2 size={15} color={tokens.colors.state.danger} strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+          </Pressable>
         ))}
-      </Card>
+      </View>
 
-      {/* Botón agregar */}
-      <Card padded={false} style={{ marginTop: tokens.spacing.sm }}>
-        <ListRow
-          label="Agregar método"
-          icon={<Plus size={16} color="#FFFFFF" strokeWidth={2.5} />}
-          iconBg={tokens.colors.accent.default}
-          labelColor={tokens.colors.accent.default}
-          onPress={openAdd}
-        />
-      </Card>
-
-      {/* Modal de nombre */}
-      <InputModal
-        visible={nameModal || (!!editTarget && !typeSheet)}
-        title={addMode ? "Nuevo método de pago" : `Editar "${editTarget?.name}"`}
-        placeholder="Ej: Nequi, Bancolombia…"
-        value={editName}
-        onConfirm={saveEdit}
-        onClose={() => {
-          setNameModal(false);
-          setEditTarget(null);
-          setAddMode(false);
-        }}
+      <SheetAddButton
+        label="Agregar método"
+        onPress={() => setForm({ open: true, target: null })}
+        style={{ marginTop: 4 }}
       />
 
-      {/* Selector de tipo */}
-      <SelectorModal
-        visible={typeSheet}
-        title="Tipo de cuenta"
-        options={PAYMENT_TYPE_OPTIONS}
-        selected={editType}
-        onSelect={setEditType}
-        onClose={() => setTypeSheet(false)}
+      <PaymentMethodSheet
+        visible={form.open}
+        target={form.target}
+        onClose={() => setForm((f) => ({ ...f, open: false }))}
       />
 
       <ConfirmDialog
@@ -793,26 +888,28 @@ function NuevaMetaModal({
   onClose: () => void;
 }) {
   const s = useStyles();
+  const sheetPad = useSheetPadding();
   const theme = useTheme();
   const addSavingsGoal = useSettingsStore((st) => st.addSavingsGoal);
   const editSavingsGoal = useSettingsStore((st) => st.editSavingsGoal);
   const isEditing = !!editTarget;
 
-  const [selectedEmoji, setSelectedEmoji] = useState("✈️");
+  const icon = useAutoEmoji("✈️");
+  const { reset: resetIcon } = icon;
   const [name, setName] = useState("");
   const [targetDisplay, setTargetDisplay] = useState("");
 
   useEffect(() => {
     if (!visible) {
-      setSelectedEmoji("✈️");
+      resetIcon("✈️");
       setName("");
       setTargetDisplay("");
     } else if (editTarget) {
-      setSelectedEmoji(editTarget.emoji);
+      resetIcon(editTarget.emoji, true);
       setName(editTarget.name);
       setTargetDisplay(formatMoneyInput(String(editTarget.targetAmount)));
     }
-  }, [visible, editTarget]);
+  }, [visible, editTarget, resetIcon]);
 
   const canCreate = name.trim().length > 0 && targetDisplay.replace(/\D/g, "").length > 0;
 
@@ -822,13 +919,13 @@ function NuevaMetaModal({
     if (isEditing && editTarget) {
       editSavingsGoal(editTarget.id, {
         name: name.trim(),
-        emoji: selectedEmoji,
+        emoji: icon.emoji,
         targetAmount: target,
       });
     } else {
       addSavingsGoal({
         name: name.trim(),
-        emoji: selectedEmoji,
+        emoji: icon.emoji,
         targetAmount: target,
         savedAmount: 0,
       });
@@ -837,98 +934,65 @@ function NuevaMetaModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
-        <View style={[s.modalCard, { gap: 20 }]}>
-          {/* Título */}
-          <View style={{ gap: 3 }}>
-            <Text style={s.modalTitle}>{isEditing ? "Editar meta" : "Nueva Meta"}</Text>
-            <Text style={s.rowSub}>Define tu próximo objetivo de ahorro</Text>
-          </View>
+    <BottomSheet visible={visible} onClose={onClose} avoidKeyboard style={sheetPad}>
+      <View style={{ gap: 20 }}>
+        <SheetHeader
+          title={isEditing ? "Editar meta" : "Nueva meta"}
+          subtitle={"Define tu próximo objetivo de ahorro"}
+        />
 
-          {/* Selector de emoji */}
-          <View style={{ gap: 8 }}>
-            <Text style={s.goalFieldLabel}>Icono de la meta</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                {GOAL_EMOJIS.map((e) => (
-                  <TouchableOpacity
-                    key={e}
-                    onPress={() => setSelectedEmoji(e)}
-                    activeOpacity={0.7}
-                    style={{
-                      width: 46,
-                      height: 46,
-                      borderRadius: 23,
-                      backgroundColor: selectedEmoji === e ? theme.accent + "22" : theme.inputBg,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderWidth: selectedEmoji === e ? 2 : 0,
-                      borderColor: selectedEmoji === e ? theme.accent : "transparent",
-                    }}
-                  >
-                    <Text style={{ fontSize: 22 }}>{e}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
+        {/* Nombre */}
+        <View style={{ gap: 8 }}>
+          <Text style={s.goalFieldLabel}>Nombre de la meta</Text>
+          <TextInput
+            style={s.modalInput}
+            value={name}
+            onChangeText={(t) => {
+              setName(t);
+              icon.onNameChange(t);
+            }}
+            placeholder="Ej. Viaje a Japón"
+            placeholderTextColor={theme.textSub}
+            autoCapitalize="sentences"
+          />
+        </View>
 
-          {/* Nombre */}
-          <View style={{ gap: 8 }}>
-            <Text style={s.goalFieldLabel}>Nombre de la meta</Text>
+        <View style={{ gap: 8 }}>
+          <Text style={s.goalFieldLabel}>Ícono</Text>
+          <EmojiSuggestPicker
+            query={name}
+            selected={icon.emoji}
+            onSelect={icon.pick}
+            catalog={GOAL_EMOJIS}
+          />
+        </View>
+
+        {/* Monto objetivo */}
+        <View style={{ gap: 8 }}>
+          <Text style={s.goalFieldLabel}>Monto objetivo</Text>
+          <View style={[s.goalAmountRow]}>
+            <Text style={s.goalAmountPrefix}>$ COP</Text>
             <TextInput
-              style={s.modalInput}
-              value={name}
-              onChangeText={setName}
-              placeholder="Ej. Viaje a Japón"
+              style={s.goalAmountInput}
+              value={targetDisplay}
+              onChangeText={(t) => setTargetDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
+              placeholder="0"
               placeholderTextColor={theme.textSub}
-              autoCapitalize="sentences"
+              keyboardType="number-pad"
+              textAlign="right"
             />
           </View>
-
-          {/* Monto objetivo */}
-          <View style={{ gap: 8 }}>
-            <Text style={s.goalFieldLabel}>Monto objetivo</Text>
-            <View style={[s.goalAmountRow]}>
-              <Text style={s.goalAmountPrefix}>$ COP</Text>
-              <TextInput
-                style={s.goalAmountInput}
-                value={targetDisplay}
-                onChangeText={(t) => setTargetDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
-                placeholder="0"
-                placeholderTextColor={theme.textSub}
-                keyboardType="number-pad"
-                textAlign="right"
-              />
-            </View>
-          </View>
-
-          {/* Botones */}
-          <View style={s.modalBtns}>
-            <PressableScale
-              style={s.modalBtnCancel}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onClose();
-              }}
-            >
-              <Text style={s.modalBtnCancelText}>Cancelar</Text>
-            </PressableScale>
-            <PressableScale
-              style={canCreate ? s.modalBtnConfirm : s.modalBtnConfirmDisabled}
-              onPress={handleCreate}
-              disabled={!canCreate}
-            >
-              <Text style={canCreate ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>
-                {isEditing ? "Guardar" : "Crear"}
-              </Text>
-            </PressableScale>
-          </View>
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+
+        <SheetActions
+          confirmLabel={isEditing ? "Guardar" : "Crear"}
+          onConfirm={handleCreate}
+          onCancel={onClose}
+          disabled={!canCreate}
+          style={{ marginTop: 4 }}
+        />
+      </View>
+    </BottomSheet>
   );
 }
 
@@ -944,6 +1008,7 @@ function AbonarMetaModal({
   onClose: () => void;
 }) {
   const s = useStyles();
+  const sheetPad = useSheetPadding();
   const theme = useTheme();
   const updateSavingsGoal = useSettingsStore((st) => st.updateSavingsGoal);
   const addTransaction = useFinanceStore((st) => st.addTransaction);
@@ -984,103 +1049,80 @@ function AbonarMetaModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
-        <View style={[s.modalCard, { gap: 16 }]}>
-          {/* Título */}
-          <View style={{ gap: 3 }}>
-            <Text style={s.modalTitle}>Abonar a meta</Text>
-            <Text style={s.rowSub}>
-              {goal.emoji} {goal.name}
+    <BottomSheet visible={visible} onClose={onClose} avoidKeyboard style={sheetPad}>
+      <View style={{ gap: 16 }}>
+        <SheetHeader title={"Abonar a meta"} subtitle={`${goal.emoji} ${goal.name}`} />
+
+        {/* Campo de monto */}
+        <View style={[s.goalAmountRow, { paddingVertical: 4 }]}>
+          <Text style={[s.goalAmountPrefix, { fontSize: 20, fontWeight: "700" }]}>$</Text>
+          <TextInput
+            style={[s.goalAmountInput, { fontSize: 28, fontWeight: "800", letterSpacing: -0.5 }]}
+            value={abonoDisplay}
+            onChangeText={(t) => setAbonoDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
+            placeholder="0"
+            placeholderTextColor={theme.textSub}
+            keyboardType="number-pad"
+            autoFocus
+            textAlign="right"
+          />
+          <Text style={[s.goalAmountPrefix, { marginLeft: 6 }]}>COP</Text>
+        </View>
+
+        {/* Progreso proyectado */}
+        <View style={{ gap: 6 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <Text style={s.goalFieldLabel}>PROGRESO PROYECTADO</Text>
+            <Text style={s.goalFieldLabel}>META TOTAL</Text>
+          </View>
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <Text style={{ fontSize: 14, fontWeight: "600", color: theme.text }}>
+              {Math.round(projectedPct)}% ({fmt(goal.savedAmount + abono)})
+            </Text>
+            <Text style={{ fontSize: 14, fontWeight: "600", color: theme.text }}>
+              {fmt(goal.targetAmount)}
             </Text>
           </View>
-
-          {/* Campo de monto */}
-          <View style={[s.goalAmountRow, { paddingVertical: 4 }]}>
-            <Text style={[s.goalAmountPrefix, { fontSize: 20, fontWeight: "700" }]}>$</Text>
-            <TextInput
-              style={[s.goalAmountInput, { fontSize: 28, fontWeight: "800", letterSpacing: -0.5 }]}
-              value={abonoDisplay}
-              onChangeText={(t) => setAbonoDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
-              placeholder="0"
-              placeholderTextColor={theme.textSub}
-              keyboardType="number-pad"
-              autoFocus
-              textAlign="right"
-            />
-            <Text style={[s.goalAmountPrefix, { marginLeft: 6 }]}>COP</Text>
-          </View>
-
-          {/* Progreso proyectado */}
-          <View style={{ gap: 6 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={s.goalFieldLabel}>PROGRESO PROYECTADO</Text>
-              <Text style={s.goalFieldLabel}>META TOTAL</Text>
-            </View>
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={{ fontSize: 14, fontWeight: "600", color: theme.text }}>
-                {Math.round(projectedPct)}% ({fmt(goal.savedAmount + abono)})
-              </Text>
-              <Text style={{ fontSize: 14, fontWeight: "600", color: theme.text }}>
-                {fmt(goal.targetAmount)}
-              </Text>
-            </View>
+          <View
+            style={{
+              height: 8,
+              backgroundColor: theme.inputBg,
+              borderRadius: 4,
+              overflow: "hidden",
+            }}
+          >
             <View
               style={{
                 height: 8,
-                backgroundColor: theme.inputBg,
+                width: `${projectedPct}%`,
+                backgroundColor: theme.accent,
                 borderRadius: 4,
-                overflow: "hidden",
+              }}
+            />
+          </View>
+          {abono > 0 && deltaPct > 0 && (
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "600",
+                color: theme.accent,
+                textAlign: "center",
               }}
             >
-              <View
-                style={{
-                  height: 8,
-                  width: `${projectedPct}%`,
-                  backgroundColor: theme.accent,
-                  borderRadius: 4,
-                }}
-              />
-            </View>
-            {abono > 0 && deltaPct > 0 && (
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "600",
-                  color: theme.accent,
-                  textAlign: "center",
-                }}
-              >
-                +{deltaPct}% con este abono
-              </Text>
-            )}
-          </View>
-
-          {/* Botones */}
-          <View style={s.modalBtns}>
-            <PressableScale
-              style={s.modalBtnCancel}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onClose();
-              }}
-            >
-              <Text style={s.modalBtnCancelText}>Cancelar</Text>
-            </PressableScale>
-            <PressableScale
-              style={abono > 0 ? s.modalBtnConfirm : s.modalBtnConfirmDisabled}
-              onPress={handleAbonar}
-              disabled={abono <= 0}
-            >
-              <Text style={abono > 0 ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>
-                Abonar
-              </Text>
-            </PressableScale>
-          </View>
+              +{deltaPct}% con este abono
+            </Text>
+          )}
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+
+        <SheetActions
+          confirmLabel={"Abonar"}
+          onConfirm={handleAbonar}
+          onCancel={onClose}
+          disabled={abono <= 0}
+          style={{ marginTop: 4 }}
+        />
+      </View>
+    </BottomSheet>
   );
 }
 
@@ -1114,15 +1156,17 @@ function GoalItem({
   return (
     <Card style={{ marginBottom: 8, gap: 10 }}>
       {done ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm + 2 }}>
-          <Text style={{ fontSize: 28 }}>{goal.emoji}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.md }}>
+          <View style={[catSheet.emojiCircle, { backgroundColor: "#FEE2E2" }]}>
+            <Text style={catSheet.emoji}>{goal.emoji}</Text>
+          </View>
           <View style={{ flex: 1 }}>
-            <ThemedText variant="headline" style={{ color: tokens.colors.state.success }}>
+            <Text style={[catSheet.name, { color: tokens.colors.state.success }]}>
               ¡Meta alcanzada!
-            </ThemedText>
-            <ThemedText variant="footnote" color="secondary" style={{ marginTop: 2 }}>
+            </Text>
+            <Text style={[catSheet.meta, { color: tokens.colors.text.secondary }]}>
               Ahorro completado con éxito
-            </ThemedText>
+            </Text>
           </View>
           <Text style={{ fontSize: 22 }}>🎉</Text>
           <TouchableOpacity onPress={onDelete} hitSlop={8} style={{ padding: 4 }}>
@@ -1131,11 +1175,23 @@ function GoalItem({
         </View>
       ) : (
         <>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm }}>
-            <Text style={{ fontSize: 24 }}>{goal.emoji}</Text>
-            <ThemedText variant="headline" style={{ flex: 1 }} numberOfLines={1}>
-              {goal.name}
-            </ThemedText>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.md }}>
+            <View
+              style={[catSheet.emojiCircle, { backgroundColor: tokens.colors.surface.elevated }]}
+            >
+              <Text style={catSheet.emoji}>{goal.emoji}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[catSheet.name, { color: tokens.colors.text.primary }]}
+                numberOfLines={1}
+              >
+                {goal.name}
+              </Text>
+              <Text style={[catSheet.meta, { color: tokens.colors.text.secondary }]}>
+                {fmt(goal.savedAmount)} / {fmt(goal.targetAmount)} · {Math.round(pct)}%
+              </Text>
+            </View>
             <TouchableOpacity onPress={onEdit} hitSlop={8} style={{ padding: 4 }}>
               <Pencil size={15} color={tokens.colors.text.secondary} strokeWidth={2} />
             </TouchableOpacity>
@@ -1160,12 +1216,7 @@ function GoalItem({
               }}
             />
           </View>
-          <View
-            style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
-          >
-            <ThemedText variant="footnote" color="secondary">
-              {fmt(goal.savedAmount)} / {fmt(goal.targetAmount)} · {Math.round(pct)}%
-            </ThemedText>
+          <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
             <TouchableOpacity
               // Botón primario fijo #135BEC (regla inmutable #7) — no varía con el tema.
               style={{
@@ -1210,25 +1261,12 @@ function DayOfMonthSheet({
   onClose: () => void;
 }) {
   const theme = useTheme();
+  const sheetPad = useSheetPadding();
   const days = useMemo(() => Array.from({ length: 31 }, (_, i) => i + 1), []);
 
   return (
-    <BottomSheet
-      visible={visible}
-      onClose={onClose}
-      style={{ paddingBottom: 36, paddingHorizontal: 20 }}
-    >
-      <Text
-        style={{
-          fontSize: 16,
-          fontWeight: "700",
-          color: theme.text,
-          textAlign: "center",
-          marginBottom: 16,
-        }}
-      >
-        Día de pago
-      </Text>
+    <BottomSheet visible={visible} onClose={onClose} style={sheetPad}>
+      <SheetHeader title="Día de pago" subtitle="Se repite cada mes" />
       <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
         {days.map((day) => {
           const isSel = day === selected;
@@ -1285,12 +1323,14 @@ function NuevaDeudaModal({
   onClose: () => void;
 }) {
   const s = useStyles();
+  const sheetPad = useSheetPadding();
   const theme = useTheme();
   const addDebt = useSettingsStore((st) => st.addDebt);
   const editDebt = useSettingsStore((st) => st.editDebt);
   const isEditing = !!editTarget;
 
-  const [selectedEmoji, setSelectedEmoji] = useState(DEBT_EMOJIS[0]);
+  const icon = useAutoEmoji(DEBT_EMOJIS[0]);
+  const { reset: resetIcon } = icon;
   const [name, setName] = useState("");
   const [totalDisplay, setTotalDisplay] = useState("");
   const [paymentDisplay, setPaymentDisplay] = useState("");
@@ -1299,19 +1339,19 @@ function NuevaDeudaModal({
 
   useEffect(() => {
     if (!visible) {
-      setSelectedEmoji(DEBT_EMOJIS[0]);
+      resetIcon(DEBT_EMOJIS[0]);
       setName("");
       setTotalDisplay("");
       setPaymentDisplay("");
       setDueDay(1);
     } else if (editTarget) {
-      setSelectedEmoji(editTarget.emoji);
+      resetIcon(editTarget.emoji, true);
       setName(editTarget.name);
       setTotalDisplay(formatMoneyInput(String(editTarget.totalAmount)));
       setPaymentDisplay(formatMoneyInput(String(editTarget.monthlyPayment)));
       setDueDay(editTarget.dueDay);
     }
-  }, [visible, editTarget]);
+  }, [visible, editTarget, resetIcon]);
 
   const canCreate = name.trim().length > 0 && totalDisplay.replace(/\D/g, "").length > 0;
 
@@ -1323,7 +1363,7 @@ function NuevaDeudaModal({
     if (isEditing && editTarget) {
       editDebt(editTarget.id, {
         name: name.trim(),
-        emoji: selectedEmoji,
+        emoji: icon.emoji,
         totalAmount,
         monthlyPayment,
         dueDay,
@@ -1331,14 +1371,14 @@ function NuevaDeudaModal({
       scheduleDebtReminder({
         ...editTarget,
         name: name.trim(),
-        emoji: selectedEmoji,
+        emoji: icon.emoji,
         monthlyPayment,
         dueDay,
       });
     } else {
       const debt = addDebt({
         name: name.trim(),
-        emoji: selectedEmoji,
+        emoji: icon.emoji,
         totalAmount,
         monthlyPayment,
         dueDay,
@@ -1350,66 +1390,66 @@ function NuevaDeudaModal({
 
   return (
     <>
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-        <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
-          <View style={[s.modalCard, { gap: 20 }]}>
-            {/* Título */}
-            <View style={{ gap: 3 }}>
-              <Text style={s.modalTitle}>{isEditing ? "Editar deuda" : "Nueva deuda"}</Text>
-              <Text style={s.rowSub}>Registra una deuda para hacerle seguimiento</Text>
-            </View>
+      <BottomSheet visible={visible} onClose={onClose} avoidKeyboard style={sheetPad}>
+        <View style={{ gap: 20 }}>
+          <SheetHeader
+            title={isEditing ? "Editar deuda" : "Nueva deuda"}
+            subtitle={"Registra una deuda para hacerle seguimiento"}
+          />
 
-            {/* Selector de emoji */}
-            <View style={{ gap: 8 }}>
-              <Text style={s.goalFieldLabel}>Icono de la deuda</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  {DEBT_EMOJIS.map((e) => (
-                    <TouchableOpacity
-                      key={e}
-                      onPress={() => setSelectedEmoji(e)}
-                      activeOpacity={0.7}
-                      style={{
-                        width: 46,
-                        height: 46,
-                        borderRadius: 23,
-                        backgroundColor: selectedEmoji === e ? theme.accent + "22" : theme.inputBg,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderWidth: selectedEmoji === e ? 2 : 0,
-                        borderColor: selectedEmoji === e ? theme.accent : "transparent",
-                      }}
-                    >
-                      <Text style={{ fontSize: 22 }}>{e}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
+          {/* Nombre */}
+          <View style={{ gap: 8 }}>
+            <Text style={s.goalFieldLabel}>Nombre de la deuda</Text>
+            <TextInput
+              style={s.modalInput}
+              value={name}
+              onChangeText={(t) => {
+                setName(t);
+                icon.onNameChange(t);
+              }}
+              placeholder="Ej. Tarjeta de crédito"
+              placeholderTextColor={theme.textSub}
+              autoCapitalize="sentences"
+            />
+          </View>
 
-            {/* Nombre */}
-            <View style={{ gap: 8 }}>
-              <Text style={s.goalFieldLabel}>Nombre de la deuda</Text>
+          <View style={{ gap: 8 }}>
+            <Text style={s.goalFieldLabel}>Ícono</Text>
+            <EmojiSuggestPicker
+              query={name}
+              selected={icon.emoji}
+              onSelect={icon.pick}
+              catalog={DEBT_EMOJIS}
+            />
+          </View>
+
+          {/* Monto total */}
+          <View style={{ gap: 8 }}>
+            <Text style={s.goalFieldLabel}>Monto total de la deuda</Text>
+            <View style={s.goalAmountRow}>
+              <Text style={s.goalAmountPrefix}>$ COP</Text>
               <TextInput
-                style={s.modalInput}
-                value={name}
-                onChangeText={setName}
-                placeholder="Ej. Tarjeta de crédito"
+                style={s.goalAmountInput}
+                value={totalDisplay}
+                onChangeText={(t) => setTotalDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
+                placeholder="0"
                 placeholderTextColor={theme.textSub}
-                autoCapitalize="sentences"
+                keyboardType="number-pad"
+                textAlign="right"
               />
             </View>
+          </View>
 
-            {/* Monto total */}
-            <View style={{ gap: 8 }}>
-              <Text style={s.goalFieldLabel}>Monto total de la deuda</Text>
+          {/* Cuota mensual + día de pago */}
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <View style={{ flex: 1, gap: 8 }}>
+              <Text style={s.goalFieldLabel}>Cuota mensual</Text>
               <View style={s.goalAmountRow}>
-                <Text style={s.goalAmountPrefix}>$ COP</Text>
+                <Text style={s.goalAmountPrefix}>$</Text>
                 <TextInput
                   style={s.goalAmountInput}
-                  value={totalDisplay}
-                  onChangeText={(t) => setTotalDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
+                  value={paymentDisplay}
+                  onChangeText={(t) => setPaymentDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
                   placeholder="0"
                   placeholderTextColor={theme.textSub}
                   keyboardType="number-pad"
@@ -1417,60 +1457,27 @@ function NuevaDeudaModal({
                 />
               </View>
             </View>
-
-            {/* Cuota mensual + día de pago */}
-            <View style={{ flexDirection: "row", gap: 12 }}>
-              <View style={{ flex: 1, gap: 8 }}>
-                <Text style={s.goalFieldLabel}>Cuota mensual</Text>
-                <View style={s.goalAmountRow}>
-                  <Text style={s.goalAmountPrefix}>$</Text>
-                  <TextInput
-                    style={s.goalAmountInput}
-                    value={paymentDisplay}
-                    onChangeText={(t) => setPaymentDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
-                    placeholder="0"
-                    placeholderTextColor={theme.textSub}
-                    keyboardType="number-pad"
-                    textAlign="right"
-                  />
-                </View>
-              </View>
-              <View style={{ width: 100, gap: 8 }}>
-                <Text style={s.goalFieldLabel}>Día de pago</Text>
-                <TouchableOpacity
-                  style={s.goalAmountRow}
-                  onPress={() => setDaySheetOpen(true)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[s.goalAmountInput, { textAlign: "right" }]}>{dueDay}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Botones */}
-            <View style={s.modalBtns}>
-              <PressableScale
-                style={s.modalBtnCancel}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onClose();
-                }}
+            <View style={{ width: 100, gap: 8 }}>
+              <Text style={s.goalFieldLabel}>Día de pago</Text>
+              <TouchableOpacity
+                style={s.goalAmountRow}
+                onPress={() => setDaySheetOpen(true)}
+                activeOpacity={0.7}
               >
-                <Text style={s.modalBtnCancelText}>Cancelar</Text>
-              </PressableScale>
-              <PressableScale
-                style={canCreate ? s.modalBtnConfirm : s.modalBtnConfirmDisabled}
-                onPress={handleCreate}
-                disabled={!canCreate}
-              >
-                <Text style={canCreate ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>
-                  {isEditing ? "Guardar" : "Crear"}
-                </Text>
-              </PressableScale>
+                <Text style={[s.goalAmountInput, { textAlign: "right" }]}>{dueDay}</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+
+          <SheetActions
+            confirmLabel={isEditing ? "Guardar" : "Crear"}
+            onConfirm={handleCreate}
+            onCancel={onClose}
+            disabled={!canCreate}
+            style={{ marginTop: 4 }}
+          />
+        </View>
+      </BottomSheet>
       <DayOfMonthSheet
         visible={daySheetOpen}
         selected={dueDay}
@@ -1493,6 +1500,7 @@ function AbonarDeudaModal({
   onClose: () => void;
 }) {
   const s = useStyles();
+  const sheetPad = useSheetPadding();
   const theme = useTheme();
   const tokens = useAppTokens();
   const updateDebtBalance = useSettingsStore((st) => st.updateDebtBalance);
@@ -1528,86 +1536,63 @@ function AbonarDeudaModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
-        <View style={[s.modalCard, { gap: 16 }]}>
-          {/* Título */}
-          <View style={{ gap: 3 }}>
-            <Text style={s.modalTitle}>Pagar deuda</Text>
-            <Text style={s.rowSub}>
-              {debt.emoji} {debt.name}
+    <BottomSheet visible={visible} onClose={onClose} avoidKeyboard style={sheetPad}>
+      <View style={{ gap: 16 }}>
+        <SheetHeader title={"Pagar deuda"} subtitle={`${debt.emoji} ${debt.name}`} />
+
+        {/* Campo de monto */}
+        <View style={[s.goalAmountRow, { paddingVertical: 4 }]}>
+          <Text style={[s.goalAmountPrefix, { fontSize: 20, fontWeight: "700" }]}>$</Text>
+          <TextInput
+            style={[s.goalAmountInput, { fontSize: 28, fontWeight: "800", letterSpacing: -0.5 }]}
+            value={abonoDisplay}
+            onChangeText={(t) => setAbonoDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
+            placeholder="0"
+            placeholderTextColor={theme.textSub}
+            keyboardType="number-pad"
+            autoFocus
+            textAlign="right"
+          />
+          <Text style={[s.goalAmountPrefix, { marginLeft: 6 }]}>COP</Text>
+        </View>
+
+        {/* Saldo proyectado */}
+        <View style={{ gap: 6 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <Text style={s.goalFieldLabel}>SALDO RESTANTE</Text>
+            <Text style={s.goalFieldLabel}>DEUDA TOTAL</Text>
+          </View>
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <Text style={{ fontSize: 14, fontWeight: "600", color: theme.text }}>
+              {fmt(projectedRemaining)}
+            </Text>
+            <Text style={{ fontSize: 14, fontWeight: "600", color: theme.text }}>
+              {fmt(debt.totalAmount)}
             </Text>
           </View>
-
-          {/* Campo de monto */}
-          <View style={[s.goalAmountRow, { paddingVertical: 4 }]}>
-            <Text style={[s.goalAmountPrefix, { fontSize: 20, fontWeight: "700" }]}>$</Text>
-            <TextInput
-              style={[s.goalAmountInput, { fontSize: 28, fontWeight: "800", letterSpacing: -0.5 }]}
-              value={abonoDisplay}
-              onChangeText={(t) => setAbonoDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
-              placeholder="0"
-              placeholderTextColor={theme.textSub}
-              keyboardType="number-pad"
-              autoFocus
-              textAlign="right"
-            />
-            <Text style={[s.goalAmountPrefix, { marginLeft: 6 }]}>COP</Text>
-          </View>
-
-          {/* Saldo proyectado */}
-          <View style={{ gap: 6 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={s.goalFieldLabel}>SALDO RESTANTE</Text>
-              <Text style={s.goalFieldLabel}>DEUDA TOTAL</Text>
-            </View>
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={{ fontSize: 14, fontWeight: "600", color: theme.text }}>
-                {fmt(projectedRemaining)}
-              </Text>
-              <Text style={{ fontSize: 14, fontWeight: "600", color: theme.text }}>
-                {fmt(debt.totalAmount)}
-              </Text>
-            </View>
-            {projectedRemaining <= 0 && abono > 0 && (
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "700",
-                  color: tokens.colors.state.success,
-                  textAlign: "center",
-                }}
-              >
-                ¡Con este abono liquidas la deuda!
-              </Text>
-            )}
-          </View>
-
-          {/* Botones */}
-          <View style={s.modalBtns}>
-            <PressableScale
-              style={s.modalBtnCancel}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onClose();
+          {projectedRemaining <= 0 && abono > 0 && (
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "700",
+                color: tokens.colors.state.success,
+                textAlign: "center",
               }}
             >
-              <Text style={s.modalBtnCancelText}>Cancelar</Text>
-            </PressableScale>
-            <PressableScale
-              style={abono > 0 ? s.modalBtnConfirm : s.modalBtnConfirmDisabled}
-              onPress={handleAbonar}
-              disabled={abono <= 0}
-            >
-              <Text style={abono > 0 ? s.modalBtnConfirmText : s.modalBtnConfirmTextOff}>
-                Pagar
-              </Text>
-            </PressableScale>
-          </View>
+              ¡Con este abono liquidas la deuda!
+            </Text>
+          )}
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+
+        <SheetActions
+          confirmLabel={"Pagar"}
+          onConfirm={handleAbonar}
+          onCancel={onClose}
+          disabled={abono <= 0}
+          style={{ marginTop: 4 }}
+        />
+      </View>
+    </BottomSheet>
   );
 }
 
@@ -1640,15 +1625,17 @@ function DebtItem({
   return (
     <Card style={{ marginBottom: 8, gap: 10 }}>
       {done ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm + 2 }}>
-          <Text style={{ fontSize: 28 }}>{debt.emoji}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.md }}>
+          <View style={[catSheet.emojiCircle, { backgroundColor: "#FEE2E2" }]}>
+            <Text style={catSheet.emoji}>{debt.emoji}</Text>
+          </View>
           <View style={{ flex: 1 }}>
-            <ThemedText variant="headline" style={{ color: tokens.colors.state.success }}>
+            <Text style={[catSheet.name, { color: tokens.colors.state.success }]}>
               ¡Deuda liquidada!
-            </ThemedText>
-            <ThemedText variant="footnote" color="secondary" style={{ marginTop: 2 }}>
+            </Text>
+            <Text style={[catSheet.meta, { color: tokens.colors.text.secondary }]}>
               Ya no debes nada por este concepto
-            </ThemedText>
+            </Text>
           </View>
           <Text style={{ fontSize: 22 }}>🎉</Text>
           <TouchableOpacity onPress={onDelete} hitSlop={8} style={{ padding: 4 }}>
@@ -1657,11 +1644,23 @@ function DebtItem({
         </View>
       ) : (
         <>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.sm }}>
-            <Text style={{ fontSize: 24 }}>{debt.emoji}</Text>
-            <ThemedText variant="headline" style={{ flex: 1 }} numberOfLines={1}>
-              {debt.name}
-            </ThemedText>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.md }}>
+            <View
+              style={[catSheet.emojiCircle, { backgroundColor: tokens.colors.surface.elevated }]}
+            >
+              <Text style={catSheet.emoji}>{debt.emoji}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[catSheet.name, { color: tokens.colors.text.primary }]}
+                numberOfLines={1}
+              >
+                {debt.name}
+              </Text>
+              <Text style={[catSheet.meta, { color: tokens.colors.text.secondary }]}>
+                Saldo: {fmt(debt.remainingAmount)} / {fmt(debt.totalAmount)}
+              </Text>
+            </View>
             <TouchableOpacity onPress={onEdit} hitSlop={8} style={{ padding: 4 }}>
               <Pencil size={15} color={tokens.colors.text.secondary} strokeWidth={2} />
             </TouchableOpacity>
@@ -1689,14 +1688,9 @@ function DebtItem({
           <View
             style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
           >
-            <View style={{ gap: 2 }}>
-              <ThemedText variant="footnote" color="secondary">
-                Saldo: {fmt(debt.remainingAmount)} / {fmt(debt.totalAmount)}
-              </ThemedText>
-              <ThemedText variant="footnote" color="secondary">
-                Cuota {fmt(debt.monthlyPayment)} · día {debt.dueDay}
-              </ThemedText>
-            </View>
+            <ThemedText variant="footnote" color="secondary">
+              Cuota {fmt(debt.monthlyPayment)} · día {debt.dueDay}
+            </ThemedText>
             <TouchableOpacity
               style={{
                 backgroundColor: DEBT_COLOR,
@@ -1734,25 +1728,18 @@ function DebtsSection() {
     <>
       {debts.length === 0 ? (
         /* ── Estado vacío ─────────────────────────────────────────────── */
-        <Card style={{ alignItems: "center", gap: tokens.spacing.sm + 2 }}>
+        <View
+          style={{
+            alignItems: "center",
+            gap: tokens.spacing.sm + 2,
+            paddingVertical: tokens.spacing.lg,
+          }}
+        >
           <Text style={{ fontSize: 32 }}>💳</Text>
           <ThemedText variant="subheadline" color="secondary" style={{ textAlign: "center" }}>
             Aún no tienes deudas registradas{"\n"}agrégalas para controlarlas y salir de ellas
           </ThemedText>
-          <TouchableOpacity
-            style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}
-            onPress={() => setShowNuevaDeuda(true)}
-            activeOpacity={0.7}
-          >
-            <Plus size={15} color={tokens.colors.accent.default} strokeWidth={2.5} />
-            <ThemedText
-              variant="subheadline"
-              style={{ color: tokens.colors.accent.default, fontWeight: "600" }}
-            >
-              Nueva deuda
-            </ThemedText>
-          </TouchableOpacity>
-        </Card>
+        </View>
       ) : (
         /* ── Lista de deudas ──────────────────────────────────────────── */
         <>
@@ -1765,19 +1752,14 @@ function DebtsSection() {
               onAbonar={() => setAbonarDebt(debt)}
             />
           ))}
-
-          {/* Botón nueva deuda */}
-          <Card padded={false}>
-            <ListRow
-              label="Nueva deuda"
-              icon={<Plus size={16} color="#FFFFFF" strokeWidth={2.5} />}
-              iconBg={tokens.colors.accent.default}
-              labelColor={tokens.colors.accent.default}
-              onPress={() => setShowNuevaDeuda(true)}
-            />
-          </Card>
         </>
       )}
+
+      <SheetAddButton
+        label="Nueva deuda"
+        onPress={() => setShowNuevaDeuda(true)}
+        style={{ marginTop: 4 }}
+      />
 
       <NuevaDeudaModal visible={showNuevaDeuda} onClose={() => setShowNuevaDeuda(false)} />
       <NuevaDeudaModal
@@ -1822,6 +1804,7 @@ function EditCategoryModal({
   onSave: (updated: UserCategory) => void;
   onClose: () => void;
 }) {
+  const sheetPad = useSheetPadding();
   const [emoji, setEmoji] = useState(cat.emoji);
   const [name, setName] = useState(cat.name);
   const [hue, setHue] = useState(() => hexToHue(cat.colorAccent));
@@ -1840,178 +1823,39 @@ function EditCategoryModal({
   };
 
   return (
-    <Modal visible transparent animationType="none" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
-        <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            justifyContent: "center",
-            alignItems: "center",
-            paddingHorizontal: 28,
-          }}
-          onPress={onClose}
-        >
-          <View
-            style={{
-              width: "100%",
-              backgroundColor: theme.surface,
-              borderRadius: 22,
-              padding: 24,
-              shadowColor: "#000",
-              shadowOpacity: 0.15,
-              shadowRadius: 20,
-              elevation: 20,
-            }}
-          >
-            <Pressable>
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 20,
-                }}
-              >
-                <Text style={{ fontSize: 20, fontWeight: "700", color: theme.text }}>
-                  Editar categoría
-                </Text>
-                <PressableScale
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    onClose();
-                  }}
-                >
-                  <Text style={{ fontSize: 20, color: theme.textSub, padding: 4 }}>✕</Text>
-                </PressableScale>
-              </View>
+    <BottomSheet visible onClose={onClose} avoidKeyboard style={sheetPad}>
+      <SheetHeader title="Editar categoría" />
+      <SheetLabel first>Nombre</SheetLabel>
+      <TextInput
+        value={name}
+        onChangeText={setName}
+        placeholder="Ej. Gimnasio"
+        placeholderTextColor={theme.textTertiary}
+        style={{
+          backgroundColor: theme.inputBg,
+          borderRadius: 14,
+          paddingHorizontal: 16,
+          paddingVertical: 14,
+          fontSize: 15,
+          color: theme.text,
+        }}
+        maxLength={24}
+        autoCapitalize="words"
+      />
 
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontWeight: "700",
-                  color: theme.textSub,
-                  letterSpacing: 1,
-                  marginBottom: 10,
-                }}
-              >
-                ÍCONO
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ marginBottom: 4 }}
-              >
-                {CURATED_EMOJIS.map((e) => (
-                  <TouchableOpacity
-                    key={e}
-                    onPress={() => setEmoji(e)}
-                    style={[
-                      {
-                        width: 44,
-                        height: 44,
-                        borderRadius: 12,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginRight: 8,
-                        backgroundColor: theme.inputBg,
-                      },
-                      e === emoji && {
-                        backgroundColor: "#DBEAFE",
-                        borderWidth: 2,
-                        borderColor: "#135BEC",
-                      },
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={{ fontSize: 22 }}>{e}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+      <SheetLabel>Ícono</SheetLabel>
+      <EmojiSuggestPicker query={name} selected={emoji} onSelect={setEmoji} />
 
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontWeight: "700",
-                  color: theme.textSub,
-                  letterSpacing: 1,
-                  marginBottom: 10,
-                  marginTop: 16,
-                }}
-              >
-                COLOR DE TEMA
-              </Text>
-              <HueColorPicker
-                hue={hue}
-                onChange={setHue}
-                previewEmoji={emoji}
-                style={{ marginBottom: 4 }}
-              />
+      <SheetLabel>Color de tema</SheetLabel>
+      <HueColorPicker
+        hue={hue}
+        onChange={setHue}
+        previewEmoji={emoji}
+        style={{ marginBottom: 4 }}
+      />
 
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontWeight: "700",
-                  color: theme.textSub,
-                  letterSpacing: 1,
-                  marginBottom: 10,
-                  marginTop: 16,
-                }}
-              >
-                NOMBRE
-              </Text>
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Ej. Gimnasio"
-                placeholderTextColor={theme.textTertiary}
-                style={{
-                  backgroundColor: theme.inputBg,
-                  borderRadius: 14,
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  fontSize: 15,
-                  color: theme.text,
-                }}
-                maxLength={24}
-                autoCapitalize="words"
-              />
-
-              <View
-                style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12, marginTop: 24 }}
-              >
-                <PressableScale
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    onClose();
-                  }}
-                  style={{ paddingVertical: 12, paddingHorizontal: 16 }}
-                >
-                  <Text style={{ fontSize: 15, fontWeight: "600", color: theme.textSub }}>
-                    Cancelar
-                  </Text>
-                </PressableScale>
-                <PressableScale
-                  onPress={handleSave}
-                  disabled={!name.trim()}
-                  style={[
-                    {
-                      backgroundColor: "#135BEC",
-                      paddingVertical: 12,
-                      paddingHorizontal: 24,
-                      borderRadius: 14,
-                    },
-                    !name.trim() && { opacity: 0.4 },
-                  ]}
-                >
-                  <Text style={{ color: "#FFF", fontSize: 15, fontWeight: "700" }}>Guardar</Text>
-                </PressableScale>
-              </View>
-            </Pressable>
-          </View>
-        </Pressable>
-      </KeyboardAvoidingView>
-    </Modal>
+      <SheetActions onCancel={onClose} onConfirm={handleSave} disabled={!name.trim()} />
+    </BottomSheet>
   );
 }
 
@@ -2030,25 +1874,18 @@ function SavingsGoalsSection() {
     <>
       {savingsGoals.length === 0 ? (
         /* ── Estado vacío ─────────────────────────────────────────────── */
-        <Card style={{ alignItems: "center", gap: tokens.spacing.sm + 2 }}>
+        <View
+          style={{
+            alignItems: "center",
+            gap: tokens.spacing.sm + 2,
+            paddingVertical: tokens.spacing.lg,
+          }}
+        >
           <Text style={{ fontSize: 32 }}>🎯</Text>
           <ThemedText variant="subheadline" color="secondary" style={{ textAlign: "center" }}>
             Aún no tienes metas de ahorro{"\n"}define una y empieza hoy
           </ThemedText>
-          <TouchableOpacity
-            style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}
-            onPress={() => setShowNuevaMeta(true)}
-            activeOpacity={0.7}
-          >
-            <Plus size={15} color={tokens.colors.accent.default} strokeWidth={2.5} />
-            <ThemedText
-              variant="subheadline"
-              style={{ color: tokens.colors.accent.default, fontWeight: "600" }}
-            >
-              Nueva meta
-            </ThemedText>
-          </TouchableOpacity>
-        </Card>
+        </View>
       ) : (
         /* ── Lista de metas ───────────────────────────────────────────── */
         <>
@@ -2061,19 +1898,14 @@ function SavingsGoalsSection() {
               onAbonar={() => setAbonarGoal(goal)}
             />
           ))}
-
-          {/* Botón nueva meta */}
-          <Card padded={false}>
-            <ListRow
-              label="Nueva meta"
-              icon={<Plus size={16} color="#FFFFFF" strokeWidth={2.5} />}
-              iconBg={tokens.colors.accent.default}
-              labelColor={tokens.colors.accent.default}
-              onPress={() => setShowNuevaMeta(true)}
-            />
-          </Card>
         </>
       )}
+
+      <SheetAddButton
+        label="Nueva meta"
+        onPress={() => setShowNuevaMeta(true)}
+        style={{ marginTop: 4 }}
+      />
 
       <NuevaMetaModal visible={showNuevaMeta} onClose={() => setShowNuevaMeta(false)} />
       <NuevaMetaModal
@@ -2179,9 +2011,8 @@ const DETECT_COLOR = "#0D9488";
 const BANKS_COLOR = "#EA580C";
 
 function AutoDetectSection() {
-  const s = useStyles();
-  const theme = useTheme();
   const tokens = useAppTokens();
+  const insets = useSafeAreaInsets();
   const ACCENT = "#135BEC";
 
   const [enabled, setEnabled] = useState(false);
@@ -2310,114 +2141,89 @@ function AutoDetectSection() {
         )}
       </Card>
 
-      {/* Diálogo de permiso */}
-      <Modal
+      {/* Aviso de permiso */}
+      <ConfirmDialog
         visible={showPermDialog}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowPermDialog(false)}
-      >
-        <Pressable style={s.modalOverlay} onPress={() => setShowPermDialog(false)}>
-          <View style={[s.modalCard, { gap: 16 }]}>
-            <Text style={{ fontSize: 24, textAlign: "center" }}>🔔</Text>
-            <Text style={[s.modalTitle, { textAlign: "center" }]}>Acceso a notificaciones</Text>
-            <Text
-              style={{ fontSize: 14, color: theme.textSub, lineHeight: 21, textAlign: "center" }}
-            >
-              MyWallet leerá notificaciones de tus apps bancarias para detectar transacciones
-              automáticamente.{"\n\n"}
-              {"· Solo apps bancarias que tú elijas\n"}
-              {"· Procesamiento 100% en tu dispositivo\n"}
-              {"· Ningún dato sale de tu teléfono\n"}
-              {"· No accede a mensajes, fotos ni otras apps\n\n"}
-              Se abrirá la configuración del sistema. Busca "MyWallet" y activa el acceso.
-            </Text>
-            <View style={s.modalBtns}>
-              <PressableScale
-                style={s.modalBtnCancel}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowPermDialog(false);
-                }}
-              >
-                <Text style={s.modalBtnCancelText}>Cancelar</Text>
-              </PressableScale>
-              <PressableScale style={s.modalBtnConfirm} onPress={handleOpenPermissionSettings}>
-                <Text style={s.modalBtnConfirmText}>Abrir ajustes</Text>
-              </PressableScale>
-            </View>
-          </View>
-        </Pressable>
-      </Modal>
+        variant="info"
+        emoji="🔔"
+        align="left"
+        title="Acceso a notificaciones"
+        message={
+          "MyWallet leerá notificaciones de tus apps bancarias para detectar transacciones automáticamente.\n\n" +
+          "· Solo apps bancarias que tú elijas\n" +
+          "· Procesamiento 100% en tu dispositivo\n" +
+          "· Ningún dato sale de tu teléfono\n" +
+          "· No accede a mensajes, fotos ni otras apps\n\n" +
+          'Se abrirá la configuración del sistema. Busca "MyWallet" y activa el acceso.'
+        }
+        confirmLabel="Abrir ajustes"
+        onConfirm={handleOpenPermissionSettings}
+        onCancel={() => setShowPermDialog(false)}
+      />
 
       {/* Selector de bancos */}
-      <Modal
+      <BottomSheet
         visible={showBankSelector}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowBankSelector(false)}
+        onClose={() => setShowBankSelector(false)}
+        style={{ paddingBottom: insets.bottom + 12, maxHeight: "80%" }}
       >
-        <Pressable style={s.sheetBackdrop} onPress={() => setShowBankSelector(false)} />
-        <View style={[s.sheet, { paddingBottom: 40, maxHeight: "75%" }]}>
-          <View style={s.sheetHandle} />
-          <Text style={[s.sheetTitle, { marginBottom: 8 }]}>Bancos activos</Text>
-          <Text
-            style={{ fontSize: 13, color: theme.textSub, paddingHorizontal: 20, marginBottom: 12 }}
-          >
-            Elige de qué apps detectar transacciones. Si no seleccionas ninguno, se usan todos.
-          </Text>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {[...KNOWN_BANKS]
-              .sort((a, b) => {
-                const aSelected = allowedBanks.length === 0 || allowedBanks.includes(a.packageName);
-                const bSelected = allowedBanks.length === 0 || allowedBanks.includes(b.packageName);
-                if (aSelected === bSelected) return 0;
-                return aSelected ? -1 : 1;
-              })
-              .map((bank) => {
-                const isSelected =
-                  allowedBanks.length === 0 || allowedBanks.includes(bank.packageName);
-                return (
-                  <TouchableOpacity
-                    key={bank.packageName}
-                    style={[autoS.bankRow, { borderBottomColor: tokens.colors.border.default }]}
-                    onPress={() => toggleBank(bank.packageName)}
-                    activeOpacity={0.65}
-                  >
-                    <ThemedText variant="body" style={{ flex: 1, fontWeight: "600" }}>
-                      {bank.displayName}
-                    </ThemedText>
-                    <View
-                      style={[
-                        autoS.bankCheck,
-                        {
-                          borderColor: isSelected ? ACCENT : tokens.colors.border.default,
-                          backgroundColor: isSelected ? ACCENT : "transparent",
-                        },
-                      ]}
-                    >
-                      {isSelected && <Check size={12} color="#fff" strokeWidth={3} />}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-          </ScrollView>
-          {allowedBanks.length > 0 && (
-            <TouchableOpacity
-              style={{ alignItems: "center", paddingVertical: 14 }}
-              onPress={async () => {
-                setAllowedBanks([]);
-                await AsyncStorage.setItem(ALLOWED_BANKS_KEY, "[]");
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={{ fontSize: 13, color: ACCENT, fontWeight: "600" }}>
-                Seleccionar todos
-              </Text>
-            </TouchableOpacity>
-          )}
+        <View style={{ paddingHorizontal: 20 }}>
+          <SheetHeader
+            title="Bancos activos"
+            subtitle="Elige de qué apps detectar transacciones. Si no seleccionas ninguno, se usan todos."
+          />
         </View>
-      </Modal>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {[...KNOWN_BANKS]
+            .sort((a, b) => {
+              const aSelected = allowedBanks.length === 0 || allowedBanks.includes(a.packageName);
+              const bSelected = allowedBanks.length === 0 || allowedBanks.includes(b.packageName);
+              if (aSelected === bSelected) return 0;
+              return aSelected ? -1 : 1;
+            })
+            .map((bank) => {
+              const isSelected =
+                allowedBanks.length === 0 || allowedBanks.includes(bank.packageName);
+              return (
+                <TouchableOpacity
+                  key={bank.packageName}
+                  style={[autoS.bankRow, { borderBottomColor: tokens.colors.border.default }]}
+                  onPress={() => toggleBank(bank.packageName)}
+                  activeOpacity={0.65}
+                >
+                  <ThemedText variant="body" style={{ flex: 1, fontWeight: "600" }}>
+                    {bank.displayName}
+                  </ThemedText>
+                  <View
+                    style={[
+                      autoS.bankCheck,
+                      {
+                        borderColor: isSelected ? ACCENT : tokens.colors.border.default,
+                        backgroundColor: isSelected ? ACCENT : "transparent",
+                      },
+                    ]}
+                  >
+                    {isSelected && <Check size={12} color="#fff" strokeWidth={3} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+        </ScrollView>
+        {allowedBanks.length > 0 && (
+          <TouchableOpacity
+            style={{ alignItems: "center", paddingVertical: 14 }}
+            onPress={async () => {
+              setAllowedBanks([]);
+              await AsyncStorage.setItem(ALLOWED_BANKS_KEY, "[]");
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={{ fontSize: 13, color: ACCENT, fontWeight: "600" }}>
+              Seleccionar todos
+            </Text>
+          </TouchableOpacity>
+        )}
+      </BottomSheet>
     </>
   );
 }
@@ -2785,32 +2591,32 @@ export default function SettingsScreen() {
         onClose={() => setDarkSheet(false)}
       />
 
-      {/* ── Modal pantalla completa: Métodos de pago ─────────────────── */}
-      <FullScreenModal
+      {/* ── Hoja: Métodos de pago ─────────────────── */}
+      <SettingsSheet
         visible={showPaymentModal}
         title="Métodos de pago"
         onClose={() => setShowPaymentModal(false)}
       >
         <PaymentMethodsSection />
-      </FullScreenModal>
+      </SettingsSheet>
 
-      {/* ── Modal pantalla completa: Metas de ahorro ─────────────────── */}
-      <FullScreenModal
+      {/* ── Hoja: Metas de ahorro ─────────────────── */}
+      <SettingsSheet
         visible={showGoalsModal}
         title="Metas de ahorro"
         onClose={() => setShowGoalsModal(false)}
       >
         <SavingsGoalsSection />
-      </FullScreenModal>
+      </SettingsSheet>
 
-      {/* ── Modal pantalla completa: Deudas ──────────────────────────── */}
-      <FullScreenModal
+      {/* ── Hoja: Deudas ──────────────────────────── */}
+      <SettingsSheet
         visible={showDebtsModal}
         title="Deudas"
         onClose={() => setShowDebtsModal(false)}
       >
         <DebtsSection />
-      </FullScreenModal>
+      </SettingsSheet>
 
       {/* ── Bottom sheet: Categorías ─────────────────────────────────── */}
       <CategoriesSheet
@@ -2846,10 +2652,11 @@ export default function SettingsScreen() {
         />
       )}
 
-      {/* ── Modal pantalla completa: Presupuesto por categoría ───────── */}
-      <FullScreenModal
+      {/* ── Hoja: Presupuesto por categoría ───────── */}
+      <SettingsSheet
         visible={showCatBudgetModal}
-        title={`Presupuestos · ${activeList.name}`}
+        title="Presupuestos"
+        subtitle={`${activeList.emoji} ${activeList.name} · Toca una para fijar su límite`}
         onClose={() => setShowCatBudgetModal(false)}
       >
         {/* Sección: Alertas de presupuesto */}
@@ -2860,61 +2667,58 @@ export default function SettingsScreen() {
           onThresholdChange={setBudgetAlertThreshold}
         />
         {userCategories.filter((c) => c.type === "expense").length > 0 ? (
-          <Card padded={false}>
+          <View>
             {userCategories
               .filter((c) => c.type === "expense")
-              .map((cat, i, arr) => {
+              .map((cat) => {
                 const current = budgetByCategory[cat.emoji];
                 return (
-                  <View key={cat.id}>
-                    <ListRow
-                      label={cat.name}
-                      icon={<Text style={{ fontSize: 15 }}>{cat.emoji}</Text>}
-                      iconBg={cat.colorBg}
-                      accessibilityLabelOverride={`${cat.name}, ${current ? `Límite ${formatCOP(current)}` : "Sin límite"}`}
-                      onPress={() => setCatBudgetEmoji(cat.emoji)}
-                      right={
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: tokens.spacing.xs,
-                          }}
-                        >
-                          {current ? (
-                            <ThemedText
-                              variant="body"
-                              style={{ color: tokens.colors.state.success }}
-                            >
-                              {formatCOP(current)}
-                            </ThemedText>
-                          ) : (
-                            <ThemedText variant="body" color="secondary">
-                              Sin límite
-                            </ThemedText>
-                          )}
-                          {current ? (
-                            <TouchableOpacity
-                              onPress={() => removeBudgetForCategory(cat.emoji)}
-                              hitSlop={14}
-                              style={{ padding: 4 }}
-                            >
-                              <X size={14} color={tokens.colors.state.danger} strokeWidth={2.5} />
-                            </TouchableOpacity>
-                          ) : null}
-                          <ChevronRight
-                            size={16}
-                            color={tokens.colors.text.secondary}
-                            strokeWidth={2}
-                          />
-                        </View>
-                      }
-                    />
-                    {i < arr.length - 1 && <Divider inset={tokens.spacing.md * 2 + 34} />}
-                  </View>
+                  <Pressable
+                    key={cat.id}
+                    onPress={() => setCatBudgetEmoji(cat.emoji)}
+                    android_ripple={{ color: tokens.colors.border.default }}
+                    style={[catSheet.row, { paddingHorizontal: 0 }]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${cat.name}, ${current ? `Límite ${formatCOP(current)}` : "Sin límite"}`}
+                  >
+                    <View style={[catSheet.emojiCircle, { backgroundColor: cat.colorBg }]}>
+                      <Text style={catSheet.emoji}>{cat.emoji}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[catSheet.name, { color: tokens.colors.text.primary }]}
+                        numberOfLines={1}
+                      >
+                        {cat.name}
+                      </Text>
+                      <Text
+                        style={[
+                          catSheet.meta,
+                          {
+                            color: current
+                              ? tokens.colors.state.success
+                              : tokens.colors.text.secondary,
+                          },
+                        ]}
+                      >
+                        {current ? formatCOP(current) : "Sin límite"}
+                      </Text>
+                    </View>
+                    {current ? (
+                      <Pressable
+                        onPress={() => removeBudgetForCategory(cat.emoji)}
+                        hitSlop={10}
+                        style={catSheet.deleteBtn}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Quitar límite de ${cat.name}`}
+                      >
+                        <X size={16} color={tokens.colors.text.secondary} strokeWidth={1.8} />
+                      </Pressable>
+                    ) : null}
+                  </Pressable>
                 );
               })}
-          </Card>
+          </View>
         ) : (
           <View style={{ alignItems: "center", paddingVertical: 32 }}>
             <ThemedText variant="subheadline" color="secondary">
@@ -2922,7 +2726,7 @@ export default function SettingsScreen() {
             </ThemedText>
           </View>
         )}
-      </FullScreenModal>
+      </SettingsSheet>
 
       {/* Modal presupuesto por categoría (input) */}
       {catBudgetEmoji && (
@@ -3078,7 +2882,6 @@ function buildStyles(t: AppTheme) {
     },
     rowText: { flex: 1 },
     rowLabel: { fontSize: 15, fontWeight: "600", color: t.text, lineHeight: 20 },
-    rowSub: { fontSize: 13, color: t.textSub, marginTop: 1 },
     rowSep: { height: StyleSheet.hairlineWidth, backgroundColor: t.border, marginLeft: 64 },
 
     payRow: {
@@ -3137,26 +2940,6 @@ function buildStyles(t: AppTheme) {
     subCardLabel: { fontSize: 15, fontWeight: "700", color: t.text, lineHeight: 20 },
     subCardDesc: { fontSize: 13, color: t.textSub, marginTop: 2, lineHeight: 18 },
 
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: "rgba(0,0,0,0.45)",
-      justifyContent: "center",
-      paddingHorizontal: 28,
-    },
-    modalCard: {
-      backgroundColor: t.surface,
-      borderRadius: 20,
-      padding: 24,
-      gap: 16,
-    },
-    modalTitle: { fontSize: 17, fontWeight: "700", color: t.text },
-    modalSubtitle: {
-      fontSize: 12,
-      fontWeight: "400",
-      color: t.textSub,
-      marginTop: 4,
-      textAlign: "center" as const,
-    },
     modalMoneyPrefix: {
       fontSize: 13,
       fontWeight: "600",
@@ -3187,31 +2970,6 @@ function buildStyles(t: AppTheme) {
       color: t.text,
       textAlign: "right",
     },
-    modalBtns: { flexDirection: "row", gap: 10 },
-    modalBtnCancel: {
-      flex: 1,
-      padding: 13,
-      borderRadius: 12,
-      backgroundColor: t.inputBg,
-      alignItems: "center",
-    },
-    modalBtnCancelText: { fontSize: 15, fontWeight: "600", color: t.textSub },
-    modalBtnConfirm: {
-      flex: 1,
-      padding: 13,
-      borderRadius: 12,
-      backgroundColor: "#135BEC",
-      alignItems: "center",
-    },
-    modalBtnConfirmDisabled: {
-      flex: 1,
-      padding: 13,
-      borderRadius: 12,
-      backgroundColor: t.border,
-      alignItems: "center",
-    },
-    modalBtnConfirmText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
-    modalBtnConfirmTextOff: { fontSize: 15, fontWeight: "700", color: t.textSub },
 
     // ── Metas de ahorro — campos de modales ──────────────────────────────────
     goalFieldLabel: {
@@ -3244,27 +3002,6 @@ function buildStyles(t: AppTheme) {
       color: t.text,
     },
 
-    sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(15,23,42,0.4)" },
-    sheet: {
-      position: "absolute",
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: t.surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      paddingBottom: 40,
-      paddingTop: 12,
-      elevation: 24,
-    },
-    sheetHandle: {
-      width: 36,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: t.border,
-      alignSelf: "center",
-      marginBottom: 16,
-    },
     sheetTitle: {
       fontSize: 17,
       fontWeight: "700",

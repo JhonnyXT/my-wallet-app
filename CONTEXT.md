@@ -126,6 +126,7 @@ my-wallet-app/
 │   │   ├── DateRangeSheet.tsx    # Calendario de rango dibujado a mano: mode "months" (reports.tsx) / "days" (rango del Dashboard)
 │   │   ├── DefaultPeriodSheet.tsx # Hoja "Pago y período" (Ajustes y menú del calendario), envuelve PayPeriodForm
 │   │   ├── Enter.tsx             # Animación de entrada escalonada de secciones
+│   │   ├── EmojiSuggestPicker.tsx # Fila de emojis sugeridos por nombre (useAutoEmoji, useEmojiSuggestions)
 │   │   ├── GuidedTour.tsx        # Overlay de onboarding paso a paso con spotlight
 │   │   ├── FloatingDock.tsx      # Dock flotante + FAB micrófono
 │   │   ├── FloatingInput.tsx     # Overlay input/búsqueda flotante
@@ -140,6 +141,7 @@ my-wallet-app/
 │   │   ├── PressableScale.tsx    # Pressable con spring de escala
 │   │   ├── RollingNumber.tsx     # Odómetro tipo ruleta por dígito (Reanimated) — usado en Dashboard
 │   │   ├── SettlementSheet.tsx   # Detalle de cuentas de una lista compartida: quién pagó, quién debe a quién
+│   │   ├── SheetParts.tsx        # Piezas compartidas de hojas con formulario: SheetHeader, SheetLabel, SheetActions, SheetAddButton, useSheetPadding
 │   │   ├── StackedScreenHeader.tsx # Barra Material (flecha + título)
 │   │   ├── ThemedText.tsx        # Texto con variantes tipográficas de tokens
 │   │   └── TransactionItem.tsx   # Item transacción + swipe-delete + tap-to-detail
@@ -179,6 +181,7 @@ my-wallet-app/
 │   └── utils/
 │       ├── colorUtils.ts           # hueToColors, hslToHex, hexToHsl, hexToHue — conversiones HSL↔Hex
 │       ├── csv.ts                  # transactionsToCsv/parseTransactionsCsv/duplicateKey — exportar/importar CSV por lista
+│       ├── emojiSearch.ts          # suggestEmojis — diccionario español ~150 emojis, sugerencia por nombre (categorías/metas/deudas/métodos de pago)
 │       ├── formatMoney.ts          # formatMoneyInput, formatMoneyDisplay, formatCOP
 │       ├── fuzzyMatch.ts           # levenshtein, fuzzyIncludes — tolerancia a typos en NLP de voz/texto
 │       ├── listShareText.ts        # Texto para compartir una lista (WhatsApp/correo): período, totales, cuentas
@@ -966,6 +969,9 @@ grilla de selección (tocar = marcar, deslizar el ícono = cambiar de variante d
 de `category-onboarding.tsx` a `src/components/ui/CategoryPickerGrid.tsx`
 (`CategoryPickerGrid`/`useCategoryPicker`), porque `ListEditorSheet` la reutiliza al crear una
 lista con categorías propias — el onboarding y "Tus listas" comparten la misma UI de selección.
+En modo edición (`?edit=1`, llegando desde Ajustes → "Categorías" → "Agregar o gestionar
+categorías"), `category-onboarding.tsx` usa `StackedScreenHeader` (el mismo header con flecha del
+resto de la app) en vez del header "← Volver" hecho a mano que tenía antes.
 
 ---
 
@@ -1071,14 +1077,13 @@ lista con categorías propias — el onboarding y "Tus listas" comparten la mism
 - Consumidores: `app/reports.tsx`, tarjeta "Tendencia" (`mode="months"`), y "Rango personalizado…" del Dashboard (`mode="days"`).
 
 ### ConfirmDialog
-- Componente reutilizable que reemplaza `Alert.alert` nativo con un diálogo minimalista y animado
+- Componente reutilizable que reemplaza `Alert.alert` nativo con una hoja (`BottomSheet`), no un diálogo centrado — parte del estándar del repo de que todo popup sube desde abajo (2026-09-29).
 - **3 variantes:** `danger` (icono papelera rojo), `warning` (triángulo ámbar), `info` (icono azul informativo)
-- Animación: spring scale + fade-in al abrir
-- Diseño: card centrado con `borderRadius: 24`, icono circular en la parte superior, título, mensaje, dos botones (cancelar/confirmar)
-- Tap en backdrop cierra el diálogo
+- Diseño: `BottomSheet` con ícono circular arriba (Lucide del `variant`, o un `emoji` propio si se pasa esa prop — para avisos de permiso, ej. el del micrófono en `voice-input.tsx` o el de notificaciones bancarias en `settings.tsx`), título, mensaje (`align="center"` por defecto, `"left"` para mensajes con viñetas) y `SheetActions` (cancelar/confirmar, de `SheetParts.tsx`) con el color del `variant`.
+- Tap fuera / swipe-down cierran (heredado de `BottomSheet`); no tiene botón "X" propio.
 - Soporte completo dark/light mode vía `useTheme()`
-- Props: `visible`, `variant`, `title`, `message`, `confirmLabel`, `cancelLabel`, `onConfirm`, `onCancel`
-- Usado en: `settings.tsx` (limpiar datos, eliminar método de pago, error de exportación, mínimo un método)
+- Props: `visible`, `variant`, `title`, `message`, `confirmLabel`, `cancelLabel`, `onConfirm`, `onCancel`, `emoji?`, `align?: "center" | "left"`
+- Usado en: `settings.tsx` (limpiar datos, eliminar método de pago, error de exportación, mínimo un método/categoría, aviso de permiso de notificaciones), `voice-input.tsx` (prominent disclosure del micrófono), y en general cualquier confirmación destructiva o aviso del repo.
 
 ### RollingNumber
 - **Odómetro tipo ruleta**: cada posición tiene su propia columna con los dígitos 0–9 apilados **tres veces** (30 filas) con `overflow: hidden`; en reposo muestra la copia del medio
@@ -1110,9 +1115,9 @@ reemplazarlo — solo los componentes de patrón "lista agrupada" (Ajustes y suc
 `border.default`, `accent.default/subtle`, `state.success/warning/danger/dangerSubtle`.
 
 En dark, `surface.primary` es `#0D1117` (2026-09-03: cambió de `#000000` para igualar `theme.bg`
-del Dashboard/`AppTheme` — afecta el fondo de `app/settings.tsx` main + sus `FullScreenModal` y de
-`app/reports.tsx`), `surface.secondary` `#1C1C1F`, `surface.elevated` `#2A2A2E`. En light,
-`surface.primary` `#F2F2F4` (sin cambios).
+del Dashboard/`AppTheme` — afecta el fondo de `app/settings.tsx` main + sus hojas (`SettingsSheet`/
+`BottomSheet`) y de `app/reports.tsx`), `surface.secondary` `#1C1C1F`, `surface.elevated` `#2A2A2E`.
+En light, `surface.primary` `#F2F2F4` (sin cambios).
 
 - **`Card`** (`src/components/ui/Card.tsx`): contenedor de lista agrupada. **Sin borde** (2026-09-02:
   el `borderWidth: 1.5` + `border.default` que había ganado en el rediseño Material se quitó a
@@ -1127,9 +1132,10 @@ del Dashboard/`AppTheme` — afecta el fondo de `app/settings.tsx` main + sus `F
   `destructive` (ej. accent en "Agregar…"). `detail` tiene `numberOfLines={1}` + `maxWidth: 120` +
   `flexShrink: 0`, y `label` tiene `numberOfLines={1}` — sin esto un `detail` largo le roba casi
   todo el ancho al `label` (bug detectado en dispositivo físico real). **2026-09-03:** la pantalla
-  principal de Ajustes dejó de usar `detail` en sus filas (truncaba el título); solo lo conservan la
-  fila "Versión" del screen principal y las sub-pantallas (Métodos de pago → tipo de cuenta,
-  Categorías → "Predefinida"/"Personalizada").
+  principal de Ajustes dejó de usar `detail` en sus filas (truncaba el título); solo lo conserva la
+  fila "Versión" y "Tus listas" (cantidad) del screen principal. Las hojas de Métodos de pago,
+  Categorías, Metas y Deudas ya no usan `ListRow` — tienen su propio patrón de fila (círculo de
+  emoji 44px + nombre + subtítulo gris, estilos `catSheet.*` de `settings.tsx`, ver §14).
 - **`StackedScreenHeader`**: barra de app estilo **Material** (flecha llana `ArrowLeft` + título
   en la misma fila) — reemplazó la variante original estilo iOS (botón circular flotante +
   `ChevronLeft` + large title duplicado en el body), eliminada del componente. Prop `title`
@@ -1175,7 +1181,7 @@ del Dashboard/`AppTheme` — afecta el fondo de `app/settings.tsx` main + sus `F
   - **Descripción**: fila con ícono + texto (placeholder corto "Describe tu gasto/ingreso aquí" en color atenuado cuando está vacío). Tocarla abre/cierra un panel colapsable debajo de la tarjeta (`descOpen`, animado con `FadeInDown`/`FadeOutUp` de Reanimated, respeta `useReducedMotion()`) con el `TextInput` multilínea + los tags sugeridos/custom — antes ambos estaban siempre visibles en un cuadro punteado permanente.
   - **Fecha**: fila con ícono + fecha formateada. Tocarla abre `CalendarSheet` (`src/components/ui/CalendarSheet.tsx`, nuevo) — calendario mensual minimalista dibujado a mano, reemplaza el `DateTimePicker` nativo del sistema.
 - **Categoría**: ya no es un bottom sheet (`CategorySheet` se eliminó de este archivo) — es una lista horizontal siempre visible debajo de la tarjeta, con ítem "Nueva" al final para crear al vuelo. Selecciona al tap, sin confirmar.
-- **Cuenta**: tampoco es un bottom sheet (`AccountSheet` eliminado) — lista vertical siempre visible. Selecciona al tap. El método de pago (Cuenta) seleccionado se guarda en la transacción (campo `payment_method` en DB) igual que antes.
+- **Cuenta**: tampoco es un bottom sheet (`AccountSheet` eliminado) — lista vertical siempre visible. Selecciona al tap. El método de pago (Cuenta) seleccionado se guarda en la transacción (campo `payment_method` en DB) igual que antes. Cada fila muestra el emoji propio del método (`PaymentMethod.emoji`) si tiene uno; si no, cae al ícono Lucide genérico de su tipo (`PAYMENT_TYPE_ICONS`).
 - **"Gestionar métodos de pago"** ya no navega a `/settings` — abre un `BottomSheet` inline con `PaymentMethodsSection` (exportada desde `app/settings.tsx` y reutilizada aquí, mismo patrón que `NewCategoryModal` importada desde `category-onboarding.tsx`), sin salir de la pantalla.
 - Botón **Guardar** fijo abajo (footer con gradiente de desvanecido hacia el fondo, `expo-linear-gradient`) — vibración + navegar atrás, misma lógica de guardado que antes.
 - **Param `?from=batch-review` / `?from=notification-edit`:** sin cambios en el flujo (ver comportamiento previo) — lee `from` con `useLocalSearchParams`, al confirmar llama `setPendingManualItem({...})` + `store.reset()` + `router.back()` en vez de guardar en DB.
@@ -1272,9 +1278,9 @@ hacían que el título se truncara ("Ingreso men…", "Métodos de …"). Ahora 
 título + flecha. Se quitó también el párrafo `ThemedText` al pie de SISTEMA ("Exportar genera un
 CSV…"). La fila "Versión" pasó de `<ListRow label="Versión" detail={…} />` sin ícono a ícono
 circular (`Info` de lucide, `iconBg={tokens.colors.text.secondary}`) + `v{APP_VERSION}` a la
-derecha — es la única fila del screen principal que aún usa `detail` (el valor es el dato, no un
-subtítulo). Los `detail` de las sub-pantallas (Métodos de pago → tipo de cuenta; Categorías →
-"Predefinida"/"Personalizada") no se tocaron. Variables muertas eliminadas: `incomeSubtitle`,
+derecha — es la única fila del screen principal (junto con "Tus listas", cantidad) que aún usa
+`detail`. Las hojas de Métodos de pago/Categorías/Metas/Deudas ya no usan `ListRow`/`detail` en
+absoluto (ver "Rediseño de popups a hojas" más abajo). Variables muertas eliminadas: `incomeSubtitle`,
 `darkLabel`, `activeCount`, selectores `savingsGoals`/`debts` de `SettingsScreen`.
 
 Colores de icono por fila se mantienen (no monocromáticos, se probó y se revirtió): verde
@@ -1320,6 +1326,68 @@ rosa `#DB2777` (Metas), rojo oscuro `#9F1239` (Deudas), rojo (Borrar historial),
 - **"Borrar historial de transacciones"**: desde Personal borra TODO (todas las listas); desde otra lista, solo borra la suya (`clearTransactions()`, sección 7).
 - **Confirmaciones:** Todas las alertas usan `ConfirmDialog` (componente custom con animación y variantes).
 - **Sin Guided Tour:** el tour ya no pasa por Ajustes (se quitaron los pasos sobre "Ingreso mensual" y el botón ←, `TOUR_KEYS.INCOME_ROW`/`BACK_BTN`); el pago se configura en el onboarding (`pay-onboarding.tsx`).
+
+### Rediseño de popups a hojas *(2026-09-29, estándar de todo el repo)*
+
+Todo lo que antes era un popup centrado (`Modal` con contenido en el centro de la pantalla) ahora
+es una hoja (`BottomSheet`, sube desde abajo). Alcance: `settings.tsx`, `category-onboarding.tsx`
+(`NewCategoryModal`), `voice-input.tsx` (aviso del micrófono), `CategoryChart.tsx`
+(`BudgetEditModal`, popup de presupuesto por categoría al long-press) y el propio `ConfirmDialog`
+(ver sección 11). No queda ningún popup centrado en el árbol de pantallas.
+
+- **`FullScreenModal` ya NO existe** — era un wrapper con `Modal` + `presentationStyle="pageSheet"`
+  para Métodos de pago/Metas/Deudas/Presupuestos. Se reemplazó por **`SettingsSheet`**, un wrapper
+  local de `settings.tsx` (`BottomSheet` + `SheetHeader` de `SheetParts.tsx` + `ScrollView`, `style`
+  con `maxHeight: "85%"`). "Categorías" usa en su lugar `CategoriesSheet`, un componente propio con
+  el mismo lenguaje visual pero su propio header con botón "+".
+- **`src/components/ui/SheetParts.tsx` (nuevo):** piezas compartidas para que toda hoja con
+  formulario se vea igual — `SheetHeader` (título + subtítulo), `SheetLabel` (etiqueta de sección en
+  mayúsculas), `SheetActions` (fila Cancelar/Guardar de ancho completo, la usa también
+  `ConfirmDialog`), `SheetAddButton` (botón "+ Nueva…", el de "Tus listas"/"Agregar
+  método"/"Nueva meta"/"Nueva deuda") y el hook `useSheetPadding()`.
+- **`BottomSheet` ganó una pila de hojas y `avoidKeyboard`:** un registro módulo-global
+  (`sheetStack`/`nextSheetId`/`stackListeners`, `useIsTopSheet()`) permite abrir una hoja desde
+  dentro de otra (ej. "Límite de categoría" desde "Presupuestos") sin cerrar la de abajo primero —
+  solo la de más arriba recibe touch (`pointerEvents="auto"`) y se ve; la(s) de abajo se ocultan
+  (`pointerEvents="none"`, se mueven fuera de pantalla) SIN desmontarse, para conservar su estado, y
+  reaparecen al cerrar la de arriba. Cada hoja de la pila sigue siendo un `<Modal>` de RN nativo
+  montado (aunque solo se vea la de arriba): si aparecen saltos raros o toques que no responden al
+  pasar de una hoja a otra, este es el sospechoso número uno. `avoidKeyboard` (prop nueva) sube el
+  contenido sobre el teclado con la altura real (`keyboardDidShow`/`keyboardDidHide`), reemplazando
+  el manejo manual que hacía cada hoja con formulario por separado (`DefaultPeriodSheet` seguía
+  haciéndolo a mano, ahora también podría usar la prop). El patrón antiguo (cerrar una hoja y abrir
+  la siguiente con `setTimeout` ~160-220ms) sigue existiendo aparte para navegar de una hoja a otra
+  reemplazándola (ej. `ListsSheet` → editor de lista, "Tus categorías" → `EditCategoryModal`).
+- **`ConfirmDialog` es ahora una `BottomSheet`** (ver sección 11), con soporte de `emoji` (círculo
+  con un emoji en vez del ícono Lucide del `variant`) y `align="left"` (mensajes con viñetas). Se usa
+  también como prominent disclosure de permisos (micrófono en `voice-input.tsx`, notificaciones
+  bancarias en `settings.tsx`).
+- **Sugerencia de íconos por nombre** (`src/utils/emojiSearch.ts` + `EmojiSuggestPicker.tsx`, ver
+  secciones 10/11): reemplaza al viejo picker de un `CURATED_EMOJIS` fijo sin relación con el
+  nombre. 100% offline, diccionario español de ~150 emojis con keywords y `suggestEmojis(query,
+  limit)` (tolerante a tildes/mayúsculas/plurales/typos vía `levenshtein`). Muestra solo los íconos
+  relacionados con lo que se está escribiendo; sin coincidencias cae a un `catalog` de respaldo
+  (distinto por formulario). El hook `useAutoEmoji(fallback)` autoselecciona mientras el usuario no
+  haya tocado un ícono a mano, con `reset(emoji, locked)` para no cambiarle el ícono ya guardado a
+  algo que se está editando. Se usa en categoría, meta, deuda y método de pago.
+- **Métodos de pago rediseñado de raíz:** antes eran dos popups encadenados (nombre, y tipo — el
+  segundo nunca se abría desde ningún botón, así que el tipo no se podía cambiar, bug). Ahora
+  `PaymentMethodSheet` es una sola hoja con Nombre, Tipo (3 botones: Efectivo/Débito/Ahorros, cada
+  uno con su emoji por defecto) e Ícono (`EmojiSuggestPicker`). `PaymentMethod.emoji?: string`
+  (`paymentsSlice.ts`) es opcional — sin él se resuelve con `paymentMethodEmoji(m)` según el tipo
+  (`PAYMENT_TYPE_EMOJI`); si el ícono elegido coincide con el del tipo no se persiste, para que siga
+  al tipo si luego cambia. `updatePaymentMethod(id, name, type, emoji?)` ganó un 4to parámetro
+  opcional. El selector de cuenta de `active-expense.tsx` muestra ese emoji propio si existe, y si no
+  cae al ícono Lucide genérico del tipo.
+- **Filas de "Tus categorías", Métodos de pago, y las tarjetas de Metas/Deudas comparten el mismo
+  lenguaje visual** ("Tus listas"): círculo de emoji 44px + nombre en negrita + subtítulo gris
+  debajo (estilos `catSheet.*`), no el `Card`+`ListRow` de ícono 34px del screen principal de
+  Ajustes. Los estados vacíos de Metas y Deudas ya no están envueltos en `Card`.
+- **"Alertas de presupuesto"** (dentro de la hoja "Presupuestos") es una fila más con ese mismo
+  patrón (círculo 🔔, nombre, subtítulo con el estado), tocable en toda su superficie para el
+  `Switch` — ya no está envuelta en su propia `Card`.
+- **"Bancos activos" ya no usa `Modal`+`Pressable` sin swipe-down** (deuda técnica resuelta): es un
+  `BottomSheet` con `SheetHeader`, igual que el resto de las hojas de Ajustes.
 
 ### Notification Review (`app/notification-review.tsx`) *(nuevo en v1.5.0)*
 - Pantalla fullscreen modal para revisar transacciones detectadas automáticamente desde notificaciones bancarias
@@ -1784,7 +1852,8 @@ registro, no se mantiene al día: si algo aquí contradice a `AGENTS.md` o al c�
 - **"BALANCE NETO" del Dashboard (`app/(tabs)/index.tsx`) ahora es SIEMPRE sobre todo el historial, no el del período/mes que esté filtrando la gráfica (2026-09-02, pedido explícito del usuario).** Antes `netBalance` (`useDashboardTotals.ts`) se calculaba desde `typeFilteredTransactions`/`searchedTransactions` — las mismas transacciones ya acotadas por el filtro de período (`FilterChips`) que alimentan la gráfica de categorías. Al cambiar de mes (o cuando el mes nuevo todavía no tenía transacciones), el balance se iba a $0 en vez de seguir mostrando la plata real que la persona tiene. Se agregó `allTimeNetBalance` al hook — mismo cálculo (ingresos − gastos) pero sobre `transactions` sin filtrar por período. El Dashboard usa `allTimeNetBalance` para "BALANCE NETO" y "Patrimonio neto" **excepto durante una búsqueda** (`isSearching`), donde se mantiene `netBalance` (neto de los resultados encontrados, ya intencional) — ahí la etiqueta ya dice "BÚSQUEDA · N resultados", así que mostrar el balance total confundiría el número con el conteo. `incomeTotal`/`expenseTotal` (los pills "↓ Gasto / ↑ Ingreso") siguen acotados al período — eso sí debe reflejar el mes que se está viendo, es un cambio deliberadamente distinto del balance.
 - **`app/settings.tsx`: se eliminó la fila "Optimización de batería" de Detección Automática y se fusionaron APARIENCIA + SISTEMA + ACERCA DE en una sola sección "SISTEMA" (2026-09-02, pedido explícito del usuario).** El acceso directo a `Linking.openSettings()` para desactivar la optimización de batería del fabricante (Samsung/Xiaomi/Huawei...) ya no está en la UI — el problema de fondo (el sistema puede matar el listener en background, ver gotcha de ANR más arriba) sigue existiendo, solo se quitó el atajo; si hace falta reintroducirlo, el código de referencia es el commit anterior a esta fecha (`Linking`/`BatteryWarning`, ambos removidos de los imports por quedar sin uso). Reordenamiento resultante: CONTROL FINANCIERO → GESTIÓN → DETECCIÓN AUTOMÁTICA (solo "Detectar transacciones" + "Bancos activos" ahora) → **SISTEMA** (Modo oscuro, Exportar datos, Borrar historial, Versión — antes repartidos en 3 secciones distintas: Apariencia, Sistema, Acerca de). Ya no existen las secciones "APARIENCIA" ni "ACERCA DE" como tales.
 - **`app/settings.tsx`: se quitaron los subtítulos (`detail`) de todas las filas del screen principal y se reubicó "Versión" (2026-09-03, pedido explícito del usuario).** El prop `detail` (texto gris secundario) se eliminó de `SettingsScreen` y de `AutoDetectSection` en TODAS sus filas: Ingreso mensual, Categorías, Métodos de pago, Presupuesto por categoría, Metas de ahorro, Deudas, Detectar transacciones, Bancos activos, Modo oscuro, Exportar datos. Hacían que el título se truncara ("Ingreso men…", "Métodos de …", "Presupuesto …"); ahora cada fila es solo ícono + título + flecha. Además se quitó el párrafo `ThemedText` al pie de la sección SISTEMA ("Exportar genera un CSV con tus transacciones. Borrar historial elimina…"). La fila "Versión" pasó de `<ListRow label="Versión" detail={...} />` (sin ícono) a tener ícono circular (`Info` de lucide, `iconBg={tokens.colors.text.secondary}`) + el valor `v{APP_VERSION}` a la derecha — es la **única** fila del screen principal que conserva `detail` (su contenido es el dato, no un subtítulo redundante). Los `detail` de las sub-pantallas (`FullScreenModal` de Métodos de pago → tipo de cuenta; Categorías → "Predefinida"/"Personalizada") NO se tocaron. Variables que quedaron sin uso y se eliminaron: `incomeSubtitle`, `darkLabel`, `activeCount`, y los selectores `savingsGoals`/`debts` de `SettingsScreen`.
-- **`tokenColors.dark.surface.primary` (`src/theme/tokens.ts`) pasó de `#000000` a `#0D1117` (2026-09-03).** Iguala `theme.bg` del Dashboard (`AppTheme`, que ya era `#0D1117` en dark) — el fondo de pantalla de `app/settings.tsx` (main + sus `FullScreenModal`) y `app/reports.tsx` dejó de ser negro puro y ahora coincide con el resto de la app en modo oscuro. Modo claro (`#F2F2F4`) sin cambios. `dark.surface.secondary`/`elevated` (`#1C1C1F`/`#2A2A2E`) no se tocaron.
+- **`tokenColors.dark.surface.primary` (`src/theme/tokens.ts`) pasó de `#000000` a `#0D1117` (2026-09-03).** Iguala `theme.bg` del Dashboard (`AppTheme`, que ya era `#0D1117` en dark) — el fondo de pantalla de `app/settings.tsx` (main + sus hojas) y `app/reports.tsx` dejó de ser negro puro y ahora coincide con el resto de la app en modo oscuro. Modo claro (`#F2F2F4`) sin cambios. `dark.surface.secondary`/`elevated` (`#1C1C1F`/`#2A2A2E`) no se tocaron.
+- **Todo popup centrado (`Modal` con contenido en el centro) se migró a hoja (`BottomSheet`), estándar de todo el repo (2026-09-29).** Ver sección 12 ("Rediseño de popups a hojas") para el detalle completo. Resumen de los cambios: `FullScreenModal` desapareció, reemplazada por `SettingsSheet` (wrapper local de `settings.tsx`); `ConfirmDialog` pasó de diálogo centrado con spring-scale a `BottomSheet` (ganó `emoji`/`align`); `BottomSheet` ganó soporte de pila de hojas (`sheetStack` módulo-global) y la prop `avoidKeyboard`; nuevo `src/components/ui/SheetParts.tsx` con las piezas compartidas de toda hoja con formulario; nuevo sistema de sugerencia de íconos por nombre (`src/utils/emojiSearch.ts` + `EmojiSuggestPicker.tsx`) que reemplaza al picker de `CURATED_EMOJIS` fijo; Métodos de pago se rediseñó de dos popups encadenados (uno con un bug que impedía cambiar el tipo) a una sola hoja `PaymentMethodSheet` con emoji propio opcional (`PaymentMethod.emoji?`, `paymentMethodEmoji()`); "Bancos activos" dejó de ser el único sheet de Ajustes sin swipe-down (deuda técnica resuelta, ver abajo).
 
 ### Deuda técnica resuelta
 
@@ -1796,6 +1865,7 @@ registro, no se mantiene al día: si algo aquí contradice a `AGENTS.md` o al c�
 - [x] ~~Dependencias posiblemente no usadas: `expo-web-browser`, `expo-symbols`~~ — eliminadas de `dependencies` (ver B13 arriba)
 - [x] ~~Varios `as any` localizados (SpeechModule types, estilos porcentuales Reanimated)~~ — eliminados. `BudgetBar.tsx`: `as any` en `withTiming(...)` reemplazado por el cast específico `as \`${number}%\`` (el tipo real que espera `DimensionValue` de RN, no `string` genérico). `voice-input.tsx`: los callbacks de `SpeechModule.addListener` usaban `(e: any)`/`(event: any)` con una interfaz manual — se tipó con los overloads reales (`addListener(event: "error"|"result", ...)`) usando los tipos que ya exporta `expo-speech-recognition` (`ExpoSpeechRecognitionErrorEvent`, `ExpoSpeechRecognitionResultEvent`) vía `import type` (sin efecto en runtime, no rompe el guard de Expo Go). Verificado: `grep -rn "as any\|: any\b" app/ src/` vacío en todo el repo.
 - [x] ~~`.commit_msg.txt` reaparecía tracked en el repo (residuo del flujo `/commit` en PowerShell)~~ — eliminado del tracking y agregado a `.gitignore`
+- [x] ~~El sheet de "Bancos activos" en `settings.tsx` era el único de Ajustes que usaba `Modal`+`Pressable` sin swipe-down~~ — migrado a `BottomSheet` con `SheetHeader` (2026-09-29), junto con el resto de popups centrados del repo (ver bitácora arriba, "Rediseño de popups a hojas").
 
 ---
 

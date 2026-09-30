@@ -17,7 +17,6 @@ import {
   Modal,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   StatusBar,
@@ -44,6 +43,8 @@ import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useAllListCategories } from "@/src/hooks/useAllListCategories";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
 import { useTheme } from "@/src/context/ThemeContext";
+import { BottomSheet } from "@/src/components/ui/BottomSheet";
+import { SheetActions, SheetHeader, useSheetPadding } from "@/src/components/ui/SheetParts";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -186,9 +187,10 @@ function getCategoryDisplayName(
   return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
 }
 
-// ─── Mini modal inline de edición de presupuesto (diseño Stitch) ─────────────
+// ─── Hoja de edición del presupuesto de una categoría ────────────────────────
 function BudgetEditModal({ state, onClose }: { state: BudgetEditState; onClose: () => void }) {
   const { isDark } = useTheme();
+  const sheetPad = useSheetPadding();
   const userCats = useSettingsStore((s) => s.userCategories);
   const goals = useSettingsStore((s) => s.savingsGoals);
   const { emoji, currentBudget, spent } = state;
@@ -222,94 +224,68 @@ function BudgetEditModal({ state, onClose }: { state: BudgetEditState; onClose: 
   }
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      {/* Fondo semi-oscuro consistente con el resto de popups */}
-      <Pressable style={bm.backdrop} onPress={onClose} />
-      <KeyboardAvoidingView style={bm.overlay} behavior="padding" pointerEvents="box-none">
-        <View
-          style={[
-            bm.card,
-            isDark && { backgroundColor: "#1E293B", borderWidth: 1, borderColor: "#334155" },
-          ]}
-        >
-          {/* ── Header: emoji + nombre centrado ── */}
-          <View style={bm.header}>
-            <Text style={bm.headerEmoji}>{emoji}</Text>
-            <Text style={[bm.headerName, isDark && { color: "#F1F5F9" }]}>{name}</Text>
-          </View>
+    <BottomSheet visible onClose={onClose} avoidKeyboard style={sheetPad}>
+      <SheetHeader title={`${emoji} ${name}`} subtitle="Límite de gasto para esta categoría" />
 
-          {/* ── Input de monto: $ pequeño + número grande ── */}
-          <View style={bm.amountRow}>
-            <Text style={[bm.currencySymbol, isDark && { color: "#94A3B8" }]}>$</Text>
-            <TextInput
-              style={[bm.amountInput, isDark && { color: "#F1F5F9" }]}
-              value={display}
-              onChangeText={handleChange}
-              placeholder="0"
-              placeholderTextColor={isDark ? "#475569" : "#CBD5E1"}
-              keyboardType="number-pad"
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={handleConfirm}
-              selectionColor={ACCENT_BLUE}
-            />
-          </View>
+      {/* ── Input de monto: $ pequeño + número grande ── */}
+      <View style={bm.amountRow}>
+        <Text style={[bm.currencySymbol, isDark && { color: "#94A3B8" }]}>$</Text>
+        <TextInput
+          style={[bm.amountInput, isDark && { color: "#F1F5F9" }]}
+          value={display}
+          onChangeText={handleChange}
+          placeholder="0"
+          placeholderTextColor={isDark ? "#475569" : "#CBD5E1"}
+          keyboardType="number-pad"
+          autoFocus
+          returnKeyType="done"
+          onSubmitEditing={handleConfirm}
+          selectionColor={ACCENT_BLUE}
+        />
+      </View>
 
-          {/* ── Barra de progreso interactiva ── */}
-          <View style={bm.progressSection}>
-            <View style={bm.progressLabels}>
-              <Text style={bm.progressLabelLeft}>PRESUPUESTO ACTUAL</Text>
-              <Text style={[bm.progressLabelRight, overBudget && { color: "#DC2626" }]}>
-                {consumedPct}% consumido
-              </Text>
-            </View>
-            <View style={[bm.progressTrack, isDark && { backgroundColor: "#334155" }]}>
-              <View
-                style={[
-                  bm.progressFill,
-                  {
-                    width: `${consumedPct}%` as `${number}%`,
-                    backgroundColor: overBudget
-                      ? "#DC2626"
-                      : consumedPct > 80
-                        ? "#F59E0B"
-                        : "#135BEC",
-                  },
-                ]}
-              />
-            </View>
-          </View>
-
-          {/* ── Botones ── */}
-          <View style={bm.actions}>
-            <TouchableOpacity
-              style={[bm.btnCancel, isDark && { backgroundColor: "#334155" }]}
-              onPress={onClose}
-              activeOpacity={0.7}
-            >
-              <Text style={[bm.btnCancelText, isDark && { color: "#94A3B8" }]}>Cancelar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={bm.btnConfirm} onPress={handleConfirm} activeOpacity={0.7}>
-              <Text style={bm.btnConfirmText}>Actualizar</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Quitar límite — solo si ya existe uno */}
-          {currentBudget > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                removeBudget(emoji);
-                onClose();
-              }}
-              activeOpacity={0.7}
-              style={bm.removeLinkRow}
-            >
-              <Text style={bm.removeLinkText}>Quitar límite</Text>
-            </TouchableOpacity>
-          )}
+      {/* ── Barra de progreso interactiva ── */}
+      <View style={bm.progressSection}>
+        <View style={bm.progressLabels}>
+          <Text style={bm.progressLabelLeft}>PRESUPUESTO ACTUAL</Text>
+          <Text style={[bm.progressLabelRight, overBudget && { color: "#DC2626" }]}>
+            {consumedPct}% consumido
+          </Text>
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+        <View style={[bm.progressTrack, isDark && { backgroundColor: "#334155" }]}>
+          <View
+            style={[
+              bm.progressFill,
+              {
+                width: `${consumedPct}%` as `${number}%`,
+                backgroundColor: overBudget ? "#DC2626" : consumedPct > 80 ? "#F59E0B" : "#135BEC",
+              },
+            ]}
+          />
+        </View>
+      </View>
+
+      <SheetActions
+        confirmLabel="Actualizar"
+        onConfirm={handleConfirm}
+        onCancel={onClose}
+        style={{ marginTop: 8 }}
+      />
+
+      {/* Quitar límite — solo si ya existe uno */}
+      {currentBudget > 0 && (
+        <TouchableOpacity
+          onPress={() => {
+            removeBudget(emoji);
+            onClose();
+          }}
+          activeOpacity={0.7}
+          style={bm.removeLinkRow}
+        >
+          <Text style={bm.removeLinkText}>Quitar límite</Text>
+        </TouchableOpacity>
+      )}
+    </BottomSheet>
   );
 }
 
@@ -1253,54 +1229,12 @@ const popupStyles = StyleSheet.create({
 const ACCENT_BLUE = "#135BEC";
 
 const bm = StyleSheet.create({
-  // Fondo semi-oscuro consistente con el resto de popups
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.35)",
-  },
-  // Contenedor que centra la card
-  overlay: {
-    flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 28,
-    paddingHorizontal: 28,
-    paddingTop: 28,
-    paddingBottom: 24,
-    gap: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.18,
-    shadowRadius: 28,
-    elevation: 16,
-  },
-  // Emoji + nombre centrado
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  headerEmoji: {
-    fontSize: 24,
-    lineHeight: 30,
-  },
-  headerName: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#0F172A",
-    letterSpacing: -0.3,
-  },
-  // Fila de monto: $ pequeño + número grande
   amountRow: {
     flexDirection: "row",
     alignItems: "baseline",
     justifyContent: "center",
     gap: 6,
-    marginVertical: -4,
+    marginVertical: 12,
   },
   currencySymbol: {
     fontSize: 18,
@@ -1321,6 +1255,7 @@ const bm = StyleSheet.create({
   // Sección de progreso
   progressSection: {
     gap: 8,
+    marginBottom: 8,
   },
   progressLabels: {
     flexDirection: "row",
@@ -1348,39 +1283,9 @@ const bm = StyleSheet.create({
     height: 4,
     borderRadius: 9999,
   },
-  // Botones
-  actions: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  btnCancel: {
-    flex: 1,
-    paddingVertical: 15,
-    borderRadius: 9999,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-  },
-  btnCancelText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#64748B",
-  },
-  btnConfirm: {
-    flex: 1,
-    paddingVertical: 15,
-    borderRadius: 9999,
-    alignItems: "center",
-    backgroundColor: ACCENT_BLUE,
-  },
-  btnConfirmText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  // Quitar límite — enlace sutil
   removeLinkRow: {
     alignItems: "center",
-    marginTop: -8,
+    paddingTop: 16,
   },
   removeLinkText: {
     fontSize: 13,

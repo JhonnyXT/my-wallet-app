@@ -6,9 +6,9 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { Check, Pencil, Plus } from "lucide-react-native";
+import { Check, Pencil } from "lucide-react-native";
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
-import { PressableScale } from "@/src/components/ui/PressableScale";
+import { SheetAddButton } from "@/src/components/ui/SheetParts";
 import type { WalletList } from "@/src/store/useSettingsStore";
 import { useAppTokens } from "@/src/theme/tokens";
 
@@ -91,15 +91,7 @@ export function ListsSheet({
         );
       })}
 
-      <PressableScale
-        onPress={onNew}
-        style={[styles.newBtn, { backgroundColor: c.accent.subtle }]}
-        accessibilityRole="button"
-        accessibilityLabel="Nueva lista"
-      >
-        <Plus size={18} color={c.accent.default} strokeWidth={2.4} />
-        <Text style={[styles.newText, { color: c.accent.default }]}>Nueva lista</Text>
-      </PressableScale>
+      <SheetAddButton label="Nueva lista" onPress={onNew} />
     </BottomSheet>
   );
 }
@@ -121,14 +113,4 @@ const styles = StyleSheet.create({
   nameActive: { fontWeight: "800" },
   meta: { fontSize: 12, marginTop: 2 },
   editBtn: { padding: 6, marginLeft: 4 },
-  newBtn: {
-    marginTop: 16,
-    height: 50,
-    borderRadius: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  newText: { fontSize: 15, fontWeight: "700" },
 });

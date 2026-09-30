@@ -1,23 +1,9 @@
 /**
  * category-onboarding.tsx — Pantalla de selección de categorías (primera vez).
- * Grid de tarjetas redondeadas + "Añadir categoría" + modal de creación.
+ * Grid de tarjetas redondeadas + "Añadir categoría" + hoja de creación.
  */
-import { useState, useMemo, useCallback } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  StatusBar,
-  Dimensions,
-} from "react-native";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { View, Text, ScrollView, TextInput, StyleSheet, StatusBar, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -27,7 +13,16 @@ import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { CURATED_EMOJIS, type UserCategory } from "@/src/constants/categoryPresets";
 import { HueColorPicker } from "@/src/components/ui/HueColorPicker";
 import { PressableScale } from "@/src/components/ui/PressableScale";
+import { BottomSheet } from "@/src/components/ui/BottomSheet";
 import { CategoryPickerGrid, useCategoryPicker } from "@/src/components/ui/CategoryPickerGrid";
+import { EmojiSuggestPicker, useAutoEmoji } from "@/src/components/ui/EmojiSuggestPicker";
+import {
+  SheetActions,
+  SheetHeader,
+  SheetLabel,
+  useSheetPadding,
+} from "@/src/components/ui/SheetParts";
+import { StackedScreenHeader } from "@/src/components/ui/StackedScreenHeader";
 import { hueToColors } from "@/src/utils/colorUtils";
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -91,20 +86,21 @@ export default function CategoryOnboarding() {
     <SafeAreaView style={st.screen} edges={["top", "bottom"]}>
       <StatusBar barStyle={theme.statusBar} backgroundColor={theme.bg} />
 
-      <ScrollView contentContainerStyle={st.scrollContent} showsVerticalScrollIndicator={false}>
-        {isEditing && (
-          <PressableScale
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
-            }}
-            style={{ marginBottom: 12, flexDirection: "row", alignItems: "center" }}
-          >
-            <Text style={{ color: theme.accent, fontSize: 15, fontWeight: "600" }}>← Volver</Text>
-          </PressableScale>
-        )}
-        <Text style={st.title}>{isEditing ? "Editar categorías" : "Elige tus categorías"}</Text>
-        <Text style={st.subtitle}>
+      {isEditing && (
+        <StackedScreenHeader
+          onBack={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.back();
+          }}
+          title="Editar categorías"
+        />
+      )}
+      <ScrollView
+        contentContainerStyle={[st.scrollContent, isEditing && { paddingTop: 8 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {!isEditing && <Text style={st.title}>Elige tus categorías</Text>}
+        <Text style={[st.subtitle, isEditing && { marginTop: 0 }]}>
           Selecciona las categorías que mejor definan tus gastos e ingresos mensuales.
         </Text>
 
@@ -158,25 +154,20 @@ interface ModalProps {
 }
 
 export function NewCategoryModal({ visible, type, theme, onClose, onSave }: ModalProps) {
-  const [emoji, setEmoji] = useState(CURATED_EMOJIS[0]);
+  const icon = useAutoEmoji(CURATED_EMOJIS[0]);
+  const { emoji, reset: resetIcon } = icon;
   const [hue, setHue] = useState(210); // Azul por defecto
   const [name, setName] = useState("");
-  const scaleAnim = useState(new Animated.Value(0.9))[0];
+  const sheetPad = useSheetPadding();
 
   const ms = useMemo(() => modalStyles(theme), [theme]);
 
-  const handleOpen = useCallback(() => {
-    setEmoji(CURATED_EMOJIS[0]);
+  useEffect(() => {
+    if (!visible) return;
+    resetIcon(CURATED_EMOJIS[0]);
     setHue(210);
     setName("");
-    scaleAnim.setValue(0.9);
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      damping: 18,
-      stiffness: 200,
-      useNativeDriver: true,
-    }).start();
-  }, [scaleAnim]);
+  }, [visible, resetIcon]);
 
   const handleSave = useCallback(() => {
     if (!name.trim()) return;
@@ -195,78 +186,35 @@ export function NewCategoryModal({ visible, type, theme, onClose, onSave }: Moda
   }, [name, emoji, hue, type, onSave]);
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onShow={handleOpen}
-      onRequestClose={onClose}
-    >
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
-        <Pressable style={ms.backdrop} onPress={onClose}>
-          <Animated.View style={[ms.card, { transform: [{ scale: scaleAnim }] }]}>
-            <Pressable>
-              <View style={ms.header}>
-                <Text style={ms.headerTitle}>Nueva Categoría</Text>
-                <PressableScale onPress={onClose}>
-                  <Text style={ms.headerX}>✕</Text>
-                </PressableScale>
-              </View>
+    <BottomSheet visible={visible} onClose={onClose} avoidKeyboard style={sheetPad}>
+      <SheetHeader
+        title="Nueva categoría"
+        subtitle={type === "expense" ? "Para tus gastos" : "Para tus ingresos"}
+      />
 
-              {/* Emoji selector */}
-              <Text style={ms.label}>ÍCONO</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={ms.emojiScroll}>
-                {CURATED_EMOJIS.map((e) => (
-                  <TouchableOpacity
-                    key={e}
-                    onPress={() => setEmoji(e)}
-                    style={[ms.emojiBtn, e === emoji && ms.emojiBtnActive]}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={ms.emojiText}>{e}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+      {/* El nombre va primero: de él salen las sugerencias de ícono */}
+      <SheetLabel first>Nombre de la categoría</SheetLabel>
+      <TextInput
+        value={name}
+        onChangeText={(t) => {
+          setName(t);
+          icon.onNameChange(t);
+        }}
+        placeholder="Ej. Gimnasio"
+        placeholderTextColor={theme.textTertiary}
+        style={ms.nameInput}
+        maxLength={24}
+        autoCapitalize="words"
+      />
 
-              {/* Color selector */}
-              <Text style={ms.label}>COLOR DE TEMA</Text>
-              <HueColorPicker
-                hue={hue}
-                onChange={setHue}
-                previewEmoji={emoji}
-                style={ms.colorPicker}
-              />
+      <SheetLabel>Ícono</SheetLabel>
+      <EmojiSuggestPicker query={name} selected={emoji} onSelect={icon.pick} />
 
-              {/* Name input */}
-              <Text style={ms.label}>NOMBRE DE LA CATEGORÍA</Text>
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Ej. Gimnasio"
-                placeholderTextColor={theme.textTertiary}
-                style={ms.nameInput}
-                maxLength={24}
-                autoCapitalize="words"
-              />
+      <SheetLabel>Color de tema</SheetLabel>
+      <HueColorPicker hue={hue} onChange={setHue} previewEmoji={emoji} style={ms.colorPicker} />
 
-              {/* Buttons */}
-              <View style={ms.btnRow}>
-                <PressableScale onPress={onClose} style={ms.cancelBtn}>
-                  <Text style={[ms.cancelText, { color: theme.textSub }]}>Cancelar</Text>
-                </PressableScale>
-                <PressableScale
-                  onPress={handleSave}
-                  disabled={!name.trim()}
-                  style={[ms.okBtn, !name.trim() && { opacity: 0.4 }]}
-                >
-                  <Text style={ms.okText}>Guardar</Text>
-                </PressableScale>
-              </View>
-            </Pressable>
-          </Animated.View>
-        </Pressable>
-      </KeyboardAvoidingView>
-    </Modal>
+      <SheetActions onCancel={onClose} onConfirm={handleSave} disabled={!name.trim()} />
+    </BottomSheet>
   );
 }
 
@@ -310,63 +258,7 @@ function buildStyles(t: AppTheme) {
 
 function modalStyles(t: AppTheme) {
   return StyleSheet.create({
-    backdrop: {
-      flex: 1,
-      backgroundColor: "rgba(0,0,0,0.5)",
-      justifyContent: "center",
-      alignItems: "center",
-      paddingHorizontal: 28,
-    },
-    card: {
-      width: "100%",
-      backgroundColor: t.surface,
-      borderRadius: 22,
-      padding: 24,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.15,
-      shadowRadius: 20,
-      elevation: 20,
-    },
-    header: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 20,
-    },
-    headerTitle: { fontSize: 20, fontWeight: "700", color: t.text },
-    headerX: { fontSize: 20, color: t.textSub, padding: 4 },
-    label: {
-      fontSize: 11,
-      fontWeight: "700",
-      color: t.textSub,
-      letterSpacing: 1,
-      marginBottom: 10,
-      marginTop: 16,
-    },
-    emojiScroll: { marginBottom: 4 },
-    emojiBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: 12,
-      alignItems: "center",
-      justifyContent: "center",
-      marginRight: 8,
-      backgroundColor: t.inputBg,
-    },
-    emojiBtnActive: {
-      backgroundColor: "#DBEAFE",
-      borderWidth: 2,
-      borderColor: "#135BEC",
-    },
-    emojiText: { fontSize: 22 },
     colorPicker: { marginBottom: 4 },
-    colorDot: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      marginRight: 10,
-    },
     nameInput: {
       backgroundColor: t.inputBg,
       borderRadius: 14,
@@ -374,22 +266,6 @@ function modalStyles(t: AppTheme) {
       paddingVertical: 14,
       fontSize: 15,
       color: t.text,
-      marginTop: 4,
     },
-    btnRow: {
-      flexDirection: "row",
-      justifyContent: "flex-end",
-      gap: 12,
-      marginTop: 24,
-    },
-    cancelBtn: { paddingVertical: 12, paddingHorizontal: 16 },
-    cancelText: { fontSize: 15, fontWeight: "600" },
-    okBtn: {
-      backgroundColor: "#135BEC",
-      paddingVertical: 12,
-      paddingHorizontal: 24,
-      borderRadius: 14,
-    },
-    okText: { color: "#FFF", fontSize: 15, fontWeight: "700" },
   });
 }

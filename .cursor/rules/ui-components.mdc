@@ -125,6 +125,15 @@ cambia la apariencia visual del botón (mismo `style` que ya tenías, mismos col
 `activeOpacity`/`TouchableOpacity` siguen siendo válidos para filas de lista o celdas de
 selección de baja frecuencia (emoji picker, chips) donde el feedback de escala no aporta.
 
+### Todo popup es una hoja: nada de `Modal` centrado
+
+Estándar del repo (2026-09-29): cualquier popup/confirmación/formulario corto se implementa como
+una hoja (`BottomSheet`, sube desde abajo), nunca como un `Modal` con contenido centrado en la
+pantalla. Esto incluye diálogos de confirmación (`ConfirmDialog`), avisos de permiso (prominent
+disclosures), y formularios de creación/edición cortos (categoría, meta, deuda, método de pago,
+presupuesto por categoría). Si vas a crear un popup nuevo, arranca de `BottomSheet` +
+`SheetParts.tsx`, no de `Modal` + estilos centrados.
+
 ### Bottom sheets: `BottomSheet`, sin botón "X" propio
 
 Cualquier sheet que aparece desde abajo (`borderTopLeftRadius`/`borderTopRightRadius`, handle) usa
@@ -138,13 +147,41 @@ un flash negro de un frame al abrir/cerrar) — no reintroducir `animationType="
 mismo `PanResponder`/umbrales (`CLOSE_DISTANCE`/`CLOSE_VELOCITY`) sobre el handle en un
 `Animated.View` de RN core anidado dentro del wrapper de animación de entrada.
 
+`BottomSheet` soporta una **pila de hojas**: si necesitas abrir una hoja desde dentro de otra (ej.
+un sub-formulario que depende del padre, como "Límite de categoría" desde "Presupuestos"), basta con
+montar la segunda `BottomSheet` mientras la primera sigue `visible` — un registro módulo-global
+mantiene cuál es la de más arriba, solo esa recibe touch y se ve, y la de abajo se oculta (no se
+desmonta, conserva su estado) hasta que la de arriba se cierra. No repliques el patrón antiguo de
+cerrar-la-hoja-y-abrir-la-siguiente-con-`setTimeout` para este caso — ese patrón sigue siendo
+correcto cuando lo que quieres es **navegar** de una hoja a otra reemplazándola (ej. de un menú a
+un formulario), no anidar un sub-formulario dentro del padre.
+
+Prop `avoidKeyboard` sube el contenido sobre el teclado con su altura real
+(`keyboardDidShow`/`keyboardDidHide`) — úsala en vez de repetir ese manejo a mano en cada hoja con
+`TextInput`.
+
+Usa `@/src/components/ui/SheetParts.tsx` (`SheetHeader`, `SheetLabel`, `SheetActions`,
+`SheetAddButton`, `useSheetPadding()`) para que toda hoja con formulario tenga el mismo título,
+labels y fila de acciones — no reimplementes esas piezas a mano en una hoja nueva.
+
+### Sugerencia de íconos por nombre: `EmojiSuggestPicker`, no un catálogo fijo
+
+Para elegir el emoji de algo que el usuario nombra (categoría, meta, deuda, método de pago), usa
+`@/src/components/ui/EmojiSuggestPicker.tsx` (+ `useAutoEmoji` para autoseleccionar mientras no se
+toque un ícono a mano) en vez de mostrar un catálogo fijo sin relación con el nombre escrito. La
+sugerencia sale de `src/utils/emojiSearch.ts` (`suggestEmojis`, diccionario español, 100% offline,
+tolerante a typos/tildes/plurales) y cae a un `catalog` de respaldo (prop) sin coincidencias.
+
 ### Modales de Android (`Modal`, `BottomSheet`, menús flotantes)
 
-- **No apilar `Modal`s.** Si un formulario dentro de una hoja necesita sub-selecciones, usar
-  "páginas" internas que reemplazan el contenido (ver `PayPeriodForm.tsx`: estado `page` + header
-  con flecha "Volver"), no otra hoja encima. Para abrir una hoja desde un menú que también es
-  `Modal`, cerrar el menú primero y abrir la hoja con un pequeño retraso (~160ms, ver
-  `app/(tabs)/index.tsx`): abrirla mientras el otro se cierra da saltos.
+- **No apilar `Modal`s de menú/formulario "página" (`PeriodMenu`, `PayPeriodForm`).** Si un
+  formulario dentro de una hoja necesita sub-selecciones, usar "páginas" internas que reemplazan
+  el contenido (ver `PayPeriodForm.tsx`: estado `page` + header con flecha "Volver"), no otra hoja
+  encima. Para **navegar** de un menú/hoja a otra reemplazándola (no anidar), cerrar la primera y
+  abrir la siguiente con un pequeño retraso (~160-220ms, ver `app/(tabs)/index.tsx` o
+  `settings.tsx`): abrirla mientras la otra se cierra da saltos. Esto es distinto de **anidar** un
+  sub-formulario dentro de su padre (ej. "Límite de categoría" abierto desde "Presupuestos"): para
+  eso usa la pila de hojas nativa de `BottomSheet` (ver arriba), no este patrón de `setTimeout`.
 - **`Pressable` dentro de un `Modal`: `style` estático, no función.** Con `style={({ pressed }) =>
   …}` el estilo se perdía y las filas caían a columna. El feedback de toque va con
   `android_ripple` (ver `PeriodMenu.tsx`, `PayPeriodForm.tsx`).

@@ -13,15 +13,7 @@ import { router } from "expo-router";
 import { Mic, Pause, Play, Sparkles, X } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import {
-  Dimensions,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
   FadeIn,
@@ -35,6 +27,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { PressableScale } from "@/src/components/ui/PressableScale";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
@@ -425,35 +418,26 @@ export default function VoiceInputScreen() {
   return (
     <View style={styles.screen}>
       {/* ── Prominent Disclosure: micrófono (se muestra solo la primera vez) ── */}
-      <Modal visible={showMicDisclosure} transparent animationType="fade">
-        <View style={micDiscS.overlay}>
-          <View style={micDiscS.card}>
-            <Text style={micDiscS.icon}>🎙️</Text>
-            <Text style={micDiscS.title}>Uso del micrófono</Text>
-            <Text style={micDiscS.body}>
-              MyWallet usará el micrófono mientras hablas para transcribir tu gasto.{"\n\n"}
-              {"· Solo se activa cuando tú lo inicias\n"}
-              {"· El audio no se graba ni almacena\n"}
-              {"· La transcripción ocurre en tu dispositivo\n"}
-              {"· Ningún audio sale de tu teléfono"}
-            </Text>
-            <View style={micDiscS.btns}>
-              <PressableScale
-                style={micDiscS.btnCancel}
-                onPress={() => {
-                  setShowMicDisclosure(false);
-                  handleClose();
-                }}
-              >
-                <Text style={micDiscS.btnCancelText}>Cancelar</Text>
-              </PressableScale>
-              <PressableScale style={micDiscS.btnConfirm} onPress={handleMicDisclosureConfirm}>
-                <Text style={micDiscS.btnConfirmText}>Continuar</Text>
-              </PressableScale>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ConfirmDialog
+        visible={showMicDisclosure}
+        variant="info"
+        emoji="🎙️"
+        align="left"
+        title="Uso del micrófono"
+        message={
+          "MyWallet usará el micrófono mientras hablas para transcribir tu gasto.\n\n" +
+          "· Solo se activa cuando tú lo inicias\n" +
+          "· El audio no se graba ni almacena\n" +
+          "· La transcripción ocurre en tu dispositivo\n" +
+          "· Ningún audio sale de tu teléfono"
+        }
+        confirmLabel="Continuar"
+        onConfirm={handleMicDisclosureConfirm}
+        onCancel={() => {
+          setShowMicDisclosure(false);
+          handleClose();
+        }}
+      />
 
       {/* Fondo glassmorphism */}
       <BlurView intensity={85} tint="dark" style={StyleSheet.absoluteFillObject} />
@@ -767,43 +751,4 @@ const styles = StyleSheet.create({
     color: "#64748B",
     letterSpacing: 1.8,
   },
-});
-
-const micDiscS = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.72)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-  },
-  card: {
-    backgroundColor: "#1C2128",
-    borderRadius: 20,
-    padding: 24,
-    alignItems: "center",
-    gap: 12,
-    width: "100%",
-  },
-  icon: { fontSize: 32 },
-  title: { fontSize: 18, fontWeight: "700", color: "#E6EDF3", textAlign: "center" },
-  body: { fontSize: 14, color: "#8B949E", lineHeight: 21, textAlign: "center" },
-  btns: { flexDirection: "row", gap: 12, marginTop: 4, width: "100%" },
-  btnCancel: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#30363D",
-    alignItems: "center",
-  },
-  btnCancelText: { fontSize: 15, fontWeight: "600", color: "#8B949E" },
-  btnConfirm: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: "#135BEC",
-    alignItems: "center",
-  },
-  btnConfirmText: { fontSize: 15, fontWeight: "700", color: "#fff" },
 });

@@ -108,6 +108,7 @@ const config: ExpoConfig = {
     ],
     "./plugins/withAllowBackupDisabled",
     "./plugins/withDisableStartingWindowPreview",
+    "./plugins/withoutNotificationListenerBootReceiver",
   ],
   experiments: {
     typedRoutes: true,

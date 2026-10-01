@@ -77,6 +77,17 @@ alcance de la lista activa sin ningún error visible — solo cuando sea intenci
 `deleteTransactionsOfList(listId)`, que borra por `list_id` exacto al eliminar una lista completa),
 saltarse el filtro.
 
+## Funciones de la sync (Fase 3)
+
+`getPendingTransactions`, `countPendingTransactions`, `markTransactionsSynced` (solo si
+`updated_at` no cambió durante la subida), `getTransactionVersions`, `applyRemoteTransactions`
+(upsert por `uid`, queda `synced`; el `WHERE` repite la regla de `pickWinner` como barrera),
+`markAllTransactionsPending` (tras eliminar la cuenta) y `wipeAllTransactions` ("Borrar de este
+teléfono"). Las llama solo `src/sync/`; recorren TODAS las listas y también los borrados, así que a
+propósito no usan `LIST_SCOPE_SQL` (están en la lista de excepciones de `listScope.test.ts`). Cada
+escritura del usuario en `db.ts` llama `emitLocalChange()` para que la sync suba el cambio; las de
+la sync no.
+
 ## Fechas — CRÍTICO
 
 SIEMPRE usar `localISOString()` para generar fechas:

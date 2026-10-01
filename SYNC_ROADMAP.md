@@ -5,7 +5,8 @@ para respaldar toda la data en la nube y compartir espacios con otras personas. 
 2026-09-29. Cada fase deja la app funcionando y se puede probar sola; para implementar una fase
 con detalle, generar su spec con `/sdd` a partir de la sección correspondiente.
 
-**Estado:** Fases 0, 1 y 2 hechas. Siguiente: Fase 3.
+**Estado:** Fases 0, 1 y 2 hechas. Fase 3 con el código hecho y probado en `dev` + emulador;
+falta desplegar reglas y la prueba de punta a punta con `test` (ver checklist de la Fase 3).
 
 ---
 
@@ -183,17 +184,35 @@ Spec local (no versionado): `specs/sync-fase-2-cuentas/spec.md`.
 - Para la Fase 3: `deleteAccount()` debe borrar `users/{uid}` en Firestore antes del usuario de Auth;
   registrar la SHA-1 de EAS en `mywallet-prod` antes del primer build de producción.
 
-### Fase 3 — Respaldo en la nube de toda la data · L
-- [ ] Push de todo lo del inventario marcado ✅ (transacciones, listas, categorías, presupuestos,
-  pago y período, métodos de pago, metas, deudas, alertas, bancos, preferencias).
-- [ ] Primera subida: al iniciar sesión por primera vez, sube todo lo que ya había en el teléfono
-  (con progreso, en segundo plano).
-- [ ] Pull al iniciar sesión, al abrir la app y con pull-to-refresh; se unen con lo local (T8).
-- [ ] Restaurar en un teléfono nuevo: iniciar sesión → baja todo → salta el onboarding hecho →
-  reprograma recordatorios de deudas → "Detectar transacciones" queda apagado hasta dar el permiso.
-- [ ] Estado visible y discreto: "Respaldado hace 2 min" / "Pendiente de subir (sin conexión)" en
-  Ajustes → Cuenta.
-- [ ] Reglas de seguridad de `users/{uid}` + tests con el emulador.
+### Fase 3 — Respaldo en la nube de toda la data · L — 🟡 en curso (código hecho y probado en dev)
+Spec local (no versionado): `specs/sync-fase-3-respaldo/` (requirements, design, impacto, tareas,
+test-plan). Decisiones del usuario (2026-09-30): si el teléfono tiene datos de otra cuenta, se
+**pregunta** "Unir / Borrar del teléfono y usar esta"; "Borrar de este teléfono" se **bloquea** si
+hay cambios sin subir.
+- [x] Push de todo lo del inventario marcado ✅ (transacciones, listas con los datos vivos de la
+  activa, métodos de pago, metas, deudas, alertas, bancos, perfil con el onboarding hecho).
+- [x] Primera subida al iniciar sesión, en segundo plano (traer → unir → subir, así la primera
+  subida no pisa algo más nuevo de la nube).
+- [x] Pull al iniciar sesión, al abrir la app, al volver a primer plano y con pull-to-refresh en el
+  Dashboard (indicador propio); se unen con lo local (T8, `pickWinner`). El orden de traída es la
+  hora del servidor (`serverUpdatedAt`), no la del teléfono.
+- [x] Restaurar: iniciar sesión desde el onboarding → trae todo → si ya había onboarding, entra
+  directo al Dashboard; reprograma recordatorios de deudas; "Detectar transacciones" no se trae.
+- [x] Estado en Ajustes → Cuenta ("Respaldado hace…", "N cambios pendientes (sin conexión)",
+  "Respaldando…"); tocarlo sincroniza ya.
+- [x] Cerrar sesión con "Mantener / Borrar de este teléfono" (T9); datos de otra cuenta; eliminar
+  cuenta borra `users/{uid}` (reautentica antes si el login no es reciente).
+- [x] Reglas de `users/{uid}` + tests con el emulador (`npm run test:rules`, 4 casos).
+- [x] Probado en el teléfono con `dev` + emulador (2026-09-30): subida, traer desde "otro teléfono",
+  Mantener sin duplicados, sin conexión con Borrar bloqueado, datos de otra cuenta (Unir), Borrar y
+  restaurar, eliminar cuenta.
+- [ ] **Desplegar las reglas nuevas** a `mywallet-test-jb` y `mywallet-prod`
+  (`npx firebase-tools deploy --only firestore:rules --project <id>`). Hoy en la nube sigue la de la
+  Fase 2 (niega todo): el build `test` no puede respaldar nada hasta hacerlo.
+- [ ] **Prueba de punta a punta con `test` contra la nube real** (`npm run build:test`): registrar →
+  desinstalar → reinstalar → iniciar sesión → ver lo mismo; gastos en modo avión que suben al volver.
+  Cubre también lo pendiente de la Fase 2 (login real en `test`, sin internet en el onboarding).
+- [ ] Marcar la fase hecha y actualizar el estado arriba.
 
 **Hecho cuando:** borrar la app, reinstalarla, iniciar sesión y ver exactamente lo mismo que
 antes; y registrar gastos en modo avión que aparecen en la nube al volver la conexión.

@@ -149,7 +149,8 @@ export function AccountSection() {
   }
 
   function goToOnboarding() {
-    router.dismissAll();
+    // Sin pantallas encima (la raíz llegó con replace), dismissAll avisa POP_TO_TOP.
+    if (router.canDismiss()) router.dismissAll();
     router.replace("/login-onboarding");
   }
 
@@ -159,7 +160,9 @@ export function AccountSection() {
       const { blockedPending } = await signOutWith(mode);
       if (blockedPending > 0) {
         setError(
-          `Hay ${blockedPending === 1 ? "1 cambio" : `${blockedPending} cambios`} sin respaldar. Conéctate para subirlos antes de borrar.`,
+          blockedPending === 1
+            ? "Hay 1 cambio sin respaldar. Conéctate para subirlo antes de borrar."
+            : `Hay ${blockedPending} cambios sin respaldar. Conéctate para subirlos antes de borrar.`,
         );
         return;
       }
@@ -192,7 +195,11 @@ export function AccountSection() {
                   <Cloud size={16} color="#FFFFFF" strokeWidth={2} />
                 )
               }
-              iconBg={offline || pending > 0 ? "#D97706" : tokens.colors.state.success}
+              iconBg={
+                offline || pending > 0 || phase === "needs-decision"
+                  ? "#D97706"
+                  : tokens.colors.state.success
+              }
               onPress={
                 phase === "needs-decision"
                   ? () => setDialog("conflict")

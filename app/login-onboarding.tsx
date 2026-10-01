@@ -140,7 +140,8 @@ export default function LoginOnboarding() {
     ]);
     setRestoring(false);
     if (useSettingsStore.getState().hasCompletedOnboarding) {
-      router.dismissAll();
+      // Sin pantallas encima (la raíz llegó con replace), dismissAll avisa POP_TO_TOP.
+      if (router.canDismiss()) router.dismissAll();
       router.replace("/(tabs)");
     } else {
       next();

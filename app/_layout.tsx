@@ -5,6 +5,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as Notifications from "expo-notifications";
 import { initDatabase, purgeSyncedTombstones } from "@/src/db/db";
+import { startSync } from "@/src/sync";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
@@ -155,6 +156,8 @@ export default function RootLayout() {
         // Sin await: la purga de borrados ya subidos no debe demorar el arranque.
         purgeSyncedTombstones().catch((e) => console.warn("[bootstrap] Purga de borrados:", e));
         await loadTransactions();
+        // Respaldo en segundo plano (Sync Fase 3): sin sesión no hace nada; nunca bloquea.
+        startSync();
         // Importación dinámica para evitar dependencia circular con notificationService
         const { initNotifications } = await import("@/src/services/notificationService");
         await initNotifications();

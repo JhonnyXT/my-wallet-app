@@ -26,9 +26,18 @@ import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { PressableScale } from "@/src/components/ui/PressableScale";
-import { authErrorMessage, classifyAuthError, signInWithGoogle, useSession } from "@/src/sync";
+import { useSettingsStore } from "@/src/store/useSettingsStore";
+import {
+  authErrorMessage,
+  classifyAuthError,
+  signInWithGoogle,
+  syncNow,
+  useSession,
+} from "@/src/sync";
 
 const ACCENT = "#135BEC";
+/** Tope para traer la información al restaurar: pasado esto se sigue y la sync termina sola. */
+const RESTORE_MAX_WAIT_MS = 8000;
 const ICON_SIZE = 72;
 /** Lado del resplandor: bastante más grande que el ícono para que se desvanezca suave. */
 const GLOW_SIZE = 230;
@@ -113,10 +122,30 @@ export default function LoginOnboarding() {
   const { user } = useSession();
 
   const [busy, setBusy] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const [skipNotice, setSkipNotice] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const next = useCallback(() => router.push("/category-onboarding"), [router]);
+
+  /**
+   * Restaurar (Sync Fase 3, RF-07): trae lo de la cuenta; si ya había hecho el onboarding (se
+   * respalda en el perfil), entra directo al Dashboard en vez de repetirlo.
+   */
+  const continueAfterLogin = useCallback(async () => {
+    setRestoring(true);
+    await Promise.race([
+      syncNow().catch(() => undefined),
+      new Promise((resolve) => setTimeout(resolve, RESTORE_MAX_WAIT_MS)),
+    ]);
+    setRestoring(false);
+    if (useSettingsStore.getState().hasCompletedOnboarding) {
+      router.dismissAll();
+      router.replace("/(tabs)");
+    } else {
+      next();
+    }
+  }, [router, next]);
 
   const handleGoogle = useCallback(async () => {
     // Ya con sesión (volvió atrás desde categorías): solo avanzar.
@@ -125,13 +154,13 @@ export default function LoginOnboarding() {
     setBusy(true);
     try {
       await signInWithGoogle();
-      next();
+      await continueAfterLogin();
     } catch (e) {
       setError(authErrorMessage(classifyAuthError(e)));
     } finally {
       setBusy(false);
     }
-  }, [user, busy, next]);
+  }, [user, busy, next, continueAfterLogin]);
 
   const handleSkip = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -168,9 +197,15 @@ export default function LoginOnboarding() {
           disabled={busy}
           accessibilityRole="button"
         >
-          {!user && !busy && <GoogleMark />}
+          {!user && !busy && !restoring && <GoogleMark />}
           <Text style={st.googleText}>
-            {user ? "Continuar" : busy ? "Conectando…" : "Continuar con Google"}
+            {restoring
+              ? "Recuperando tu información…"
+              : user
+                ? "Continuar"
+                : busy
+                  ? "Conectando…"
+                  : "Continuar con Google"}
           </Text>
         </PressableScale>
         {!user && (

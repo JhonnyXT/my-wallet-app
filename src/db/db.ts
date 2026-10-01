@@ -1,6 +1,7 @@
 import * as SQLite from "expo-sqlite";
 import { DEFAULT_LIST_ID } from "@/src/constants/lists";
 import { newId } from "@/src/utils/ids";
+import { emitLocalChange } from "@/src/utils/localChanges";
 
 export interface TransactionRow {
   id: number;
@@ -144,6 +145,7 @@ export async function insertTransaction(
     `INSERT INTO transactions (amount, description, category_emoji, date, tags, payment_method, list_id, paid_by, uid, updated_at, sync_state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
     [amount, description, categoryEmoji, dateStr, tagsStr, paymentMethod, listId, paidBy, uid, now],
   );
+  emitLocalChange();
   return {
     id: result.lastInsertRowId,
     amount,
@@ -199,6 +201,7 @@ export async function updateTransaction(
     uid: string;
     deleted_at: number | null;
   }>(`SELECT list_id, paid_by, uid, deleted_at FROM transactions WHERE id = ?`, [id]);
+  emitLocalChange();
   return {
     id,
     amount,
@@ -224,6 +227,7 @@ export async function deleteTransaction(id: number): Promise<void> {
   const db = await getNativeDatabase();
   const now = Date.now();
   await db.runAsync(`${SOFT_DELETE_SQL} WHERE id = ? AND deleted_at IS NULL`, [now, now, id]);
+  emitLocalChange();
 }
 
 export async function getAllTransactions(): Promise<TransactionRow[]> {
@@ -243,6 +247,7 @@ export async function deleteTransactionsOfList(listId: string): Promise<void> {
     now,
     listId,
   ]);
+  emitLocalChange();
 }
 
 export async function hasAnyTransactions(): Promise<boolean> {
@@ -267,6 +272,7 @@ export async function clearTransactions(): Promise<void> {
       _activeListId,
     ]);
   }
+  emitLocalChange();
 }
 
 /**
@@ -349,7 +355,9 @@ export async function getTransactionVersions(
 
 /**
  * Aplica transacciones traídas que ya ganaron a la copia local (la decisión la toma
- * `transactionsToApply`). Quedan `synced`: no se vuelven a subir.
+ * `transactionsToApply`). Quedan `synced`: no se vuelven a subir. El `WHERE` del upsert repite la
+ * regla de `pickWinner` como última barrera: si el usuario editó la fila entre que se leyó su
+ * versión y se aplica la remota, la edición nueva no se pisa.
  */
 export async function applyRemoteTransactions(rows: SyncedTransaction[]): Promise<void> {
   if (rows.length === 0) return;
@@ -364,7 +372,10 @@ export async function applyRemoteTransactions(rows: SyncedTransaction[]): Promis
            category_emoji = excluded.category_emoji, date = excluded.date, tags = excluded.tags,
            payment_method = excluded.payment_method, list_id = excluded.list_id,
            paid_by = excluded.paid_by, updated_at = excluded.updated_at,
-           deleted_at = excluded.deleted_at, sync_state = 'synced'`,
+           deleted_at = excluded.deleted_at, sync_state = 'synced'
+         WHERE excluded.updated_at > transactions.updated_at
+            OR (excluded.updated_at = transactions.updated_at
+                AND excluded.deleted_at IS NOT NULL AND transactions.deleted_at IS NULL)`,
         [
           r.amount,
           r.description,
@@ -381,6 +392,15 @@ export async function applyRemoteTransactions(rows: SyncedTransaction[]): Promis
       );
     }
   });
+}
+
+/**
+ * Tras eliminar la cuenta: la nube ya no tiene nada, así que todo vuelve a "pendiente" para
+ * subirse entero si más adelante se inicia sesión otra vez.
+ */
+export async function markAllTransactionsPending(): Promise<void> {
+  const db = await getNativeDatabase();
+  await db.runAsync(`UPDATE transactions SET sync_state = 'pending'`);
 }
 
 /** "Borrar de este teléfono" (cerrar sesión): borrado físico de todo. Ya está en la nube. */
@@ -459,5 +479,6 @@ export async function insertTransactionBatch(
     }
   });
 
+  emitLocalChange();
   return inserted;
 }

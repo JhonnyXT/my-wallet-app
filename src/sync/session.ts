@@ -72,18 +72,26 @@ export async function signOut(): Promise<void> {
   }
 }
 
+/** Firebase exige un inicio de sesión de hace unos 5 minutos o menos para eliminar la cuenta. */
+const RECENT_LOGIN_MS = 4 * 60 * 1000;
+
 /**
  * Elimina la cuenta de Firebase (Google Play exige ofrecerlo). Los datos del teléfono se quedan.
- * Si Firebase pide un inicio de sesión reciente, vuelve a abrir el selector de Google y reintenta.
  *
- * Fase 3: borrar `users/{uid}` en Firestore ANTES del usuario de Auth (las reglas exigen estar
- * autenticado). En la Fase 2 no hay nada guardado en la nube.
+ * Orden: 1) si el inicio de sesión no es reciente, vuelve a pedir la cuenta ANTES de borrar nada
+ * (cancelar ahí no deja una cuenta vacía a medio borrar); 2) `beforeDelete` borra lo de la nube
+ * mientras aún hay sesión (las reglas lo exigen); 3) borra el usuario.
  */
-export async function deleteAccount(): Promise<void> {
+export async function deleteAccount(beforeDelete?: (uid: string) => Promise<void>): Promise<void> {
   ensureFirebase();
   const user = getAuth().currentUser;
   if (!user) return;
   try {
+    const lastSignIn = Date.parse(user.metadata.lastSignInTime ?? "");
+    if (!(Date.now() - lastSignIn < RECENT_LOGIN_MS)) {
+      await reauthenticateWithCredential(user, await googleCredential());
+    }
+    if (beforeDelete) await beforeDelete(user.uid);
     try {
       await deleteUser(user);
     } catch (e) {

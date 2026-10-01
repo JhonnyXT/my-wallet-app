@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   BackHandler,
   PanResponder,
+  Easing,
 } from "react-native";
 import Reanimated, {
   useAnimatedReaction,
@@ -35,12 +36,14 @@ import {
   Calendar,
   ChevronDown,
   ChevronRight,
+  RefreshCw,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { scrollBottomPadding, DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { SELF_PAYER, type TransactionRow } from "@/src/db/db";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { syncNow, useSession } from "@/src/sync";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useUIStore } from "@/src/store/useUIStore";
 import { useAllListCategories } from "@/src/hooks/useAllListCategories";
@@ -355,7 +358,47 @@ export default function DashboardScreen() {
     },
     [scrollY],
   );
-  const pullMode = !!categoryFilter && atTop;
+  // Con sesión, deslizar hacia abajo sin filtro trae los cambios de la cuenta (Sync Fase 3); con
+  // filtro sigue quitándolo. Sin sesión y sin filtro, el gesto no existe (scroll nativo normal).
+  const { user: sessionUser } = useSession();
+  const syncPull = !categoryFilter && !!sessionUser;
+  const pullMode = atTop && (!!categoryFilter || !!sessionUser);
+
+  // Indicador propio de "trayendo cambios" (sin el spinner de Android): baja con el dedo y gira
+  // mientras corre la sync. Con "reducir movimiento" no gira.
+  const [refreshing, setRefreshing] = useState(false);
+  // El indicador solo existe mientras se arrastra o se sincroniza: en reposo no se dibuja (en
+  // Android la sombra quedaba visible aun con opacidad/escala casi 0).
+  const [pullActive, setPullActive] = useState(false);
+  const pullActiveRef = useRef(false);
+  const setPulling = useCallback((active: boolean) => {
+    if (pullActiveRef.current === active) return;
+    pullActiveRef.current = active;
+    setPullActive(active);
+  }, []);
+  const refreshSpin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!refreshing || reducedMotion) return;
+    const loop = Animated.loop(
+      Animated.timing(refreshSpin, {
+        toValue: 1,
+        duration: 900,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      refreshSpin.setValue(0);
+    };
+  }, [refreshing, reducedMotion, refreshSpin]);
+  const pullToSync = useCallback(() => {
+    setRefreshing(true);
+    syncNow()
+      .catch(() => undefined)
+      .finally(() => setRefreshing(false));
+  }, []);
 
   // 0 → 1 a los PULL_CLEAR_DISTANCE px: alimenta la transición emoji → "x" del encabezado.
   const pullDownProgress = useRef(new Animated.Value(0)).current;
@@ -393,6 +436,7 @@ export default function DashboardScreen() {
             scrollListTo(-gs.dy, false);
             return;
           }
+          if (syncPull) setPulling(true);
           const progress = Math.min(gs.dy / PULL_CLEAR_DISTANCE, 1);
           pullDownProgress.setValue(progress);
           const armed = progress >= 1;
@@ -404,17 +448,31 @@ export default function DashboardScreen() {
         onPanResponderRelease: (_, gs) => {
           const armed = pullArmedRef.current;
           resetPullDownProgress();
+          setPulling(false);
           if (gs.dy < 0) {
             // Conserva algo de inercia del gesto al soltar hacia arriba.
             scrollListTo(Math.max(-gs.dy - gs.vy * 220, 0), true);
           } else if (armed) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            clearCategoryFilter();
+            if (syncPull) pullToSync();
+            else clearCategoryFilter();
           }
         },
-        onPanResponderTerminate: resetPullDownProgress,
+        onPanResponderTerminate: () => {
+          resetPullDownProgress();
+          setPulling(false);
+        },
       }),
-    [pullMode, clearCategoryFilter, pullDownProgress, resetPullDownProgress, scrollListTo],
+    [
+      pullMode,
+      syncPull,
+      pullToSync,
+      setPulling,
+      clearCategoryFilter,
+      pullDownProgress,
+      resetPullDownProgress,
+      scrollListTo,
+    ],
   );
 
   // ── Handlers ─────────────────────────────────────────────────────────────
@@ -952,6 +1010,57 @@ export default function DashboardScreen() {
           LISTA — gráfica + transacciones en un solo scroll unificado
           ══════════════════════════════════════════════════════════════ */}
       <View style={styles.list} {...pullDownPan.panHandlers}>
+        {((syncPull && pullActive) || refreshing) && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.syncPull,
+              {
+                opacity: refreshing
+                  ? 1
+                  : pullDownProgress.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 1],
+                      extrapolate: "clamp",
+                    }),
+                // Escala 0 en reposo: en Android la sombra (elevation) se dibuja aunque la
+                // opacidad sea 0, y quedaba un círculo fantasma bajo los pills.
+                transform: [
+                  {
+                    scale: refreshing
+                      ? 1
+                      : pullDownProgress.interpolate({
+                          inputRange: [0, 0.05, 1],
+                          outputRange: [0, 0.6, 1],
+                          extrapolate: "clamp",
+                        }),
+                  },
+                  {
+                    translateY: refreshing
+                      ? 0
+                      : pullDownProgress.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [-28, 0],
+                        }),
+                  },
+                  {
+                    rotate: refreshing
+                      ? refreshSpin.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ["0deg", "360deg"],
+                        })
+                      : pullDownProgress.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ["0deg", "270deg"],
+                        }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <RefreshCw size={18} color="#135BEC" strokeWidth={2.4} />
+          </Animated.View>
+        )}
         <Reanimated.FlatList
           ref={listRef}
           scrollEnabled={!pullMode}
@@ -1394,6 +1503,24 @@ function createStyles(t: AppTheme) {
     // ── Lista ───────────────────────────────────────────────────────────────
     list: {
       flex: 1,
+    },
+    // Indicador de "trayendo cambios" al deslizar hacia abajo (Sync Fase 3).
+    syncPull: {
+      position: "absolute",
+      top: 10,
+      alignSelf: "center",
+      zIndex: 10,
+      width: 38,
+      height: 38,
+      borderRadius: 9999,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: t.surface,
+      shadowColor: "#000",
+      shadowOpacity: t.isDark ? 0.4 : 0.12,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 4,
     },
     listContent: {
       paddingTop: 0,

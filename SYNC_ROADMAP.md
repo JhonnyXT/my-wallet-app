@@ -7,7 +7,7 @@ con detalle, generar su spec con `/sdd` a partir de la sección correspondiente.
 
 **Estado:** Fases 0, 1, 2 y 3 hechas (la 3 probada de punta a punta con `test` contra la nube
 real el 2026-10-05). Fase 4 (espacios compartidos) con el código hecho y probado con dos
-teléfonos en `dev`; falta desplegar sus reglas y probarla con `test`.
+teléfonos en `dev` y reglas desplegadas; falta probarla con `test` contra la nube real.
 
 ---
 
@@ -250,7 +250,7 @@ Android).
   como persona existente, gastos en los dos sentidos con las mismas cuentas, editar el gasto del
   otro, sin conexión (sube al volver), lo compartido llega y el período no, salir, volver a
   unirse, eliminar para todos.
-- [ ] Desplegar las reglas nuevas a `mywallet-test-jb` y `mywallet-prod`.
+- [x] Reglas nuevas desplegadas a `mywallet-test-jb` y `mywallet-prod` (2026-10-05).
 - [ ] Probar con `test` contra la nube real (dos teléfonos).
 
 **Hecho cuando:** dos teléfonos con cuentas distintas registran gastos en el mismo espacio (con y

@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   Keyboard,
   Pressable,
@@ -14,7 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { ArrowLeft, Check, Plus, Trash2, X } from "lucide-react-native";
+import { ArrowLeft, Check, LogOut, Plus, Trash2, UserPlus, Users, X } from "lucide-react-native";
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
 import { CategoryPickerGrid, useCategoryPicker } from "@/src/components/ui/CategoryPickerGrid";
 import { PressableScale } from "@/src/components/ui/PressableScale";
@@ -25,6 +26,21 @@ import { useAppTokens } from "@/src/theme/tokens";
 import { newId } from "@/src/utils/ids";
 
 const SHEET_PADDING = 20;
+
+/** Compartir la lista con otras personas (Sync Fase 4). Ausente = no se ofrece. */
+export interface ListSharing {
+  /** uid de la sesión; null = sin sesión (compartir pide iniciarla). */
+  uid: string | null;
+  /** Esperando al servidor (crear el espacio o un código). */
+  busy: boolean;
+  error: string | null;
+  /** Convertir en espacio y mostrar el código, o solo un código nuevo si ya lo es. */
+  onShare: () => void;
+  /** Salir del espacio (no dueño). */
+  onLeave: () => void;
+  /** Quitar a alguien que se unió (solo el dueño). */
+  onRemoveMember: (member: ListMember) => void;
+}
 
 type SaveFn = (
   name: string,
@@ -41,6 +57,7 @@ export function ListEditorSheet({
   onSave,
   onDelete,
   onClose,
+  sharing,
 }: {
   visible: boolean;
   /** null = crear una lista nueva. */
@@ -50,6 +67,7 @@ export function ListEditorSheet({
   onSave: SaveFn;
   onDelete: () => void;
   onClose: () => void;
+  sharing?: ListSharing;
 }) {
   // Cada apertura remonta el cuerpo: parte de la lista editada (o vacía al crear), paso 1.
   const [openCount, setOpenCount] = useState(0);
@@ -65,6 +83,7 @@ export function ListEditorSheet({
         lockedMemberIds={lockedMemberIds}
         onSave={onSave}
         onDelete={onDelete}
+        sharing={sharing}
       />
     </BottomSheet>
   );
@@ -75,17 +94,22 @@ function EditorBody({
   lockedMemberIds,
   onSave,
   onDelete,
+  sharing,
 }: {
   list: WalletList | null;
   lockedMemberIds?: ReadonlySet<string>;
   onSave: SaveFn;
   onDelete: () => void;
+  sharing?: ListSharing;
 }) {
   const tokens = useAppTokens();
   const c = tokens.colors;
   const [name, setName] = useState(list?.name ?? "");
   const [emoji, setEmoji] = useState(list?.emoji ?? LIST_EMOJIS[1]);
-  const [members, setMembers] = useState<ListMember[]>(list?.members ?? []);
+  // Quienes salieron de una lista compartida no se muestran (siguen en la lista para las cuentas).
+  const [members, setMembers] = useState<ListMember[]>(
+    (list?.members ?? []).filter((m) => m.status !== "left"),
+  );
   const [memberName, setMemberName] = useState("");
   const [step, setStep] = useState<"info" | "categories">("info");
   // Lista nueva: arranca sin categorías y se eligen del catálogo en el paso 2.
@@ -113,7 +137,12 @@ function EditorBody({
 
   const trimmed = name.trim();
   const isNew = !list;
-  const canDelete = !!list && list.id !== DEFAULT_LIST_ID;
+  const space = list?.space;
+  const isOwner = !!space && space.ownerUid === sharing?.uid;
+  // En una lista compartida solo el dueño la elimina (para todos); los demás salen.
+  const canDelete = !!list && list.id !== DEFAULT_LIST_ID && (!space || isOwner);
+  const canLeave = !!space && !isOwner && !!sharing;
+  const canShare = !!list && list.id !== DEFAULT_LIST_ID && !!sharing;
   // Personal es solo tuyo: no lleva personas.
   const canHaveMembers = !list || list.id !== DEFAULT_LIST_ID;
   const emojis = LIST_EMOJIS.includes(emoji) ? LIST_EMOJIS : [emoji, ...LIST_EMOJIS];
@@ -255,16 +284,29 @@ function EditorBody({
                 <Text style={[styles.memberChipText, { color: c.text.primary }]}>Tú</Text>
               </View>
               {members.map((m) => {
-                const locked = lockedMemberIds?.has(m.id) ?? false;
+                const joined = m.status === "joined";
+                // Quien se unió con la app solo lo quita el dueño, en línea; quien tiene
+                // movimientos, nadie (quedarían huérfanos).
+                const removable = joined ? isOwner : !(lockedMemberIds?.has(m.id) ?? false);
                 return (
                   <View
                     key={m.id}
                     style={[styles.memberChip, { backgroundColor: c.surface.elevated }]}
                   >
+                    {joined && (
+                      <View
+                        style={[styles.joinedDot, { backgroundColor: c.state.success }]}
+                        accessibilityLabel="Se unió con la app"
+                      />
+                    )}
                     <Text style={[styles.memberChipText, { color: c.text.primary }]}>{m.name}</Text>
-                    {!locked && (
+                    {removable && (
                       <Pressable
-                        onPress={() => setMembers((prev) => prev.filter((x) => x.id !== m.id))}
+                        onPress={() =>
+                          joined
+                            ? sharing?.onRemoveMember(m)
+                            : setMembers((prev) => prev.filter((x) => x.id !== m.id))
+                        }
                         hitSlop={8}
                         accessibilityRole="button"
                         accessibilityLabel={`Quitar a ${m.name}`}
@@ -313,6 +355,44 @@ function EditorBody({
           </>
         )}
 
+        {canShare && sharing && (
+          <>
+            <Text style={[styles.sectionTitle, { color: c.text.primary }]}>
+              {space ? "Lista compartida" : "Compartir"}
+            </Text>
+            <Text style={[styles.sectionHint, { color: c.text.secondary }]}>
+              {space
+                ? `${isOwner ? "La creaste tú" : "Te uniste"}. Quienes tienen el punto verde registran desde su teléfono.`
+                : "Cada persona registra desde su teléfono, con su cuenta. Se necesita conexión para compartir."}
+            </Text>
+            <Pressable
+              onPress={sharing.onShare}
+              disabled={sharing.busy}
+              style={[
+                styles.shareBtn,
+                { backgroundColor: c.accent.subtle, borderRadius: tokens.radius.lg },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={space ? "Invitar a alguien" : "Compartir lista"}
+              accessibilityState={{ busy: sharing.busy }}
+            >
+              {sharing.busy ? (
+                <ActivityIndicator size="small" color={c.accent.default} />
+              ) : space ? (
+                <UserPlus size={18} color={c.accent.default} strokeWidth={2.2} />
+              ) : (
+                <Users size={18} color={c.accent.default} strokeWidth={2.2} />
+              )}
+              <Text style={[styles.shareText, { color: c.accent.default }]}>
+                {sharing.busy ? "Un momento…" : space ? "Invitar a alguien" : "Compartir lista"}
+              </Text>
+            </Pressable>
+            {!!sharing.error && (
+              <Text style={[styles.shareError, { color: c.state.danger }]}>{sharing.error}</Text>
+            )}
+          </>
+        )}
+
         <PressableScale
           onPress={() => {
             if (!trimmed) return;
@@ -329,6 +409,17 @@ function EditorBody({
           <Text style={styles.saveText}>{isNew ? "Siguiente: categorías →" : "Guardar"}</Text>
         </PressableScale>
 
+        {canLeave && (
+          <Pressable
+            onPress={sharing?.onLeave}
+            style={styles.deleteBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Salir de la lista compartida"
+          >
+            <LogOut size={16} color={c.state.danger} strokeWidth={2} />
+            <Text style={[styles.deleteText, { color: c.state.danger }]}>Salir de la lista</Text>
+          </Pressable>
+        )}
         {canDelete && (
           <Pressable
             onPress={onDelete}
@@ -372,6 +463,17 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
   },
   memberChipText: { fontSize: 14, fontWeight: "600" },
+  joinedDot: { width: 7, height: 7, borderRadius: 4 },
+  shareBtn: {
+    marginTop: 10,
+    height: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  shareText: { fontSize: 15, fontWeight: "700" },
+  shareError: { fontSize: 13, lineHeight: 18, marginTop: 8 },
   memberInputRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
   memberInput: { flex: 1 },
   memberAddBtn: {

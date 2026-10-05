@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import { Modal, Platform, Pressable, StatusBar, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
-import { Check, Pencil, Plus, Share2 } from "lucide-react-native";
+import { Check, Pencil, Plus, Share2, Users } from "lucide-react-native";
 import Animated, {
   Easing,
   runOnJS,
@@ -127,6 +127,14 @@ export function ListMenu({
               >
                 {list.name}
               </ThemedText>
+              {list.space && (
+                <Users
+                  size={14}
+                  color={c.text.secondary}
+                  strokeWidth={2}
+                  accessibilityLabel="Lista compartida"
+                />
+              )}
             </Pressable>
           );
         })}

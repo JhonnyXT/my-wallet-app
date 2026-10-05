@@ -2555,6 +2555,7 @@ export default function SettingsScreen() {
         }}
         onEditActive={() => afterSheet(() => listEditor.openEdit(activeListId))}
         onNew={() => afterSheet(listEditor.openNew)}
+        onJoin={() => afterSheet(listEditor.openJoin)}
         onClose={() => setListsSheetOpen(false)}
       />
       {listEditor.element}

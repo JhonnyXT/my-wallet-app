@@ -136,7 +136,13 @@ export default function ActiveExpenseScreen() {
     () => lists.find((l) => l.id === listId)?.members ?? [],
     [lists, listId],
   );
-  const showPayerPicker = listMembers.length > 0 && !fromBatchReview && !fromNotificationEdit;
+  // Quien salió de una lista compartida no se ofrece para gastos nuevos, pero sí se muestra si
+  // es quien pagó el que se edita (sacarlo de la lista lo cambiaría a "Tú" sin avisar).
+  const payerOptions = useMemo(
+    () => listMembers.filter((m) => m.status !== "left" || m.id === paidBy),
+    [listMembers, paidBy],
+  );
+  const showPayerPicker = payerOptions.length > 0 && !fromBatchReview && !fromNotificationEdit;
   // Al cambiar a una lista donde esa persona no está, vuelve a "Tú".
   useEffect(() => {
     if (paidBy !== SELF_PAYER && !listMembers.some((m) => m.id === paidBy)) setPaidBy(SELF_PAYER);
@@ -652,7 +658,7 @@ export default function ActiveExpenseScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={st.listRow}
             >
-              {[{ id: SELF_PAYER, name: "Tú" }, ...listMembers].map((m) => {
+              {[{ id: SELF_PAYER, name: "Tú" }, ...payerOptions].map((m) => {
                 const isSel = m.id === paidBy;
                 return (
                   <TouchableOpacity

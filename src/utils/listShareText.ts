@@ -2,6 +2,7 @@
 // Resumen de lo que se ve en el Dashboard: período, gastos, ingresos, balance y, si la
 // lista tiene más personas, quién pagó cuánto y quién le debe a quién.
 
+import { MONTH_LONG } from "@/src/utils/periodCycles";
 import type { Settlement } from "@/src/utils/settlement";
 import { formatBalance } from "@/src/utils/transactionFormatters";
 
@@ -46,4 +47,33 @@ export function buildListShareText({
 
   lines.push("", "Enviado desde MyWallet");
   return lines.join("\n");
+}
+
+// ─── Invitación a un espacio compartido (Sync Fase 4) ───────────────────────────
+
+/** "12 de octubre", en fecha local. */
+export function inviteExpiryLabel(expiresAt: number): string {
+  const d = new Date(expiresAt);
+  return `${d.getDate()} de ${MONTH_LONG[d.getMonth()]}`;
+}
+
+/** Texto para mandar el código por WhatsApp, correo… `code` ya viene formateado ("K7Q 2MX"). */
+export function buildInviteText({
+  emoji,
+  name,
+  code,
+  expiresAt,
+}: {
+  emoji: string;
+  name: string;
+  code: string;
+  expiresAt: number;
+}): string {
+  return [
+    `Únete a ${emoji} ${name} en MyWallet para registrar los gastos juntos.`,
+    "",
+    `En la app: Ajustes → Tus listas → Unirme con un código`,
+    `Código: ${code}`,
+    `Vence el ${inviteExpiryLabel(expiresAt)}.`,
+  ].join("\n");
 }

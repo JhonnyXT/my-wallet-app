@@ -221,6 +221,14 @@ hay cambios sin subir.
 antes; y registrar gastos en modo avión que aparecen en la nube al volver la conexión.
 
 ### Fase 4 — Espacios compartidos · L
+Spec local (no versionado): `specs/sync-fase-4-espacios/`. Decisiones del usuario (2026-10-05):
+quien sale, es quitado o pierde el espacio porque el dueño lo eliminó **conserva la lista como
+propia** (desconectada, respaldada en su cuenta); se comparten **nombre, ícono, categorías,
+"mostrar ingresos" y personas**, mientras que **período y presupuestos son de cada persona**.
+Del diseño: el código es de 6 caracteres alfanuméricos sin 0/O/1/I (no 6 dígitos: sin servidor
+que limite intentos, un millón de combinaciones se adivina) y vence a los 7 días; mover un
+movimiento de lista le da un `uid` nuevo. Pruebas con dos teléfonos (el usuario tiene un segundo
+Android).
 - [ ] "Compartir este espacio" en `ListEditorSheet`: crea `spaces/{id}`, genera un código de 6
   dígitos con vencimiento y lo comparte (WhatsApp, etc.).
 - [ ] "Unirme a un espacio" (Tus listas → +): escribir el código → se une y baja el espacio como

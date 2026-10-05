@@ -77,6 +77,16 @@ alcance de la lista activa sin ningún error visible — solo cuando sea intenci
 `deleteTransactionsOfList(listId)`, que borra por `list_id` exacto al eliminar una lista completa),
 saltarse el filtro.
 
+## Mover un movimiento de lista (Sync Fase 4)
+
+`updateTransaction` con un `listId` distinto del que tenía: la fila conserva su `id` local pero
+recibe un `uid` nuevo, y se inserta una fila tombstone con el `uid` viejo y el `list_id` viejo
+(`deleted_at = updated_at = ahora`, `pending`). Así el movimiento sale de donde vivía en la nube
+(respaldo personal o un espacio compartido) y entra en el otro sin que el mismo `uid` viva en dos
+lugares (al restaurar, el borrado ganaría el empate). `markListTransactionsPending(listId)` vuelve a
+poner pendientes los vivos de una lista, para que la sync los suba a su nuevo lugar al compartirla o
+al desconectarla de su espacio.
+
 ## Funciones de la sync (Fase 3)
 
 `getPendingTransactions`, `countPendingTransactions`, `markTransactionsSynced` (solo si

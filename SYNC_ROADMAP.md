@@ -6,7 +6,8 @@ para respaldar toda la data en la nube y compartir espacios con otras personas. 
 con detalle, generar su spec con `/sdd` a partir de la sección correspondiente.
 
 **Estado:** Fases 0, 1, 2 y 3 hechas (la 3 probada de punta a punta con `test` contra la nube
-real el 2026-10-05). Sigue la Fase 4 (espacios compartidos).
+real el 2026-10-05). Fase 4 (espacios compartidos) con el código hecho y probado con dos
+teléfonos en `dev`; falta desplegar sus reglas y probarla con `test`.
 
 ---
 
@@ -81,7 +82,7 @@ users/{uid}
   profile                      → { userName, darkMode, onboardingDone, createdAt }
   settings/app                 → { budgetAlertsEnabled, budgetAlertThreshold, allowedBanks, updatedAt }
   lists/{listId}               → { name, emoji, period, categories, budgets, showIncome,
-                                   members, spaceId?, updatedAt, deletedAt? }
+                                   members, space?, updatedAt, deletedAt? }
   paymentMethods/{id}          → { name, type, emoji?, updatedAt, deletedAt? }
   goals/{id}                   → { name, emoji, targetAmount, savedAmount, createdAt, updatedAt, deletedAt? }
   debts/{id}                   → { name, emoji, totalAmount, remainingAmount, monthlyPayment,
@@ -89,21 +90,23 @@ users/{uid}
   transactions/{txId}          → { amount, description, category_emoji, date, tags, payment_method,
                                    list_id, paid_by, updatedAt, deletedAt? }
 
-spaces/{spaceId}               → { name, emoji, ownerUid, inviteCode, memberUids[], createdAt }
-  members/{uid}                → { name, joinedAt }
-  meta/config                  → { period, categories, budgets, showIncome, updatedAt }
-  transactions/{txId}          → { …igual que arriba, paid_by: uid, createdBy: uid }
+spaces/{spaceId}               → { ownerUid, memberUids[], deletedAt, joinCode?, createdAt }
+  members/{memberId}           → { name, uid | null, joinedAt?, leftAt?, updatedAt }
+  config/list                  → { name, emoji, categories, showIncome, updatedAt }
+  transactions/{txId}          → { …igual que arriba sin list_id, paid_by: memberId }
 
 inviteCodes/{code}             → { spaceId, createdBy, expiresAt }
 ```
 
 - Colecciones con un documento por ítem (no un solo documento gigante) para subir y bajar solo lo
   que cambió (`where('updatedAt', '>', ultimaSync)`) y no pelear por el límite de 1 MiB por doc.
-- `paid_by` en la nube es el `uid` real. Al bajar: mi `uid` → `SELF_PAYER` (`""`) local; el `uid`
-  de otro → el `ListMember.id` que lo representa. Al subir, lo inverso.
+- (Ajustado al implementar la Fase 4.) `paid_by` en un espacio es el id de miembro, no el `uid`:
+  el mío ↔ `SELF_PAYER` (`""`) local vía `space.selfMemberId`; reclamar a una persona sin app le
+  liga el `uid` sin cambiarle el id. Período y presupuestos no están en `config/list`: son de cada
+  persona y viajan en `users/{uid}/lists/{id}`. Sin `createdBy` en los movimientos.
 - Reglas de seguridad: `users/{uid}/**` solo lo lee y escribe su dueño; `spaces/{id}/**` solo
-  quien está en `memberUids`; unirse con código solo si `inviteCodes/{code}` existe y no venció.
-  Todo sin Cloud Functions (plan gratis sin tarjeta).
+  quien está en `memberUids`; unirse con código solo si `inviteCodes/{code}` es de ese espacio y no
+  venció, y solo agregándose a uno mismo. Todo sin Cloud Functions (plan gratis sin tarjeta).
 
 ## Cómo funciona la sync
 
@@ -220,7 +223,7 @@ hay cambios sin subir.
 **Hecho cuando:** borrar la app, reinstalarla, iniciar sesión y ver exactamente lo mismo que
 antes; y registrar gastos en modo avión que aparecen en la nube al volver la conexión.
 
-### Fase 4 — Espacios compartidos · L
+### Fase 4 — Espacios compartidos · L — 🟡 código hecho y probado en `dev`
 Spec local (no versionado): `specs/sync-fase-4-espacios/`. Decisiones del usuario (2026-10-05):
 quien sale, es quitado o pierde el espacio porque el dueño lo eliminó **conserva la lista como
 propia** (desconectada, respaldada en su cuenta); se comparten **nombre, ícono, categorías,
@@ -229,16 +232,26 @@ Del diseño: el código es de 6 caracteres alfanuméricos sin 0/O/1/I (no 6 díg
 que limite intentos, un millón de combinaciones se adivina) y vence a los 7 días; mover un
 movimiento de lista le da un `uid` nuevo. Pruebas con dos teléfonos (el usuario tiene un segundo
 Android).
-- [ ] "Compartir este espacio" en `ListEditorSheet`: crea `spaces/{id}`, genera un código de 6
-  dígitos con vencimiento y lo comparte (WhatsApp, etc.).
-- [ ] "Unirme a un espacio" (Tus listas → +): escribir el código → se une y baja el espacio como
-  una lista más.
-- [ ] Miembros reales: cada `ListMember` queda ligado a un `uid`; estados "invitado" / "se unió".
-  Los miembros solo-nombre de hoy siguen funcionando para quien no usa la app.
-- [ ] Transacciones del espacio: push/pull contra `spaces/{id}/transactions`, mapeo de `paid_by`.
-- [ ] Pull-to-refresh del Dashboard trae los cambios del espacio activo.
-- [ ] Salir de un espacio, quitar a alguien (solo el dueño), qué pasa si el dueño borra el espacio.
-- [ ] Cuentas (`settlement.ts`) sin cambios: siguen calculando sobre SQLite.
+- [x] "Compartir lista" en el editor de la lista: crea `spaces/{id}` y un código de 6 caracteres
+  (sin 0/O/1/I) que vence a los 7 días; se manda con la hoja del sistema.
+- [x] "Unirme con un código" (Tus listas): se une y baja el espacio como una lista más.
+- [x] Miembros reales: cada persona del espacio es un documento, con o sin app; "¿Quién eres?" liga
+  la cuenta a una persona sin app ("soy Hernan") sin reescribir sus movimientos; punto verde = se
+  unió. Las personas sin app siguen funcionando.
+- [x] Movimientos del espacio: push/pull contra `spaces/{id}/transactions` con cursor propio, mapeo
+  de `paid_by` (`selfMemberId`). Mover un movimiento de lista le da un `uid` nuevo.
+- [x] Deslizar sobre el balance del Dashboard trae los cambios (rehecho con Reanimated: el balance
+  y la lista bajan, anillo → spinner → ✓, o nube tachada sin conexión).
+- [x] Salir, quitar a alguien (solo el dueño), eliminar para todos (solo el dueño); quien pierde el
+  espacio conserva la lista como propia. Volver a unirse recupera el mismo miembro.
+- [x] Cuentas (`settlement.ts`) sin cambios: siguen calculando sobre SQLite.
+- [x] Reglas de `spaces/**` e `inviteCodes` + 23 tests con el emulador.
+- [x] Probado con dos teléfonos y dos cuentas en `dev` + emulador (2026-10-05): compartir, unirse
+  como persona existente, gastos en los dos sentidos con las mismas cuentas, editar el gasto del
+  otro, sin conexión (sube al volver), lo compartido llega y el período no, salir, volver a
+  unirse, eliminar para todos.
+- [ ] Desplegar las reglas nuevas a `mywallet-test-jb` y `mywallet-prod`.
+- [ ] Probar con `test` contra la nube real (dos teléfonos).
 
 **Hecho cuando:** dos teléfonos con cuentas distintas registran gastos en el mismo espacio (con y
 sin internet) y, tras deslizar hacia abajo, los dos ven lo mismo y las mismas cuentas.

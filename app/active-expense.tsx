@@ -297,7 +297,9 @@ export default function ActiveExpenseScreen() {
     const current = store.amount > 0 ? formatMoneyInput(String(Math.round(store.amount))) : "";
     setAmountDisplay(current);
     setAmountEditing(true);
-    setTimeout(() => amountInputRef.current?.focus(), 50);
+    // autoFocus del campo pide el teclado al montarse; este segundo intento cubre teléfonos
+    // lentos (en un moto e7 el foco a los 50 ms llegaba antes de que el campo existiera).
+    setTimeout(() => amountInputRef.current?.focus(), 250);
   }
 
   function handleAmountChange(text: string) {
@@ -311,8 +313,17 @@ export default function ActiveExpenseScreen() {
     setAmountEditing(false);
   }
 
+  // Con el importe en edición cuenta lo que está escrito (aún no pasó al store).
+  const canSave = amountEditing
+    ? (parseFloat(amountDisplay.replace(/\D/g, "")) || 0) > 0
+    : store.amount > 0;
+
   async function handleConfirm() {
-    if (store.amount <= 0) return;
+    // Con el teclado del importe abierto, el monto escrito todavía no pasó al store (eso ocurre
+    // en onBlur, que llega después de este toque): se toma directo del campo.
+    const amount = amountEditing ? parseFloat(amountDisplay.replace(/\D/g, "")) || 0 : store.amount;
+    if (amountEditing) handleAmountBlur();
+    if (amount <= 0) return;
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     // ── Modo batch-review / notification-edit: no guardar en DB, devolver a la pantalla de revisión ──
@@ -322,7 +333,7 @@ export default function ActiveExpenseScreen() {
       const editedDate =
         store.date === "custom" && store.customDate ? store.customDate : new Date();
       setPendingManualItem({
-        amount: store.amount,
+        amount,
         description: noteText || (isExpense ? "Gasto" : "Ingreso"),
         categoryEmoji: store.categoryEmoji,
         categoryName: catName,
@@ -338,7 +349,7 @@ export default function ActiveExpenseScreen() {
     // ── Flujo normal: guardar en la base de datos (crear o actualizar) ─────────
     const txDate = store.date === "custom" && store.customDate ? store.customDate : new Date();
 
-    const savedAmount = store.amount;
+    const savedAmount = amount;
     const savedEmoji = store.categoryEmoji;
     const savedIsExp = isExpense;
     const description = noteText || (isExpense ? "Gasto" : "Ingreso");
@@ -346,7 +357,7 @@ export default function ActiveExpenseScreen() {
     if (isEditMode && editingId !== null) {
       await updateTx(
         editingId,
-        isExpense ? store.amount : -store.amount,
+        isExpense ? amount : -amount,
         description,
         store.categoryEmoji,
         store.tags,
@@ -357,7 +368,7 @@ export default function ActiveExpenseScreen() {
       );
     } else {
       await addTx(
-        isExpense ? store.amount : -store.amount,
+        isExpense ? amount : -amount,
         description,
         store.categoryEmoji,
         store.tags,
@@ -486,6 +497,8 @@ export default function ActiveExpenseScreen() {
                 </Text>
                 <TextInput
                   ref={amountInputRef}
+                  autoFocus
+                  showSoftInputOnFocus
                   value={amountDisplay}
                   onChangeText={handleAmountChange}
                   onBlur={handleAmountBlur}
@@ -813,8 +826,8 @@ export default function ActiveExpenseScreen() {
         />
         <PressableScale
           onPress={handleConfirm}
-          disabled={store.amount <= 0}
-          style={[st.saveBtn, store.amount <= 0 && st.saveBtnOff]}
+          disabled={!canSave}
+          style={[st.saveBtn, !canSave && st.saveBtnOff]}
           accessibilityLabel="Guardar"
           accessibilityRole="button"
         >

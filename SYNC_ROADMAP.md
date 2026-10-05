@@ -5,8 +5,8 @@ para respaldar toda la data en la nube y compartir espacios con otras personas. 
 2026-09-29. Cada fase deja la app funcionando y se puede probar sola; para implementar una fase
 con detalle, generar su spec con `/sdd` a partir de la sección correspondiente.
 
-**Estado:** Fases 0, 1 y 2 hechas. Fase 3 con el código hecho y probado en `dev` + emulador;
-falta la prueba de punta a punta con `test` (ver checklist de la Fase 3).
+**Estado:** Fases 0, 1, 2 y 3 hechas (la 3 probada de punta a punta con `test` contra la nube
+real el 2026-10-05). Sigue la Fase 4 (espacios compartidos).
 
 ---
 
@@ -179,12 +179,12 @@ Spec local (no versionado): `specs/sync-fase-2-cuentas/spec.md`.
 - [x] `AGENTS.md` → Build variants con T10.
 - Verificado en el teléfono (dev + emulador): login con Google, cerrar sesión y eliminar cuenta;
   el usuario aparece y desaparece en el emulador, nunca en la nube, y los datos locales no cambian.
-- Pendiente de probar: el onboarding nuevo en una instalación limpia de `test` contra
-  `mywallet-test-jb`, y el login sin internet (mensaje de error).
+- Probado con `test` contra `mywallet-test-jb` el 2026-10-05 (ver Fase 3): login real tras una
+  instalación limpia y login sin internet (mensaje de error).
 - Para la Fase 3: `deleteAccount()` debe borrar `users/{uid}` en Firestore antes del usuario de Auth;
   registrar la SHA-1 de EAS en `mywallet-prod` antes del primer build de producción.
 
-### Fase 3 — Respaldo en la nube de toda la data · L — 🟡 en curso (código hecho y probado en dev)
+### Fase 3 — Respaldo en la nube de toda la data · L ✅ (2026-10-05)
 Spec local (no versionado): `specs/sync-fase-3-respaldo/` (requirements, design, impacto, tareas,
 test-plan). Decisiones del usuario (2026-09-30): si el teléfono tiene datos de otra cuenta, se
 **pregunta** "Unir / Borrar del teléfono y usar esta"; "Borrar de este teléfono" se **bloquea** si
@@ -208,10 +208,14 @@ hay cambios sin subir.
   restaurar, eliminar cuenta.
 - [x] Reglas nuevas desplegadas a `mywallet-test-jb` y `mywallet-prod` (2026-10-05,
   `npx firebase-tools deploy --only firestore:rules --project <id>`).
-- [ ] **Prueba de punta a punta con `test` contra la nube real** (`npm run build:test`): registrar →
-  desinstalar → reinstalar → iniciar sesión → ver lo mismo; gastos en modo avión que suben al volver.
-  Cubre también lo pendiente de la Fase 2 (login real en `test`, sin internet en el onboarding).
-- [ ] Marcar la fase hecha y actualizar el estado arriba.
+- [x] Prueba de punta a punta con `test` contra `mywallet-test-jb` (2026-10-05): primer login con
+  los datos que ya tenía la app (subió todo), 2 gastos en modo avión que subieron al volver la
+  conexión, desinstalar → reinstalar → "Continuar con Google" entra directo al Dashboard; el login
+  sin internet muestra el aviso sin trabarse (cubre lo pendiente de la Fase 2).
+- Encontrado en esa prueba: la lista Personal, el perfil y los ajustes de una instalación anterior
+  a la sync subían con `updatedAt` 0, igual que los de un teléfono recién instalado, y el empate
+  lo ganaba lo local (restaurar perdía categorías, período, pago y el onboarding). `pickWinner`
+  ahora da el empate en 0 a lo respaldado.
 
 **Hecho cuando:** borrar la app, reinstalarla, iniciar sesión y ver exactamente lo mismo que
 antes; y registrar gastos en modo avión que aparecen en la nube al volver la conexión.

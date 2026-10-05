@@ -277,8 +277,9 @@ sin internet) y, tras deslizar hacia abajo, los dos ven lo mismo y las mismas cu
 - [x] Un movimiento borrado sube solo la marca `{ updatedAt, deletedAt }`, sin su contenido; los
   que ya habían subido con contenido se reemplazan una vez por teléfono (`tombstonesStripped`).
   Se prueba junto con la Fase 4 en `test` (ver abajo).
-- [ ] Quitar permisos que no se usan del manifest (`READ_PHONE_STATE`, `SYSTEM_ALERT_WINDOW`) con
-  `android.blockedPermissions` y probar en el dispositivo (ver `PLAY_DATA_SAFETY.md`).
+- [x] Quitar permisos que no se usan del manifest con `android.blockedPermissions`
+  (`READ_PHONE_STATE`, almacenamiento, `SYSTEM_ALERT_WINDOW`; ver `PLAY_DATA_SAFETY.md`). Falta
+  verificarlo en el build `test` (manifest mergeado + detección bancaria en el teléfono).
 - [ ] Build `prod` por EAS con los SHA-1 de producción registrados en Firebase.
 
 ---

@@ -88,6 +88,17 @@ const config: ExpoConfig = {
     googleServicesFile,
     versionCode: 2,
     softwareKeyboardLayoutMode: "resize",
+    // Permisos que agregan librerías o el template y la app no usa (Play los cuestiona, ver
+    // PLAY_DATA_SAFETY.md): READ_PHONE_STATE (react-native-android-notification-listener, nunca
+    // lo llama), almacenamiento (expo-file-system; el CSV usa la caché privada y el selector del
+    // sistema) y SYSTEM_ALERT_WINDOW (template de Expo; el debug lo conserva desde
+    // src/debug/AndroidManifest.xml, que tiene prioridad sobre el main al mezclar manifests).
+    blockedPermissions: [
+      "android.permission.READ_PHONE_STATE",
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      "android.permission.SYSTEM_ALERT_WINDOW",
+    ],
     adaptiveIcon: {
       foregroundImage: "./assets/images/adaptive-icon.png",
       backgroundColor: current.iconBackground,

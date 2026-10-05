@@ -61,16 +61,15 @@ inicia y espera; ninguno de los dos casos cuenta como "compartir" según Play.
 - **Funciones financieras**: es una app de presupuesto/registro personal; no presta, no mueve
   dinero ni se conecta a bancos (solo lee notificaciones en el teléfono).
 
-## Antes de enviar el build `prod` (pendiente, no aplicado)
+## Permisos que no se usan (bloqueados)
 
-El manifest final trae dos permisos que la app no usa y que Play puede cuestionar:
-
-- `READ_PHONE_STATE`: lo agrega `react-native-android-notification-listener` en su manifest; la
-  app nunca lo pide.
-- `SYSTEM_ALERT_WINDOW`: lo agrega el template de Expo (solo lo necesita el dev client).
-
-Candidato: `android.blockedPermissions` en `app.config.ts` con esos dos, rebuild nativo y
-verificar en el dispositivo que la detección bancaria y el build `dev` sigan funcionando.
+`android.blockedPermissions` en `app.config.ts` quita del manifest final cuatro permisos que traen
+librerías o el template y la app nunca usa: `READ_PHONE_STATE`
+(`react-native-android-notification-listener`), `READ_EXTERNAL_STORAGE`/`WRITE_EXTERNAL_STORAGE`
+(`expo-file-system`; el CSV usa la caché privada y el selector del sistema) y
+`SYSTEM_ALERT_WINDOW` (template de Expo; el build debug lo conserva para las herramientas de
+desarrollo). Antes de subir un build, confirmarlo en el manifest mergeado
+(`android/app/build/intermediates/merged_manifest/release/`).
 
 ## Atender una solicitud de eliminación por correo
 

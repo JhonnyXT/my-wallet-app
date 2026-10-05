@@ -7,7 +7,8 @@ con detalle, generar su spec con `/sdd` a partir de la sección correspondiente.
 
 **Estado:** Fases 0, 1, 2 y 3 hechas (la 3 probada de punta a punta con `test` contra la nube
 real el 2026-10-05). Fase 4 (espacios compartidos) con el código hecho y probado con dos
-teléfonos en `dev` y reglas desplegadas; falta probarla con `test` contra la nube real.
+teléfonos en `dev` y reglas desplegadas; falta probarla con `test` contra la nube real. Fase 5:
+textos legales y de la app actualizados; faltan el build `prod` por EAS y llenar Play Console.
 
 ---
 
@@ -256,13 +257,21 @@ Android).
 **Hecho cuando:** dos teléfonos con cuentas distintas registran gastos en el mismo espacio (con y
 sin internet) y, tras deslizar hacia abajo, los dos ven lo mismo y las mismas cuentas.
 
-### Fase 5 — Cumplimiento y publicación · S
-- [ ] Política de privacidad (`docs/privacy-policy.html` y la de `landing/`): qué se sube, dónde
-  (Google Cloud), para qué, cómo borrarlo.
-- [ ] Google Play: formulario de Data Safety (datos financieros y de cuenta recolectados) y **URL
-  web para pedir la eliminación de la cuenta**.
-- [ ] `README.md`, `DOCUMENTATION.md` (FAQ "¿funciona sin internet?"), `docs/index.html`,
-  `landing/` (textos que hoy dicen "100% offline").
+### Fase 5 — Cumplimiento y publicación · S — 🟡 textos hechos (2026-10-05)
+- [x] Política de privacidad (`docs/privacy-policy.html` y la de `landing/`): qué se sube (y qué
+  no: notificaciones, audio), dónde (Firebase, Google Cloud en EE. UU.), para qué, listas
+  compartidas, cómo borrarlo. Correo de contacto unificado en `jonathanblandon1017@gmail.com`
+  (`docs/` tenía `…101@`, un error de tipeo).
+- [x] **URL web para pedir la eliminación de la cuenta**: `landing/` → `/[lang]/delete-account`
+  (`https://mywallet-blush.vercel.app/es/delete-account`), con los pasos en la app y un `mailto:`
+  prellenado desde el correo de la cuenta (sin formulario ni backend). Falta desplegar la landing
+  (`vercel deploy --prod`).
+- [x] Respuestas del formulario de Data Safety y procedimiento para atender una solicitud de
+  eliminación: [`PLAY_DATA_SAFETY.md`](PLAY_DATA_SAFETY.md). Llenarlo en Play Console es manual.
+- [x] `README.md`, `DOCUMENTATION.md` (FAQ "¿funciona sin internet?", cuenta, eliminar),
+  `docs/index.html`, `landing/` (textos que decían "100% offline" / "sin cuenta").
+- [ ] Quitar permisos que no se usan del manifest (`READ_PHONE_STATE`, `SYSTEM_ALERT_WINDOW`) con
+  `android.blockedPermissions` y probar en el dispositivo (ver `PLAY_DATA_SAFETY.md`).
 - [ ] Build `prod` por EAS con los SHA-1 de producción registrados en Firebase.
 
 ---

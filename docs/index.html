@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MyWallet — Control financiero personal, 100% offline</title>
-  <meta name="description" content="MyWallet es tu app de control financiero personal para Android. Registra gastos e ingresos por voz o texto, detecta transacciones bancarias automáticamente y mantén todos tus datos 100% locales, sin nube ni suscripciones." />
+  <title>MyWallet — Control financiero personal, con o sin internet</title>
+  <meta name="description" content="MyWallet es tu app de control financiero personal para Android. Registra gastos e ingresos por voz o texto, detecta transacciones bancarias automáticamente y funciona completa sin internet. Respaldo en la nube opcional con tu cuenta de Google, sin suscripciones." />
   <link rel="icon" href="./favicon.png" />
-  <meta property="og:title" content="MyWallet — Control financiero personal, 100% offline" />
+  <meta property="og:title" content="MyWallet — Control financiero personal, con o sin internet" />
   <meta property="og:description" content="Registra gastos e ingresos en segundos, por voz o texto. Todos tus datos financieros viven solo en tu teléfono." />
   <meta property="og:image" content="./icon.png" />
   <meta property="og:type" content="website" />
@@ -140,10 +140,10 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="badge"><span class="dot"></span> 100% offline · sin nube · sin suscripciones</span>
+    <span class="badge"><span class="dot"></span> Funciona sin internet · respaldo opcional · sin suscripciones</span>
     <div class="icon-wrap"><img class="icon" src="./icon.png" alt="Logo de MyWallet" /></div>
     <h1>Controla tu dinero <span class="accent-text">sin fricción</span>, sin que salga de tu teléfono</h1>
-    <p class="subtitle">Registra gastos e ingresos por voz o texto en segundos. MyWallet detecta tus transacciones bancarias automáticamente y guarda todo localmente — nunca en un servidor.</p>
+    <p class="subtitle">Registra gastos e ingresos por voz o texto en segundos. MyWallet detecta tus transacciones bancarias automáticamente y guarda todo en tu teléfono. Si quieres, inicia sesión con Google para respaldarlo y compartir listas.</p>
     <div class="cta-row">
       <a href="https://github.com/JhonnyXT/my-wallet-app/releases/download/v1.5.0/app-release.apk" class="btn btn-primary">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
@@ -157,8 +157,8 @@
 
 <div class="trust-strip">
   <div class="wrap">
-    <span class="item"><span class="ic">🔒</span> Datos 100% locales</span>
-    <span class="item"><span class="ic">🚫</span> Cero servidores propios</span>
+    <span class="item"><span class="ic">📴</span> Funciona sin internet</span>
+    <span class="item"><span class="ic">☁️</span> Respaldo opcional</span>
     <span class="item"><span class="ic">🎙️</span> Registro por voz</span>
     <span class="item"><span class="ic">🏦</span> 15 bancos compatibles</span>
     <span class="item"><span class="ic">🌗</span> Modo claro y oscuro</span>
@@ -225,22 +225,22 @@
     <div class="privacy-panel">
       <div>
         <div class="eyebrow">Privacidad primero</div>
-        <h2>Tus datos financieros nunca salen de tu teléfono</h2>
-        <p>MyWallet no tiene backend. No hay cuenta, no hay login, no hay servidor que pueda filtrar tu información — porque simplemente no existe.</p>
+        <h2>Tus datos son tuyos, con o sin cuenta</h2>
+        <p>Todo vive primero en tu teléfono y la app funciona completa sin internet. Iniciar sesión con Google es opcional: solo sirve para respaldar tus datos en la nube y compartir listas, y solo tú puedes ver tu respaldo.</p>
         <ul class="check-list">
-          <li><span class="ic">✓</span> Base de datos SQLite local, excluida del auto-backup de Android</li>
+          <li><span class="ic">✓</span> Base de datos local; el respaldo en la nube (Firebase) es opcional y puedes borrarlo cuando quieras</li>
           <li><span class="ic">✓</span> Detección bancaria: solo monto y comercio, nunca saldos ni números de tarjeta</li>
-          <li><span class="ic">✓</span> El audio de voz se procesa en tiempo real y no se guarda</li>
+          <li><span class="ic">✓</span> El audio de voz no se graba ni se guarda</li>
           <li><span class="ic">✓</span> Código abierto — puedes revisar exactamente qué hace</li>
         </ul>
         <a href="./privacy-policy.html" class="btn btn-secondary">Leer política de privacidad completa</a>
       </div>
       <div class="never-box">
-        <div class="row"><span class="ic">✕</span> Transmisión de datos a servidores externos</div>
-        <div class="row"><span class="ic">✕</span> Sincronización con la nube</div>
+        <div class="row"><span class="ic">✕</span> Subir el texto de tus notificaciones bancarias</div>
+        <div class="row"><span class="ic">✕</span> Guardar números de cuenta o de tarjeta</div>
         <div class="row"><span class="ic">✕</span> Analíticas de uso o comportamiento</div>
         <div class="row"><span class="ic">✕</span> Publicidad o seguimiento publicitario</div>
-        <div class="row"><span class="ic">✕</span> Venta o comparticion de datos con terceros</div>
+        <div class="row"><span class="ic">✕</span> Venta o compartición de datos con terceros</div>
         <div class="row"><span class="ic">✕</span> Acceso a contactos, cámara o ubicación GPS</div>
       </div>
     </div>

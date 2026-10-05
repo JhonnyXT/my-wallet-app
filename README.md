@@ -1,10 +1,13 @@
 # MyWallet
 
-Aplicación personal de control financiero para Android. 100% offline — sin backend, sin cuentas,
-sin sincronización en la nube. Todos los datos viven en el propio dispositivo.
+Aplicación personal de control financiero para Android. **Local-first**: funciona completa sin
+internet y los datos viven en el dispositivo (SQLite). Con cuenta de Google (opcional) se respaldan
+en Firebase y se pueden compartir listas con otras personas — sin backend propio. Ver
+[`SYNC_ROADMAP.md`](SYNC_ROADMAP.md).
 
 🔗 **Landing pública:** https://jhonnyxt.github.io/my-wallet-app/
 🔒 **Política de privacidad:** https://jhonnyxt.github.io/my-wallet-app/privacy-policy.html
+🗑️ **Eliminar cuenta:** https://mywallet-blush.vercel.app/es/delete-account
 
 ## Features
 

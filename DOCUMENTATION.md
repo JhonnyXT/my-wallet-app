@@ -6,9 +6,9 @@
 
 ## ¿Qué es MyWallet?
 
-MyWallet es tu aplicación personal de control financiero. Diseñada para ser **simple, rápida y sin fricciones**, te permite registrar gastos e ingresos con texto libre o voz, visualizar en qué categorías gastas más, establecer presupuestos y tener claridad total de tu dinero — todo almacenado **localmente en tu dispositivo**, sin servidores ni suscripciones.
+MyWallet es tu aplicación personal de control financiero. Diseñada para ser **simple, rápida y sin fricciones**, te permite registrar gastos e ingresos con texto libre o voz, visualizar en qué categorías gastas más, establecer presupuestos y tener claridad total de tu dinero — todo almacenado **en tu dispositivo** y funcionando sin internet. Si quieres, inicia sesión con Google para respaldar tus datos en la nube y compartir listas con otras personas.
 
-> **Moneda:** Pesos colombianos ($ COP) | **Datos:** 100% locales, sin nube | **Modo oscuro:** Compatible con tema del sistema
+> **Moneda:** Pesos colombianos ($ COP) | **Datos:** en tu teléfono; respaldo en la nube opcional | **Modo oscuro:** Compatible con tema del sistema
 
 ---
 
@@ -565,10 +565,16 @@ Si aún no hay transacciones, verás el mensaje "Aún no hay suficiente historia
 ## 11. Preguntas Frecuentes y Recomendaciones
 
 ### ¿Mis datos están seguros?
-Sí. **Todo se almacena localmente en tu dispositivo** en una base de datos SQLite. La app no envía ningún dato a servidores externos ni requiere internet para funcionar.
+Sí. **Todo se guarda primero en tu dispositivo** (base de datos SQLite). Sin sesión iniciada, la app no envía nada a ningún servidor. Si inicias sesión con Google, se sube una copia a Firebase (la nube de Google) que **solo tú puedes ver**, salvo lo que pongas en una lista compartida. El texto de las notificaciones de tu banco nunca se sube, ni se guardan números de cuenta o tarjeta.
 
-### ¿Qué pasa si desinstalo la app?
-Perderás todos tus datos ya que están en el dispositivo. Antes de desinstalar, usa **Configuración → Exportar datos** para guardar un CSV con tu historial.
+### ¿Necesito una cuenta?
+No. Iniciar sesión con Google es opcional (primer paso del onboarding, o después en **Ajustes → Cuenta**). Sin cuenta todo funciona igual; con cuenta ganas el respaldo en la nube y las listas compartidas.
+
+### ¿Qué pasa si desinstalo la app o cambio de celular?
+Con sesión iniciada, instala la app en el teléfono nuevo, inicia sesión con la misma cuenta de Google y recuperas todo. Sin cuenta, desinstalar borra tus datos: antes usa **Ajustes → Exportar CSV** en cada lista para guardar tu historial.
+
+### ¿Cómo elimino mi cuenta y mis datos de la nube?
+**Ajustes → Cuenta → Eliminar cuenta.** Borra tu cuenta, todo tu respaldo en la nube y las listas compartidas que creaste; te saca de las listas de otras personas (lo que registraste ahí se queda para que sus cuentas cuadren). Lo que tienes en el teléfono no se borra. Si ya no tienes la app, puedes pedirlo en https://mywallet-blush.vercel.app/es/delete-account.
 
 ### ¿Cómo registro un ingreso?
 Toca el **+** del dock flotante → selecciona **Ingreso (verde)**. La pantalla mostrará "Nuevo Ingreso" y el monto aparecerá en verde con signo `+`.
@@ -612,7 +618,7 @@ Toca (tap) cualquier registro en la lista de transacciones. Se abrirá una tarje
 Sí. Cada abono crea automáticamente una transacción de gasto, así tu balance refleja que ese dinero ya no está disponible. La transacción aparece en la lista y gráfica del Dashboard con el tag `#ahorro`.
 
 ### ¿Funciona sin internet?
-Sí, la app es **100% offline**. El reconocimiento de voz, el NLP y todos los cálculos son locales. No necesitas internet para nada.
+Sí, **completa**. Registrar, editar, borrar, reportes, voz y detección bancaria funcionan sin conexión. Si tienes sesión iniciada, lo que hagas sin internet se sube solo cuando vuelve la conexión; en una lista compartida, desliza hacia abajo sobre el balance del Dashboard para traer los cambios de las demás personas. Lo único que necesita internet es iniciar sesión, compartir una lista o unirte a una con un código.
 
 ---
 

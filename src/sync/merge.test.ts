@@ -37,6 +37,15 @@ describe("mergeCollection", () => {
     expect(out.accepted).toEqual({ a: 10 });
   });
 
+  it("restaurar: la lista Personal en 0 de una instalación vieja gana a la de 0 recién instalada", () => {
+    const out = mergeCollection<Goal>([{ id: "personal", name: "vacía", updatedAt: 0 }], {}, [
+      remote("personal", 0, { name: "respaldada" }),
+    ]);
+    expect(out.items.map((i) => i.name)).toEqual(["respaldada"]);
+    expect(out.remoteWon).toEqual(["personal"]);
+    expect(out.accepted).toEqual({ personal: 0 });
+  });
+
   it("un borrado remoto más reciente elimina el ítem y deja tombstone", () => {
     const out = mergeCollection<Goal>([{ id: "a", name: "A", updatedAt: 5 }], {}, [
       remote("a", 10, { deletedAt: 10 }),
@@ -125,8 +134,8 @@ describe("remoteDocWins", () => {
     expect(remoteDocWins(10, undefined)).toBe(false);
   });
 
-  it("un perfil nunca editado (0) pierde contra cualquier remoto", () => {
-    expect(remoteDocWins(0, { updatedAt: 0 })).toBe(false);
+  it("un perfil nunca editado (0) pierde contra cualquier remoto, aunque también esté en 0", () => {
+    expect(remoteDocWins(0, { updatedAt: 0 })).toBe(true);
     expect(remoteDocWins(0, { updatedAt: 1 })).toBe(true);
   });
 });

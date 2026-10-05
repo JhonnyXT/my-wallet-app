@@ -16,6 +16,11 @@ describe("pickWinner", () => {
     expect(pickWinner({ updatedAt: 100, deletedAt: 100 }, { updatedAt: 100 })).toBe("local");
   });
 
+  it("en empate en 0 (nunca editado en ningún lado) gana lo respaldado", () => {
+    expect(pickWinner({ updatedAt: 0 }, { updatedAt: 0 })).toBe("remote");
+    expect(pickWinner({ updatedAt: 0 }, { updatedAt: 0, deletedAt: null })).toBe("remote");
+  });
+
   it("en empate sin borrados (o ambos borrados) se queda la local", () => {
     expect(pickWinner({ updatedAt: 100 }, { updatedAt: 100 })).toBe("local");
     expect(pickWinner({ updatedAt: 100, deletedAt: null }, { updatedAt: 100 })).toBe("local");

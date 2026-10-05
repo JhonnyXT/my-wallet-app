@@ -39,6 +39,7 @@ import {
   type ListsSlice,
   type WalletList,
   type ListMember,
+  type SpaceLink,
 } from "./slices/listsSlice";
 import { createTombstonesSlice, type TombstonesSlice } from "./slices/tombstonesSlice";
 
@@ -54,6 +55,7 @@ export type {
   Debt,
   WalletList,
   ListMember,
+  SpaceLink,
 };
 
 // ─── Tipo combinado del store ─────────────────────────────────────────────────

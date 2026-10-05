@@ -12,6 +12,24 @@ import type { PrefsSlice } from "./prefsSlice";
 export interface ListMember {
   id: string;
   name: string;
+  /** Solo en espacios compartidos: cuenta ligada a la persona (null/ausente = sin app). */
+  uid?: string | null;
+  /** Solo en espacios: "joined" se unió con la app, "guest" sin app, "left" salió o la quitaron. */
+  status?: "joined" | "guest" | "left";
+}
+
+/**
+ * Enlace de una lista con un espacio compartido (Sync Fase 4, spec D2). Ausente = lista propia.
+ * Lo compartido (nombre, ícono, categorías, mostrar ingresos) lleva su propia versión; período y
+ * presupuestos son de cada persona y siguen con `updatedAt` de la lista.
+ */
+export interface SpaceLink {
+  spaceId: string;
+  ownerUid: string;
+  /** Mi id de miembro en el espacio (mi uid, o el de la persona sin app que reclamé). */
+  selfMemberId: string;
+  /** Última edición de lo compartido, epoch ms. */
+  sharedUpdatedAt: number;
 }
 
 export interface WalletList {
@@ -36,6 +54,8 @@ export interface WalletList {
   budgets?: Record<string, number>;
   /** false = la lista es solo de gastos: se ocultan sus ingresos. Por defecto true. */
   showIncome?: boolean;
+  /** Espacio compartido al que está ligada (Sync Fase 4). */
+  space?: SpaceLink;
   /**
    * Última edición, epoch ms (sync). En la lista activa también la mueven los cambios de
    * `defaultPeriod`/`userCategories`/`budgetByCategory` (ver `touchList`).

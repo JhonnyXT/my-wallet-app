@@ -176,6 +176,14 @@ export default function ActiveExpenseScreen() {
   const [tagInput, setTagInput] = useState("");
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [descOpen, setDescOpen] = useState(false);
+  // El transcript (voz o entrada rápida) es la descripción solo mientras no se edite la nota: si
+  // se borra toda, debe quedar vacía, no volver a aparecer el transcript.
+  const [noteEdited, setNoteEdited] = useState(false);
+  const noteText = noteEdited ? store.note : store.note || store.rawTranscript;
+  const handleNoteChange = (text: string) => {
+    setNoteEdited(true);
+    store.setNote(text);
+  };
   const [amountEditing, setAmountEditing] = useState(false);
   const [amountDisplay, setAmountDisplay] = useState("");
   const [showNewCatModal, setShowNewCatModal] = useState(false);
@@ -315,7 +323,7 @@ export default function ActiveExpenseScreen() {
         store.date === "custom" && store.customDate ? store.customDate : new Date();
       setPendingManualItem({
         amount: store.amount,
-        description: store.note || store.rawTranscript || (isExpense ? "Gasto" : "Ingreso"),
+        description: noteText || (isExpense ? "Gasto" : "Ingreso"),
         categoryEmoji: store.categoryEmoji,
         categoryName: catName,
         isExpense,
@@ -333,7 +341,7 @@ export default function ActiveExpenseScreen() {
     const savedAmount = store.amount;
     const savedEmoji = store.categoryEmoji;
     const savedIsExp = isExpense;
-    const description = store.note || store.rawTranscript || (isExpense ? "Gasto" : "Ingreso");
+    const description = noteText || (isExpense ? "Gasto" : "Ingreso");
 
     if (isEditMode && editingId !== null) {
       await updateTx(
@@ -516,13 +524,10 @@ export default function ActiveExpenseScreen() {
           <TouchableOpacity style={st.cardRow} onPress={toggleDesc} activeOpacity={0.6}>
             <FileText size={18} color={theme.textSub} strokeWidth={1.8} />
             <Text
-              style={[
-                st.cardRowText,
-                !(store.note || store.rawTranscript) && { color: theme.textTertiary },
-              ]}
+              style={[st.cardRowText, !noteText && { color: theme.textTertiary }]}
               numberOfLines={1}
             >
-              {store.note || store.rawTranscript || noteplaceholder}
+              {noteText || noteplaceholder}
             </Text>
           </TouchableOpacity>
 
@@ -557,8 +562,8 @@ export default function ActiveExpenseScreen() {
             </TouchableOpacity>
             <TextInput
               ref={noteRef}
-              value={store.note || store.rawTranscript}
-              onChangeText={store.setNote}
+              value={noteText}
+              onChangeText={handleNoteChange}
               multiline
               style={st.transcriptInput}
               placeholderTextColor={theme.textTertiary}

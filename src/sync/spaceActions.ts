@@ -44,6 +44,7 @@ import {
   getInvite,
   getMembers,
   getSpace,
+  rejoinMember,
   removeFromSpace,
 } from "./spacesRemote";
 
@@ -217,6 +218,10 @@ async function linkLocal(spaceId: string, selfMemberId: string): Promise<string>
         ],
   });
   if (copy) {
+    // Sus movimientos se respaldaron en la cuenta al salir: vuelven a vivir solo en el espacio.
+    // No se marcan pendientes: subirlos pisaría con copias viejas lo que otros editaron después.
+    const uid = getAuth().currentUser?.uid;
+    if (uid) await withTimeout(deleteUserListTransactions(uid, copy.id)).catch(() => undefined);
     useSettingsStore.getState().linkSpace(copy.id, link, local);
     applyRemoteSettings({
       spaces: [
@@ -265,6 +270,13 @@ export async function joinWithCode(input: string): Promise<JoinResult> {
     const members = await withTimeout(getMembers(spaceId));
     const mine = members.find((m) => m.data.uid === user.uid && m.data.leftAt == null);
     if (mine) return { status: "joined", listId: await linkLocal(spaceId, mine.id) };
+    // Salí (o me quitaron) y vuelvo: soy el mismo miembro de antes, no uno nuevo; si no, lo que
+    // pagué quedaría a nombre de "alguien que salió" y las cuentas no cuadrarían.
+    const former = members.find((m) => m.data.uid === user.uid);
+    if (former) {
+      await withTimeout(rejoinMember(spaceId, former.id, Date.now()));
+      return { status: "joined", listId: await linkLocal(spaceId, former.id) };
+    }
     const guests = claimableGuests(members);
     if (guests.length > 0) return { status: "choose", spaceId, guests };
     await withTimeout(createSelfMember(spaceId, user.uid, firstName(user.displayName), Date.now()));

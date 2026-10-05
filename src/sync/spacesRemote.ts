@@ -177,6 +177,16 @@ export async function claimMember(
   });
 }
 
+/** Volver a un espacio del que salí: el mismo miembro de antes, así lo que pagué sigue siendo mío. */
+export async function rejoinMember(spaceId: string, memberId: string, now: number): Promise<void> {
+  await updateDoc(doc(membersRef(spaceId), memberId), {
+    leftAt: null,
+    joinedAt: now,
+    updatedAt: now,
+    serverUpdatedAt: serverTimestamp(),
+  });
+}
+
 /** Marca a alguien como salido (`leftAt`) y lo saca de `memberUids`, en un lote (salir o quitar). */
 export async function removeFromSpace(
   spaceId: string,

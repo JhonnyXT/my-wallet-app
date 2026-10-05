@@ -1,4 +1,4 @@
-import { Ban, Check, CloudOff, Landmark, Smartphone, UserX, type LucideIcon } from 'lucide-react';
+import { Ban, Check, Cloud, Landmark, Smartphone, UserCheck, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import type { Dictionary, Locale } from '@/i18n/config';
 import { SectionHead } from './shared';
@@ -6,9 +6,9 @@ import { SectionHead } from './shared';
 type DataKey = keyof Dictionary['privacidad']['data']['items'];
 const DATA_ICONS: Record<DataKey, LucideIcon> = {
   local: Smartphone,
-  noAccount: UserX,
+  optionalAccount: UserCheck,
   noNumbers: Ban,
-  noBackup: CloudOff,
+  backup: Cloud,
   yourBanks: Landmark,
 };
 

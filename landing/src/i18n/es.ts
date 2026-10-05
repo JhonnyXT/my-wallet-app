@@ -7,7 +7,7 @@ export const es = {
   meta: {
     title: 'MyWallet — tus finanzas, claras y en tu teléfono',
     description:
-      'Anota gastos e ingresos a mano, por voz o desde las notificaciones de tu banco. Presupuestos, metas y deudas. Gratis, sin cuentas y 100% en tu teléfono.',
+      'Anota gastos e ingresos a mano, por voz o desde las notificaciones de tu banco. Presupuestos, metas y deudas. Gratis, sin anuncios y funciona sin internet.',
   },
   nav: {
     language: 'Idioma',
@@ -192,7 +192,7 @@ export const es = {
   detalles: {
     title: 'Los detalles',
     items: {
-      offline: { t: 'Funciona sin internet', d: 'Todo vive en una base de datos dentro de tu teléfono. No hay servidor.' },
+      offline: { t: 'Funciona sin internet', d: 'Todo vive en tu teléfono. Con internet y tu cuenta, se respalda solo.' },
       cop: { t: 'Pesos colombianos', d: 'Montos con separador de miles, sin decimales, como los escribes.' },
       categories: { t: 'Tus categorías', d: '24 predefinidas para empezar, y las tuyas con emoji, color y palabras clave.' },
       accounts: { t: 'Cuentas y medios de pago', d: 'Efectivo, ahorros, tarjeta o los que quieras crear.' },
@@ -220,7 +220,7 @@ export const es = {
   privacidad: {
     title: 'Gratis y privada.',
     titleB: 'Sin letra pequeña.',
-    subtitle: 'No hay planes de pago, ni cuentas, ni publicidad. Tus finanzas no son un producto.',
+    subtitle: 'No hay planes de pago ni publicidad. Tus finanzas no son un producto.',
     free: {
       name: 'MyWallet',
       price: '$0',
@@ -229,12 +229,12 @@ export const es = {
     },
     data: {
       name: 'Tus datos',
-      tag: 'En tu teléfono',
+      tag: 'Primero en tu teléfono',
       items: {
-        local: { t: 'Tus movimientos no salen del teléfono', d: 'Sin servidor propio, sin sincronización, sin analíticas.' },
-        noAccount: { t: 'Sin cuenta', d: 'Abres la app y empiezas. No pide correo ni contraseña.' },
+        local: { t: 'Todo se guarda en tu teléfono', d: 'Funciona completa sin internet. Sin analíticas ni rastreo.' },
+        optionalAccount: { t: 'Cuenta opcional', d: 'Abres la app y empiezas. Inicia sesión con Google solo si quieres respaldo.' },
         noNumbers: { t: 'Sin números de cuenta', d: 'Nunca guarda números de tarjeta ni de cuenta bancaria.' },
-        noBackup: { t: 'Sin copia en la nube', d: 'El respaldo automático de Android está desactivado para esta app.' },
+        backup: { t: 'Respaldo que solo tú ves', d: 'Con tu cuenta, una copia en la nube para no perder nada al cambiar de celular. La borras cuando quieras.' },
         yourBanks: { t: 'Solo los bancos que elijas', d: 'La lectura de notificaciones se activa y se limita desde Ajustes.' },
       },
     },
@@ -246,6 +246,7 @@ export const es = {
   },
   footer: {
     privacy: 'Política de privacidad',
+    deleteAccount: 'Eliminar cuenta',
     support: 'Soporte',
     rights: '© 2026 MyWallet',
   },

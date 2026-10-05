@@ -7,7 +7,7 @@ export const en: Dictionary = {
   meta: {
     title: 'MyWallet — your money, clear and on your phone',
     description:
-      'Log expenses and income by hand, by voice or straight from your bank’s notifications. Budgets, goals and debts. Free, no account, 100% on your phone.',
+      'Log expenses and income by hand, by voice or straight from your bank’s notifications. Budgets, goals and debts. Free, no ads, and it works offline.',
   },
   nav: {
     language: 'Language',
@@ -192,7 +192,7 @@ export const en: Dictionary = {
   detalles: {
     title: 'The details',
     items: {
-      offline: { t: 'Works offline', d: 'Everything lives in a database inside your phone. There is no server.' },
+      offline: { t: 'Works offline', d: 'Everything lives on your phone. With internet and your account, it backs itself up.' },
       cop: { t: 'Colombian pesos', d: 'Amounts with thousands separators and no decimals, the way you write them.' },
       categories: { t: 'Your categories', d: '24 presets to start with, plus your own with emoji, color and keywords.' },
       accounts: { t: 'Accounts and payment methods', d: 'Cash, savings, card, or any you want to create.' },
@@ -220,7 +220,7 @@ export const en: Dictionary = {
   privacidad: {
     title: 'Free and private.',
     titleB: 'No fine print.',
-    subtitle: 'No paid plans, no accounts, no ads. Your finances are not a product.',
+    subtitle: 'No paid plans, no ads. Your finances are not a product.',
     free: {
       name: 'MyWallet',
       price: '$0',
@@ -229,12 +229,12 @@ export const en: Dictionary = {
     },
     data: {
       name: 'Your data',
-      tag: 'On your phone',
+      tag: 'Phone first',
       items: {
-        local: { t: 'Your transactions stay on your phone', d: 'No server of ours, no sync, no analytics.' },
-        noAccount: { t: 'No account', d: 'Open the app and start. No email, no password.' },
+        local: { t: 'Everything is saved on your phone', d: 'Works fully offline. No analytics, no tracking.' },
+        optionalAccount: { t: 'Optional account', d: 'Open the app and start. Sign in with Google only if you want a backup.' },
         noNumbers: { t: 'No account numbers', d: 'It never stores card or bank account numbers.' },
-        noBackup: { t: 'No cloud copy', d: 'Android’s automatic backup is turned off for this app.' },
+        backup: { t: 'A backup only you can see', d: 'With your account, a cloud copy so you lose nothing when you change phones. Delete it anytime.' },
         yourBanks: { t: 'Only the banks you pick', d: 'Notification reading is turned on and limited from Settings.' },
       },
     },
@@ -246,6 +246,7 @@ export const en: Dictionary = {
   },
   footer: {
     privacy: 'Privacy policy',
+    deleteAccount: 'Delete account',
     support: 'Support',
     rights: '© 2026 MyWallet',
   },

@@ -41,6 +41,14 @@ export function LegalPage({ doc, locale, path }: { doc: LegalDoc; locale: Locale
                 {p}
               </p>
             ))}
+            {s.cta && (
+              <a
+                href={s.cta.href}
+                className="mt-2 flex h-11 items-center self-start rounded-full bg-btn px-5 text-sm font-bold text-white transition-colors hover:bg-btn-hover"
+              >
+                {s.cta.label}
+              </a>
+            )}
           </section>
         ))}
       </main>

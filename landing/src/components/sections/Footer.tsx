@@ -12,6 +12,9 @@ export function Footer({ t, locale }: { t: Dictionary['footer']; locale: Locale 
         <Link href={`/${locale}/privacy`} className="text-dim hover:text-ink">
           {t.privacy}
         </Link>
+        <Link href={`/${locale}/delete-account`} className="text-dim hover:text-ink">
+          {t.deleteAccount}
+        </Link>
         <a href={`mailto:${SUPPORT_EMAIL}`} className="text-dim hover:text-ink">
           {t.support}
         </a>

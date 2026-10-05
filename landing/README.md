@@ -71,8 +71,17 @@ npm run lint
   `meld-app/landing` (`src/legal/docs.ts` + `LegalPage.tsx`): título, fecha,
   intro y secciones con lista u párrafos, en español e inglés. Cubre además
   los emails de la lista de espera (Resend). Si cambia algo real (permisos,
-  proveedor de la lista de espera, exportación), actualizar **ambos**
-  documentos.
+  qué se sube a la nube, proveedor de la lista de espera, exportación),
+  actualizar **ambos** documentos.
+- **Eliminar cuenta** (`/[lang]/delete-account`, mismo `LegalPage` con
+  `legalDocs.deleteAccount`): la URL web para pedir la eliminación que exige
+  Google Play (`https://mywallet-blush.vercel.app/es/delete-account`). Explica
+  cómo hacerlo en la app y, sin la app, un botón `mailto:` prellenado (desde el
+  correo de la cuenta, así ya viene verificado quién lo pide; sin formulario ni
+  API a propósito). Enlazada desde el footer y desde las dos políticas. Si cambia
+  la URL del sitio, actualizarla en `docs/privacy-policy.html`, `README.md`,
+  `DOCUMENTATION.md` y Play Console. Atender una solicitud: ver
+  `PLAY_DATA_SAFETY.md` en la raíz.
 - **Secciones**: `src/components/sections/*`, en el orden de
   `src/app/[lang]/page.tsx`.
 - **Pantallas reales**: el carrusel (`Pantallas.tsx`) muestra marcadores hasta

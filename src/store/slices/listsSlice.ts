@@ -81,9 +81,57 @@ export function withLiveActiveList(state: SwapState): WalletList[] {
   );
 }
 
-/** Marca una lista como editada ahora. */
-export function touchList(lists: WalletList[], id: string, now: number): WalletList[] {
-  return lists.map((l) => (l.id === id ? { ...l, updatedAt: now } : l));
+/**
+ * Marca una lista como editada ahora. `shared` = el cambio es de lo que se comparte en un espacio
+ * (nombre, ícono, categorías, mostrar ingresos, personas): en una lista compartida mueve también
+ * `space.sharedUpdatedAt`. Período y presupuestos son de cada persona (spec Fase 4, D2).
+ */
+export function touchList(
+  lists: WalletList[],
+  id: string,
+  now: number,
+  shared = false,
+): WalletList[] {
+  return lists.map((l) => {
+    if (l.id !== id) return l;
+    const space = shared && l.space ? { ...l.space, sharedUpdatedAt: now } : l.space;
+    return { ...l, updatedAt: now, ...(space ? { space } : {}) };
+  });
+}
+
+/**
+ * Personas de una lista compartida tras editarlas: una persona sin app que se quita no se borra,
+ * queda "left" (los demás teléfonos se enteran y lo que pagó sigue contando). Las que se unieron
+ * con la app no se tocan aquí (quitarlas es cosa del dueño, en línea). Nuevas: "guest".
+ */
+export function mergeSpaceMembers(prev: ListMember[], next: ListMember[]): ListMember[] {
+  const nextIds = new Set(next.map((m) => m.id));
+  const kept = prev
+    .filter((m) => !nextIds.has(m.id))
+    .map((m) => (m.status === "joined" ? m : { ...m, status: "left" as const }));
+  const edited = next.map((m) => {
+    const before = prev.find((p) => p.id === m.id);
+    return before ? { ...before, name: m.name } : { ...m, uid: null, status: "guest" as const };
+  });
+  return [...edited, ...kept];
+}
+
+/**
+ * Lista que deja de estar ligada a su espacio (salió, la quitaron o el dueño lo eliminó, spec D8):
+ * queda como lista propia con todas las personas como "sin app" (las que habían salido siguen
+ * "left", para el editor).
+ */
+export function unlinkedList(list: WalletList, now: number): WalletList {
+  const { space: _space, ...rest } = list;
+  return {
+    ...rest,
+    members: list.members?.map((m) => ({
+      id: m.id,
+      name: m.name,
+      status: m.status === "left" ? ("left" as const) : ("guest" as const),
+    })),
+    updatedAt: now,
+  };
 }
 
 /** Lo que se intercambia al cambiar de lista. */
@@ -146,8 +194,15 @@ export interface ListsSlice {
   removeList: (id: string) => void;
   /** Cambia la lista activa; recargar las transacciones es cosa del llamador. */
   switchList: (id: string) => void;
-  /** Reemplaza los miembros. No quitar a quien tiene movimientos es cosa del llamador. */
+  /**
+   * Reemplaza los miembros. No quitar a quien tiene movimientos es cosa del llamador. En una lista
+   * compartida, quitar a una persona sin app la deja "left" (`mergeSpaceMembers`).
+   */
   setMembers: (listId: string, members: ListMember[]) => void;
+  /** Liga una lista a un espacio (al compartirla o al traer uno) con sus personas. */
+  linkSpace: (listId: string, space: SpaceLink, members: ListMember[]) => void;
+  /** La lista deja su espacio y queda como propia (`unlinkedList`). */
+  unlinkSpace: (listId: string) => void;
 }
 
 const PERSONAL_LIST: WalletList = {
@@ -190,14 +245,22 @@ export const createListsSlice: StateCreator<
 
   setShowIncome: (listId, show) =>
     set((s) => ({
-      lists: s.lists.map((l) =>
-        l.id === listId ? { ...l, showIncome: show, updatedAt: Date.now() } : l,
+      lists: touchList(
+        s.lists.map((l) => (l.id === listId ? { ...l, showIncome: show } : l)),
+        listId,
+        Date.now(),
+        true,
       ),
     })),
 
   editList: (id, name, emoji) =>
     set((s) => ({
-      lists: s.lists.map((l) => (l.id === id ? { ...l, name, emoji, updatedAt: Date.now() } : l)),
+      lists: touchList(
+        s.lists.map((l) => (l.id === id ? { ...l, name, emoji } : l)),
+        id,
+        Date.now(),
+        true,
+      ),
     })),
 
   removeList: (id) => {
@@ -212,9 +275,32 @@ export const createListsSlice: StateCreator<
   setMembers: (listId, members) => {
     if (listId === DEFAULT_LIST_ID) return;
     set((s) => ({
-      lists: s.lists.map((l) => (l.id === listId ? { ...l, members, updatedAt: Date.now() } : l)),
+      lists: touchList(
+        s.lists.map((l) =>
+          l.id === listId
+            ? { ...l, members: l.space ? mergeSpaceMembers(l.members ?? [], members) : members }
+            : l,
+        ),
+        listId,
+        Date.now(),
+        true,
+      ),
     }));
   },
+
+  linkSpace: (listId, space, members) => {
+    if (listId === DEFAULT_LIST_ID) return;
+    set((s) => ({
+      lists: s.lists.map((l) =>
+        l.id === listId ? { ...l, space, members, updatedAt: Date.now() } : l,
+      ),
+    }));
+  },
+
+  unlinkSpace: (listId) =>
+    set((s) => ({
+      lists: s.lists.map((l) => (l.id === listId && l.space ? unlinkedList(l, Date.now()) : l)),
+    })),
 
   switchList: (id) => {
     const next = swapActiveList(get(), id);

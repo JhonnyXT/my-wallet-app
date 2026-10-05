@@ -22,6 +22,7 @@ import type { UserCategory } from "@/src/constants/categoryPresets";
 import { DEFAULT_LIST_ID, LIST_EMOJIS } from "@/src/constants/lists";
 import type { ListMember, WalletList } from "@/src/store/useSettingsStore";
 import { useAppTokens } from "@/src/theme/tokens";
+import { newId } from "@/src/utils/ids";
 
 const SHEET_PADDING = 20;
 
@@ -93,7 +94,7 @@ function EditorBody({
   const addMember = () => {
     const n = memberName.trim();
     if (!n) return;
-    setMembers((prev) => [...prev, { id: `m_${Date.now()}`, name: n }]);
+    setMembers((prev) => [...prev, { id: newId(), name: n }]);
     setMemberName("");
   };
 
@@ -120,7 +121,7 @@ function EditorBody({
   // Un nombre escrito sin tocar "+" también cuenta.
   const finalMembers = () => {
     const pending = memberName.trim();
-    const all = pending ? [...members, { id: `m_${Date.now()}`, name: pending }] : members;
+    const all = pending ? [...members, { id: newId(), name: pending }] : members;
     return canHaveMembers ? all : [];
   };
 

@@ -166,3 +166,72 @@ describe("applySettingsPatch — resto", () => {
     expect(applySettingsPatch(state(), {})).toEqual({});
   });
 });
+
+// ─── Espacios compartidos (Fase 4) ───────────────────────────────────────────
+
+describe("applySettingsPatch — espacios", () => {
+  const link = {
+    spaceId: "viaje",
+    ownerUid: "uid-ana",
+    selfMemberId: "uid-beto",
+    sharedUpdatedAt: 5,
+  };
+  const sharedViaje: WalletList = {
+    ...viaje,
+    space: link,
+    members: [{ id: "uid-ana", name: "Ana", uid: "uid-ana", status: "joined" }],
+  };
+  const config = {
+    kind: "config" as const,
+    listId: "viaje",
+    name: "Viaje 2",
+    emoji: "🏖️",
+    categories: [cat("🍹", "Bebidas")],
+    showIncome: false,
+    sharedUpdatedAt: 50,
+  };
+
+  it("lo compartido traído va a la activa y a sus categorías vivas; período y presupuestos no", () => {
+    const out = applySettingsPatch(state({ lists: [personal, sharedViaje] }), { spaces: [config] });
+    const list = out.lists!.find((l) => l.id === "viaje")!;
+    expect(list).toMatchObject({ name: "Viaje 2", emoji: "🏖️", showIncome: false });
+    expect(list.space?.sharedUpdatedAt).toBe(50);
+    expect(list.updatedAt).toBe(10);
+    expect(out.userCategories).toEqual([cat("🍹", "Bebidas")]);
+    expect(out.defaultPeriod).toBeUndefined();
+    expect(out.budgetByCategory).toBeUndefined();
+  });
+
+  it("en una lista no activa no toca los campos vivos", () => {
+    const out = applySettingsPatch(
+      state({ lists: [personal, sharedViaje], activeListId: "personal" }),
+      {
+        spaces: [config],
+      },
+    );
+    expect(out.userCategories).toBeUndefined();
+    expect(out.lists!.find((l) => l.id === "viaje")!.categories).toEqual(config.categories);
+  });
+
+  it("config de una lista que ya no está ligada no se aplica", () => {
+    const out = applySettingsPatch(state(), { spaces: [config] });
+    expect(out.lists!.find((l) => l.id === "viaje")).toEqual(viaje);
+  });
+
+  it("crear agrega la lista del espacio una sola vez; personas y desconectar", () => {
+    const nueva: WalletList = { ...sharedViaje, id: "s9", space: { ...link, spaceId: "s9" } };
+    const out = applySettingsPatch(state({ lists: [personal, sharedViaje] }), {
+      spaces: [
+        { kind: "create", list: nueva },
+        { kind: "create", list: { ...nueva, name: "duplicada" } },
+        { kind: "members", listId: "s9", members: [] },
+        { kind: "unlink", listId: "viaje", now: 77 },
+      ],
+    });
+    expect(out.lists!.map((l) => l.id)).toEqual(["personal", "viaje", "s9"]);
+    expect(out.lists![2]).toMatchObject({ name: "Viaje", members: [] });
+    expect(out.lists![1].space).toBeUndefined();
+    expect(out.lists![1].updatedAt).toBe(77);
+    expect(out.lists![1].members).toEqual([{ id: "uid-ana", name: "Ana", status: "guest" }]);
+  });
+});

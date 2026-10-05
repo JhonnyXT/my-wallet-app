@@ -21,8 +21,9 @@ export interface CategoriesSlice {
 }
 
 // Las categorías vivas son las de la lista activa (patrón de intercambio): editarlas es editarla.
+// En un espacio compartido las categorías son de todos (lo compartido, spec Fase 4 D2).
 const touchActive = (s: ListsSlice) => ({
-  lists: touchList(s.lists, s.activeListId, Date.now()),
+  lists: touchList(s.lists, s.activeListId, Date.now(), true),
 });
 
 export const createCategoriesSlice: StateCreator<

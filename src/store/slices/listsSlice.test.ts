@@ -1,5 +1,13 @@
 import type { UserCategory } from "@/src/constants/categoryPresets";
-import { swapActiveList, touchList, type WalletList } from "./listsSlice";
+import {
+  mergeSpaceMembers,
+  swapActiveList,
+  touchList,
+  unlinkedList,
+  withLiveActiveList,
+  type ListMember,
+  type WalletList,
+} from "./listsSlice";
 
 const cat = (emoji: string, name: string): UserCategory => ({
   id: name,
@@ -127,5 +135,102 @@ describe("touchList", () => {
     const out = touchList(lists, "viaje", 500);
     expect(out.map((l) => l.updatedAt)).toEqual([0, 500]);
     expect(lists[1].updatedAt).toBe(10);
+  });
+});
+
+// ─── Espacios compartidos (Sync Fase 4) ──────────────────────────────────────
+
+const space = {
+  spaceId: "viaje",
+  ownerUid: "uid-ana",
+  selfMemberId: "uid-ana",
+  sharedUpdatedAt: 5,
+};
+const shared = (): WalletList => ({
+  id: "viaje",
+  name: "Viaje",
+  emoji: "✈️",
+  period: all,
+  categories: [cat("🏨", "Hotel")],
+  updatedAt: 10,
+  space,
+  members: [
+    { id: "uid-beto", name: "Beto", uid: "uid-beto", status: "joined" },
+    { id: "m_luis", name: "Luis", uid: null, status: "guest" },
+  ],
+});
+
+describe("touchList en una lista compartida", () => {
+  it("lo compartido mueve también sharedUpdatedAt", () => {
+    const [out] = touchList([shared()], "viaje", 500, true);
+    expect(out.updatedAt).toBe(500);
+    expect(out.space?.sharedUpdatedAt).toBe(500);
+  });
+
+  it("período y presupuestos (no compartidos) solo mueven updatedAt", () => {
+    const [out] = touchList([shared()], "viaje", 500);
+    expect(out.updatedAt).toBe(500);
+    expect(out.space?.sharedUpdatedAt).toBe(5);
+  });
+
+  it("en una lista propia, compartido o no da igual: sin space", () => {
+    const own: WalletList = { id: "casa", name: "Casa", emoji: "🏠", period: all, updatedAt: 1 };
+    const [out] = touchList([own], "casa", 500, true);
+    expect(out).toEqual({ ...own, updatedAt: 500 });
+    expect("space" in out).toBe(false);
+  });
+});
+
+describe("el intercambio conserva el espacio y el estado de las personas", () => {
+  it("swapActiveList ida y vuelta y withLiveActiveList", () => {
+    const state = baseState([
+      { id: "personal", name: "Personal", emoji: "👤", period: monthly, updatedAt: 0 },
+      shared(),
+    ]);
+    const there = swapActiveList(state, "viaje")!;
+    expect(withLiveActiveList(there)[1].space).toEqual(space);
+    const back = swapActiveList(there, "personal")!;
+    expect(back.lists[1].space).toEqual(space);
+    expect(back.lists[1].members).toEqual(shared().members);
+  });
+});
+
+describe("mergeSpaceMembers", () => {
+  const prev: ListMember[] = shared().members!;
+
+  it("quitar a una persona sin app la deja 'left'; agregar una nueva es 'guest'", () => {
+    const out = mergeSpaceMembers(prev, [
+      { id: "uid-beto", name: "Beto" },
+      { id: "m_dani", name: "Dani" },
+    ]);
+    expect(out).toEqual([
+      { id: "uid-beto", name: "Beto", uid: "uid-beto", status: "joined" },
+      { id: "m_dani", name: "Dani", uid: null, status: "guest" },
+      { id: "m_luis", name: "Luis", uid: null, status: "left" },
+    ]);
+  });
+
+  it("renombrar conserva estado y uid; quien se unió no se quita desde aquí", () => {
+    const out = mergeSpaceMembers(prev, [{ id: "m_luis", name: "Luis F." }]);
+    expect(out).toEqual([
+      { id: "m_luis", name: "Luis F.", uid: null, status: "guest" },
+      { id: "uid-beto", name: "Beto", uid: "uid-beto", status: "joined" },
+    ]);
+  });
+});
+
+describe("unlinkedList", () => {
+  it("queda como lista propia: sin space, todos sin app, los que salieron siguen 'left'", () => {
+    const list = shared();
+    list.members!.push({ id: "uid-caro", name: "Caro", uid: "uid-caro", status: "left" });
+    const out = unlinkedList(list, 900);
+    expect("space" in out).toBe(false);
+    expect(out.updatedAt).toBe(900);
+    expect(out.members).toEqual([
+      { id: "uid-beto", name: "Beto", status: "guest" },
+      { id: "m_luis", name: "Luis", status: "guest" },
+      { id: "uid-caro", name: "Caro", status: "left" },
+    ]);
+    expect(out.categories).toEqual(list.categories);
   });
 });

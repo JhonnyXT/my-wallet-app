@@ -180,21 +180,56 @@ export async function updateTransaction(
   const tagsStr = tags.length > 0 ? JSON.stringify(tags) : "";
   const now = Date.now();
   const db = await getNativeDatabase();
-  await db.runAsync(
-    `UPDATE transactions SET amount = ?, description = ?, category_emoji = ?, date = ?, tags = ?, payment_method = ?, list_id = COALESCE(?, list_id), paid_by = COALESCE(?, paid_by), updated_at = ?, sync_state = 'pending' WHERE id = ?`,
-    [
-      amount,
-      description,
-      categoryEmoji,
-      dateStr,
-      tagsStr,
-      paymentMethod,
-      listId ?? null,
-      paidBy ?? null,
-      now,
-      id,
-    ],
-  );
+  const before = await db.getFirstAsync<TransactionRow>(`SELECT * FROM transactions WHERE id = ?`, [
+    id,
+  ]);
+  // Mover de lista (Sync Fase 4, spec D5): el movimiento sale de donde vivía en la nube (respaldo
+  // personal o un espacio) y entra en otro lugar. Un mismo `uid` en dos lugares chocaría al traer
+  // (el borrado gana el empate), así que la fila recibe un `uid` nuevo y en su lugar queda un
+  // tombstone con el viejo y la lista vieja, que la sync sube a donde vivía. El `id` local no
+  // cambia (editId, "Deshacer todo").
+  const moved =
+    !!before && before.deleted_at == null && listId != null && listId !== before.list_id;
+  const update = () =>
+    db.runAsync(
+      `UPDATE transactions SET amount = ?, description = ?, category_emoji = ?, date = ?, tags = ?, payment_method = ?, list_id = COALESCE(?, list_id), paid_by = COALESCE(?, paid_by), uid = COALESCE(?, uid), updated_at = ?, sync_state = 'pending' WHERE id = ?`,
+      [
+        amount,
+        description,
+        categoryEmoji,
+        dateStr,
+        tagsStr,
+        paymentMethod,
+        listId ?? null,
+        paidBy ?? null,
+        moved ? newId() : null,
+        now,
+        id,
+      ],
+    );
+  if (moved && before) {
+    await db.withTransactionAsync(async () => {
+      await update();
+      await db.runAsync(
+        `INSERT INTO transactions (amount, description, category_emoji, date, tags, payment_method, list_id, paid_by, uid, updated_at, deleted_at, sync_state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+        [
+          before.amount,
+          before.description,
+          before.category_emoji,
+          before.date,
+          before.tags,
+          before.payment_method,
+          before.list_id,
+          before.paid_by,
+          before.uid,
+          now,
+          now,
+        ],
+      );
+    });
+  } else {
+    await update();
+  }
   const row = await db.getFirstAsync<{
     list_id: string;
     paid_by: string;
@@ -294,6 +329,19 @@ export async function purgeSyncedTombstones(now = Date.now()): Promise<number> {
 
 /** Fila tal como llega de la nube (sin `id` local ni `sync_state`). */
 export type SyncedTransaction = Omit<TransactionRow, "id" | "sync_state">;
+
+/**
+ * Vuelve a poner como pendientes los movimientos vivos de una lista, para que la sync los suba a
+ * su nuevo lugar: al espacio al compartirla, o al respaldo personal al desconectarla (Fase 4).
+ */
+export async function markListTransactionsPending(listId: string): Promise<void> {
+  const db = await getNativeDatabase();
+  await db.runAsync(
+    `UPDATE transactions SET sync_state = 'pending' WHERE list_id = ? AND deleted_at IS NULL`,
+    [listId],
+  );
+  emitLocalChange();
+}
 
 /** Pendientes de subir, borrados incluidos (un borrado también hay que avisarlo). */
 export async function getPendingTransactions(limit: number): Promise<TransactionRow[]> {

@@ -254,6 +254,9 @@ Android).
   unirse, eliminar para todos.
 - [x] Reglas nuevas desplegadas a `mywallet-test-jb` y `mywallet-prod` (2026-10-05).
 - [ ] Probar con `test` contra la nube real (dos teléfonos).
+  Incluye los borrados sin contenido (Fase 5): instalar `test` con este código, comprobar que un
+  borrado anterior queda en Firestore solo con `{ updatedAt, deletedAt }` tras sincronizar, que
+  un borrado nuevo sube así, y que el otro teléfono lo borra (lista personal y compartida).
 
 **Hecho cuando:** dos teléfonos con cuentas distintas registran gastos en el mismo espacio (con y
 sin internet) y, tras deslizar hacia abajo, los dos ven lo mismo y las mismas cuentas.
@@ -273,7 +276,7 @@ sin internet) y, tras deslizar hacia abajo, los dos ven lo mismo y las mismas cu
   `docs/index.html`, `landing/` (textos que decían "100% offline" / "sin cuenta").
 - [x] Un movimiento borrado sube solo la marca `{ updatedAt, deletedAt }`, sin su contenido; los
   que ya habían subido con contenido se reemplazan una vez por teléfono (`tombstonesStripped`).
-  Falta probarlo en `dev` con el emulador.
+  Se prueba junto con la Fase 4 en `test` (ver abajo).
 - [ ] Quitar permisos que no se usan del manifest (`READ_PHONE_STATE`, `SYSTEM_ALERT_WINDOW`) con
   `android.blockedPermissions` y probar en el dispositivo (ver `PLAY_DATA_SAFETY.md`).
 - [ ] Build `prod` por EAS con los SHA-1 de producción registrados en Firebase.

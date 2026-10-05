@@ -6,7 +6,7 @@ para respaldar toda la data en la nube y compartir espacios con otras personas. 
 con detalle, generar su spec con `/sdd` a partir de la sección correspondiente.
 
 **Estado:** Fases 0, 1 y 2 hechas. Fase 3 con el código hecho y probado en `dev` + emulador;
-falta desplegar reglas y la prueba de punta a punta con `test` (ver checklist de la Fase 3).
+falta la prueba de punta a punta con `test` (ver checklist de la Fase 3).
 
 ---
 
@@ -206,9 +206,8 @@ hay cambios sin subir.
 - [x] Probado en el teléfono con `dev` + emulador (2026-09-30): subida, traer desde "otro teléfono",
   Mantener sin duplicados, sin conexión con Borrar bloqueado, datos de otra cuenta (Unir), Borrar y
   restaurar, eliminar cuenta.
-- [ ] **Desplegar las reglas nuevas** a `mywallet-test-jb` y `mywallet-prod`
-  (`npx firebase-tools deploy --only firestore:rules --project <id>`). Hoy en la nube sigue la de la
-  Fase 2 (niega todo): el build `test` no puede respaldar nada hasta hacerlo.
+- [x] Reglas nuevas desplegadas a `mywallet-test-jb` y `mywallet-prod` (2026-10-05,
+  `npx firebase-tools deploy --only firestore:rules --project <id>`).
 - [ ] **Prueba de punta a punta con `test` contra la nube real** (`npm run build:test`): registrar →
   desinstalar → reinstalar → iniciar sesión → ver lo mismo; gastos en modo avión que suben al volver.
   Cubre también lo pendiente de la Fase 2 (login real en `test`, sin internet en el onboarding).

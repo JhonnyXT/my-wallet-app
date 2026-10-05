@@ -18,11 +18,12 @@ import {
   getPendingTransactions,
   getTransactionVersions,
   markAllTransactionsPending,
+  markListTransactionsPending,
   markTransactionsSynced,
   wipeAllTransactions,
 } from "@/src/db/db";
 import { cancelDebtReminder, scheduleDebtReminder } from "@/src/services/notificationService";
-import { withLiveActiveList } from "@/src/store/slices/listsSlice";
+import { withLiveActiveList, type WalletList } from "@/src/store/slices/listsSlice";
 import type { TombstoneKind } from "@/src/store/slices/tombstonesSlice";
 import type { RemoteSettingsPatch } from "@/src/store/remoteSettings";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
@@ -35,6 +36,7 @@ import {
 } from "@/src/store/useSettingsStore";
 import { onLocalChange } from "@/src/utils/localChanges";
 import { ensureFirebase } from "./firebase";
+import { isOffline, withTimeout } from "./net";
 import {
   docToTransaction,
   itemToDoc,
@@ -43,10 +45,11 @@ import {
   type RemoteDoc,
   type TransactionDoc,
 } from "./mappers";
-import { mergeCollection, remoteDocWins, transactionsToApply } from "./merge";
+import { keepLocalShared, mergeCollection, remoteDocWins, transactionsToApply } from "./merge";
 import {
   advanceCursor,
   belongsToOtherAccount,
+  forgetSpace,
   markPushed,
   needsPush,
   pendingItems,
@@ -62,13 +65,14 @@ import {
   pushBatch,
   type PushOp,
 } from "./remote";
+import { classifySpaceError } from "./errors";
 import { deleteAccount, signOut } from "./session";
+import { deleteSpaceData, removeFromSpace } from "./spacesRemote";
+import { pendingSpaceConfigs, pullSpaces, pushSpaceConfigs, pushSpaceRows } from "./spaces";
 import { useSyncStatus } from "./status";
 
 const SETTINGS_KINDS: TombstoneKind[] = ["lists", "paymentMethods", "savingsGoals", "debts"];
 const LOCAL_CHANGE_DEBOUNCE_MS = 3000;
-/** Sin respuesta en este tiempo = sin conexión (Firestore deja la escritura en su cola). */
-const NETWORK_TIMEOUT_MS = 30000;
 const OFFLINE_RETRY_MS = 60000;
 /** Volver a primer plano no trae más de una vez por este intervalo (lecturas = cuota). */
 const FOREGROUND_MIN_INTERVAL_MS = 30000;
@@ -82,24 +86,6 @@ interface SettingsDoc {
   budgetAlertsEnabled: boolean;
   budgetAlertThreshold: number;
   allowedBanks: string[];
-}
-
-class OfflineError extends Error {}
-
-function withTimeout<T>(promise: Promise<T>): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const t = setTimeout(() => reject(new OfflineError("timeout")), NETWORK_TIMEOUT_MS);
-    promise.then(
-      (v) => (clearTimeout(t), resolve(v)),
-      (e) => (clearTimeout(t), reject(e)),
-    );
-  });
-}
-
-function isOffline(e: unknown): boolean {
-  if (e instanceof OfflineError) return true;
-  const code = String((e as { code?: unknown } | null)?.code ?? "");
-  return code.includes("unavailable") || code.includes("deadline-exceeded");
 }
 
 function parseBanks(raw: string | null): string[] {
@@ -141,6 +127,10 @@ async function pull(uid: string, meta: SyncMeta): Promise<SyncMeta> {
       state.tombstones[kind],
       docs,
     );
+    if (kind === "lists") {
+      // Lo compartido de una lista compartida es del espacio, no del respaldo personal (D2).
+      merged.items = keepLocalShared(local as WalletList[], merged.items as WalletList[]);
+    }
     meta = markPushed(meta, kind, merged.accepted);
     meta = advanceCursor(meta, kind, Math.max(...docs.map((d) => d.serverUpdatedAt)));
     if (merged.remoteWon.length > 0) {
@@ -202,7 +192,54 @@ async function pull(uid: string, meta: SyncMeta): Promise<SyncMeta> {
     meta = advanceCursor(meta, "transactions", Math.max(...txDocs.map((d) => d.serverUpdatedAt)));
   }
 
-  if (txApplied > 0 || patch.lists) await useFinanceStore.getState().loadTransactions();
+  // 5. Espacios compartidos (Fase 4), con las listas ya unidas con el respaldo personal.
+  const spaces = await pullSpaces(
+    uid,
+    meta,
+    withLiveActiveList(useSettingsStore.getState()),
+    Date.now(),
+  );
+  meta = spaces.meta;
+  if (spaces.patches.length > 0) applyQuietly({ spaces: spaces.patches });
+  // Desconectadas: sus movimientos pasan al respaldo personal (D8).
+  for (const listId of spaces.unlinked) await markListTransactionsPending(listId);
+  if (spaces.transactions.length > 0) {
+    const versions = await getTransactionVersions(spaces.transactions.map((r) => r.uid));
+    const toApply = transactionsToApply(versions, spaces.transactions);
+    await applyRemoteTransactions(toApply);
+    txApplied += toApply.length;
+  }
+
+  if (txApplied > 0 || patch.lists || spaces.patches.length > 0) {
+    await useFinanceStore.getState().loadTransactions();
+  }
+  return meta;
+}
+
+/** Aplica lo traído sin que el `subscribe` de ajustes lo tome como un cambio local para subir. */
+function applyQuietly(patch: RemoteSettingsPatch): void {
+  applying = true;
+  try {
+    applyRemoteSettings(patch);
+  } finally {
+    applying = false;
+  }
+}
+
+/** Perdí el acceso a estos espacios: las listas quedan como propias (D8). */
+async function unlinkLost(listIds: string[], meta: SyncMeta): Promise<SyncMeta> {
+  if (listIds.length === 0) return meta;
+  const lists = useSettingsStore.getState().lists;
+  for (const id of listIds) {
+    const spaceId = lists.find((l) => l.id === id)?.space?.spaceId;
+    if (spaceId) meta = forgetSpace(meta, spaceId);
+  }
+  // Sin applyQuietly: la lista cambió (sin enlace) y hay que respaldarla así.
+  applyRemoteSettings({
+    spaces: listIds.map((listId) => ({ kind: "unlink" as const, listId, now: Date.now() })),
+  });
+  for (const id of listIds) await markListTransactionsPending(id);
+  await useFinanceStore.getState().loadTransactions();
   return meta;
 }
 
@@ -274,18 +311,50 @@ async function push(uid: string, meta: SyncMeta): Promise<SyncMeta> {
     await saveMeta(meta);
   }
 
-  // Transacciones por lotes. Una editada durante la subida sigue pendiente y sale en la próxima.
+  // Lo compartido de las listas compartidas (Fase 4).
+  const configs = await pushSpaceConfigs(meta, withLiveActiveList(useSettingsStore.getState()));
+  meta = await unlinkLost(configs.lost, configs.meta);
+  await saveMeta(meta);
+
+  // Transacciones por lotes, cada una a su lugar: el espacio de su lista, o el respaldo personal.
+  // Una editada durante la subida sigue pendiente y sale en la próxima.
   for (let round = 0; round < 50; round++) {
     const rows = await getPendingTransactions(BATCH_SIZE);
     if (rows.length === 0) break;
-    await withTimeout(
-      pushBatch(
-        uid,
-        rows.map((r) => ({ kind: "transactions" as const, id: r.uid, data: transactionToDoc(r) })),
-      ),
-    );
-    await markTransactionsSynced(rows.map((r) => ({ uid: r.uid, updated_at: r.updated_at })));
-    if (rows.length < BATCH_SIZE) break;
+    const lists = new Map(useSettingsStore.getState().lists.map((l) => [l.id, l]));
+    const personal: typeof rows = [];
+    const bySpaceList = new Map<string, typeof rows>();
+    for (const r of rows) {
+      const list = lists.get(r.list_id);
+      if (list?.space) bySpaceList.set(list.id, [...(bySpaceList.get(list.id) ?? []), r]);
+      else personal.push(r);
+    }
+    if (personal.length > 0) {
+      await withTimeout(
+        pushBatch(
+          uid,
+          personal.map((r) => ({
+            kind: "transactions" as const,
+            id: r.uid,
+            data: transactionToDoc(r),
+          })),
+        ),
+      );
+      await markTransactionsSynced(personal.map((r) => ({ uid: r.uid, updated_at: r.updated_at })));
+    }
+    const lost: string[] = [];
+    for (const [listId, listRows] of bySpaceList) {
+      if (await pushSpaceRows(lists.get(listId)!, listRows)) {
+        await markTransactionsSynced(
+          listRows.map((r) => ({ uid: r.uid, updated_at: r.updated_at })),
+        );
+      } else {
+        lost.push(listId);
+      }
+    }
+    // Perdí el acceso a un espacio: sus movimientos vuelven a salir, ahora al respaldo personal.
+    meta = await unlinkLost(lost, meta);
+    if (rows.length < BATCH_SIZE && lost.length === 0) break;
   }
   return meta;
 }
@@ -295,6 +364,7 @@ async function push(uid: string, meta: SyncMeta): Promise<SyncMeta> {
 async function countPending(meta: SyncMeta): Promise<number> {
   const state = useSettingsStore.getState();
   let n = await countPendingTransactions();
+  n += pendingSpaceConfigs(meta, withLiveActiveList(state)).length;
   for (const kind of SETTINGS_KINDS) {
     const items = (kind === "lists" ? withLiveActiveList(state) : state[kind]) as {
       id: string;
@@ -368,6 +438,26 @@ export function requestSync(opts: { pull: boolean }): Promise<void> {
     }
   })();
   return running;
+}
+
+/**
+ * Corre `fn` sin ninguna corrida de sync a la vez (acciones de espacios: compartir, unirse,
+ * salir…), para que una traída a medias no pise lo que la acción acaba de escribir.
+ */
+export async function runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+  while (running) await running.catch(() => undefined);
+  let release!: () => void;
+  running = new Promise<void>((resolve) => (release = resolve));
+  try {
+    return await fn();
+  } finally {
+    running = null;
+    release();
+    // Lo que se pidió mientras corría la acción, ahora.
+    const pending = again;
+    again = null;
+    if (pending) void requestSync(pending);
+  }
 }
 
 /** Traer y subir ya (iniciar sesión, deslizar en el Dashboard, restaurar). */
@@ -477,7 +567,33 @@ export async function deleteAccountAndCloudData(): Promise<void> {
   suspended = true;
   try {
     if (running) await running.catch(() => undefined);
-    await deleteAccount((uid) => withTimeout(deleteAllUserData(uid)));
+    await deleteAccount(async (uid) => {
+      // Primero los espacios (mientras la sesión sigue siendo válida): elimina los míos y sale de
+      // los demás; después lo personal (riesgo 8 del spec Fase 4).
+      for (const list of useSettingsStore.getState().lists) {
+        const link = list.space;
+        if (!link) continue;
+        await withTimeout(
+          link.ownerUid === uid
+            ? deleteSpaceData(link.spaceId, uid, Date.now())
+            : removeFromSpace(link.spaceId, link.selfMemberId, uid, Date.now()),
+        ).catch((e) => {
+          // Ya no era miembro: nada que hacer en ese espacio.
+          if (classifySpaceError(e) !== "not-allowed") throw e;
+        });
+      }
+      await withTimeout(deleteAllUserData(uid));
+    });
+    // Las listas compartidas quedan como propias en el teléfono (D8).
+    const shared = useSettingsStore
+      .getState()
+      .lists.filter((l) => l.space)
+      .map((l) => l.id);
+    if (shared.length > 0) {
+      applyQuietly({
+        spaces: shared.map((listId) => ({ kind: "unlink" as const, listId, now: Date.now() })),
+      });
+    }
     await clearMeta();
     await markAllTransactionsPending();
     useSyncStatus.getState().set({ phase: "idle", pending: 0, lastSyncAt: null });

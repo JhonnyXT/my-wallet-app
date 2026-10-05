@@ -6,16 +6,26 @@ import type { ItemCollection } from "./mappers";
 import type { TombstoneKind } from "@/src/store/slices/tombstonesSlice";
 
 export type DocKind = "profile" | "settings";
+export type CursorKey = ItemCollection | DocKind | `space:${string}`;
+
+export function spaceCursorKey(spaceId: string): CursorKey {
+  return `space:${spaceId}`;
+}
 
 export interface SyncMeta {
   /** Cuenta dueña de los datos del teléfono (null = nunca respaldados). */
   ownerUid: string | null;
-  /** Mayor `serverUpdatedAt` (ms) traído por colección: la próxima traída pide desde ahí. */
-  cursors: Partial<Record<ItemCollection | DocKind, number>>;
+  /**
+   * Mayor `serverUpdatedAt` (ms) traído por colección: la próxima traída pide desde ahí. Los
+   * movimientos de cada espacio usan la clave `spaceCursorKey(spaceId)` (Fase 4).
+   */
+  cursors: Partial<Record<CursorKey, number>>;
   /** Versión (`updatedAt`) ya subida por ítem de ajustes; las transacciones usan `sync_state`. */
   pushed: Record<TombstoneKind, Record<string, number>>;
   /** Versión ya subida de los documentos únicos. */
   pushedDocs: Partial<Record<DocKind, number>>;
+  /** Por espacio: `sharedUpdatedAt` ya subido a su `config/list` (Fase 4). */
+  pushedSpaces: Record<string, number>;
   /** Bancos activos (AsyncStorage directo): último valor visto y cuándo cambió. */
   banks: { value: string[]; updatedAt: number } | null;
   lastSyncAt: number | null;
@@ -27,6 +37,7 @@ export function emptyMeta(): SyncMeta {
     cursors: {},
     pushed: { lists: {}, paymentMethods: {}, savingsGoals: {}, debts: {} },
     pushedDocs: {},
+    pushedSpaces: {},
     banks: null,
     lastSyncAt: null,
   };
@@ -60,11 +71,7 @@ export function markPushed(meta: SyncMeta, kind: TombstoneKind, versions: Record
 }
 
 /** El cursor solo avanza (dos corridas no deben retrocederlo). */
-export function advanceCursor(
-  meta: SyncMeta,
-  key: ItemCollection | DocKind,
-  serverUpdatedAt: number,
-): SyncMeta {
+export function advanceCursor(meta: SyncMeta, key: CursorKey, serverUpdatedAt: number): SyncMeta {
   const current = meta.cursors[key] ?? 0;
   if (serverUpdatedAt <= current) return meta;
   return { ...meta, cursors: { ...meta.cursors, [key]: serverUpdatedAt } };
@@ -82,6 +89,18 @@ export function trackBanks(meta: SyncMeta, current: string[], now: number): Sync
   if (same) return meta;
   // Primera vez en este teléfono: versión 0, para que lo de la nube gane al restaurar.
   return { ...meta, banks: { value: current, updatedAt: meta.banks === null ? 0 : now } };
+}
+
+/**
+ * Olvida lo traído y subido de un espacio: al desconectar la lista (salir, quitado, eliminado) o
+ * al ligarla de nuevo (volver a unirse), la próxima traída empieza de cero.
+ */
+export function forgetSpace(meta: SyncMeta, spaceId: string): SyncMeta {
+  const cursors = { ...meta.cursors };
+  delete cursors[spaceCursorKey(spaceId)];
+  const pushedSpaces = { ...meta.pushedSpaces };
+  delete pushedSpaces[spaceId];
+  return { ...meta, cursors, pushedSpaces };
 }
 
 /** ¿Los datos del teléfono son de otra cuenta? (hay que preguntar antes de unir, RF-13). */

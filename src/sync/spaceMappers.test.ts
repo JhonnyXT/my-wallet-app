@@ -80,8 +80,8 @@ const ROW: TransactionRow = {
 } as TransactionRow;
 
 describe("movimientos del espacio", () => {
-  it("subir: sin list_id, con quién pagó en la nube y quién lo registró", () => {
-    const doc = transactionToSpaceDoc(ROW, "uid-ana", "uid-ana");
+  it("subir: sin list_id, con quién pagó en la nube", () => {
+    const doc = transactionToSpaceDoc(ROW, "uid-ana");
     expect(doc).toEqual({
       amount: 50000,
       description: "Almuerzo",
@@ -90,7 +90,6 @@ describe("movimientos del espacio", () => {
       tags: "#viaje",
       payment_method: "cash",
       paid_by: "uid-ana",
-      createdBy: "uid-ana",
       updatedAt: 100,
       deletedAt: null,
     });
@@ -98,13 +97,13 @@ describe("movimientos del espacio", () => {
   });
 
   it("el mismo movimiento se ve 'Tú' para quien pagó y con su id para los demás", () => {
-    const doc = transactionToSpaceDoc(ROW, "uid-ana", "uid-ana");
+    const doc = transactionToSpaceDoc(ROW, "uid-ana");
     expect(spaceDocToTransaction("tx-1", doc, "s1", "uid-ana").paid_by).toBe("");
     expect(spaceDocToTransaction("tx-1", doc, "s1", "uid-beto").paid_by).toBe("uid-ana");
   });
 
   it("bajar: pone la lista local y conserva versión y borrado", () => {
-    const doc = { ...transactionToSpaceDoc(ROW, "uid-ana", "uid-ana"), deletedAt: 200 };
+    const doc = { ...transactionToSpaceDoc(ROW, "uid-ana"), deletedAt: 200 };
     const tx = spaceDocToTransaction("tx-1", doc, "lista-local", "uid-beto");
     expect(tx).toMatchObject({
       uid: "tx-1",
@@ -115,7 +114,7 @@ describe("movimientos del espacio", () => {
   });
 
   it("bajar: campos ausentes con valores seguros", () => {
-    const doc = transactionToSpaceDoc(ROW, "uid-ana", "uid-ana");
+    const doc = transactionToSpaceDoc(ROW, "uid-ana");
     const partial = { ...doc, tags: undefined, deletedAt: undefined } as unknown as typeof doc;
     expect(spaceDocToTransaction("tx-1", partial, "s1", "uid-beto")).toMatchObject({
       tags: "",

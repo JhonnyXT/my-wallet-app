@@ -1,4 +1,12 @@
-import { AuthError, authErrorMessage, classifyAuthError } from "./errors";
+import {
+  AuthError,
+  authErrorMessage,
+  classifyAuthError,
+  classifySpaceError,
+  SpaceError,
+  spaceErrorMessage,
+} from "./errors";
+import { OfflineError } from "./net";
 
 describe("classifyAuthError", () => {
   it.each([
@@ -28,6 +36,32 @@ describe("authErrorMessage", () => {
   it("tiene texto para el resto", () => {
     for (const kind of ["offline", "unavailable", "recent-login", "unknown"] as const) {
       expect(authErrorMessage(kind)).toEqual(expect.any(String));
+    }
+  });
+});
+
+describe("classifySpaceError", () => {
+  it("sin conexión: tope de tiempo o Firestore sin servidor", () => {
+    expect(classifySpaceError(new OfflineError())).toBe("offline");
+    expect(classifySpaceError({ code: "firestore/unavailable" })).toBe("offline");
+  });
+
+  it("reglas que lo niegan, errores propios y desconocidos", () => {
+    expect(classifySpaceError({ code: "firestore/permission-denied" })).toBe("not-allowed");
+    expect(classifySpaceError(new SpaceError("invalid-code"))).toBe("invalid-code");
+    expect(classifySpaceError(new Error("x"))).toBe("unknown");
+  });
+
+  it("cada tipo tiene un mensaje", () => {
+    for (const kind of [
+      "offline",
+      "signed-out",
+      "invalid-code",
+      "taken",
+      "not-allowed",
+      "unknown",
+    ] as const) {
+      expect(spaceErrorMessage(kind).length).toBeGreaterThan(10);
     }
   });
 });

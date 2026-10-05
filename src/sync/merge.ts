@@ -77,6 +77,40 @@ export function mergeCollection<T extends Item>(
   };
 }
 
+type SharedList = {
+  id: string;
+  name: string;
+  emoji: string;
+  categories?: unknown;
+  showIncome?: boolean;
+  members?: unknown;
+  space?: { spaceId: string; sharedUpdatedAt: number };
+};
+
+/**
+ * Listas traídas del respaldo personal (spec Fase 4, D2): en una lista compartida que ya estaba en
+ * el teléfono, de lo traído solo valen período, presupuestos y el enlace; lo compartido (nombre,
+ * ícono, categorías, mostrar ingresos, personas) es del espacio y se queda como estaba. Si no, un
+ * respaldo de otro teléfono de la misma cuenta, más nuevo por un cambio de período, revertiría
+ * con una copia vieja lo que otro miembro cambió.
+ */
+export function keepLocalShared<T extends SharedList>(local: T[], merged: T[]): T[] {
+  const before = new Map(local.map((l) => [l.id, l]));
+  return merged.map((l) => {
+    const mine = before.get(l.id);
+    if (!mine?.space || mine === l) return l;
+    return {
+      ...l,
+      name: mine.name,
+      emoji: mine.emoji,
+      categories: mine.categories,
+      showIncome: mine.showIncome,
+      members: mine.members,
+      space: l.space ? { ...l.space, sharedUpdatedAt: mine.space.sharedUpdatedAt } : mine.space,
+    };
+  });
+}
+
 /** Versión local de una transacción (de SQLite) para comparar. */
 export interface LocalTxVersion {
   updated_at: number;

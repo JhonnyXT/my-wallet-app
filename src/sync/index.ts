@@ -11,3 +11,16 @@ export {
 export { useSyncStatus, type SyncPhase } from "./status";
 export { useSession } from "./useSession";
 export { AuthError, authErrorMessage, classifyAuthError, type AuthErrorKind } from "./errors";
+export {
+  shareList,
+  createInvite,
+  joinWithCode,
+  completeJoin,
+  leaveSpace,
+  removeMember,
+  deleteSpace,
+  type Invite,
+  type JoinResult,
+} from "./spaceActions";
+export { SpaceError, spaceErrorMessage, type SpaceErrorKind } from "./errors";
+export { formatInviteCode, INVITE_LENGTH } from "./spaceMappers";

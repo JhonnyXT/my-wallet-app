@@ -2,9 +2,11 @@ import {
   advanceCursor,
   belongsToOtherAccount,
   emptyMeta,
+  forgetSpace,
   markPushed,
   needsPush,
   pendingItems,
+  spaceCursorKey,
   trackBanks,
 } from "./meta";
 
@@ -72,5 +74,16 @@ describe("belongsToOtherAccount", () => {
     expect(belongsToOtherAccount(emptyMeta(), "a")).toBe(false);
     expect(belongsToOtherAccount({ ...emptyMeta(), ownerUid: "a" }, "a")).toBe(false);
     expect(belongsToOtherAccount({ ...emptyMeta(), ownerUid: "a" }, "b")).toBe(true);
+  });
+});
+
+describe("espacios", () => {
+  it("cursor propio por espacio y olvidarlo al desconectar o volver a unirse", () => {
+    let meta = advanceCursor(emptyMeta(), spaceCursorKey("s1"), 500);
+    meta = advanceCursor(meta, spaceCursorKey("s2"), 700);
+    meta = { ...meta, pushedSpaces: { s1: 9, s2: 9 } };
+    const out = forgetSpace(meta, "s1");
+    expect(out.cursors).toEqual({ "space:s2": 700 });
+    expect(out.pushedSpaces).toEqual({ s2: 9 });
   });
 });

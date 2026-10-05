@@ -35,12 +35,23 @@ export function stripUndefined<T extends object>(obj: T): T {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
 }
 
+/** Como `stripUndefined`, también dentro de objetos y arreglos (ej. personas de una lista). */
+export function stripUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(stripUndefinedDeep) as T;
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, stripUndefinedDeep(v)]),
+  ) as T;
+}
+
 /** Ítem de ajustes (lista, método, meta, deuda) → documento: todo salvo el id. */
 export function itemToDoc<T extends { id: string; updatedAt: number }>(
   item: T,
 ): Omit<T, "id"> & VersionedDoc {
   const { id: _id, ...rest } = item;
-  return stripUndefined({ ...rest, deletedAt: null });
+  return stripUndefinedDeep({ ...rest, deletedAt: null });
 }
 
 /** Documento → ítem de ajustes (sin `deletedAt`: los borrados van al registro de tombstones). */

@@ -1,4 +1,4 @@
-import { mergeCollection, remoteDocWins, transactionsToApply } from "./merge";
+import { keepLocalShared, mergeCollection, remoteDocWins, transactionsToApply } from "./merge";
 import type { RemoteDoc } from "./mappers";
 
 type Goal = { id: string; name: string; updatedAt: number };
@@ -137,5 +137,67 @@ describe("remoteDocWins", () => {
   it("un perfil nunca editado (0) pierde contra cualquier remoto, aunque también esté en 0", () => {
     expect(remoteDocWins(0, { updatedAt: 0 })).toBe(true);
     expect(remoteDocWins(0, { updatedAt: 1 })).toBe(true);
+  });
+});
+
+type L = {
+  id: string;
+  name: string;
+  emoji: string;
+  period: string;
+  categories?: string[];
+  space?: { spaceId: string; sharedUpdatedAt: number };
+};
+
+describe("keepLocalShared", () => {
+  const space = { spaceId: "s1", sharedUpdatedAt: 50 };
+  const local: L[] = [
+    { id: "s1", name: "Viaje 2", emoji: "🏖️", categories: ["nuevas"], period: "mensual", space },
+    { id: "casa", name: "Casa", emoji: "🏠", period: "mensual" },
+  ];
+
+  it("de una lista compartida traída solo toma lo propio (período, presupuestos)", () => {
+    const merged: L[] = [
+      {
+        id: "s1",
+        name: "Viaje",
+        emoji: "✈️",
+        categories: ["viejas"],
+        period: "quincenal",
+        space: { spaceId: "s1", sharedUpdatedAt: 10 },
+      },
+      { id: "casa", name: "Hogar", emoji: "🏠", period: "semanal" },
+    ];
+    expect(keepLocalShared(local, merged)).toEqual([
+      {
+        id: "s1",
+        name: "Viaje 2",
+        emoji: "🏖️",
+        categories: ["nuevas"],
+        period: "quincenal",
+        space,
+        members: undefined,
+        showIncome: undefined,
+      },
+      { id: "casa", name: "Hogar", emoji: "🏠", period: "semanal" },
+    ]);
+  });
+
+  it("una lista nueva para el teléfono (restaurar) se toma entera", () => {
+    const merged: L[] = [
+      {
+        id: "s2",
+        name: "Otra",
+        emoji: "🎉",
+        period: "todo",
+        space: { spaceId: "s2", sharedUpdatedAt: 3 },
+      },
+    ];
+    expect(keepLocalShared(local, merged)).toEqual(merged);
+  });
+
+  it("si el respaldo ya no trae el enlace, se conserva el local (el descubrimiento decide)", () => {
+    const merged: L[] = [{ id: "s1", name: "Viaje", emoji: "✈️", period: "quincenal" }];
+    expect(keepLocalShared(local, merged)[0].space).toEqual(space);
   });
 });

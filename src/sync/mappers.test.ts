@@ -1,5 +1,12 @@
 import type { TransactionRow } from "@/src/db/db";
-import { docToItem, docToTransaction, itemToDoc, tombstoneDoc, transactionToDoc } from "./mappers";
+import {
+  docToItem,
+  docToTransaction,
+  itemToDoc,
+  stripUndefinedDeep,
+  tombstoneDoc,
+  transactionToDoc,
+} from "./mappers";
 
 describe("itemToDoc / docToItem", () => {
   it("quita el id y los opcionales ausentes (Firestore rechaza undefined)", () => {
@@ -50,5 +57,23 @@ describe("transactionToDoc / docToTransaction", () => {
   it("un borrado conserva su fecha", () => {
     const back = docToTransaction("u-1", transactionToDoc({ ...row, deleted_at: 200 }));
     expect(back.deleted_at).toBe(200);
+  });
+});
+
+describe("stripUndefinedDeep", () => {
+  it("quita undefined también dentro de arreglos y objetos (Firestore los rechaza)", () => {
+    const list = {
+      id: "s1",
+      members: [{ id: "m", name: "Luis", uid: undefined, status: "guest" }],
+      space: { spaceId: "s1", x: undefined },
+      updatedAt: 1,
+    };
+    expect(itemToDoc(list)).toEqual({
+      members: [{ id: "m", name: "Luis", status: "guest" }],
+      space: { spaceId: "s1" },
+      updatedAt: 1,
+      deletedAt: null,
+    });
+    expect(stripUndefinedDeep(null)).toBeNull();
   });
 });

@@ -20,6 +20,7 @@ import {
   Timestamp,
   where,
   writeBatch,
+  type CollectionReference,
   type DocumentData,
   type QueryDocumentSnapshot,
   type QuerySnapshot,
@@ -34,12 +35,12 @@ export const BATCH_SIZE = 400;
 const META_COLLECTION = "meta";
 const ALL_COLLECTIONS = [...Object.values(COLLECTION_PATH), META_COLLECTION];
 
-function db() {
+export function db() {
   ensureFirebase();
   return getFirestore();
 }
 
-function millis(value: unknown): number {
+export function millis(value: unknown): number {
   return value instanceof Timestamp ? value.toMillis() : 0;
 }
 
@@ -52,7 +53,14 @@ export async function pullCollection<T>(
   kind: ItemCollection,
   cursor: number,
 ): Promise<RemoteDoc<T>[]> {
-  const ref = collection(db(), "users", uid, COLLECTION_PATH[kind]);
+  return pullPaged<T>(collection(db(), "users", uid, COLLECTION_PATH[kind]), cursor);
+}
+
+/** Traída por páginas, en orden de `serverUpdatedAt`, de cualquier colección (también espacios). */
+export async function pullPaged<T>(
+  ref: CollectionReference<DocumentData>,
+  cursor: number,
+): Promise<RemoteDoc<T>[]> {
   const out: RemoteDoc<T>[] = [];
   let last: QueryDocumentSnapshot<DocumentData> | null = null;
   for (;;) {

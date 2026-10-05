@@ -55,3 +55,54 @@ export function authErrorMessage(kind: AuthErrorKind): string | null {
       return "No se pudo completar. Inténtalo de nuevo en un momento.";
   }
 }
+
+// ─── Espacios compartidos (Fase 4) ───────────────────────────────────────────
+
+export type SpaceErrorKind =
+  /** Sin conexión o sin respuesta a tiempo: compartir y unirse necesitan el servidor (RF-04). */
+  | "offline"
+  /** Sin sesión iniciada (RF-03). */
+  | "signed-out"
+  /** El código no existe, venció o es de un espacio eliminado (RF-07). */
+  | "invalid-code"
+  /** Otra persona ya se ligó a ese nombre ("soy Ana") antes. */
+  | "taken"
+  /** Las reglas no lo permiten (ya no es miembro, no es el dueño). */
+  | "not-allowed"
+  | "unknown";
+
+export class SpaceError extends Error {
+  constructor(
+    readonly kind: SpaceErrorKind,
+    readonly cause?: unknown,
+  ) {
+    super(`space:${kind}`);
+  }
+}
+
+export function classifySpaceError(error: unknown): SpaceErrorKind {
+  if (error instanceof SpaceError) return error.kind;
+  if ((error as { name?: unknown } | null)?.name === "OfflineError") return "offline";
+  const code = String((error as { code?: unknown } | null)?.code ?? "");
+  if (code.includes("unavailable") || code.includes("deadline-exceeded")) return "offline";
+  if (code.includes("permission-denied")) return "not-allowed";
+  return "unknown";
+}
+
+/** Texto para el usuario, dentro de la hoja que hizo la acción. */
+export function spaceErrorMessage(kind: SpaceErrorKind): string {
+  switch (kind) {
+    case "offline":
+      return "Necesitas conexión a internet para esto. Lo demás de la app sigue funcionando.";
+    case "signed-out":
+      return "Inicia sesión con Google en Ajustes → Cuenta para compartir listas.";
+    case "invalid-code":
+      return "Ese código no existe o ya venció. Pide uno nuevo.";
+    case "taken":
+      return "Esa persona ya se unió desde otro teléfono. Únete como otra persona.";
+    case "not-allowed":
+      return "Ya no tienes acceso a ese espacio.";
+    default:
+      return "No se pudo completar. Inténtalo de nuevo en un momento.";
+  }
+}

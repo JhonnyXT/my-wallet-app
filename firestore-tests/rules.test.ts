@@ -76,11 +76,10 @@ it("fuera de users/ y spaces/ todo se niega, aun con sesión", async () => {
 
 const IN_7_DAYS = () => Timestamp.fromMillis(Date.now() + 7 * 86400000);
 const AGO = () => Timestamp.fromMillis(Date.now() - 1000);
-const STX = (createdBy: string) => ({
+const STX = (paidBy: string) => ({
   amount: 1000,
   description: "Almuerzo",
-  paid_by: createdBy,
-  createdBy,
+  paid_by: paidBy,
   updatedAt: 1,
   deletedAt: null,
 });
@@ -169,7 +168,7 @@ describe("spaces: crear", () => {
 });
 
 describe("spaces: leer y escribir", () => {
-  it("un miembro lee todo y registra movimientos a su nombre", async () => {
+  it("un miembro lee todo y registra o edita cualquier movimiento", async () => {
     await seedSpace({ memberUids: ["ana", "beto"] });
     const db = as("beto");
     await assertSucceeds(getDoc(doc(db, "spaces/s1")));
@@ -180,17 +179,10 @@ describe("spaces: leer y escribir", () => {
     await assertSucceeds(
       setDoc(doc(db, "spaces/s1/config/list"), { name: "Viaje 2", updatedAt: 2 }),
     );
-    // Edita el de otro sin cambiar quién lo creó.
+    // Edita el de otro.
     await assertSucceeds(
       setDoc(doc(db, "spaces/s1/transactions/t1"), { ...STX("ana"), amount: 5 }),
     );
-  });
-
-  it("un miembro no registra a nombre de otro ni cambia createdBy", async () => {
-    await seedSpace({ memberUids: ["ana", "beto"] });
-    const db = as("beto");
-    await assertFails(setDoc(doc(db, "spaces/s1/transactions/t2"), STX("ana")));
-    await assertFails(setDoc(doc(db, "spaces/s1/transactions/t1"), STX("beto")));
   });
 
   it("un no miembro no lee ni escribe nada del espacio", async () => {
@@ -358,6 +350,9 @@ describe("spaces: salir, quitar, eliminar", () => {
     // Marcado: el doc se sigue leyendo (para enterarse), lo de adentro ya no.
     await assertSucceeds(getDoc(doc(as("beto"), "spaces/s1")));
     await assertFails(getDocs(collection(as("beto"), "spaces/s1/transactions")));
+    // El dueño sí lista lo de adentro para borrarlo.
+    await assertSucceeds(getDocs(collection(db, "spaces/s1/transactions")));
+    await assertSucceeds(getDocs(collection(db, "spaces/s1/members")));
     await assertSucceeds(deleteDoc(doc(db, "spaces/s1/transactions/t1")));
     await assertSucceeds(deleteDoc(doc(db, "spaces/s1/members/m_luis")));
     await assertSucceeds(deleteDoc(doc(db, "spaces/s1/config/list")));

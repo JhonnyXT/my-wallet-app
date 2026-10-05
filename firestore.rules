@@ -75,9 +75,10 @@ service cloud.firestore {
       );
       allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
 
+      // El dueño también lee un espacio ya marcado como eliminado: tiene que listarlo para borrarlo.
       // Una persona por documento, con o sin app (uid null = sin app). leftAt = salió o la quitaron.
       match /members/{memberId} {
-        allow read: if isMember(id);
+        allow read: if isMember(id) || isOwner(id);
         allow create: if canWrite(id)
           && (request.resource.data.get('uid', null) == null
             || request.resource.data.uid == request.auth.uid);
@@ -96,18 +97,16 @@ service cloud.firestore {
 
       // Lo compartido de la lista: nombre, ícono, categorías, mostrar ingresos.
       match /config/{doc} {
-        allow read: if isMember(id);
+        allow read: if isMember(id) || isOwner(id);
         allow create, update: if canWrite(id);
         allow delete: if isOwner(id);
       }
 
-      // Cualquier miembro registra, edita o borra (lógico) cualquier movimiento; createdBy no
-      // cambia. Borrar de verdad solo el dueño, al eliminar el espacio.
+      // Cualquier miembro registra, edita o borra (lógico) cualquier movimiento, como en una lista
+      // en papel. Borrar de verdad solo el dueño, al eliminar el espacio.
       match /transactions/{tx} {
-        allow read: if isMember(id);
-        allow create: if isMember(id) && request.resource.data.createdBy == request.auth.uid;
-        allow update: if isMember(id)
-          && request.resource.data.createdBy == resource.data.createdBy;
+        allow read: if isMember(id) || isOwner(id);
+        allow create, update: if isMember(id);
         allow delete: if isOwner(id);
       }
     }

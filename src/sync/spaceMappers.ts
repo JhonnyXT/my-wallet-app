@@ -66,14 +66,11 @@ export interface SpaceTransactionDoc extends VersionedDoc {
   tags: string;
   payment_method: string;
   paid_by: string;
-  /** uid de quien lo registró; no cambia al editarlo otro miembro. */
-  createdBy: string;
 }
 
 export function transactionToSpaceDoc(
   row: TransactionRow,
   selfMemberId: string,
-  createdBy: string,
 ): SpaceTransactionDoc {
   return {
     amount: row.amount,
@@ -83,7 +80,6 @@ export function transactionToSpaceDoc(
     tags: row.tags,
     payment_method: row.payment_method,
     paid_by: paidByToRemote(row.paid_by, selfMemberId),
-    createdBy,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
   };

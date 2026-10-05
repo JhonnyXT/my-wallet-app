@@ -9,7 +9,12 @@
 import type { TransactionRow } from "@/src/db/db";
 import type { UserCategory } from "@/src/constants/categoryPresets";
 import type { ListMember } from "@/src/store/slices/listsSlice";
-import type { RemoteTransaction, VersionedDoc } from "./mappers";
+import {
+  docToTombstone,
+  transactionTombstoneDoc,
+  type RemoteTransaction,
+  type VersionedDoc,
+} from "./mappers";
 
 /** `SELF_PAYER` de `db.ts`, repetido para no arrastrar expo-sqlite a los tests. */
 const SELF = "";
@@ -57,7 +62,7 @@ export function paidByToLocal(paidBy: string, selfMemberId: string): string {
 
 // ─── Movimientos ─────────────────────────────────────────────────────────────
 
-/** Movimiento en `spaces/{id}/transactions/{uid}`: sin `list_id` (la lista es el espacio). */
+/** Movimiento vivo en `spaces/{id}/transactions/{uid}`: sin `list_id` (la lista es el espacio). */
 export interface SpaceTransactionDoc extends VersionedDoc {
   amount: number;
   description: string;
@@ -68,41 +73,49 @@ export interface SpaceTransactionDoc extends VersionedDoc {
   paid_by: string;
 }
 
+/** Vivo con su contenido, o borrado con solo la marca (ver `TransactionDocOrTombstone`). */
+export type SpaceTransactionDocOrTombstone = SpaceTransactionDoc | VersionedDoc;
+
 export function transactionToSpaceDoc(
   row: TransactionRow,
   selfMemberId: string,
-): SpaceTransactionDoc {
-  return {
-    amount: row.amount,
-    description: row.description,
-    category_emoji: row.category_emoji,
-    date: row.date,
-    tags: row.tags,
-    payment_method: row.payment_method,
-    paid_by: paidByToRemote(row.paid_by, selfMemberId),
-    updatedAt: row.updated_at,
-    deletedAt: row.deleted_at,
-  };
+): SpaceTransactionDocOrTombstone {
+  return (
+    transactionTombstoneDoc(row) ?? {
+      amount: row.amount,
+      description: row.description,
+      category_emoji: row.category_emoji,
+      date: row.date,
+      tags: row.tags,
+      payment_method: row.payment_method,
+      paid_by: paidByToRemote(row.paid_by, selfMemberId),
+      updatedAt: row.updated_at,
+      deletedAt: null,
+    }
+  );
 }
 
 export function spaceDocToTransaction(
   uid: string,
-  doc: SpaceTransactionDoc,
+  doc: SpaceTransactionDocOrTombstone,
   listId: string,
   selfMemberId: string,
 ): RemoteTransaction {
+  const tombstone = docToTombstone(uid, doc);
+  if (tombstone) return tombstone;
+  const live = doc as SpaceTransactionDoc;
   return {
     uid,
-    amount: doc.amount,
-    description: doc.description,
-    category_emoji: doc.category_emoji,
-    date: doc.date,
-    tags: doc.tags ?? "",
-    payment_method: doc.payment_method,
+    amount: live.amount,
+    description: live.description,
+    category_emoji: live.category_emoji,
+    date: live.date,
+    tags: live.tags ?? "",
+    payment_method: live.payment_method,
     list_id: listId,
-    paid_by: paidByToLocal(doc.paid_by ?? "", selfMemberId),
-    updated_at: doc.updatedAt,
-    deleted_at: doc.deletedAt ?? null,
+    paid_by: paidByToLocal(live.paid_by ?? "", selfMemberId),
+    updated_at: live.updatedAt,
+    deleted_at: null,
   };
 }
 

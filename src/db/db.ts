@@ -331,6 +331,22 @@ export async function purgeSyncedTombstones(now = Date.now()): Promise<number> {
 export type SyncedTransaction = Omit<TransactionRow, "id" | "sync_state">;
 
 /**
+ * Borrado tal como viaja por la nube: solo la marca, sin el contenido (monto, descripción…), para
+ * que un movimiento borrado no siga guardado en Firestore.
+ */
+export interface SyncedTombstone {
+  uid: string;
+  updated_at: number;
+  deleted_at: number;
+}
+
+export function isSyncedTombstone(
+  tx: SyncedTransaction | SyncedTombstone,
+): tx is SyncedTombstone {
+  return !("amount" in tx);
+}
+
+/**
  * Vuelve a poner como pendientes los movimientos vivos de una lista, para que la sync los suba a
  * su nuevo lugar: al espacio al compartirla, o al respaldo personal al desconectarla (Fase 4).
  */
@@ -341,6 +357,19 @@ export async function markListTransactionsPending(listId: string): Promise<void>
     [listId],
   );
   emitLocalChange();
+}
+
+/**
+ * Vuelve a poner como pendientes los borrados ya subidos, para que reemplacen en la nube la copia
+ * vieja que todavía tenía el contenido (ver `SyncMeta.tombstonesStripped`). Una sola vez por
+ * teléfono; los purgados (`purgeSyncedTombstones`) ya no se pueden repetir.
+ */
+export async function markSyncedTombstonesPending(): Promise<void> {
+  const db = await getNativeDatabase();
+  await db.runAsync(
+    `UPDATE transactions SET sync_state = 'pending'
+     WHERE deleted_at IS NOT NULL AND sync_state = 'synced'`,
+  );
 }
 
 /** Pendientes de subir, borrados incluidos (un borrado también hay que avisarlo). */
@@ -407,11 +436,24 @@ export async function getTransactionVersions(
  * regla de `pickWinner` como última barrera: si el usuario editó la fila entre que se leyó su
  * versión y se aplica la remota, la edición nueva no se pisa.
  */
-export async function applyRemoteTransactions(rows: SyncedTransaction[]): Promise<void> {
+export async function applyRemoteTransactions(
+  rows: (SyncedTransaction | SyncedTombstone)[],
+): Promise<void> {
   if (rows.length === 0) return;
   const db = await getNativeDatabase();
   await db.withTransactionAsync(async () => {
     for (const r of rows) {
+      if (isSyncedTombstone(r)) {
+        // Sin contenido no hay qué insertar: solo se marca la fila que ya existe
+        // (`transactionsToApply` descarta los borrados de lo que nunca estuvo aquí).
+        await db.runAsync(
+          `UPDATE transactions SET updated_at = ?, deleted_at = ?, sync_state = 'synced'
+           WHERE uid = ?
+             AND (? > updated_at OR (? = updated_at AND deleted_at IS NULL))`,
+          [r.updated_at, r.deleted_at, r.uid, r.updated_at, r.updated_at],
+        );
+        continue;
+      }
       await db.runAsync(
         `INSERT INTO transactions (amount, description, category_emoji, date, tags, payment_method, list_id, paid_by, uid, updated_at, deleted_at, sync_state)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced')

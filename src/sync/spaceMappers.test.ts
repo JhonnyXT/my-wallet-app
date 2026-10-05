@@ -98,17 +98,27 @@ describe("movimientos del espacio", () => {
 
   it("el mismo movimiento se ve 'Tú' para quien pagó y con su id para los demás", () => {
     const doc = transactionToSpaceDoc(ROW, "uid-ana");
-    expect(spaceDocToTransaction("tx-1", doc, "s1", "uid-ana").paid_by).toBe("");
-    expect(spaceDocToTransaction("tx-1", doc, "s1", "uid-beto").paid_by).toBe("uid-ana");
+    expect(spaceDocToTransaction("tx-1", doc, "s1", "uid-ana")).toMatchObject({ paid_by: "" });
+    expect(spaceDocToTransaction("tx-1", doc, "s1", "uid-beto")).toMatchObject({ paid_by: "uid-ana" });
   });
 
-  it("bajar: pone la lista local y conserva versión y borrado", () => {
-    const doc = { ...transactionToSpaceDoc(ROW, "uid-ana"), deletedAt: 200 };
-    const tx = spaceDocToTransaction("tx-1", doc, "lista-local", "uid-beto");
-    expect(tx).toMatchObject({
+  it("bajar: pone la lista local y conserva la versión", () => {
+    const tx = spaceDocToTransaction("tx-1", transactionToSpaceDoc(ROW, "uid-ana"), "lista-local", "uid-beto");
+    expect(tx).toMatchObject({ uid: "tx-1", list_id: "lista-local", updated_at: 100, deleted_at: null });
+  });
+
+  it("subir un borrado: solo la marca, sin el contenido", () => {
+    expect(transactionToSpaceDoc({ ...ROW, updated_at: 200, deleted_at: 200 }, "uid-ana")).toEqual({
+      updatedAt: 200,
+      deletedAt: 200,
+    });
+  });
+
+  it("bajar un borrado (también uno viejo con contenido): solo la marca", () => {
+    const legacy = { ...transactionToSpaceDoc(ROW, "uid-ana"), updatedAt: 200, deletedAt: 200 };
+    expect(spaceDocToTransaction("tx-1", legacy, "lista-local", "uid-beto")).toEqual({
       uid: "tx-1",
-      list_id: "lista-local",
-      updated_at: 100,
+      updated_at: 200,
       deleted_at: 200,
     });
   });

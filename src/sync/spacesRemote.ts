@@ -24,7 +24,11 @@ import {
 import type { ListMember } from "@/src/store/slices/listsSlice";
 import type { RemoteDoc } from "./mappers";
 import { BATCH_SIZE, db, millis, pullPaged } from "./remote";
-import type { SpaceConfigDoc, SpaceMemberDoc, SpaceTransactionDoc } from "./spaceMappers";
+import type {
+  SpaceConfigDoc,
+  SpaceMemberDoc,
+  SpaceTransactionDocOrTombstone,
+} from "./spaceMappers";
 
 export interface SpaceDoc {
   ownerUid: string;
@@ -276,13 +280,13 @@ export async function pushGuest(
 export function pullSpaceTransactions(
   spaceId: string,
   cursor: number,
-): Promise<RemoteDoc<SpaceTransactionDoc>[]> {
-  return pullPaged<SpaceTransactionDoc>(txRef(spaceId), cursor);
+): Promise<RemoteDoc<SpaceTransactionDocOrTombstone>[]> {
+  return pullPaged<SpaceTransactionDocOrTombstone>(txRef(spaceId), cursor);
 }
 
 export async function pushSpaceTransactions(
   spaceId: string,
-  ops: { id: string; data: SpaceTransactionDoc }[],
+  ops: { id: string; data: SpaceTransactionDocOrTombstone }[],
 ): Promise<void> {
   for (let i = 0; i < ops.length; i += BATCH_SIZE) {
     const batch = writeBatch(db());

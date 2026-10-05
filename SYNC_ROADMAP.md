@@ -90,6 +90,7 @@ users/{uid}
                                    dueDay, createdAt, updatedAt, deletedAt? }
   transactions/{txId}          → { amount, description, category_emoji, date, tags, payment_method,
                                    list_id, paid_by, updatedAt, deletedAt? }
+                                   (borrado: solo { updatedAt, deletedAt }, sin contenido)
 
 spaces/{spaceId}               → { ownerUid, memberUids[], deletedAt, joinCode?, createdAt }
   members/{memberId}           → { name, uid | null, joinedAt?, leftAt?, updatedAt }
@@ -270,6 +271,9 @@ sin internet) y, tras deslizar hacia abajo, los dos ven lo mismo y las mismas cu
   eliminación: [`PLAY_DATA_SAFETY.md`](PLAY_DATA_SAFETY.md). Llenarlo en Play Console es manual.
 - [x] `README.md`, `DOCUMENTATION.md` (FAQ "¿funciona sin internet?", cuenta, eliminar),
   `docs/index.html`, `landing/` (textos que decían "100% offline" / "sin cuenta").
+- [x] Un movimiento borrado sube solo la marca `{ updatedAt, deletedAt }`, sin su contenido; los
+  que ya habían subido con contenido se reemplazan una vez por teléfono (`tombstonesStripped`).
+  Falta probarlo en `dev` con el emulador.
 - [ ] Quitar permisos que no se usan del manifest (`READ_PHONE_STATE`, `SYSTEM_ALERT_WINDOW`) con
   `android.blockedPermissions` y probar en el dispositivo (ver `PLAY_DATA_SAFETY.md`).
 - [ ] Build `prod` por EAS con los SHA-1 de producción registrados en Firebase.

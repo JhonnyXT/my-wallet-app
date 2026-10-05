@@ -2,7 +2,7 @@
  * Conversión local ↔ documento de Firestore (SYNC_ROADMAP.md, "Modelo en Firestore"). Puras y
  * sin imports de Firebase (el `serverUpdatedAt` lo agrega `remote.ts` al escribir).
  */
-import type { TransactionRow } from "@/src/db/db";
+import type { SyncedTombstone, SyncedTransaction, TransactionRow } from "@/src/db/db";
 import type { TombstoneKind } from "@/src/store/slices/tombstonesSlice";
 
 /** Colecciones de `users/{uid}` que se sincronizan ítem por ítem. */
@@ -68,7 +68,7 @@ export function tombstoneDoc(deletedAt: number): VersionedDoc {
   return { updatedAt: deletedAt, deletedAt };
 }
 
-/** Transacción tal como se sube: sin `id` (local) ni `sync_state`; el id del doc es el `uid`. */
+/** Transacción viva tal como se sube: sin `id` (local) ni `sync_state`; el id del doc es el `uid`. */
 export interface TransactionDoc extends VersionedDoc {
   amount: number;
   description: string;
@@ -80,36 +80,57 @@ export interface TransactionDoc extends VersionedDoc {
   paid_by: string;
 }
 
-export function transactionToDoc(row: TransactionRow): TransactionDoc {
-  return {
-    amount: row.amount,
-    description: row.description,
-    category_emoji: row.category_emoji,
-    date: row.date,
-    tags: row.tags,
-    payment_method: row.payment_method,
-    list_id: row.list_id,
-    paid_by: row.paid_by,
-    updatedAt: row.updated_at,
-    deletedAt: row.deleted_at,
-  };
+/**
+ * Documento de un movimiento en la nube: vivo con su contenido, o borrado con solo la marca. Los
+ * borrados subidos antes de que existiera la marca sola pueden traer contenido todavía.
+ */
+export type TransactionDocOrTombstone = TransactionDoc | VersionedDoc;
+
+/** Un movimiento borrado sube solo su versión y su fecha de borrado: el contenido no se guarda. */
+export function transactionTombstoneDoc(row: TransactionRow): VersionedDoc | null {
+  return row.deleted_at == null ? null : { updatedAt: row.updated_at, deletedAt: row.deleted_at };
 }
 
-/** Fila para aplicar en SQLite (upsert por `uid`, sin `id` local). */
-export type RemoteTransaction = Omit<TransactionRow, "id" | "sync_state">;
+export function transactionToDoc(row: TransactionRow): TransactionDocOrTombstone {
+  return (
+    transactionTombstoneDoc(row) ?? {
+      amount: row.amount,
+      description: row.description,
+      category_emoji: row.category_emoji,
+      date: row.date,
+      tags: row.tags,
+      payment_method: row.payment_method,
+      list_id: row.list_id,
+      paid_by: row.paid_by,
+      updatedAt: row.updated_at,
+      deletedAt: null,
+    }
+  );
+}
 
-export function docToTransaction(uid: string, doc: TransactionDoc): RemoteTransaction {
+/** Movimiento traído para aplicar en SQLite (upsert por `uid`, sin `id` local): vivo o borrado. */
+export type RemoteTransaction = SyncedTransaction | SyncedTombstone;
+
+/** Un documento borrado baja como marca, aunque traiga contenido (borrados viejos). */
+export function docToTombstone(uid: string, doc: VersionedDoc): SyncedTombstone | null {
+  return doc.deletedAt == null ? null : { uid, updated_at: doc.updatedAt, deleted_at: doc.deletedAt };
+}
+
+export function docToTransaction(uid: string, doc: TransactionDocOrTombstone): RemoteTransaction {
+  const tombstone = docToTombstone(uid, doc);
+  if (tombstone) return tombstone;
+  const live = doc as TransactionDoc;
   return {
     uid,
-    amount: doc.amount,
-    description: doc.description,
-    category_emoji: doc.category_emoji,
-    date: doc.date,
-    tags: doc.tags ?? "",
-    payment_method: doc.payment_method,
-    list_id: doc.list_id,
-    paid_by: doc.paid_by ?? "",
-    updated_at: doc.updatedAt,
-    deleted_at: doc.deletedAt ?? null,
+    amount: live.amount,
+    description: live.description,
+    category_emoji: live.category_emoji,
+    date: live.date,
+    tags: live.tags ?? "",
+    payment_method: live.payment_method,
+    list_id: live.list_id,
+    paid_by: live.paid_by ?? "",
+    updated_at: live.updatedAt,
+    deleted_at: null,
   };
 }

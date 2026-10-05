@@ -14,6 +14,7 @@ import { getAuth, onAuthStateChanged } from "@react-native-firebase/auth";
 import { ALLOWED_BANKS_KEY, AUTO_DETECT_ENABLED_KEY } from "@/src/constants/banks";
 import {
   applyRemoteTransactions,
+  markSyncedTombstonesPending,
   countPendingTransactions,
   getPendingTransactions,
   getTransactionVersions,
@@ -43,7 +44,7 @@ import {
   tombstoneDoc,
   transactionToDoc,
   type RemoteDoc,
-  type TransactionDoc,
+  type TransactionDocOrTombstone,
 } from "./mappers";
 import { keepLocalShared, mergeCollection, remoteDocWins, transactionsToApply } from "./merge";
 import {
@@ -111,7 +112,7 @@ async function pull(uid: string, meta: SyncMeta): Promise<SyncMeta> {
   const profile = await withTimeout(pullDoc<ProfileDoc>(uid, "profile"));
   const settings = await withTimeout(pullDoc<SettingsDoc>(uid, "settings"));
   const txDocs = await withTimeout(
-    pullCollection<TransactionDoc>(uid, "transactions", meta.cursors.transactions ?? 0),
+    pullCollection<TransactionDocOrTombstone>(uid, "transactions", meta.cursors.transactions ?? 0),
   );
 
   // 2. Ajustes: unir con el estado actual y aplicar (síncrono).
@@ -401,6 +402,10 @@ async function syncOnce(uid: string, opts: { pull: boolean }): Promise<void> {
   try {
     meta = trackBanks(meta, parseBanks(await AsyncStorage.getItem(ALLOWED_BANKS_KEY)), Date.now());
     if (opts.pull) meta = await pull(uid, meta);
+    if (!meta.tombstonesStripped) {
+      await markSyncedTombstonesPending();
+      meta = { ...meta, tombstonesStripped: true };
+    }
     meta = await push(uid, meta);
     meta = { ...meta, ownerUid: uid, lastSyncAt: Date.now() };
     await saveMeta(meta);

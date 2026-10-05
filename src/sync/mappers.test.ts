@@ -54,9 +54,21 @@ describe("transactionToDoc / docToTransaction", () => {
     expect(docToTransaction("u-1", transactionToDoc(row))).toEqual(rest);
   });
 
-  it("un borrado conserva su fecha", () => {
-    const back = docToTransaction("u-1", transactionToDoc({ ...row, deleted_at: 200 }));
-    expect(back.deleted_at).toBe(200);
+  it("un borrado sube solo la marca, sin el contenido", () => {
+    expect(transactionToDoc({ ...row, updated_at: 200, deleted_at: 200 })).toEqual({
+      updatedAt: 200,
+      deletedAt: 200,
+    });
+  });
+
+  it("un borrado baja como marca, con su versión y su fecha", () => {
+    const back = docToTransaction("u-1", transactionToDoc({ ...row, updated_at: 200, deleted_at: 200 }));
+    expect(back).toEqual({ uid: "u-1", updated_at: 200, deleted_at: 200 });
+  });
+
+  it("un borrado viejo que todavía trae contenido baja igual, sin el contenido", () => {
+    const legacy = { ...transactionToDoc(row), updatedAt: 200, deletedAt: 200 };
+    expect(docToTransaction("u-1", legacy)).toEqual({ uid: "u-1", updated_at: 200, deleted_at: 200 });
   });
 });
 

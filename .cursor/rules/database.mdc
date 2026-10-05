@@ -91,7 +91,10 @@ al desconectarla de su espacio.
 
 `getPendingTransactions`, `countPendingTransactions`, `markTransactionsSynced` (solo si
 `updated_at` no cambió durante la subida), `getTransactionVersions`, `applyRemoteTransactions`
-(upsert por `uid`, queda `synced`; el `WHERE` repite la regla de `pickWinner` como barrera),
+(upsert por `uid`, queda `synced`; el `WHERE` repite la regla de `pickWinner` como barrera; un
+`SyncedTombstone` —borrado sin contenido, así viajan por la nube— hace solo `UPDATE` de la fila
+existente, porque sin contenido el `INSERT` violaría los `NOT NULL`), `markSyncedTombstonesPending`
+(una vez por teléfono, para reemplazar en la nube los borrados que subieron con contenido),
 `markAllTransactionsPending` (tras eliminar la cuenta) y `wipeAllTransactions` ("Borrar de este
 teléfono"). Las llama solo `src/sync/`; recorren TODAS las listas y también los borrados, así que a
 propósito no usan `LIST_SCOPE_SQL` (están en la lista de excepciones de `listScope.test.ts`). Cada

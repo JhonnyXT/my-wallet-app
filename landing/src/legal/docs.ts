@@ -79,7 +79,7 @@ const privacyEs: LegalDoc = {
         'Llevarte tus datos: Ajustes → Exportar CSV, por cada lista.',
       ],
       p: [
-        'El respaldo automático de Android está desactivado para MyWallet: tus datos no se copian a Google Drive. Los movimientos que borras se marcan como borrados en tu respaldo para que tus otros teléfonos también los borren, y desaparecen de la nube por completo al eliminar tu cuenta.',
+        'El respaldo automático de Android está desactivado para MyWallet: tus datos no se copian a Google Drive. Cuando borras un movimiento, su contenido (monto, descripción, categoría…) se borra también de la nube: solo queda una marca de que existió, para que tus otros teléfonos lo borren. Al eliminar tu cuenta desaparece todo, marcas incluidas.',
       ],
     },
     {
@@ -156,7 +156,7 @@ const privacyEn: LegalDoc = {
         'Take your data with you: Ajustes → “Exportar CSV”, per list.',
       ],
       p: [
-        'Android’s automatic backup is disabled for MyWallet: your data is never copied to Google Drive. Transactions you delete are marked as deleted in your backup so your other phones delete them too, and they are fully removed from the cloud when you delete your account.',
+        'Android’s automatic backup is disabled for MyWallet: your data is never copied to Google Drive. When you delete a transaction, its content (amount, description, category…) is deleted from the cloud too: only a marker that it existed remains, so your other phones delete it as well. Deleting your account removes everything, markers included.',
       ],
     },
     {

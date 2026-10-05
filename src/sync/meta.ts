@@ -29,6 +29,11 @@ export interface SyncMeta {
   /** Bancos activos (AsyncStorage directo): último valor visto y cuándo cambió. */
   banks: { value: string[]; updatedAt: number } | null;
   lastSyncAt: number | null;
+  /**
+   * Ya se volvieron a subir los borrados como marca sola (2026-10-05): antes un movimiento borrado
+   * subía con su contenido. Falso = repetir una vez los borrados que quedan en el teléfono.
+   */
+  tombstonesStripped: boolean;
 }
 
 export function emptyMeta(): SyncMeta {
@@ -40,6 +45,7 @@ export function emptyMeta(): SyncMeta {
     pushedSpaces: {},
     banks: null,
     lastSyncAt: null,
+    tombstonesStripped: false,
   };
 }
 

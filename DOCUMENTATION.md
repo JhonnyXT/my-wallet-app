@@ -675,7 +675,7 @@ No. Iniciar sesión con Google es opcional (primer paso del onboarding, o despu�
 Con sesión iniciada, instala la app en el teléfono nuevo, inicia sesión con la misma cuenta de Google y recuperas todo. Sin cuenta, desinstalar borra tus datos: antes usa **Configuración → En tu lista → Exportar CSV** en cada lista para guardar tu historial.
 
 ### ¿Cómo elimino mi cuenta y mis datos de la nube?
-**Ajustes → Cuenta → Eliminar cuenta.** Borra tu cuenta, todo tu respaldo en la nube y las listas compartidas que creaste; te saca de las listas de otras personas (lo que registraste ahí se queda para que sus cuentas cuadren). Lo que tienes en el teléfono no se borra. Si ya no tienes la app, puedes pedirlo en https://mywallet-blush.vercel.app/es/delete-account.
+**Ajustes → Cuenta → Eliminar cuenta.** Borra tu cuenta, todo tu respaldo en la nube y las listas compartidas que creaste; te saca de las listas de otras personas (lo que registraste ahí se queda para que sus cuentas cuadren). Lo que tienes en el teléfono no se borra. Si ya no tienes la app, puedes pedirlo en https://usemywallet.vercel.app/es/delete-account.
 
 ### ¿Cómo registro un ingreso?
 Toca el **+** del dock flotante → selecciona **Ingreso (verde)**. La pantalla mostrará "Nuevo Ingreso" y el monto aparecerá en verde con signo `+`.

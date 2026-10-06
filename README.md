@@ -7,7 +7,7 @@ en Firebase y se pueden compartir listas con otras personas — sin backend prop
 
 🔗 **Landing pública:** https://jhonnyxt.github.io/my-wallet-app/
 🔒 **Política de privacidad:** https://jhonnyxt.github.io/my-wallet-app/privacy-policy.html
-🗑️ **Eliminar cuenta:** https://mywallet-blush.vercel.app/es/delete-account
+🗑️ **Eliminar cuenta:** https://usemywallet.vercel.app/es/delete-account
 
 ## Features
 

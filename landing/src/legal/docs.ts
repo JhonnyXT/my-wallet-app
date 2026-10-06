@@ -18,7 +18,7 @@ export type LegalDoc = { title: string; updated: string; intro: string[]; sectio
 
 const CONTACT = 'jonathanblandon1017@gmail.com';
 
-const DELETE_URL = 'https://mywallet-blush.vercel.app/es/delete-account';
+const DELETE_URL = 'https://usemywallet.vercel.app/es/delete-account';
 
 function mailto(subject: string, body: string): string {
   return `mailto:${CONTACT}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;

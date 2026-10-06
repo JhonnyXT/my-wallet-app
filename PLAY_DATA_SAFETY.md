@@ -10,7 +10,7 @@ esta guía, `docs/privacy-policy.html` y `landing/src/legal/docs.ts` a la vez.
 | Campo de Play Console | Valor |
 |---|---|
 | Política de privacidad | `https://jhonnyxt.github.io/my-wallet-app/privacy-policy.html` |
-| URL para eliminar la cuenta | `https://mywallet-blush.vercel.app/es/delete-account` |
+| URL para eliminar la cuenta | `https://usemywallet.vercel.app/es/delete-account` |
 
 ## Seguridad de los datos (Data safety)
 

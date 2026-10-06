@@ -270,7 +270,7 @@ sin internet) y, tras deslizar hacia abajo, los dos ven lo mismo y las mismas cu
   compartidas, cómo borrarlo. Correo de contacto unificado en `jonathanblandon1017@gmail.com`
   (`docs/` tenía `…101@`, un error de tipeo).
 - [x] **URL web para pedir la eliminación de la cuenta**: `landing/` → `/[lang]/delete-account`
-  (`https://mywallet-blush.vercel.app/es/delete-account`), con los pasos en la app y un `mailto:`
+  (`https://usemywallet.vercel.app/es/delete-account`), con los pasos en la app y un `mailto:`
   prellenado desde el correo de la cuenta (sin formulario ni backend). Falta desplegar la landing
   (`vercel deploy --prod`).
 - [x] Respuestas del formulario de Data Safety y procedimiento para atender una solicitud de

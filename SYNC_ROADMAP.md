@@ -278,8 +278,9 @@ sin internet) y, tras deslizar hacia abajo, los dos ven lo mismo y las mismas cu
   que ya habían subido con contenido se reemplazan una vez por teléfono (`tombstonesStripped`).
   Se prueba junto con la Fase 4 en `test` (ver abajo).
 - [x] Quitar permisos que no se usan del manifest con `android.blockedPermissions`
-  (`READ_PHONE_STATE`, almacenamiento, `SYSTEM_ALERT_WINDOW`; ver `PLAY_DATA_SAFETY.md`). Falta
-  verificarlo en el build `test` (manifest mergeado + detección bancaria en el teléfono).
+  (`READ_PHONE_STATE`, almacenamiento, `SYSTEM_ALERT_WINDOW`; ver `PLAY_DATA_SAFETY.md`). Verificado
+  en el build `test` (2026-10-05): el APK no los trae (`aapt`), y en el S24 Ultra el listener queda
+  enlazado sin crashes ni ANR. Falta ver una notificación real del banco llegar como pendiente.
 - [ ] Build `prod` por EAS con los SHA-1 de producción registrados en Firebase.
 
 ---

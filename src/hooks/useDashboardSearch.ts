@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Animated, Keyboard, TextInput } from "react-native";
 import type { TransactionRow } from "@/src/db/db";
+import { KEYBOARD_GAP } from "@/src/constants/layout";
 import { useUIStore } from "@/src/store/useUIStore";
 import { EMOJI_TO_CATEGORY_NAME } from "@/src/constants/theme";
 import { extractTagsFromTx, normalize } from "@/src/utils/transactionFormatters";
@@ -83,7 +84,7 @@ export function useDashboardSearch({
   const keyboardExtraAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const onShow = Keyboard.addListener("keyboardDidShow", (e) => {
-      const extra = Math.max(0, e.endCoordinates.height - baseSearchBottom + 10);
+      const extra = Math.max(0, e.endCoordinates.height - baseSearchBottom + KEYBOARD_GAP);
       Animated.timing(keyboardExtraAnim, {
         toValue: extra,
         duration: 180,

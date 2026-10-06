@@ -12,6 +12,7 @@ import {
   type ViewStyle,
 } from "react-native";
 
+import { KEYBOARD_GAP } from "@/src/constants/layout";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useReduceMotion } from "@/src/hooks/useReduceMotion";
 import type { AppTheme } from "@/src/theme";
@@ -182,7 +183,7 @@ export function BottomSheet({
         style={[
           s.sheet,
           style,
-          keyboardHeight > 0 && { bottom: keyboardHeight },
+          keyboardHeight > 0 && { bottom: keyboardHeight + KEYBOARD_GAP },
           { transform: [{ translateY }] },
         ]}
       >

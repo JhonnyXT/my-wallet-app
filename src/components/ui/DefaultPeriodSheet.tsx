@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { Keyboard, StyleSheet, View } from "react-native";
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
+import { KEYBOARD_GAP } from "@/src/constants/layout";
 import { PayPeriodForm } from "@/src/components/ui/PayPeriodForm";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 
@@ -40,7 +41,7 @@ export function DefaultPeriodSheet({
 
   return (
     <BottomSheet visible={visible} onClose={onClose} style={styles.container}>
-      <View style={{ paddingBottom: keyboardHeight }}>
+      <View style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + KEYBOARD_GAP : 0 }}>
         <PayPeriodForm
           key={openCount}
           initial={saved}

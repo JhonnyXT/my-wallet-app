@@ -20,6 +20,7 @@ import { BottomSheet } from "@/src/components/ui/BottomSheet";
 import { CategoryPickerGrid, useCategoryPicker } from "@/src/components/ui/CategoryPickerGrid";
 import { PressableScale } from "@/src/components/ui/PressableScale";
 import type { UserCategory } from "@/src/constants/categoryPresets";
+import { KEYBOARD_GAP } from "@/src/constants/layout";
 import { DEFAULT_LIST_ID, LIST_EMOJIS } from "@/src/constants/lists";
 import type { ListMember, WalletList } from "@/src/store/useSettingsStore";
 import { useAppTokens } from "@/src/theme/tokens";
@@ -219,7 +220,7 @@ function EditorBody({
 
   return (
     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <View style={{ paddingBottom: keyboardHeight }}>
+      <View style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + KEYBOARD_GAP : 0 }}>
         <Text style={[styles.title, { color: c.text.primary }]}>
           {list ? "Editar lista" : "Nueva lista"}
         </Text>

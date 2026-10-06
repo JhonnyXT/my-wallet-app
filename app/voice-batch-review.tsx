@@ -15,7 +15,6 @@ import {
   Animated,
   PanResponder,
   ScrollView,
-  KeyboardAvoidingView,
   Alert,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -215,80 +214,78 @@ function EditItemSheet({
   if (!item) return null;
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} style={editS.container}>
-      <KeyboardAvoidingView behavior="padding">
-        <Text style={[editS.title, { color: theme.text }]}>Editar registro</Text>
+    <BottomSheet visible={visible} onClose={onClose} avoidKeyboard style={editS.container}>
+      <Text style={[editS.title, { color: theme.text }]}>Editar registro</Text>
 
-        {/* Toggle Gasto / Ingreso */}
-        <View style={editS.toggleRow}>
-          <TouchableOpacity
-            style={[editS.toggleBtn, isExpense && editS.toggleBtnExpenseActive]}
-            onPress={() => setIsExpense(true)}
-          >
-            <Text style={[editS.toggleText, isExpense && editS.toggleTextExpenseActive]}>
-              ↓ Gasto
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[editS.toggleBtn, !isExpense && editS.toggleBtnIncomeActive]}
-            onPress={() => setIsExpense(false)}
-          >
-            <Text style={[editS.toggleText, !isExpense && editS.toggleTextIncomeActive]}>
-              ↑ Ingreso
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Monto */}
-        <Text style={[editS.label, { color: theme.textSub }]}>MONTO</Text>
-        <View
-          style={[editS.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
-        >
-          <Text style={[editS.inputPrefix, { color: theme.textSub }]}>$</Text>
-          <TextInput
-            style={[editS.input, { color: theme.text }]}
-            value={amountStr}
-            onChangeText={(v) => setAmountStr(v.replace(/\D/g, ""))}
-            keyboardType="numeric"
-            placeholder="0"
-            placeholderTextColor={theme.textSub}
-            selectTextOnFocus
-          />
-        </View>
-
-        {/* Descripción */}
-        <Text style={[editS.label, { color: theme.textSub }]}>DESCRIPCIÓN</Text>
-        <View
-          style={[editS.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
-        >
-          <TextInput
-            style={[editS.input, { color: theme.text }]}
-            value={description}
-            onChangeText={setDesc}
-            placeholder="Describe el registro..."
-            placeholderTextColor={theme.textSub}
-          />
-        </View>
-
-        {/* Categoría */}
-        <Text style={[editS.label, { color: theme.textSub }]}>CATEGORÍA</Text>
+      {/* Toggle Gasto / Ingreso */}
+      <View style={editS.toggleRow}>
         <TouchableOpacity
-          style={[editS.catRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
-          onPress={() => setShowCat(true)}
-          activeOpacity={0.7}
+          style={[editS.toggleBtn, isExpense && editS.toggleBtnExpenseActive]}
+          onPress={() => setIsExpense(true)}
         >
-          <View style={[editS.catEmoji, { backgroundColor: catColor.bg }]}>
-            <Text style={{ fontSize: 20 }}>{catEmoji}</Text>
-          </View>
-          <Text style={[editS.catLabel, { color: theme.text }]}>{catName}</Text>
-          <ChevronRight size={18} color={theme.textSub} />
+          <Text style={[editS.toggleText, isExpense && editS.toggleTextExpenseActive]}>
+            ↓ Gasto
+          </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[editS.toggleBtn, !isExpense && editS.toggleBtnIncomeActive]}
+          onPress={() => setIsExpense(false)}
+        >
+          <Text style={[editS.toggleText, !isExpense && editS.toggleTextIncomeActive]}>
+            ↑ Ingreso
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* Guardar */}
-        <PressableScale style={[editS.saveBtn, { backgroundColor: ACCENT }]} onPress={handleSave}>
-          <Text style={editS.saveBtnText}>Guardar cambios</Text>
-        </PressableScale>
-      </KeyboardAvoidingView>
+      {/* Monto */}
+      <Text style={[editS.label, { color: theme.textSub }]}>MONTO</Text>
+      <View
+        style={[editS.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
+      >
+        <Text style={[editS.inputPrefix, { color: theme.textSub }]}>$</Text>
+        <TextInput
+          style={[editS.input, { color: theme.text }]}
+          value={amountStr}
+          onChangeText={(v) => setAmountStr(v.replace(/\D/g, ""))}
+          keyboardType="numeric"
+          placeholder="0"
+          placeholderTextColor={theme.textSub}
+          selectTextOnFocus
+        />
+      </View>
+
+      {/* Descripción */}
+      <Text style={[editS.label, { color: theme.textSub }]}>DESCRIPCIÓN</Text>
+      <View
+        style={[editS.inputWrap, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
+      >
+        <TextInput
+          style={[editS.input, { color: theme.text }]}
+          value={description}
+          onChangeText={setDesc}
+          placeholder="Describe el registro..."
+          placeholderTextColor={theme.textSub}
+        />
+      </View>
+
+      {/* Categoría */}
+      <Text style={[editS.label, { color: theme.textSub }]}>CATEGORÍA</Text>
+      <TouchableOpacity
+        style={[editS.catRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
+        onPress={() => setShowCat(true)}
+        activeOpacity={0.7}
+      >
+        <View style={[editS.catEmoji, { backgroundColor: catColor.bg }]}>
+          <Text style={{ fontSize: 20 }}>{catEmoji}</Text>
+        </View>
+        <Text style={[editS.catLabel, { color: theme.text }]}>{catName}</Text>
+        <ChevronRight size={18} color={theme.textSub} />
+      </TouchableOpacity>
+
+      {/* Guardar */}
+      <PressableScale style={[editS.saveBtn, { backgroundColor: ACCENT }]} onPress={handleSave}>
+        <Text style={editS.saveBtnText}>Guardar cambios</Text>
+      </PressableScale>
 
       <CategorySheet
         visible={showCatSheet}

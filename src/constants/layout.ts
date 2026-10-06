@@ -1,3 +1,10 @@
+/**
+ * Espacio entre el borde superior del teclado y lo que se sube sobre él (barra de
+ * búsqueda, hojas con `avoidKeyboard`, hojas con su propio listener de teclado), para que
+ * no se vean pegados. Usarla en todo lugar que mida `e.endCoordinates.height` a mano.
+ */
+export const KEYBOARD_GAP = 16;
+
 /** Height of the floating dock row (pill + FAB) — Stitch JSX: height 64px */
 export const DOCK_HEIGHT = 64;
 

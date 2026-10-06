@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   BackHandler,
   PanResponder,
+  Keyboard,
 } from "react-native";
 import Reanimated, {
   useAnimatedReaction,
@@ -36,8 +37,13 @@ import {
   ArrowDown,
   ArrowUp,
   Calendar,
+  CalendarDays,
+  CalendarRange,
+  CalendarSearch,
+  Check,
   ChevronDown,
   ChevronRight,
+  Infinity as InfinityIcon,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { scrollBottomPadding, DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
@@ -63,7 +69,13 @@ import { DefaultPeriodSheet } from "@/src/components/ui/DefaultPeriodSheet";
 import { ListMenu } from "@/src/components/ui/ListMenu";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { DEFAULT_LIST_ID } from "@/src/constants/lists";
-import { parseYMD, toYMD } from "@/src/utils/periodCycles";
+import {
+  cycleAtOffset,
+  cycleCadenceOf,
+  cycleLabel,
+  parseYMD,
+  toYMD,
+} from "@/src/utils/periodCycles";
 import { GuidedTour } from "@/src/components/ui/GuidedTour";
 import { RollingNumber } from "@/src/components/ui/RollingNumber";
 import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
@@ -225,6 +237,51 @@ export default function DashboardScreen() {
     [setPeriodView, resetPeriod],
   );
 
+  // ── Dropdown de período de la barra de búsqueda ──────────────────────────
+  // No usa `Modal` (a diferencia de PeriodMenu): un Modal roba el foco y Android cierra el
+  // teclado al abrirlo. Es una vista normal anclada dentro de `searchWrapper`, igual que el
+  // dropdown de sugerencias de tags, que ya convive con el teclado abierto.
+  const [searchPeriodMenuOpen, setSearchPeriodMenuOpen] = useState(false);
+  const now = useMemo(() => new Date(), []);
+  const currentCycleLabel = useMemo(() => {
+    const cc = cycleCadenceOf(cadence);
+    return cycleLabel(cc, cycleAtOffset(cc, 0, now), now);
+  }, [cadence, now]);
+  const quickPeriodOptions = useMemo(
+    () => [
+      {
+        key: "range" as const,
+        label: "Rango personalizado…",
+        Icon: CalendarSearch,
+        checked: periodView.kind === "range",
+      },
+      { key: "year" as const, label: "Año", Icon: CalendarRange, checked: periodView.kind === "year" },
+      {
+        key: "cycle" as const,
+        label: currentCycleLabel,
+        Icon: CalendarDays,
+        checked: periodView.kind === "cycle" && periodView.offset === 0,
+      },
+      {
+        key: "all" as const,
+        label: "Todo el tiempo",
+        Icon: InfinityIcon,
+        checked: periodView.kind === "all",
+      },
+    ],
+    [currentCycleLabel, periodView],
+  );
+  const handleSearchPeriodSelect = useCallback(
+    (action: PeriodMenuAction) => {
+      Haptics.selectionAsync();
+      setSearchPeriodMenuOpen(false);
+      // Al aplicar el filtro ya no hace falta el teclado: lo cierra, como al tocar la "x".
+      Keyboard.dismiss();
+      handleMenuAction(action);
+    },
+    [handleMenuAction],
+  );
+
   // ── Listas: selector "Personal ▾", menú, crear/editar/eliminar ──────────
   const lists = useSettingsStore((s) => s.lists);
   const activeListId = useSettingsStore((s) => s.activeListId);
@@ -292,6 +349,11 @@ export default function DashboardScreen() {
     typeFilteredTransactions,
     baseSearchBottom,
   });
+  // Cerrar el dropdown de período de la barra si la búsqueda se cierra por otro lado
+  // (botón del dock, back físico…), para no dejarlo colgado la próxima vez que se abra.
+  useEffect(() => {
+    if (!searchOpen) setSearchPeriodMenuOpen(false);
+  }, [searchOpen]);
 
   // ── Totales y estadísticas ───────────────────────────────────────────────
   const {
@@ -1129,6 +1191,16 @@ export default function DashboardScreen() {
         </Reanimated.View>
       </View>
 
+      {/* Fondo invisible: toca fuera del dropdown de período de la búsqueda para cerrarlo.
+          No es un Modal (eso cerraría el teclado); por eso necesita su propio backdrop. */}
+      {searchPeriodMenuOpen && (
+        <Pressable
+          style={styles.searchPeriodBackdrop}
+          onPress={() => setSearchPeriodMenuOpen(false)}
+          accessibilityLabel="Cerrar selector de período"
+        />
+      )}
+
       {/* ══════════════════════════════════════════════════════════════
           BARRA DE BÚSQUEDA — flotante encima del dock
           ══════════════════════════════════════════════════════════════ */}
@@ -1147,6 +1219,32 @@ export default function DashboardScreen() {
         ]}
         pointerEvents={searchOpen ? "auto" : "none"}
       >
+        {/* Dropdown del selector de período — compacto, alineado a la derecha, sobre la
+            barra. No es un Modal: así no le roba el foco al teclado. */}
+        {searchPeriodMenuOpen && (
+          <Animated.View style={styles.searchPeriodMenu}>
+            {quickPeriodOptions.map(({ key, label, Icon, checked }) => (
+              <TouchableOpacity
+                key={key}
+                activeOpacity={0.6}
+                onPress={() => handleSearchPeriodSelect(key)}
+                style={styles.searchPeriodRow}
+                accessibilityRole="menuitem"
+                accessibilityState={{ selected: checked }}
+              >
+                {checked ? (
+                  <Check size={16} color={theme.text} strokeWidth={2.4} />
+                ) : (
+                  <Icon size={16} color={theme.textSub} strokeWidth={1.8} />
+                )}
+                <Text style={styles.searchPeriodLabel} numberOfLines={1}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
+        )}
+
         {/* Dropdown de sugerencias — encima de la barra */}
         {tagDropdownOpen && (
           <Animated.View style={styles.tagDropdown}>
@@ -1203,9 +1301,32 @@ export default function DashboardScreen() {
             autoCorrect={false}
           />
 
-          <TouchableOpacity style={styles.searchCancelBtn} onPress={closeSearch}>
-            <X size={14} color="#555" strokeWidth={2.5} />
-          </TouchableOpacity>
+          {/* Grupo de íconos a la derecha: calendario (abre el dropdown de período de
+              arriba) + cerrar búsqueda. */}
+          <View style={styles.searchActions}>
+            <TouchableOpacity
+              style={[styles.searchIconBtn, !isDefault && styles.searchIconBtnActive]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setSearchPeriodMenuOpen((v) => !v);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Período: ${periodLabel}`}
+            >
+              <Calendar size={16} color={!isDefault ? "#135BEC" : theme.textSub} strokeWidth={2} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.searchIconBtn}
+              onPress={() => {
+                Keyboard.dismiss();
+                closeSearch();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar búsqueda"
+            >
+              <X size={16} color={theme.textSub} strokeWidth={2.5} />
+            </TouchableOpacity>
+          </View>
         </View>
       </Animated.View>
 
@@ -1721,13 +1842,22 @@ function createStyles(t: AppTheme) {
       color: t.text,
       paddingVertical: 0,
     },
-    searchCancelBtn: {
-      width: 28,
-      height: 28,
+    // Grupo de íconos a la derecha (calendario + cerrar), circulares y del mismo tamaño.
+    searchActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    searchIconBtn: {
+      width: 32,
+      height: 32,
       borderRadius: 999,
       backgroundColor: t.inputBg,
       alignItems: "center",
       justifyContent: "center",
+    },
+    searchIconBtnActive: {
+      backgroundColor: t.isDark ? "#1E3A5F" : "#EFF6FF",
     },
 
     // ── Dropdown de sugerencias de tags ─────────────────────────────────────
@@ -1750,6 +1880,38 @@ function createStyles(t: AppTheme) {
       paddingHorizontal: 16,
     },
     tagSuggestionText: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: t.text,
+    },
+
+    // ── Dropdown de período de la barra de búsqueda ─────────────────────────
+    searchPeriodBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 85,
+    },
+    searchPeriodMenu: {
+      alignSelf: "flex-end",
+      width: 210,
+      backgroundColor: t.surface,
+      borderRadius: 16,
+      marginBottom: 8,
+      paddingVertical: 4,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    searchPeriodRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+    },
+    searchPeriodLabel: {
+      flex: 1,
       fontSize: 14,
       fontWeight: "500",
       color: t.text,

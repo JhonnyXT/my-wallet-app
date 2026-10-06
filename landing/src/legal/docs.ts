@@ -25,7 +25,7 @@ const privacyEs: LegalDoc = {
   title: 'Política de privacidad',
   updated: 'Última actualización: octubre de 2026',
   intro: [
-    'MyWallet funciona completa en tu teléfono, con o sin internet. Iniciar sesión con Google es opcional: si lo haces, guardamos una copia de tus datos en la nube de Google (Firebase) para que no los pierdas si cambias de celular y para que puedas compartir listas. Sin cuenta, tus datos no salen de tu teléfono. Esta política explica también qué pasa con tu email si te unes a la lista de espera de este sitio.',
+    'MyWallet funciona completa en tu teléfono, con o sin internet. Iniciar sesión con Google es opcional: si lo haces, guardamos una copia de tus datos en la nube de Google (Firebase) para que no los pierdas si cambias de celular y para que puedas compartir listas. Sin cuenta, tus datos no salen de tu teléfono. Esta política explica también qué pasa con tus datos si te unes a la lista de espera.',
   ],
   sections: [
     {
@@ -82,8 +82,8 @@ const privacyEs: LegalDoc = {
     {
       h: '7. Este sitio web y la lista de espera',
       p: [
-        `Si te unes a la lista de espera, guardamos solo tu email para avisarte cuando MyWallet esté disponible en Google Play. No lo usamos para nada más, y puedes pedir que lo borremos en cualquier momento escribiendo a ${CONTACT}.`,
-        'El email se guarda con un proveedor de envío de correos que actúa en nuestro nombre: Resend (resend.com). El sitio no usa cookies de rastreo ni analíticas.',
+        'El formulario de la lista de espera está en joblanstudio.vercel.app, la web de quien desarrolla MyWallet. Ahí guardamos tu email y el nombre que escribas para avisarte cuando MyWallet esté disponible en Google Play, con un proveedor de envío de correos que actúa en nuestro nombre: Resend (resend.com). La ciudad, la plataforma y la nota opcional solo quedan en los registros del servidor (Vercel), para saber qué te interesa.',
+        `No usamos esos datos para nada más, y puedes pedir que los borremos en cualquier momento escribiendo a ${CONTACT}. Este sitio y ese formulario no usan cookies de rastreo ni analíticas.`,
       ],
     },
     {
@@ -102,7 +102,7 @@ const privacyEn: LegalDoc = {
   title: 'Privacy Policy',
   updated: 'Last updated: October 2026',
   intro: [
-    'MyWallet works fully on your phone, with or without internet. Signing in with Google is optional: if you do, we keep a copy of your data in Google’s cloud (Firebase) so you don’t lose it when you change phones and so you can share lists. Without an account, your data never leaves your phone. This policy also covers what happens to your email if you join this site’s waitlist.',
+    'MyWallet works fully on your phone, with or without internet. Signing in with Google is optional: if you do, we keep a copy of your data in Google’s cloud (Firebase) so you don’t lose it when you change phones and so you can share lists. Without an account, your data never leaves your phone. This policy also covers what happens to your data if you join the waitlist.',
   ],
   sections: [
     {
@@ -159,8 +159,8 @@ const privacyEn: LegalDoc = {
     {
       h: '7. This website and the waitlist',
       p: [
-        `If you join the waitlist, we store only your email to let you know when MyWallet is available on Google Play. We use it for nothing else, and you can ask us to delete it at any time by writing to ${CONTACT}.`,
-        'Your email is stored with an email provider acting on our behalf: Resend (resend.com). The site uses no tracking cookies or analytics.',
+        'The waitlist form lives on joblanstudio.vercel.app, the website of MyWallet’s developer. There we store your email and the name you enter to let you know when MyWallet is available on Google Play, with an email provider acting on our behalf: Resend (resend.com). City, platform and the optional note only stay in the server logs (Vercel), to know what you are interested in.',
+        `We use that data for nothing else, and you can ask us to delete it at any time by writing to ${CONTACT}. This site and that form use no tracking cookies or analytics.`,
       ],
     },
     {

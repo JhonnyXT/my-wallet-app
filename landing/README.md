@@ -58,6 +58,11 @@ npm run lint
   `/api/unsubscribe` → `unsubscribeEmail` en `src/lib/waitlist.ts` (`opt_out`
   del topic, nunca la baja global, que sacaría a la persona también de
   Meld). `NEXT_PUBLIC_JOBLAN_URL` cambia la URL de joblan si hace falta.
+  Al terminar el aviso, joblan ofrece "Descargar APK" (el último release de
+  GitHub) para probar la app mientras sale en Play: es el único lugar web con
+  la descarga, porque esta landing se queda solo con la lista de espera.
+  La política (§7) cuenta qué datos pide ese formulario: email y nombre en
+  Resend; ciudad, plataforma y nota solo en los logs de Vercel de joblan.
 - **Enlaces externos**: `src/lib/links.ts` (`SUPPORT_EMAIL`). El footer no
   enlaza al repo de GitHub ni a Issues (`Soporte` es un `mailto:` directo).
 - **Política de privacidad**: esta web es la oficial (2026-10-06) y

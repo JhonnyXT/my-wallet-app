@@ -286,10 +286,13 @@ sin internet) y, tras deslizar hacia abajo, los dos ven lo mismo y las mismas cu
 - [x] Versión `1.0.0` para el lanzamiento (semver; versionCode remoto en EAS), perfiles `prod`
   (AAB para Play) y `prod-apk` (APK para GitHub, mismo versionCode), descarga de `docs/` apuntando
   a `releases/latest/download/MyWallet.apk` (2026-10-06).
-- [ ] Build `prod` por EAS (`eas login` + `npm run eas:prod` y `npm run eas:prod:apk`) y SHA-1 de la
-  keystore de EAS (`eas credentials`) registrada en `mywallet-prod`.
-- [ ] GitHub Release `v1.0.0` con `MyWallet.apk` marcado como Latest (y decidir qué hacer con el
-  release viejo `v1.5.0`).
+- [x] Build `prod` (2026-10-06): AAB y APK `1.0.0` (versionCode 5) compilados con `eas build --local`
+  (la cola gratis de EAS llevaba más de una hora sin arrancar) con la keystore de producción que
+  EAS creó y guarda. SHA-1 `92:94:09:A7:25:4C:BF:4F:7C:32:28:4F:3A:A7:19:F0:D3:5E:C6:4D` y su SHA-256
+  registradas en `mywallet-prod` (`firebase-tools apps:android:sha:create`). Probado en el moto:
+  login con Google contra `mywallet-prod`, onboarding y gasto respaldado.
+- [x] GitHub Release `v1.0.0` con `MyWallet.apk` como Latest; el release viejo `v1.5.0` y su tag se
+  eliminaron (decisión del usuario: la numeración arranca en 1.0.0).
 - [ ] Play Console: al activar Play App Signing, **subir la keystore de EAS como llave de firma**
   (en vez de dejar que Google genere una) para que el APK de GitHub y la versión de Play tengan la
   misma firma: así se puede actualizar de uno al otro sin desinstalar y basta un SHA-1 en Firebase.

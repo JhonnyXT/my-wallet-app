@@ -529,7 +529,7 @@ varias personas, cada una con su cuenta y su teléfono, registran en ella.
 ## Deuda técnica documentada
 
 - [ ] **Sin estrategia de testing para componentes `.tsx`, stores Zustand ni `src/db/`**: falta definir el mocking (`jest-expo`, mocks de `expo-sqlite`/AsyncStorage). Hoy Jest cubre solo utilidades puras y parsing (ver Tests).
-- [ ] **Sin keystore de producción**: `android/app/build.gradle` firma `release` con `signingConfigs.debug` (no existe keystore real ni `keystore.properties`, tampoco localmente). Un APK release firmado así dispara el bloqueo de Google Play Protect al instalarlo a mano; `adb install -r` lo evita. Solución disponible sin ejecutar: `npm run eas:prod` (ver Build variants), con keystore gestionada por EAS. Queda a decisión del usuario correr `eas login` + `npm run eas:prod`.
+- [x] ~~**Sin keystore de producción**~~ (resuelto 2026-10-06): `prod` se firma con la keystore que creó y guarda EAS (`npm run eas:prod`/`eas:prod:apk`, o `eas build --local` con las mismas credenciales). `dev`/`test` siguen con la debug keystore a propósito (SHA-1 registrada en `mywallet-test-jb`).
 
 ---
 

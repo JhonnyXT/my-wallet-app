@@ -91,21 +91,18 @@ npm run lint
 
 ## Despliegue
 
-Proyecto **`mywallet`** en Vercel (cuenta `jonathanblandon1017-5123`). Se
-despliega desde `landing/` con la CLI, así que la raíz del deploy es esta carpeta. Público en **https://usemywallet.vercel.app** (antes `mywallet-blush.vercel.app`, que ya no responde: si cambia el dominio, actualizar `NEXT_PUBLIC_SITE_URL` y buscar la URL vieja en todo el repo, incluidas las políticas y `PLAY_DATA_SAFETY.md`)
+Proyecto **`mywallet`** en Vercel (cuenta `jonathanblandon1017-5123`), conectado
+al repo de GitHub con `Root Directory` = `landing`. Público en **https://usemywallet.vercel.app** (antes `mywallet-blush.vercel.app`, que ya no responde: si cambia el dominio, actualizar `NEXT_PUBLIC_SITE_URL` y buscar la URL vieja en todo el repo, incluidas las políticas y `PLAY_DATA_SAFETY.md`)
 (`mywallet.vercel.app` a secas ya lo tiene otra cuenta — los subdominios
 `.vercel.app` son globales, no por cuenta). `RESEND_API_KEY` y
 `NEXT_PUBLIC_SITE_URL` ya configuradas en Production/Preview/Development
 (2026-09-24).
 
-**El repo de GitHub está conectado, pero con `Root Directory` = `.`**
-(visto el 2026-10-06): cada push a `master` dispara un deploy desde la raíz del
-repo que falla ("No Next.js version detected"). Los fallidos no se publican, así
-que el sitio sigue siendo el último `vercel deploy --prod` hecho a mano desde
-`landing/`. Para el deploy automático hay que poner `Root Directory` = `landing`
-en [Settings → Build and Deployment](https://vercel.com/jonathanblandon1017-5123s-projects/mywallet/settings)
-(desde el navegador). Mientras tanto, después de cada push que toque `landing/`,
-repetir `vercel deploy --prod`.
+**Deploy automático:** cada push a `master` publica el sitio (Root Directory
+pasado de `.` a `landing` el 2026-10-06 por la API de Vercel; antes cada push
+fallaba con "No Next.js version detected"). Con el Root Directory puesto, un
+deploy a mano con la CLI tiene que correrse desde la **raíz del repo** (Vercel
+le agrega `landing/` encima), no desde `landing/`.
 
 Si se compra un dominio propio, se agrega en Settings → Domains del mismo
 proyecto y hay que actualizar `NEXT_PUBLIC_SITE_URL` (Vercel dashboard, las 3

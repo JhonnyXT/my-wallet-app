@@ -271,8 +271,7 @@ sin internet) y, tras deslizar hacia abajo, los dos ven lo mismo y las mismas cu
   (`docs/` tenía `…101@`, un error de tipeo).
 - [x] **URL web para pedir la eliminación de la cuenta**: `landing/` → `/[lang]/delete-account`
   (`https://usemywallet.vercel.app/es/delete-account`), con los pasos en la app y un `mailto:`
-  prellenado desde el correo de la cuenta (sin formulario ni backend). Falta desplegar la landing
-  (`vercel deploy --prod`).
+  prellenado desde el correo de la cuenta (sin formulario ni backend). Publicada el 2026-10-06.
 - [x] Respuestas del formulario de Data Safety y procedimiento para atender una solicitud de
   eliminación: [`PLAY_DATA_SAFETY.md`](PLAY_DATA_SAFETY.md). Llenarlo en Play Console es manual.
 - [x] `README.md`, `DOCUMENTATION.md` (FAQ "¿funciona sin internet?", cuenta, eliminar),

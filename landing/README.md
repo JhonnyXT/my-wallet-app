@@ -58,29 +58,23 @@ npm run lint
   `/api/unsubscribe` → `unsubscribeEmail` en `src/lib/waitlist.ts` (`opt_out`
   del topic, nunca la baja global, que sacaría a la persona también de
   Meld). `NEXT_PUBLIC_JOBLAN_URL` cambia la URL de joblan si hace falta.
-- **Enlaces externos**: `src/lib/links.ts` (`PRIVACY_URL` de referencia,
-  `SUPPORT_EMAIL`). El footer ya no enlaza al repo de GitHub ni a Issues
-  (`Soporte` es un `mailto:` directo); si se necesita reportar algo en
-  GitHub, es manual.
-- **Política de privacidad**: DOS copias a propósito, no fusionar.
-  `docs/privacy-policy.html` (GitHub Pages,
-  `https://jhonnyxt.github.io/my-wallet-app/privacy-policy.html`) es la URL
-  registrada en Play Console — no moverla ni depender de que el sitio nuevo
-  la reemplace. El sitio en sí enlaza (footer y sección "Privacidad") a
-  `/[lang]/privacy`, una página propia con el mismo patrón tipado que
-  `meld-app/landing` (`src/legal/docs.ts` + `LegalPage.tsx`): título, fecha,
-  intro y secciones con lista u párrafos, en español e inglés. Cubre además
-  los emails de la lista de espera (Resend). Si cambia algo real (permisos,
-  qué se sube a la nube, proveedor de la lista de espera, exportación),
-  actualizar **ambos** documentos.
+- **Enlaces externos**: `src/lib/links.ts` (`SUPPORT_EMAIL`). El footer no
+  enlaza al repo de GitHub ni a Issues (`Soporte` es un `mailto:` directo).
+- **Política de privacidad**: esta web es la oficial (2026-10-06) y
+  `/[lang]/privacy` es la única política de MyWallet y la URL para Play
+  Console; `docs/` (GitHub Pages) solo redirige aquí. Mismo patrón tipado que
+  `meld-app/landing` (`src/legal/docs.ts` + `LegalPage.tsx`), en español e
+  inglés. Cubre además los emails de la lista de espera (Resend). Si cambia algo
+  real (permisos, qué se sube a la nube, proveedor de la lista de espera,
+  exportación), revisar también `PLAY_DATA_SAFETY.md`.
 - **Eliminar cuenta** (`/[lang]/delete-account`, mismo `LegalPage` con
   `legalDocs.deleteAccount`): la URL web para pedir la eliminación que exige
   Google Play (`https://usemywallet.vercel.app/es/delete-account`). Explica
   cómo hacerlo en la app y, sin la app, un botón `mailto:` prellenado (desde el
   correo de la cuenta, así ya viene verificado quién lo pide; sin formulario ni
-  API a propósito). Enlazada desde el footer y desde las dos políticas. Si cambia
-  la URL del sitio, actualizarla en `docs/privacy-policy.html`, `README.md`,
-  `DOCUMENTATION.md` y Play Console. Atender una solicitud: ver
+  API a propósito). Enlazada desde el footer y desde la política. Si cambia
+  la URL del sitio, actualizarla en `docs/` (redirección), `README.md`,
+  `DOCUMENTATION.md`, `PLAY_DATA_SAFETY.md` y Play Console. Atender una solicitud: ver
   `PLAY_DATA_SAFETY.md` en la raíz.
 - **Secciones**: `src/components/sections/*`, en el orden de
   `src/app/[lang]/page.tsx`.

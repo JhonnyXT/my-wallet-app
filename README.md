@@ -5,8 +5,9 @@ internet y los datos viven en el dispositivo (SQLite). Con cuenta de Google (opc
 en Firebase y se pueden compartir listas con otras personas — sin backend propio. Ver
 [`SYNC_ROADMAP.md`](SYNC_ROADMAP.md).
 
-🔗 **Landing pública:** https://jhonnyxt.github.io/my-wallet-app/
-🔒 **Política de privacidad:** https://jhonnyxt.github.io/my-wallet-app/privacy-policy.html
+🔗 **Web oficial:** https://usemywallet.vercel.app
+🔒 **Política de privacidad:** https://usemywallet.vercel.app/es/privacy
+⬇️ **Descargar el APK:** https://github.com/JhonnyXT/my-wallet-app/releases/latest/download/MyWallet.apk
 🗑️ **Eliminar cuenta:** https://usemywallet.vercel.app/es/delete-account
 
 ## Features
@@ -80,7 +81,8 @@ my-wallet-app/
 │   ├── theme/       # Tokens de diseño (light/dark)
 │   └── utils/       # Formateo de moneda, parser de notificaciones, NLP de voz/texto
 ├── android/        # Proyecto Android nativo
-└── docs/           # Landing pública + política de privacidad (GitHub Pages)
+├── landing/        # Web oficial (Next.js en Vercel): portada, política, eliminar cuenta
+└── docs/           # GitHub Pages: solo redirige a la web oficial
 ```
 
 ## Estado del proyecto

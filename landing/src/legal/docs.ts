@@ -1,15 +1,12 @@
 // Texto de la Política de Privacidad para la landing (Next.js), en el mismo
 // formato tipado que usa `meld-app/landing` (repo hermano) para su LegalPage.
 //
-// Esta es una SEGUNDA copia de la política, pensada para verse bien dentro de
-// la landing nueva. La copia "oficial" ante Google Play sigue siendo
-// `docs/privacy-policy.html` (GitHub Pages) — esa URL está registrada en Play
-// Console y no se cambia (ver `AGENTS.md` § Landing page y GitHub Pages). Si
-// cambia algo real (permisos, qué se sube a la nube, proveedor de la lista de
-// espera, exportación), hay que actualizar AMBOS documentos.
-//
-// `deleteAccount` sí vive solo aquí: es la "URL para pedir la eliminación de la
-// cuenta" que exige Google Play (`/[lang]/delete-account`).
+// Es la ÚNICA política de MyWallet: la web oficial es usemywallet.vercel.app y
+// `/[lang]/privacy` es la URL para Google Play Console (`docs/` de GitHub Pages
+// solo redirige aquí). `deleteAccount` es la "URL para pedir la eliminación de
+// la cuenta" que exige Play (`/[lang]/delete-account`). Si cambia algo real
+// (permisos, qué se sube a la nube, proveedor de la lista de espera,
+// exportación), revisar también `PLAY_DATA_SAFETY.md`.
 
 import type { Locale } from '@/i18n/config';
 

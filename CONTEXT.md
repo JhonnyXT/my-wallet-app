@@ -227,7 +227,7 @@ my-wallet-app/
 ├── plugins/                      # Config plugins de Expo (cambios al proyecto nativo, android/ está en .gitignore)
 ├── scripts/                      # build-android.sh (build:dev/build:test), seed-dev-data.py (datos de prueba "datos-prueba" en dev vía adb run-as), emulators.sh, test-rules.sh
 ├── assets/images/                # Iconos, splash, favicon
-├── docs/                         # Sitio estático GitHub Pages: index.html (landing), privacy-policy.html, icon.png, favicon.png
+├── docs/                         # GitHub Pages: solo redirige a usemywallet.vercel.app (index.html, privacy-policy.html)
 ├── landing/                      # Landing nueva (Next.js, proyecto npm aparte): incluye /[lang]/privacy y /[lang]/delete-account
 ├── .github/workflows/            # CI: eas-build.yml, eas-update.yml
 ├── DOCUMENTATION.md              # Guía de usuario
@@ -730,7 +730,7 @@ cómo probar con el emulador) en `AGENTS.md` → "Datos listos para sync", "Resp
 - Reglas: `firestore.rules`, 23 casos en `npm run test:rules` (emulador, fuera de `npm test`).
 
 ### Cumplimiento (Fase 5)
-`docs/privacy-policy.html` y `landing/src/legal/docs.ts` describen la cuenta, el respaldo y las
+`landing/src/legal/docs.ts` (la política de la web oficial) describe la cuenta, el respaldo y las
 listas compartidas; la landing tiene `/[lang]/delete-account` (URL de eliminación que pide Play);
 `PLAY_DATA_SAFETY.md` guarda las respuestas del formulario de Data Safety; `app.config.ts` →
 `android.blockedPermissions` quita permisos que la app no usa. Falta el build `prod` por EAS y
@@ -1745,33 +1745,25 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 - `JAVA_HOME` — JDK 17 para builds locales
 - `ANDROID_HOME` — Android SDK
 
-### Landing page y política de privacidad (GitHub Pages, `docs/`)
+### Web oficial y política de privacidad (`landing/`, Vercel)
 
-Además del build de la app, el repo sirve un sitio estático público vía **GitHub Pages**, configurado
-a nivel de repositorio (rama `master`, carpeta `/docs`) — no es parte del pipeline de EAS ni de la app
-en sí. Público en **https://jhonnyxt.github.io/my-wallet-app/**.
+La web oficial es **https://usemywallet.vercel.app** (`landing/`, Next.js en Vercel, deploy automático
+con cada push a `master`). Ahí viven la política de privacidad (`/[lang]/privacy`, la URL para Play
+Console; texto en `landing/src/legal/docs.ts`) y la página para pedir la eliminación de la cuenta
+(`/[lang]/delete-account`). Las respuestas de Data Safety están en `PLAY_DATA_SAFETY.md`. Si cambia
+qué se sube a la nube, revisar los dos.
 
-| Archivo | Contenido |
-|---------|-----------|
-| `docs/index.html` | Landing pública: hero, features, CTA "Descargar APK" |
-| `docs/privacy-policy.html` | Política de privacidad (antes vivía dentro de `index.html`, se separó a su propio archivo) |
-| `docs/icon.png`, `docs/favicon.png` | Assets del sitio |
-
-**Motivo de existencia:** Google Play Console exige una URL pública de política de privacidad para
-publicar la app en la Play Store — `docs/privacy-policy.html` cumple ese requisito de compliance. No
-está pensado como manual de usuario ni documentación del producto (eso es `DOCUMENTATION.md`).
-Desde la Sync Fase 5 (2026-10-05) describe la cuenta opcional, el respaldo en Firebase y las listas
-compartidas, igual que la copia de la landing nueva (`landing/src/legal/docs.ts`); la URL para
-pedir la eliminación de la cuenta vive en `landing/` (`/[lang]/delete-account`) y las respuestas de
-Data Safety en `PLAY_DATA_SAFETY.md`. Si cambia qué se sube a la nube, revisar los tres.
+`docs/` (GitHub Pages, `https://jhonnyxt.github.io/my-wallet-app/`) solo redirige a esa web desde el
+2026-10-06 (`index.html` → la portada, `privacy-policy.html` → `/es/privacy`). GitHub solo aloja el
+APK en Releases.
 
 **Versiones y release:** versionName en semver (`1.0.0` = lanzamiento, 2026-10-06); el versionCode
-de `prod` lo lleva EAS y solo crece. El botón "Descargar APK" de `docs/index.html` apunta a
+de `prod` lo lleva EAS y solo crece. El enlace de descarga es
 `https://github.com/JhonnyXT/my-wallet-app/releases/latest/download/MyWallet.apk`: por versión
 basta con `npm run eas:prod:apk` y `gh release create vX.Y.Z MyWallet.apk --latest` (el asset tiene
-que llamarse `MyWallet.apk`), sin tocar el HTML. Detalle en `AGENTS.md` (Landing page y GitHub Pages).
+que llamarse `MyWallet.apk`). Detalle en `AGENTS.md` (Landing page y GitHub Pages).
 
-La landing se diseñó con ayuda de la skill/plugin `ui-ux-pro-max`, instalada a nivel de usuario de
+La landing anterior de `docs/` (hoy solo una redirección) se diseñó con ayuda de la skill/plugin `ui-ux-pro-max`, instalada a nivel de usuario de
 Claude Code — no es parte de este repo ni de `.agents/skills/`, no requiere instalación local para
 clonar/editar el HTML.
 
@@ -1811,12 +1803,6 @@ clonar/editar el HTML.
 Ahora viven en `moneyColors` (`src/theme/tokens.ts`) y los usan el Dashboard, `reports.tsx` (que
 perdió su `SEGMENT_COLORS` local), `TransactionDetailModal`, `FloatingDock`, `CategoryChart` y
 `voice-batch-review.tsx`.
-
-### Proceso manual sin automatizar: link de descarga de la landing (`docs/index.html`)
-El botón "Descargar APK" de la landing pública (GitHub Pages) apunta a un asset fijo de un GitHub
-Release puntual (ver sección 17, subsección "Landing page y política de privacidad"). No hay CI que
-actualice este link cuando sale una versión nueva de la app — es un paso manual que hay que recordar
-en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún aviso.
 
 ### Configuración de teclado (Android)
 - `app.config.ts` usa `softwareKeyboardLayoutMode: "resize"` para evitar que el teclado cubra contenido
@@ -2003,7 +1989,7 @@ registro, no se mantiene al día: si algo aquí contradice a `AGENTS.md` o al c�
 - No usar toasts in-app: el sistema de toasts (`useToastStore`, `ToastContainer`, `ToastBanner`) fue eliminado. Errores críticos usan `Alert.alert`; eventos importantes (presupuesto, transacción detectada, meta cumplida) usan notificaciones push del sistema.
 - `reset()` en `useVoiceStore` debe llamarse ANTES de `setPendingBatch()` — si se invierte el orden, el batch se pierde.
 - **Bug de dictado corregido en `app/voice-input.tsx` (2026-09-23): el timer propio de 2s de silencio podía perder el dictado en silencio, sin navegar a ningún lado.** Cuando el timer de silencio llamaba `SpeechModule.stop()` (`expo-speech-recognition`) y el módulo nativo terminaba con el evento `"end"` sin antes emitir un `"result"` con `isFinal:true` (pasa en algunos dispositivos/versiones de Android — no garantizado por la librería), el listener de `"end"` solo hacía `setStatus("idle")`: nunca llamaba a `handleDone()`, así que nunca navegaba a `active-expense`/`voice-batch-review`. Fix con dos refs nuevas: `transcriptTextRef` (transcript acumulado, actualizado en cada `"result"`) y `silenceStopRef` (true solo si el próximo `stop()` viene del timer de silencio, no de un stop manual del usuario vía el botón de pausa). El listener de `"end"` ahora: si `silenceStopRef` es true y hay texto pendiente en `transcriptTextRef`, llama a `handleDone(pending)` en vez de solo poner `idle` — recupera el dictado que antes se perdía. Un stop MANUAL (botón "pausar") no dispara `silenceStopRef`, sigue quedando en pausa sin auto-enviar, sin cambios de comportamiento ahí. Guard adicional contra doble-procesamiento: cuando `event.isFinal` dispara `handleDone` desde el listener de `"result"`, se limpia `transcriptTextRef.current = ""` ANTES de llamar `handleDone` — si el `"end"` llega justo después (con `statusRef` todavía no actualizado a `"processing"` por el delay normal de setState de React), el guard de `pending` en el listener de `"end"` lo encuentra vacío y no reprocesa el mismo texto una segunda vez.
-- El link de descarga de `docs/index.html` (landing en GitHub Pages) apunta a un asset fijo de un GitHub Release, no a "la última versión" — ver sección [Landing page y GitHub Pages](#landing-page-y-github-pages-docs) para el proceso manual que hay que repetir en cada release nueva.
+- El APK se descarga siempre del último release de GitHub (`releases/latest/download/MyWallet.apk`); `docs/` (GitHub Pages) solo redirige a la web oficial, `usemywallet.vercel.app`.
 - **Si `adb devices`/`adb install` falla con `protocol fault (couldn't read status): Connection reset by peer`** al correr `/arrancar`, `/dev` o `/build-apk` en este entorno de desarrollo: no es un problema del proyecto, es que el sandbox mata el daemon de `adb` antes del handshake. El SDK ya está instalado en `~/Android/Sdk`; el workaround (levantar el servidor en primer plano en la misma invocación de shell) está documentado en `.agents/snippets/entorno-android.md` (fuente única, leída por los workflows `build-apk` y `dev`). Esto NO aplica a la sección PowerShell del mismo snippet (para el entorno real del usuario, no para este sandbox).
 - **Capa aditiva de tokens (`src/theme/tokens.ts`), puerto del sistema de diseño de Habit Tracker (Bloque B, 2026-08-03).** Coexiste con `AppTheme`/`useTheme()` (`src/theme/index.ts`) sin reemplazarlo: expone tipografía (`largeTitle`/`headline`/`body`/`subheadline`/`footnote`/`sectionHeader`), spacing (`xxs`…`xxl`), `radius`, `motion` (`spring.default`/`spring.snappy`/`pressScale`) y colores anidados `surface.primary/secondary/elevated`, `text.primary/secondary/accent`, `border.default`, `accent.default/subtle`, `state.success/warning/danger/dangerSubtle` — para light y dark — vía el hook `useAppTokens()` (reutiliza `theme.isDark` de `useTheme()`, no duplica la resolución de esquema). Los 23 archivos que ya usan `AppTheme` no se tocaron; solo los componentes nuevos (`ThemedText`, `PressableScale`, `Card`/`SectionHeader`/`Divider`, `ListRow`, `StackedScreenHeader` en `src/components/ui/`) y `app/settings.tsx` consumen `tokens`. El acento sigue siendo el fijo de la app (`#135BEC` claro / `#4B82EF` oscuro), no el naranja de Habit Tracker. Migrar el resto de pantallas a esta capa es trabajo futuro, no de este cambio. (Nota: `tokenColors.dark.surface.primary` cambió después de `#000000` a `#0D1117` el 2026-09-03 para igualar `theme.bg` — ver gotcha con esa fecha más abajo.)
 - **`ListRow` (`src/components/ui/ListRow.tsx`) tiene un slot `right?: ReactNode`** que reemplaza detail+chevron por un control custom (`Switch`, botones editar/eliminar, etc.) — necesario porque el `ListRow` de Habit Tracker no contempla `Switch` ni acciones duales. También expone `labelColor?: string` para labels en acento (ej. fila "Agregar método") sin marcarlas `destructive`. **`detail` tiene `numberOfLines={1}` + `maxWidth: 120` + `flexShrink: 0`, y `label` tiene `numberOfLines={1}`**: sin esto, un `detail` largo (ej. "Cuentas y formas de pago") se queda con `flexBasis` de contenido completo y sin `flexShrink`, y le quita casi todo el ancho al `label` (flex:1, `flexBasis: 0%`), partiéndolo en 3-4 líneas ilegibles — detectado en dispositivo físico real, no en el simulador/lint. Si `label` sigue truncándose demasiado agresivo con un `detail` corto, acortar el texto de `detail` en el call site en vez de tocar el componente. **Actualización 2026-09-03:** en la pantalla principal de Ajustes (`SettingsScreen` + `AutoDetectSection`) esto ya no aplica — se quitó el prop `detail` de todas sus filas (el texto gris truncaba el título: "Ingreso men…", "Métodos de …"). La única fila del screen principal que aún pasa `detail` es "Versión" (su contenido es el dato `v{APP_VERSION}`, no un subtítulo). Los `detail` de las sub-pantallas (`FullScreenModal` de Métodos de pago → tipo de cuenta; Categorías → "Predefinida"/"Personalizada") siguen intactos y ahí el guard de `numberOfLines`/`maxWidth` sigue siendo relevante.

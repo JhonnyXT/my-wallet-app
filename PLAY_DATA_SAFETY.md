@@ -3,13 +3,13 @@
 Guía para llenar a mano las secciones de **Contenido de la app** de Play Console con lo que la
 app hace de verdad desde la sync con Firebase (Fases 2–4 de [`SYNC_ROADMAP.md`](SYNC_ROADMAP.md)).
 Verificado contra el código el 2026-10-05. Si cambia qué se sube a la nube (`src/sync/`), revisar
-esta guía, `docs/privacy-policy.html` y `landing/src/legal/docs.ts` a la vez.
+esta guía y `landing/src/legal/docs.ts` (la política de la web oficial) a la vez.
 
 ## URLs
 
 | Campo de Play Console | Valor |
 |---|---|
-| Política de privacidad | `https://jhonnyxt.github.io/my-wallet-app/privacy-policy.html` |
+| Política de privacidad | `https://usemywallet.vercel.app/es/privacy` |
 | URL para eliminar la cuenta | `https://usemywallet.vercel.app/es/delete-account` |
 
 ## Seguridad de los datos (Data safety)

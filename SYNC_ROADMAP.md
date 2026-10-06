@@ -5,10 +5,9 @@ para respaldar toda la data en la nube y compartir espacios con otras personas. 
 2026-09-29. Cada fase deja la app funcionando y se puede probar sola; para implementar una fase
 con detalle, generar su spec con `/sdd` a partir de la sección correspondiente.
 
-**Estado:** Fases 0, 1, 2 y 3 hechas (la 3 probada de punta a punta con `test` contra la nube
-real el 2026-10-05). Fase 4 (espacios compartidos) con el código hecho y probado con dos
-teléfonos en `dev` y reglas desplegadas; falta probarla con `test` contra la nube real. Fase 5:
-textos legales y de la app actualizados; faltan el build `prod` por EAS y llenar Play Console.
+**Estado:** Fases 0 a 4 hechas: la 3 y la 4 probadas de punta a punta con `test` contra la nube
+real el 2026-10-05 (la 4, con dos teléfonos y dos cuentas). Fase 5: textos legales, borrados sin
+contenido y permisos hechos; faltan el build `prod` por EAS y llenar Play Console.
 
 ---
 
@@ -225,7 +224,7 @@ hay cambios sin subir.
 **Hecho cuando:** borrar la app, reinstalarla, iniciar sesión y ver exactamente lo mismo que
 antes; y registrar gastos en modo avión que aparecen en la nube al volver la conexión.
 
-### Fase 4 — Espacios compartidos · L — 🟡 código hecho y probado en `dev`
+### Fase 4 — Espacios compartidos · L ✅ (2026-10-05)
 Spec local (no versionado): `specs/sync-fase-4-espacios/`. Decisiones del usuario (2026-10-05):
 quien sale, es quitado o pierde el espacio porque el dueño lo eliminó **conserva la lista como
 propia** (desconectada, respaldada en su cuenta); se comparten **nombre, ícono, categorías,
@@ -253,10 +252,13 @@ Android).
   otro, sin conexión (sube al volver), lo compartido llega y el período no, salir, volver a
   unirse, eliminar para todos.
 - [x] Reglas nuevas desplegadas a `mywallet-test-jb` y `mywallet-prod` (2026-10-05).
-- [ ] Probar con `test` contra la nube real (dos teléfonos).
-  Incluye los borrados sin contenido (Fase 5): instalar `test` con este código, comprobar que un
-  borrado anterior queda en Firestore solo con `{ updatedAt, deletedAt }` tras sincronizar, que
-  un borrado nuevo sube así, y que el otro teléfono lo borra (lista personal y compartida).
+- [x] Probado con `test` contra la nube real (2026-10-05, S24 Ultra + moto e7 plus, dos cuentas):
+  login de Google en los dos, compartir y unirse sin personas sin app (entra con su primer nombre),
+  gastos en los dos sentidos con las mismas cuentas, eliminar para todos (el otro conserva la
+  lista como propia). Sin conexión, editar el del otro, salir y volver no se repitieron: ya
+  pasaron en `dev` y no dependen del servidor. Los borrados sin contenido (Fase 5) quedaron
+  verificados en el respaldo personal de las dos cuentas; en el espacio usan la misma función
+  (`transactionTombstoneDoc`) y su test, sin prueba aparte en el teléfono (decisión del usuario).
 
 **Hecho cuando:** dos teléfonos con cuentas distintas registran gastos en el mismo espacio (con y
 sin internet) y, tras deslizar hacia abajo, los dos ven lo mismo y las mismas cuentas.
@@ -276,7 +278,7 @@ sin internet) y, tras deslizar hacia abajo, los dos ven lo mismo y las mismas cu
   `docs/index.html`, `landing/` (textos que decían "100% offline" / "sin cuenta").
 - [x] Un movimiento borrado sube solo la marca `{ updatedAt, deletedAt }`, sin su contenido; los
   que ya habían subido con contenido se reemplazan una vez por teléfono (`tombstonesStripped`).
-  Se prueba junto con la Fase 4 en `test` (ver abajo).
+  Verificado en `test` (2026-10-05): los movimientos borrados quedan en la nube solo con la marca.
 - [x] Quitar permisos que no se usan del manifest con `android.blockedPermissions`
   (`READ_PHONE_STATE`, almacenamiento, `SYSTEM_ALERT_WINDOW`; ver `PLAY_DATA_SAFETY.md`). Verificado
   en el build `test` (2026-10-05): el APK no los trae (`aapt`), y en el S24 Ultra el listener queda

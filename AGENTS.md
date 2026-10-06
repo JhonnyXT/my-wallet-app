@@ -54,7 +54,8 @@ runtime de la app).
 ```bash
 npm run build:dev     # prebuild (incremental si no cambió el variant) + assembleDebug + adb install
 npm run build:test    # ídem con assembleRelease
-npm run eas:prod       # AAB/APK firmado con credenciales gestionadas por EAS, en la nube
+npm run eas:prod       # AAB para Google Play, firmado con la keystore gestionada por EAS, en la nube
+npm run eas:prod:apk   # APK de prod para GitHub Releases (mismo versionCode que el último AAB)
 ```
 
 `scripts/build-android.sh` (usado por `build:dev`/`build:test`) recuerda el último variant
@@ -251,7 +252,8 @@ my-wallet-app/
   - `docs/privacy-policy.html` — política de privacidad (antes vivía dentro de `index.html`, se separó a su propio archivo).
   - `docs/icon.png`, `docs/favicon.png` — assets del sitio.
 - **Relación con Play Store**: `docs/privacy-policy.html` existe para cumplir el requisito de Google Play Console de tener una URL pública de política de privacidad — es un artefacto de *compliance*, no parte de la app en sí (por eso no se documenta en `DOCUMENTATION.md`/`PRODUCT_REQUIREMENTS.md`, que cubren la app, no el sitio de marketing). Desde la Sync Fase 5 (2026-10-05) describe la cuenta opcional, el respaldo en Firebase y las listas compartidas. La **URL para pedir la eliminación de la cuenta** que exige Play vive en la landing nueva (`landing/` → `/[lang]/delete-account`, ver `landing/README.md`), y las respuestas del formulario de Data Safety + cómo atender una solicitud de eliminación por correo, en [`PLAY_DATA_SAFETY.md`](PLAY_DATA_SAFETY.md): si cambia qué se sube a la nube, revisar los tres a la vez.
-- **Proceso manual de release del APK (sin automatizar)**: el botón "Descargar APK" de `docs/index.html` apunta a un asset fijo de un GitHub Release (ej. `https://github.com/JhonnyXT/my-wallet-app/releases/download/v1.5.0/app-release.apk`), no a "la última versión" dinámicamente. Al sacar una versión nueva de la app hay que, manualmente: (1) publicar un GitHub Release nuevo con el APK compilado (`gh release create vX.Y.Z <ruta-al-apk> ...`) y (2) actualizar el link de descarga en `docs/index.html` para que apunte al asset nuevo. Si se omite el paso 2, la landing sigue ofreciendo una versión vieja del APK sin que nada lo avise — no hay CI que sincronice esto.
+- **Versiones (estándar de Android/Play)**: `version` de `app.config.ts` es el versionName visible, en semver `MAJOR.MINOR.PATCH` (PATCH = arreglos, MINOR = funciones nuevas compatibles, MAJOR = cambios grandes); `1.0.0` es el lanzamiento en Google Play (los `1.x` anteriores, incluido el release `v1.5.0` de GitHub, fueron builds preliminares). Mantener `version` de `package.json` igual. El versionCode (entero) es lo único que Play compara: debe crecer en cada subida y nunca bajar; el de `prod` lo lleva EAS (`appVersionSource: "remote"`, `autoIncrement` en el perfil `prod`), y el `versionCode` de `app.config.ts` solo aplica a los builds locales de dev/test (bajarlo rompe `adb install -r`). El perfil `prod-apk` no incrementa: reutiliza el versionCode del último AAB, para que el APK de GitHub y la versión de Play de un mismo release coincidan.
+- **Release del APK en GitHub**: el botón "Descargar APK" de `docs/index.html` (y el de `privacy-policy.html`) apunta a `https://github.com/JhonnyXT/my-wallet-app/releases/latest/download/MyWallet.apk`, que siempre baja el asset `MyWallet.apk` del release marcado como "Latest". Por release: `npm run eas:prod:apk`, descargar el APK y `gh release create vX.Y.Z MyWallet.apk --latest ...` (el asset **tiene** que llamarse `MyWallet.apk`). Ya no hay que editar el HTML en cada versión.
 - La landing de `docs/` se diseñó con ayuda de la skill/plugin `ui-ux-pro-max` (instalada a nivel de usuario de Claude Code, no es parte de este repo). La metodología aplicada —qué se tomó del generador y qué se descartó— está documentada en [`.agents/README.md`](.agents/README.md#diseño-de-la-landing-con-ui-ux-pro-max-metodología).
 
 ---
@@ -520,7 +522,7 @@ varias personas, cada una con su cuenta y su teléfono, registran en ella.
 ### Varios
 
 - No hay toasts in-app. Errores críticos: `Alert.alert`. Eventos importantes (presupuesto, transacción detectada, meta cumplida): notificación push del sistema.
-- El link de descarga de `docs/index.html` apunta a un asset fijo de un GitHub Release; ver [Landing page y GitHub Pages](#landing-page-y-github-pages-docs) para el proceso manual de cada release.
+- El link de descarga de `docs/index.html` siempre baja `MyWallet.apk` del último release de GitHub; ver [Landing page y GitHub Pages](#landing-page-y-github-pages-docs) para versiones y releases.
 
 ---
 

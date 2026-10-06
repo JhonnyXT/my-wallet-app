@@ -283,7 +283,18 @@ sin internet) y, tras deslizar hacia abajo, los dos ven lo mismo y las mismas cu
   (`READ_PHONE_STATE`, almacenamiento, `SYSTEM_ALERT_WINDOW`; ver `PLAY_DATA_SAFETY.md`). Verificado
   en el build `test` (2026-10-05): el APK no los trae (`aapt`), y en el S24 Ultra el listener queda
   enlazado sin crashes ni ANR. Falta ver una notificación real del banco llegar como pendiente.
-- [ ] Build `prod` por EAS con los SHA-1 de producción registrados en Firebase.
+- [x] Versión `1.0.0` para el lanzamiento (semver; versionCode remoto en EAS), perfiles `prod`
+  (AAB para Play) y `prod-apk` (APK para GitHub, mismo versionCode), descarga de `docs/` apuntando
+  a `releases/latest/download/MyWallet.apk` (2026-10-06).
+- [ ] Build `prod` por EAS (`eas login` + `npm run eas:prod` y `npm run eas:prod:apk`) y SHA-1 de la
+  keystore de EAS (`eas credentials`) registrada en `mywallet-prod`.
+- [ ] GitHub Release `v1.0.0` con `MyWallet.apk` marcado como Latest (y decidir qué hacer con el
+  release viejo `v1.5.0`).
+- [ ] Play Console: al activar Play App Signing, **subir la keystore de EAS como llave de firma**
+  (en vez de dejar que Google genere una) para que el APK de GitHub y la versión de Play tengan la
+  misma firma: así se puede actualizar de uno al otro sin desinstalar y basta un SHA-1 en Firebase.
+  Si Google genera la suya, registrar también ese SHA-1 en `mywallet-prod` o el login falla en la
+  app de la tienda.
 
 ---
 

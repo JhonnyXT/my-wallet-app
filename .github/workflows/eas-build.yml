@@ -1,7 +1,13 @@
-name: EAS Build (Android APK)
+name: EAS Build (Android)
 
 on:
   workflow_dispatch: # solo se lanza manualmente desde GitHub Actions
+    inputs:
+      profile:
+        description: "Perfil de eas.json: prod (AAB para Play) o prod-apk (APK para GitHub)"
+        type: choice
+        options: [prod, prod-apk]
+        default: prod
 
 jobs:
   build:
@@ -28,5 +34,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Android APK (preview)
-        run: eas build --platform android --profile preview --non-interactive
+      - name: Build Android (${{ inputs.profile }})
+        # La CLI resuelve app.config.ts aquí: sin APP_VARIANT tomaría dev (applicationId equivocado).
+        env:
+          APP_VARIANT: prod
+        run: eas build --platform android --profile ${{ inputs.profile }} --non-interactive

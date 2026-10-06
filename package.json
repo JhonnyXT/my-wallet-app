@@ -1,7 +1,7 @@
 {
   "name": "my-wallet-app",
   "main": "index.js",
-  "version": "1.5.0",
+  "version": "1.0.0",
   "scripts": {
     "start": "APP_VARIANT=dev expo start",
     "android": "APP_VARIANT=dev expo run:android",
@@ -10,6 +10,7 @@
     "build:dev": "./scripts/build-android.sh dev",
     "build:test": "./scripts/build-android.sh test",
     "eas:prod": "APP_VARIANT=prod eas build --profile prod --platform android",
+    "eas:prod:apk": "APP_VARIANT=prod eas build --profile prod-apk --platform android",
     "emulators": "./scripts/emulators.sh",
     "emulators:reverse": "adb reverse tcp:9099 tcp:9099 && adb reverse tcp:8080 tcp:8080",
     "test": "jest",

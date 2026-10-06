@@ -60,7 +60,10 @@ const googleWebClientId = existsSync(googleServicesFile)
 const config: ExpoConfig = {
   name: current.name,
   slug: "my-wallet-app",
-  version: "1.5.0",
+  // Versión visible (versionName), semver MAJOR.MINOR.PATCH: PATCH = arreglos, MINOR = funciones
+  // nuevas compatibles, MAJOR = cambios grandes. 1.0.0 = lanzamiento en Google Play (los 1.x de
+  // antes eran builds de prueba). Al cambiarla, subir también `version` de package.json.
+  version: "1.0.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: current.scheme,
@@ -86,6 +89,9 @@ const config: ExpoConfig = {
   android: {
     package: current.package,
     googleServicesFile,
+    // versionCode solo para los builds locales (dev/test): no puede bajar, o `adb install -r`
+    // falla por downgrade. El de prod lo lleva EAS (`appVersionSource: "remote"` en eas.json) y lo
+    // sube solo en cada build de Play; Play exige que siempre crezca, sin importar la versión visible.
     versionCode: 2,
     softwareKeyboardLayoutMode: "resize",
     // Permisos que agregan librerías o el template y la app no usa (Play los cuestiona, ver

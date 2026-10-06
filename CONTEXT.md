@@ -2,7 +2,7 @@
 
 > **Propósito:** Este documento es la referencia técnica completa del proyecto. Cualquier desarrollador, IA o colaborador que lea este archivo tendrá TODO el contexto necesario para desarrollar, modificar o extender la aplicación sin perder consistencia.
 >
-> **Última actualización:** 2026-09-29 | **Versión:** 1.5.0
+> **Última actualización:** 2026-10-05 | **Versión:** 1.5.0
 >
 > Nota de cobertura: este documento se actualiza incrementalmente por sesión de trabajo — algunas
 > secciones (ej. pantallas de onboarding `notification-onboarding.tsx`/`bank-selection-onboarding.tsx`,
@@ -20,6 +20,7 @@
 5. [Sistema de Navegación](#5-sistema-de-navegación)
 6. [Estado Global (Zustand Stores)](#6-estado-global-zustand-stores)
 6b. [Listas y Gasto Compartido](#6b-listas-y-gasto-compartido)
+6c. [Cuenta y Sincronización (Firebase)](#6c-cuenta-y-sincronización-firebase)
 7. [Base de Datos (SQLite)](#7-base-de-datos-sqlite)
 8. [Sistema de Temas (Light / Dark)](#8-sistema-de-temas-light--dark)
 9. [Sistema NLP (Procesamiento de Lenguaje Natural)](#9-sistema-nlp-procesamiento-de-lenguaje-natural)
@@ -43,7 +44,7 @@
 **MyWallet** es una aplicación personal de control financiero diseñada bajo el principio de **"Minimalismo Funcional"** y **"Cero Fricción"**:
 
 - **Registro en un corto tiempo** mediante texto libre con NLP o entrada por voz
-- **Local-first** — funciona completa sin internet con datos locales en SQLite; con internet y sesión iniciada (Google, opcional) sincroniza con Firebase para respaldo y espacios compartidos, sin servidor propio ni suscripciones (en implementación, ver `SYNC_ROADMAP.md`)
+- **Local-first** — funciona completa sin internet con datos locales en SQLite; con internet y sesión iniciada (Google, opcional) sincroniza con Firebase para respaldo y espacios compartidos, sin servidor propio ni suscripciones (Fases 1–4 hechas, Fase 5 de publicación en curso: ver `SYNC_ROADMAP.md` y sección 6c)
 - **Moneda:** Pesos colombianos ($ COP), separador de miles con puntos
 - **Idioma UI:** Español (todo texto visible al usuario debe estar en español)
 - **Plataforma objetivo:** Android (iOS en desarrollo)
@@ -81,6 +82,10 @@
 | **react-native-svg** | ^15.15.3 | Gráficos SVG (tarjetas semanales) |
 | **react-native-android-notification-listener** | ^5.0.1 | Captura de notificaciones push bancarias en background (Android) |
 | **expo-local-authentication** | ~55.0.18 | Bloqueo opcional con huella/rostro/PIN del sistema (`BiometricLockGate`) |
+| **@react-native-firebase/app, auth, firestore** | ^26.4.0 | Única red de la app: sesión y respaldo/espacios en Firestore, solo dentro de `src/sync/` (sección 6c) |
+| **@react-native-google-signin/google-signin** | ^16.1.5 | Login con Google (credencial para Firebase Auth), solo en `src/sync/` (`firebase.ts` lo configura, `session.ts` inicia/cierra sesión) |
+| **expo-crypto** | ~55.0.19 | UUID v4 de `newId()` (`src/utils/ids.ts`) para ids sincronizables |
+| **expo-file-system / expo-document-picker / expo-sharing** | ~55.0.x | Exportar/importar CSV por lista (`useCsvTransfer`) |
 
 ### Configuración Clave
 
@@ -98,6 +103,7 @@ my-wallet-app/
 ├── app/                          # Rutas (Expo Router)
 │   ├── _layout.tsx               # Root: ThemeProvider, initDB, Stack, splash, BiometricLockGate (capa encima del Stack)
 │   ├── +not-found.tsx            # 404
+│   ├── login-onboarding.tsx      # Onboarding paso 0: "Continuar con Google" / "Ahora no"; restaura si la cuenta ya tenía datos
 │   ├── category-onboarding.tsx   # Onboarding paso 1: categorías
 │   ├── pay-onboarding.tsx        # Onboarding paso 2: frecuencia de pago y pago esperado (PayPeriodForm, omitible)
 │   ├── notification-onboarding.tsx     # Onboarding paso 3: detección automática
@@ -115,6 +121,7 @@ my-wallet-app/
 │
 ├── src/                          # Lógica y componentes
 │   ├── components/ui/            # Componentes reutilizables
+│   │   ├── AccountSection.tsx    # Ajustes → CUENTA: login, estado del respaldo, cerrar sesión (Mantener/Borrar), otra cuenta, eliminar cuenta
 │   │   ├── AnimatedSplash.tsx    # Splash animado (icono + texto) al arrancar, usado en app/_layout.tsx
 │   │   ├── BiometricLockGate.tsx # Capa de bloqueo con huella/rostro/PIN (expo-local-authentication)
 │   │   ├── BottomSheet.tsx       # Hoja inferior base: tap fuera + swipe-down en el handle
@@ -131,7 +138,9 @@ my-wallet-app/
 │   │   ├── FloatingDock.tsx      # Dock flotante + FAB micrófono
 │   │   ├── FloatingInput.tsx     # Overlay input/búsqueda flotante
 │   │   ├── HueColorPicker.tsx    # Slider continuo de tono (PanResponder + LinearGradient) para categorías
-│   │   ├── ListEditorSheet.tsx   # Crear/editar lista: info+personas, y al crear, categorías (CategoryPickerGrid)
+│   │   ├── InviteSheet.tsx       # Código de invitación de una lista compartida + "Compartir código"
+│   │   ├── JoinSpaceSheet.tsx    # "Unirme con un código" → "¿Quién eres?" (Sync Fase 4)
+│   │   ├── ListEditorSheet.tsx   # Crear/editar lista: info+personas, compartir/invitar/salir, y al crear, categorías (CategoryPickerGrid)
 │   │   ├── ListMenu.tsx          # Menú anclado del botón "Personal ▾" del Dashboard: elegir/compartir/editar/nueva
 │   │   ├── ListRow.tsx           # Fila de lista agrupada (capa de tokens)
 │   │   ├── ListsSheet.tsx        # "Tus listas" en Ajustes
@@ -146,7 +155,12 @@ my-wallet-app/
 │   │   ├── ThemedText.tsx        # Texto con variantes tipográficas de tokens
 │   │   └── TransactionItem.tsx   # Item transacción + swipe-delete + tap-to-detail
 │   │
+│   ├── components/dashboard/     # NotificationBadgeBtn, TransactionDetailModal (hoja), SyncPullIndicator (deslizar el balance)
+│   ├── components/chat/          # Componentes del chat experimental
+│   │
 │   ├── constants/
+│   │   ├── appVariant.ts         # appVariant/isDev/isTest/isProd (variant de build, leído en runtime)
+│   │   ├── banks.ts              # Whitelist de bancos + claves AsyncStorage de la detección automática
 │   │   ├── categoryPresets.ts    # UserCategory, presets, paleta colores, emojis curados
 │   │   ├── layout.ts             # DOCK_HEIGHT, scrollBottomPadding
 │   │   ├── lists.ts              # DEFAULT_LIST_ID ("personal"), LIST_EMOJIS — aparte de src/db/ para que el store no arrastre expo-sqlite
@@ -156,8 +170,9 @@ my-wallet-app/
 │   │   └── ThemeContext.tsx       # Proveedor de tema claro/oscuro
 │   │
 │   ├── db/
-│   │   ├── db.ts                 # SQLite: transactions (list_id, paid_by), CRUD, LIST_SCOPE_SQL
-│   │   └── queries.ts            # Consultas agregadas (totales, stats), todas acotadas por LIST_SCOPE_SQL
+│   │   ├── db.ts                 # SQLite: transactions (list_id, paid_by, uid, updated_at, deleted_at, sync_state), CRUD, LIST_SCOPE_SQL, funciones de la sync
+│   │   ├── queries.ts            # Consultas agregadas (totales, stats), todas acotadas por LIST_SCOPE_SQL
+│   │   └── chatDb.ts             # Sesiones/mensajes del chat experimental
 │   │
 │   ├── features/
 │   │   └── chat/useLocalNLP.ts   # Hook de NLP local para el chat experimental
@@ -166,12 +181,23 @@ my-wallet-app/
 │   │   ├── notificationService.ts       # Notificaciones OS locales (expo-notifications): permisos, budget, metas
 │   │   └── notificationHeadlessTask.ts  # HeadlessJS task: procesa notif. bancarias en background
 │   │
+│   ├── sync/                     # ÚNICA capa con red (Firebase), ver sección 6c
+│   │   ├── index.ts              # API pública que importan pantallas y hooks (`@/src/sync`)
+│   │   ├── firebase.ts           # Cliente + emulador en dev; session.ts / useSession.ts (login, cerrar sesión, eliminar)
+│   │   ├── engine.ts             # Motor: traer → unir → subir; signOutWith, wipeLocalData, deleteAccountAndCloudData…
+│   │   ├── remote.ts             # Lecturas/escrituras de users/{uid} en Firestore
+│   │   ├── merge.ts / mappers.ts / meta.ts  # Puras, con tests: conflictos, fila ↔ documento, metadatos de sync
+│   │   ├── metaStore.ts / status.ts / net.ts / errors.ts  # Metadatos en AsyncStorage, useSyncStatus (Zustand), tope de red, mensajes
+│   │   └── spaces.ts / spacesRemote.ts / spaceActions.ts / spaceMappers.ts  # Espacios compartidos (Fase 4)
+│   │
 │   ├── store/
 │   │   ├── useFinanceStore.ts       # Transacciones (Zustand + SQLite) + switchList/deleteList
 │   │   ├── useExpenseStore.ts       # Formulario gasto/ingreso en curso
 │   │   ├── useNotificationStore.ts  # Cola persistida (AsyncStorage) de transacciones detectadas de notificaciones bancarias
-│   │   ├── useSettingsStore.ts      # Config usuario (persist AsyncStorage) + flags de notificaciones
-│   │   │   └── slices/               # 8 slices por dominio: categories, budget, payments, goals, debts, prefs, notifications, lists
+│   │   ├── useSettingsStore.ts      # Config usuario (persist AsyncStorage, version 3) + flags de notificaciones
+│   │   ├── settingsMigrations.ts    # migrateSettings(): migrate puro v0→v1→v2→v3, con tests
+│   │   ├── remoteSettings.ts        # applySettingsPatch(): aplicar lo traído de la nube respetando la lista activa
+│   │   │   └── slices/               # 9 slices por dominio: categories, budget, payments, goals, debts, prefs, notifications, lists, tombstones
 │   │   ├── useUIStore.ts            # Estado de UI (búsqueda, filtro por categoría, overlay NLP)
 │   │   └── useVoiceStore.ts         # Estado de reconocimiento de voz
 │   │
@@ -184,21 +210,30 @@ my-wallet-app/
 │       ├── emojiSearch.ts          # suggestEmojis — diccionario español ~150 emojis, sugerencia por nombre (categorías/metas/deudas/métodos de pago)
 │       ├── formatMoney.ts          # formatMoneyInput, formatMoneyDisplay, formatCOP
 │       ├── fuzzyMatch.ts           # levenshtein, fuzzyIncludes — tolerancia a typos en NLP de voz/texto
-│       ├── listShareText.ts        # Texto para compartir una lista (WhatsApp/correo): período, totales, cuentas
+│       ├── ids.ts                  # newId() — UUID v4 (expo-crypto) para ids sincronizables
+│       ├── listShareText.ts        # Texto para compartir una lista (WhatsApp/correo) y el de invitación con código
+│       ├── localChanges.ts         # emitLocalChange()/onLocalChange(): db.ts avisa escrituras, la sync escucha
 │       ├── nlp.ts                  # parseExpenseInput (texto rápido)
 │       ├── notificationParser/     # Parser de notificaciones bancarias (carpeta, un módulo por responsabilidad — ver sección 9b)
 │       ├── periodCycles.ts         # Frecuencias de pago, ciclos, vistas de período, budgetCycle, expectedPay (reemplaza periodFilter.ts)
 │       ├── settlement.ts           # computeSettlement/transferText/settlementHeadline — reparto de gastos compartidos
+│       ├── syncMerge.ts            # pickWinner() — regla de conflictos de la sync (pura)
 │       ├── tourRefs.ts             # Registro global de refs para el GuidedTour (getTourRef, TOUR_KEYS)
 │       └── voiceParser.ts          # Parseo de transcripción de voz
 │
 ├── index.js                      # Entrypoint: registra HeadlessJS task + delega a expo-router/entry
-├── scripts/                      # build-android.sh (build:dev/build:test), seed-dev-data.py (datos de prueba "datos-prueba" en dev vía adb run-as)
+├── firebase/                     # google-services.{test,prod}.json (versionados) + googleServices.js (webClientId para app.config.ts)
+├── firestore.rules               # Reglas de Firestore (users/{uid}, spaces/**, inviteCodes); npm run test:rules
+├── plugins/                      # Config plugins de Expo (cambios al proyecto nativo, android/ está en .gitignore)
+├── scripts/                      # build-android.sh (build:dev/build:test), seed-dev-data.py (datos de prueba "datos-prueba" en dev vía adb run-as), emulators.sh, test-rules.sh
 ├── assets/images/                # Iconos, splash, favicon
 ├── docs/                         # Sitio estático GitHub Pages: index.html (landing), privacy-policy.html, icon.png, favicon.png
+├── landing/                      # Landing nueva (Next.js, proyecto npm aparte): incluye /[lang]/privacy y /[lang]/delete-account
 ├── .github/workflows/            # CI: eas-build.yml, eas-update.yml
 ├── DOCUMENTATION.md              # Guía de usuario
 ├── PRODUCT_REQUIREMENTS.md       # MVP: visión, historias, estilo
+├── SYNC_ROADMAP.md               # Plan y estado de la sync por fases
+├── PLAY_DATA_SAFETY.md           # Respuestas del formulario de Data Safety de Play + cómo atender una eliminación por correo
 ├── CONTEXT.md                    # ← ESTE ARCHIVO
 └── [configs]                     # package.json, tsconfig, babel, metro, eas, tailwind
 ```
@@ -220,6 +255,10 @@ my-wallet-app/
 ├─────────────────────────────────────────────────────────┤
 │  src/db/ (Persistencia — SQLite)                         │
 │  Capa de datos pura, sin lógica de negocio               │
+├─────────────────────────────────────────────────────────┤
+│  src/sync/ (Sincronización — Firebase)                   │
+│  ÚNICA capa con red; lee/escribe db + stores en segundo  │
+│  plano. Nadie más importa Firebase (boundary test)       │
 ├─────────────────────────────────────────────────────────┤
 │  src/features/ (Lógica de dominio)                       │
 │  NLP local, integración de voz                           │
@@ -255,10 +294,10 @@ my-wallet-app/
 
 ```
 Usuario → Pantalla (app/) → Store (Zustand) → DB (SQLite)
-                ↓                    ↑
-         Componentes UI ←── Theme Context
-                ↓
-         Utils (formateo, NLP)
+                ↓                    ↑               │ emitLocalChange()
+         Componentes UI ←── Theme Context            ↓
+                ↓                          src/sync/engine.ts ⇄ Firestore
+         Utils (formateo, NLP)            (segundo plano, nunca bloquea la UI)
 ```
 
 ### Principios Arquitectónicos
@@ -287,7 +326,7 @@ Stack
 ├── active-expense           → Modal slide_from_bottom
 ├── settings                 → Modal slide_from_bottom
 ├── reports                  → Modal slide_from_bottom ("Promedios")
-├── category-onboarding → pay-onboarding → notification-onboarding → bank-selection-onboarding  (fade, router.push)
+├── login-onboarding → category-onboarding → pay-onboarding → notification-onboarding → bank-selection-onboarding  (fade, router.push; _layout entra con router.replace("/login-onboarding"))
 └── +not-found               → 404
 
 BiometricLockGate            → capa hermana ENCIMA del Stack (no lo envuelve), para que deep links y
@@ -357,10 +396,10 @@ interface ActiveExpense {
 **Patrón:** Estado efímero del formulario en curso. Se resetea al guardar/cerrar.
 
 ### useSettingsStore (persistido en AsyncStorage)
-Internamente organizado en 8 slices por dominio en `src/store/slices/` (`categoriesSlice`,
+Internamente organizado en 9 slices por dominio en `src/store/slices/` (`categoriesSlice`,
 `budgetSlice`, `paymentsSlice`, `goalsSlice`, `debtsSlice`, `prefsSlice`, `notificationsSlice`,
-`listsSlice`), combinados en un único store con
-`SettingsState = CategoriesSlice & BudgetSlice & PaymentsSlice & GoalsSlice & DebtsSlice & PrefsSlice & NotificationsSlice & ListsSlice`.
+`listsSlice`, `tombstonesSlice`), combinados en un único store (`SettingsState`, intersección de
+los 9 tipos de slice).
 La API pública es idéntica a la de un store plano — ningún importador externo cambia.
 ```typescript
 {
@@ -401,6 +440,7 @@ interface Debt {
   monthlyPayment: number    // cuota mínima, solo informativa
   dueDay: number            // 1-31, día del recordatorio mensual
   createdAt: string
+  updatedAt: number         // epoch ms, para la sync (Fase 1)
 }
 addDebt(debt): Debt                       // remainingAmount = totalAmount si no se pasa
 updateDebtBalance(id, remaining): void    // flujo "Pagar" — solo el saldo pendiente
@@ -558,11 +598,12 @@ getPendingItemAfterHydration(id: string): Promise<PendingNotificationItem | null
 Las listas son "mundos" de transacciones separados: Personal (fija, todo tu dinero) y las que crea
 el usuario (un viaje, un negocio, la casa compartida…). Cada una tiene su propio período, sus
 propias categorías/presupuestos y, si tiene más personas, permite registrar quién pagó cada gasto
-y calcular quién le debe a quién. **Hoy** todo es local, sin cuentas ni sincronización entre
-dispositivos: los "miembros" son solo nombres. **Planeado (2026-09-29):** espacios compartidos de
-verdad vía Firebase, donde cada miembro usa su propio teléfono y los cambios se traen con
-pull-to-refresh — ver `SYNC_ROADMAP.md`. (El rechazo previo a la nube, `project_ai_voice_spike_rejected`,
-fue para IA en el parser de voz, no para sincronización.)
+y calcular quién le debe a quién. Sin compartir, los "miembros" son solo nombres en tu teléfono.
+Desde la Sync Fase 4 una lista (no Personal) se puede **compartir** de verdad vía Firebase: cada
+miembro usa su propio teléfono y su cuenta, se entra con un código de invitación y los cambios
+de los demás se traen al abrir la app, al volver a ella o deslizando el balance del Dashboard —
+ver sección 6c. (El rechazo previo a la nube, `project_ai_voice_spike_rejected`, fue para IA en
+el parser de voz, no para sincronización.)
 
 ### Modelo y componentes
 - **`WalletList`/`ListMember`** (`listsSlice.ts`, sección 6) y **`DEFAULT_LIST_ID`/`LIST_EMOJIS`**
@@ -624,6 +665,79 @@ producción nuevas — agregarlas o quitarlas exige recompilar el build nativo.
 
 ---
 
+## 6c. Cuenta y Sincronización (Firebase)
+
+Plan, decisiones y estado por fase en `SYNC_ROADMAP.md`; los gotchas vigentes (motor, espacios,
+cómo probar con el emulador) en `AGENTS.md` → "Datos listos para sync", "Respaldo en la nube" y
+"Espacios compartidos". Aquí, el mapa.
+
+### Principios
+- SQLite + AsyncStorage siguen siendo la fuente de verdad; Firestore es una copia. Ninguna pantalla
+  espera a la red (las únicas acciones que esperan al servidor son compartir/unirse/salir/quitar/
+  eliminar un espacio, con el error dentro de su hoja).
+- **`src/sync/` es la única capa con red** (`@react-native-firebase/*` + Google Sign-In).
+  `src/sync/sync.boundary.test.ts` falla si otro archivo de `app/`/`src/` los importa. Pantallas y
+  hooks usan la API pública de `@/src/sync` (`index.ts`); `db.ts` y los stores no importan la sync:
+  `db.ts` avisa cada escritura del usuario con `emitLocalChange()` (`src/utils/localChanges.ts`) y
+  el motor observa `useSettingsStore` con `subscribe`.
+- Firebase por variant: `dev` → Emulator local, `test` → `mywallet-test-jb`, `prod` →
+  `mywallet-prod` (`firebase/google-services.*.json`, `app.config.ts`).
+
+### Datos listos para sync (Fase 1)
+- `transactions`: `uid` (UUID v4, el id en la nube), `updated_at`/`deleted_at` (epoch ms),
+  `sync_state` (`pending`/`synced`), borrado lógico — ver sección 7.
+- Ítems de ajustes (`lists`, `paymentMethods`, `savingsGoals`, `debts`): `updatedAt` e ids nuevos
+  con `newId()`; borrar los quita del arreglo y anota `tombstones[kind][id]` (`tombstonesSlice`).
+  Perfil y alertas: `profileUpdatedAt`/`settingsUpdatedAt` (store v3).
+- Conflictos: `pickWinner()` (`src/utils/syncMerge.ts`) — gana el mayor `updatedAt`, el borrado gana
+  el empate y `updatedAt` 0 (nunca editado) cede ante lo remoto.
+
+### Sesión (Fase 2)
+- `login-onboarding.tsx` (paso 0, saltable con "Ahora no") y Ajustes → CUENTA (`AccountSection`).
+  `session.ts`: `signInWithGoogle`, `signOut`, `deleteAccount` (reautentica si el login tiene más
+  de 4 min); `useSession()` expone el usuario.
+
+### Motor de respaldo (Fase 3, `engine.ts`)
+- Una corrida a la vez: **traer → unir → subir** contra `users/{uid}` (`remote.ts`). Disparadores:
+  sesión iniciada, volver a primer plano (máx. 1 vez cada 30 s), `syncNow()` (deslizar el balance
+  del Dashboard, tocar el estado en Ajustes, restaurar) y cambios locales (solo subir, 3 s de
+  espera). `startSync()` se llama una vez en el bootstrap de `_layout.tsx`.
+- Pendientes: transacciones por `sync_state`; ítems de ajustes por `meta.pushed` (`SyncMeta` en
+  AsyncStorage `mywallet-sync-meta`, `metaStore.ts`). Traer usa cursores con la hora del servidor.
+- Un movimiento borrado viaja como `{ updatedAt, deletedAt }` sin contenido
+  (`transactionTombstoneDoc`, `mappers.ts`); al bajar llega como `SyncedTombstone` y solo marca la
+  fila existente (`applyRemoteTransactions`). Los subidos antes con contenido se reemplazan una vez
+  por teléfono (`SyncMeta.tombstonesStripped` → `markSyncedTombstonesPending`).
+- Estado para la UI: `useSyncStatus` (Zustand, en `status.ts`; no cuenta entre los 6 stores de
+  `src/store/`): `phase` (`syncing`/`offline`/`error`/`needs-decision`/…), `pending`, `lastSyncAt`.
+- Cuenta: `signOutWith("keep" | "wipe")` (Borrar se bloquea con pendientes y deja la app como
+  recién instalada con `wipeLocalData`), `resolveAccountConflict("merge" | "replace")` si
+  `meta.ownerUid` es otra cuenta, `deleteAccountAndCloudData()` (sale de espacios ajenos, elimina
+  los propios, borra `users/{uid}` y luego el usuario; lo local vuelve a `pending`).
+
+### Espacios compartidos (Fase 4)
+- Firestore: `spaces/{id}` (membresía: `ownerUid`, `memberUids`, `deletedAt`), `members/{memberId}`,
+  `config/list` (nombre, ícono, categorías, mostrar ingresos) y `transactions/{uid}`;
+  `inviteCodes/{code}` (6 caracteres sin 0/O/1/I, 7 días).
+- Local: `WalletList.space` (`SpaceLink`, sección 6); período y presupuestos siguen siendo de cada
+  persona en su respaldo. `paid_by` en la nube es el id de miembro (`paidByToRemote/Local`,
+  `spaceMappers.ts`).
+- Acciones (`spaceActions.ts`): `shareList`, `createInvite`, `joinWithCode` → `completeJoin`,
+  `leaveSpace`, `removeMember`, `deleteSpace`; UI en `ListEditorSheet`/`useListEditor`,
+  `InviteSheet`, `JoinSpaceSheet` y "Unirme con un código" de `ListsSheet`.
+- `pullSpaces` (`spaces.ts`) descubre los espacios del usuario, crea las listas que faltan y
+  desconecta como listas propias (`unlinkedList`) las que ya no aparecen.
+- Reglas: `firestore.rules`, 23 casos en `npm run test:rules` (emulador, fuera de `npm test`).
+
+### Cumplimiento (Fase 5)
+`docs/privacy-policy.html` y `landing/src/legal/docs.ts` describen la cuenta, el respaldo y las
+listas compartidas; la landing tiene `/[lang]/delete-account` (URL de eliminación que pide Play);
+`PLAY_DATA_SAFETY.md` guarda las respuestas del formulario de Data Safety; `app.config.ts` →
+`android.blockedPermissions` quita permisos que la app no usa. Falta el build `prod` por EAS y
+llenar Play Console (`SYNC_ROADMAP.md`).
+
+---
+
 ## 7. Base de Datos (SQLite)
 
 ### Archivo: `mywallet.db` (WAL mode)
@@ -658,7 +772,8 @@ cortadas — y después crea `idx_tx_uid`. `id INTEGER` sigue siendo el id local
 epoch ms, no `localISOString()`: son instantes de máquina que se comparan entre teléfonos y zonas
 horarias (excepción acotada a la regla de fechas; `date` sigue en ISO local).
 `purgeSyncedTombstones()` borra físicamente solo tombstones `synced` de más de 30 días; se llama
-sin `await` en el bootstrap de `_layout.tsx` (en Fase 1 nada llega a `synced`, así que no borra).
+sin `await` en el bootstrap de `_layout.tsx` (sin sesión nada llega a `synced`, así que no borra).
+El otro `DELETE` físico es `wipeAllTransactions()` ("Borrar de este teléfono" al cerrar sesión).
 
 **Convención de signos:**
 - `amount > 0` → **Gasto**
@@ -681,7 +796,7 @@ lee el código de `db.ts`/`queries.ts` y falla si una lectura no usa la constant
 |---------|-------------|
 | `initDatabase()` | Crea tabla + migraciones de `tags`/`payment_method`/`list_id`/`paid_by`/`uid`/`updated_at`/`deleted_at`/`sync_state` + backfill de `uid`/`updated_at` + `idx_tx_uid` |
 | `insertTransaction(amount, desc, emoji, tags, date?, paymentMethod?, listId?, paidBy?)` | INSERT con fecha local ISO, `uid` nuevo (`newId()`), `updated_at` y `sync_state='pending'`; `listId` default = lista activa, `paidBy` default = `SELF_PAYER` |
-| `updateTransaction(id, amount, desc, emoji, tags, date?, paymentMethod?, listId?, paidBy?)` | UPDATE real (mueve `updated_at`, `sync_state='pending'`); sin `listId`/`paidBy` conserva los actuales (`COALESCE`) |
+| `updateTransaction(id, amount, desc, emoji, tags, date?, paymentMethod?, listId?, paidBy?)` | UPDATE real (mueve `updated_at`, `sync_state='pending'`); sin `listId`/`paidBy` conserva los actuales (`COALESCE`). Si cambia de lista, la fila recibe un `uid` nuevo y se inserta un tombstone con el viejo en la lista vieja (ver `database.mdc`) |
 | `deleteTransaction(id)` | Borrado lógico por ID |
 | `getAllTransactions()` | SELECT * WHERE `LIST_SCOPE_SQL` ORDER BY date DESC |
 | `deleteTransactionsOfList(listId)` | Borrado lógico de todas las de una lista (al borrarla) |
@@ -689,6 +804,20 @@ lee el código de `db.ts`/`queries.ts` y falla si una lectura no usa la constant
 | `clearTransactions()` | Borrado lógico — desde Personal: todas; desde otra lista: solo la suya |
 | `purgeSyncedTombstones(now?)` | DELETE físico de tombstones `synced` con más de 30 días |
 | `getMonthlyTotal()` | SUM del mes actual, acotado a la lista activa |
+
+**Funciones de la sync** (las llama solo `src/sync/`; recorren todas las listas y los borrados, así
+que a propósito no usan `LIST_SCOPE_SQL` y están en las excepciones de `listScope.test.ts`):
+
+| Función | Descripción |
+|---------|-------------|
+| `getPendingTransactions(limit)` / `countPendingTransactions()` | Filas `pending`, borrados incluidos |
+| `markTransactionsSynced(versions)` | Pasa a `synced` solo si `updated_at` no cambió durante la subida |
+| `getTransactionVersions(uids)` | `updated_at`/`deleted_at` locales por `uid`, para decidir qué gana al traer |
+| `applyRemoteTransactions(rows)` | Upsert por `uid` (queda `synced`; el `WHERE` repite `pickWinner`). Un `SyncedTombstone` (`{ uid, updated_at, deleted_at }`, sin contenido) solo hace `UPDATE` de la fila existente |
+| `markListTransactionsPending(listId)` | Vuelve a subir los vivos de una lista (al compartirla o desconectarla de su espacio) |
+| `markSyncedTombstonesPending()` | Una vez por teléfono: re-sube los borrados que habían subido con contenido |
+| `markAllTransactionsPending()` | Tras eliminar la cuenta |
+| `wipeAllTransactions()` | DELETE físico de todo ("Borrar de este teléfono") |
 
 ### Operaciones de consulta (queries.ts)
 | Función | Descripción |
@@ -714,7 +843,7 @@ lee el código de `db.ts`/`queries.ts` y falla si una lectura no usa la constant
 - Toda lectura nueva sobre `transactions` debe incluir `LIST_SCOPE_SQL`/`listScopeParams()` (ver
   arriba), salvo que exista una razón explícita para ignorar la lista activa (ej.
   `deleteTransactionsOfList`, que borra por `list_id` exacto al eliminar una lista)
-- Borrar es lógico (`deleted_at`), nunca `DELETE` salvo `purgeSyncedTombstones()`
+- Borrar es lógico (`deleted_at`), nunca `DELETE` salvo `purgeSyncedTombstones()` y `wipeAllTransactions()`
 
 ---
 
@@ -1187,7 +1316,7 @@ En light, `surface.primary` `#F2F2F4` (sin cambios).
 - **`FlatList`** reemplaza `ScrollView + map` — chart y cabecera van en `ListHeaderComponent`, estado vacío en `ListEmptyComponent`; `renderItem` en `useCallback`
 - `categoryStats` e `incomeStats` usan `filteredTransactions` (dinámicos al período seleccionado)
 - **Estado "período vacío":** cuando `filteredTransactions.length === 0`, la vista incluye hoy y no hay búsqueda, muestra barras fantasma (opacity 0.18) con mensaje según la vista: "Nuevo mes/Nueva semana/Nuevo período/Nuevo año, ¡comienza ahora!" (o "¡Comienza ahora!" en todo el tiempo/rango). Si es un período pasado sin datos: "Sin registros en este período" + "Toca el calendario de arriba para ver otro período"
-- **Modal de detalle de transacción:** al hacer **tap** en un item de la lista se abre un modal centrado estilo Stitch con: emoji, monto, categoría, tipo (Gasto/Ingreso), cuenta (método de pago), fecha, hora (formato 12h), descripción y tags. Si el item tiene el swipe abierto, el tap cierra el swipe primero
+- **Detalle de transacción:** al hacer **tap** en un item de la lista se abre `TransactionDetailModal` (hoy una `BottomSheet`, ya no un modal centrado) con: emoji, monto, categoría, tipo (Gasto/Ingreso), cuenta (método de pago), fecha, hora (formato 12h), descripción y tags. Si el item tiene el swipe abierto, el tap cierra el swipe primero
 - **Filtro por categoría desde la gráfica:** un tap corto en una columna del `CategoryChart` activa `setCategoryFilter({ emoji, name })`. Mientras el filtro está activo:
   - Se oculta la gráfica (`!categoryFilter` condiciona el render).
   - La cabecera de la lista cambia a `categoryFilter.name.toUpperCase()` con un chip informativo (sin botón ×).
@@ -1200,6 +1329,7 @@ En light, `surface.primary` `#F2F2F4` (sin cambios).
 - **`showIncome` de la lista activa** *(nuevo)*: si es `false`, `displayedTransactions` filtra los ingresos antes de calcular balance/pills/tira/gráfica, y el filtro de tipo (pills) fuerza "Gastos" (no se puede elegir "Ingresos").
 - **Chip de cuentas** *(nuevo)*, bajo los pills, solo con lista activa ≠ Personal y con `members`: `settlementHeadline()` resume el estado ("Ana te debe $X", "Están a mano", "N cuentas pendientes") y abre `SettlementSheet` al tocarlo. Oculto durante una búsqueda o con `categoryFilter` activo.
 - **Lista agrupada por día** *(nuevo, `groupTransactionsByDay`/`dayLabel` en `transactionFormatters.ts`)*: cada grupo de la `FlatList` muestra su etiqueta ("Hoy"/"Ayer"/fecha) y el neto del día, no solo filas sueltas de `TransactionItem`.
+- **Deslizar el balance para traer cambios** *(Sync Fase 3/4)*: con sesión (`useSession`), sin `categoryFilter` y sin búsqueda, un `PanResponder` de captura (`syncPan`) sobre el bloque del balance baja balance y lista con curva de goma (`rubberBand`) y, pasado `PULL_HOLD_OFFSET`, llama `syncNow()`. `SyncPullIndicator` (`src/components/dashboard/`) llena un anillo con el recorrido, vibra al poder soltar, gira (mín. 0,7 s) y termina con ✓ o, si a los 8 s no hubo respuesta, con `CloudOff` (la sync sigue en segundo plano). Todo con Reanimated (`useSharedValue`): un `Animated` de RN desde JS era pisado por las animaciones de Reanimated del balance. Deslizar sobre la **lista** sigue siendo solo para quitar el filtro de categoría.
 
 ### Active Expense (`app/active-expense.tsx`) — rediseñado 2026-08-12
 - Título dinámico: "Nuevo Gasto" / "Nuevo Ingreso". **Header solo con botón atrás (X)** — el botón de confirmar que antes vivía arriba a la derecha se movió al footer.
@@ -1242,6 +1372,18 @@ En light, `surface.primary` `#F2F2F4` (sin cambios).
 - **Footer sticky:** `"N registros · Total $ X"` + botón azul `"Guardar todo"`. Al confirmar: `addTransactionBatch(items)` → `clearPendingBatch()` → `router.dismissAll()`. En caso de error, `Alert.alert` nativo
 - Si `pendingBatch` está vacío al montar (p.ej. llegó por error), hace `router.back()` inmediatamente
 
+### Login Onboarding (`app/login-onboarding.tsx`) *(Sync Fase 2)*
+Paso 0 del onboarding: "Guarda tu información en tu cuenta", con el ícono de la app flotando sobre
+un resplandor azul (degradado radial SVG; quieto con "reducir movimiento") y tres beneficios
+(respaldo, recuperar al cambiar de celular, compartir listas). **"Continuar con Google"**
+(`signInWithGoogle`) y, después, restaurar: espera `syncNow()` con tope de 8 s
+(`RESTORE_MAX_WAIT_MS`, el botón dice "Recuperando tu información…"); si el perfil traído dice
+`hasCompletedOnboarding`, entra al Dashboard (`router.canDismiss()` antes de `dismissAll()` +
+`replace("/(tabs)")`), si no sigue a `category-onboarding`. **"Ahora no"** es discreto y muestra un
+`ConfirmDialog` informativo ("Puedes hacerlo después… Ajustes → Cuenta") antes de seguir. Con
+sesión ya iniciada (volvió atrás) el botón solo dice "Continuar". Sin internet el login falla con
+un mensaje (`authErrorMessage`) y se puede saltar.
+
 ### Pay Onboarding (`app/pay-onboarding.tsx`)
 Paso 2 del onboarding: "¿Cuándo y cuánto te pagan?". Usa `PayPeriodForm` con `showHeader={false}`,
 `showPreview={false}` y `renderActions` para "Omitir" (sigue sin guardar: queda mensual día 1, sin
@@ -1249,9 +1391,11 @@ pago) y "Continuar" (`setDefaultPeriod` + sigue). Ambos hacen `router.push("/not
 Reemplaza al antiguo desvío del tour del Dashboard a Ajustes ("Configura tu ingreso").
 
 ### Bank Selection Onboarding (`app/bank-selection-onboarding.tsx`) — fix de navegación 2026-08-17
-Último paso de la cadena de onboarding (`category-onboarding` → `pay-onboarding` →
-`notification-onboarding` → `bank-selection-onboarding`, cada paso con `router.push` para que el
-botón atrás funcione).
+Último paso de la cadena de onboarding (`login-onboarding` → `category-onboarding` →
+`pay-onboarding` → `notification-onboarding` → `bank-selection-onboarding`, cada paso con
+`router.push` para que el botón atrás funcione; desde la Sync Fase 2 `_layout.tsx` entra con
+`router.replace("/login-onboarding")`, la explicación de abajo es de cuando la raíz era
+`category-onboarding` y sigue aplicando igual).
 `goToApp()` ahora hace `router.dismissAll()` **antes** de `router.replace("/(tabs)")`. Causa raíz
 del bug: `_layout.tsx` hace `router.replace("/category-onboarding")` al iniciar el onboarding
 (reemplazando `(tabs)` como raíz del stack); sin el `dismissAll()` previo, la pila quedaba
@@ -1270,8 +1414,16 @@ lleva `borderWidth: 1.5` + `border.default` (mismo lenguaje que el pill "Este me
 círculo completo (34px, `radius.full`).
 
 **Secciones, en orden** (todas sobre la capa de tokens, `Card` + `SectionHeader` + `ListRow` +
-`Divider` — ver sección 11b). Reordenadas de nuevo con el sistema de listas (ver abajo):
-1. **LISTAS** *(nuevo)* — "Tus listas" (ícono `Layers`, detail = cantidad, chevron → `ListsSheet`).
+`Divider` — ver sección 11b). Reordenadas de nuevo con el sistema de listas y la sync (ver abajo):
+0. **CUENTA** *(Sync Fases 2–3)* — `AccountSection` (`src/components/ui/AccountSection.tsx`): sin
+   sesión, "Iniciar sesión con Google"; con sesión, correo + fila de estado del respaldo
+   (`useSyncStatus`: "Respaldado hace N min" / "N cambios pendientes" / "Sin conexión" / "No se
+   pudo respaldar. Toca para reintentar"; tocarla llama `syncNow()`) + "Cerrar sesión" (hoja
+   "Mantener en este teléfono" / "Borrar de este teléfono") + "Eliminar cuenta" (`ConfirmDialog`
+   danger). Con `phase === "needs-decision"` abre la hoja "Este teléfono tiene datos de otra cuenta"
+   ("Unir con esta cuenta" / "Borrar del teléfono y usar esta"). Ver sección 6c.
+1. **LISTAS** *(nuevo)* — "Tus listas" (ícono `Layers`, detail = cantidad, chevron → `ListsSheet`,
+   que además tiene "Nueva lista" y "Unirme con un código" → `JoinSpaceSheet`).
 2. **EN TU LISTA · {emoji} {nombre}** *(nuevo, título dinámico con la lista activa)* — Categorías,
    Presupuestos, "Pago y período" (ícono `Wallet`, chevron → `DefaultPeriodSheet`, reemplazó a
    "Ingreso mensual"/`monthlyBudget`, eliminado en 61957c1), "Mostrar ingresos" (`Switch`),
@@ -1608,6 +1760,10 @@ en sí. Público en **https://jhonnyxt.github.io/my-wallet-app/**.
 **Motivo de existencia:** Google Play Console exige una URL pública de política de privacidad para
 publicar la app en la Play Store — `docs/privacy-policy.html` cumple ese requisito de compliance. No
 está pensado como manual de usuario ni documentación del producto (eso es `DOCUMENTATION.md`).
+Desde la Sync Fase 5 (2026-10-05) describe la cuenta opcional, el respaldo en Firebase y las listas
+compartidas, igual que la copia de la landing nueva (`landing/src/legal/docs.ts`); la URL para
+pedir la eliminación de la cuenta vive en `landing/` (`/[lang]/delete-account`) y las respuestas de
+Data Safety en `PLAY_DATA_SAFETY.md`. Si cambia qué se sube a la nube, revisar los tres.
 
 **Proceso manual al lanzar una versión nueva (sin automatizar):** el botón "Descargar APK" de
 `docs/index.html` apunta a un asset fijo de un GitHub Release (ej.
@@ -1727,7 +1883,7 @@ en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún
 ### Reglas inmutables
 - **Moneda:** Siempre COP con puntos de miles, sin decimales
 - **Idioma UI:** Todo en español
-- **Datos:** 100% locales, sin nube
+- **Datos:** local-first — SQLite/AsyncStorage son la fuente de verdad; la única red es Firebase dentro de `src/sync/`, opcional (con sesión) y en segundo plano
 - **Categorías:** Dinámicas y personalizables por el usuario (presets + custom). No hay categorías fijas hardcodeadas
 - **Edición de transacciones:** Implementada desde 2026-08-14 (`updateTransaction()` en `db.ts`/`useFinanceStore`, swipe derecho en `TransactionItem` → `active-expense.tsx?editId=<id>`). La vieja regla "solo crear y eliminar" se retiró a pedido explícito del usuario — ver gotcha en `AGENTS.md`
 - **Git:** Solo push manual; nunca push automático en CI
@@ -1743,10 +1899,15 @@ en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún
 {
   "@react-native-async-storage/async-storage": "^2.2.0",
   "@react-native-community/datetimepicker": "8.6.0",
+  "@react-native-firebase/app": "^26.4.0",
+  "@react-native-firebase/auth": "^26.4.0",
+  "@react-native-firebase/firestore": "^26.4.0",
+  "@react-native-google-signin/google-signin": "^16.1.5",
   "@react-navigation/native": "^7.1.28",
   "expo": "~55.0.4",
   "expo-blur": "~55.0.8",
   "expo-constants": "~55.0.7",
+  "expo-crypto": "~55.0.19",
   "expo-document-picker": "~55.0.17",
   "expo-file-system": "~55.0.26",
   "expo-font": "~55.0.4",
@@ -1781,6 +1942,9 @@ en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún
 > `expo-document-picker`/`expo-file-system` se agregaron con el sistema de listas (sección 6b),
 > exclusivas de `src/hooks/useCsvTransfer.ts` (exportar/importar CSV por lista); antes
 > `expo-file-system` solo existía como dependencia transitiva.
+> `@react-native-firebase/*` y `@react-native-google-signin/google-signin` llegaron con la Sync
+> Fase 2 y solo se importan en `src/sync/` (sección 6c); `expo-crypto`, con la Fase 1 (`newId()`).
+> Las tres exigen rebuild nativo.
 
 ### Desarrollo
 ```json
@@ -1788,12 +1952,14 @@ en cada release, o la landing queda ofreciendo un APK desactualizado sin ningún
   "@babel/core": "^7.29.0",
   "@babel/preset-env": "^7.29.0",
   "@babel/preset-typescript": "^7.29.7",
+  "@firebase/rules-unit-testing": "^5.0.2",
   "@types/jest": "^30.0.0",
   "@types/react": "~19.2.2",
   "babel-jest": "^30.4.1",
   "eslint": "^9.39.5",
   "eslint-config-expo": "~55.0.1",
   "eslint-config-prettier": "^10.1.8",
+  "firebase": "^12.19.0",
   "jest": "^30.4.2",
   "prettier": "^3.9.6",
   "react-native-css-interop": "^0.2.2",

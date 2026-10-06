@@ -53,7 +53,13 @@ src/store/          → Estado global (Zustand). Un store por dominio. 6 stores,
 src/db/             → Capa de datos SQLite pura, sin lógica de negocio.
 src/components/ui/  → Componentes reutilizables, reciben props, agnósticos a la pantalla.
 src/features/       → Hooks de dominio (NLP, voz).
+src/hooks/          → Hooks de pantalla (Dashboard, listas, CSV).
 src/services/       → Infraestructura (notificaciones push, headless tasks).
+src/sync/           → ÚNICA capa con red (Firebase Auth + Firestore): sesión, motor de respaldo,
+                      espacios compartidos. `sync.boundary.test.ts` falla si algo fuera de aquí
+                      importa Firebase/Google Sign-In. Pantallas y hooks usan su API pública
+                      (`@/src/sync`); `db.ts` y los stores no la importan: `db.ts` avisa sus
+                      escrituras con `emitLocalChange()` (`src/utils/localChanges.ts`).
 src/utils/          → Funciones puras sin side effects.
 src/constants/      → Configuración estática (colores, presets de categorías).
 src/theme/          → Tokens de tema light/dark.

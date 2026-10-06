@@ -10,7 +10,7 @@
 
 - **Principio de diseño:** Minimalismo funcional — cero fricción, registro en menos de 3 segundos
 - **Estética:** Interfaz limpia inspirada en Google Stitch Design System y MonAI
-- **Dato fundamental:** local-first — 100% funcional sin internet con datos locales en SQLite, sin servidor propio ni suscripciones. Con cuenta (Google, opcional) y conexión, respaldo en la nube y espacios compartidos vía Firebase (en implementación, ver `SYNC_ROADMAP.md`)
+- **Dato fundamental:** local-first — 100% funcional sin internet con datos locales en SQLite, sin servidor propio ni suscripciones. Con cuenta (Google, opcional) y conexión, respaldo en la nube y listas compartidas vía Firebase (Fases 1–4 implementadas; la Fase 5, publicación, sigue en curso: ver `SYNC_ROADMAP.md`)
 - **Público objetivo:** Usuarios en Colombia que quieren controlar su dinero de forma rápida, simple y visual
 
 ---
@@ -34,7 +34,11 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Lista de Transacciones | `FlatList` con items tipo tarjeta (fondo blanco + sombra en modo claro), swipe izquierda elimina (con confirmación), swipe derecha edita | ✅ Implementado |
 | Patrimonio neto | Junto al saldo total (`allTimeNetBalance - totalDebt`), solo visible si hay deudas activas registradas en Ajustes → Deudas | ✅ Implementado |
 | Dock Flotante | FAB micrófono, botón +, lupa, gráfica (→ `/reports`) — reemplaza tab bar | ✅ Implementado |
-| Detalle de transacción | Modal centrado estilo Stitch al hacer **tap** en un item: emoji, monto, categoría, tipo, cuenta, fecha, hora (12h), descripción, tags | ✅ Implementado |
+| Detalle de transacción | Hoja (`BottomSheet`) al hacer **tap** en un item: emoji, monto, categoría, tipo, cuenta, fecha, hora (12h), descripción, tags | ✅ Implementado |
+| Selector de lista ("Personal ▾") | Botón a la izquierda del header: elegir lista, Compartir (resumen en texto del período visto), Editar la activa, Nueva. Ícono de personas en las listas compartidas | ✅ Implementado |
+| Chip de cuentas | Bajo los pills, en una lista con más personas: "Ana te debe $X ›" / "Están a mano" / "N cuentas pendientes"; abre el detalle (`SettlementSheet`) | ✅ Implementado |
+| Deslizar el balance para traer cambios | Con sesión iniciada, sin búsqueda ni filtro de categoría: deslizar hacia abajo sobre el balance trae lo último de la nube. Anillo de progreso, vibración al poder soltar, ✓ al terminar o nube tachada sin respuesta (la sync sigue en segundo plano) | ✅ Implementado |
+| Lista agrupada por día | Cada grupo con su etiqueta ("Hoy"/"Ayer"/fecha) y el neto del día | ✅ Implementado |
 | Animación scroll de gráfica | Las barras se comprimen progresivamente al hacer scroll (Reanimated `interpolate`). Las etiquetas hacen crossfade de vertical a horizontal compacto. Gráfica y lista en scroll unificado (`FlatList` + `ListHeaderComponent`) | ✅ Implementado |
 | Odómetro de valores | `RollingNumber`: efecto ruleta, cada dígito gira siempre hacia adelante, escalonado de izquierda a derecha (respeta "reducir movimiento"). Separadores de miles COP con fade-in/out. Usado en Balance neto + Pills de gastos/ingresos | ✅ Implementado |
 
@@ -47,6 +51,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Campo de texto NLP | Detecta monto, categoría, fecha en tiempo real | ✅ Implementado |
 | Selectores rápidos | Fecha (Hoy/Calendario), Categoría (grid dinámico + ítem "Nueva" para crear inline), Cuenta (método de pago guardado en transacción) | ✅ Implementado |
 | Tags | Sugeridos (#viaje, #trabajo, etc.) + custom | ✅ Implementado |
+| Lista y Pagó | "LISTA" (con 2+ listas) elige o cambia la lista del movimiento; "PAGÓ" (si la lista tiene personas) elige quién pagó, con "Tú" primero | ✅ Implementado |
 | Guardar | Botón ✓ + vibración háptica + regresa al Dashboard | ✅ Implementado |
 | Auto-formato | Mientras se edita el monto se muestran dígitos crudos sin puntos de miles (evita que el cursor salte al final en Android); los puntos de miles se agregan automáticamente al salir del campo | ✅ Implementado |
 
@@ -68,10 +73,12 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
 | Pago y período | Frecuencia del pago (semanal, cada 2 semanas, varias veces al mes, mensual con día de inicio, todo el tiempo) y pago esperado por período (uno por día de pago en "varias veces al mes"). Define los períodos del Dashboard y la barra de pago. Reemplaza "Ingreso mensual" (el valor anterior se migra como pago mensual) | ✅ Implementado |
-| Métodos de pago | Agregar/editar/eliminar (modal full-screen) | ✅ Implementado |
-| Presupuesto por categoría | Límite por cada categoría de gasto del usuario (modal full-screen) | ✅ Implementado |
-| Metas de ahorro | Crear/editar/abonar/eliminar metas (modal full-screen); editar/eliminar con íconos explícitos ✏️/🗑️, ya no swipe-to-delete. Al abonar se crea transacción de gasto automáticamente (con emoji de la meta, tag #ahorro) | ✅ Implementado |
-| Deudas *(nuevo)* | Crear/editar/pagar/eliminar deudas (modal full-screen): nombre, emoji, monto total, cuota mensual, día de pago recurrente. Al pagar se crea transacción de gasto automáticamente (tag #deuda) y se reduce el saldo pendiente. Recordatorio push mensual en el día de pago; notificación al liquidar la deuda | ✅ Implementado |
+| Cuenta | Iniciar sesión con Google (opcional); con sesión: correo, estado del respaldo (tocar = respaldar ya), "Cerrar sesión" (Mantener / Borrar de este teléfono) y "Eliminar cuenta" | ✅ Implementado |
+| Tus listas | Hoja con todas las listas (tocar = activar, lápiz = editar la activa), "Nueva lista" y "Unirme con un código" | ✅ Implementado |
+| Métodos de pago | Agregar/editar/eliminar (hoja), con ícono sugerido por nombre | ✅ Implementado |
+| Presupuesto por categoría | Límite por cada categoría de gasto de la lista activa (hoja "Presupuestos") | ✅ Implementado |
+| Metas de ahorro | Crear/editar/abonar/eliminar metas (hoja); editar/eliminar con íconos explícitos ✏️/🗑️, ya no swipe-to-delete. Al abonar se crea transacción de gasto automáticamente (con emoji de la meta, tag #ahorro) | ✅ Implementado |
+| Deudas *(nuevo)* | Crear/editar/pagar/eliminar deudas (hoja): nombre, emoji, monto total, cuota mensual, día de pago recurrente. Al pagar se crea transacción de gasto automáticamente (tag #deuda) y se reduce el saldo pendiente. Recordatorio push mensual en el día de pago; notificación al liquidar la deuda | ✅ Implementado |
 | Modo oscuro | Sistema / Claro / Oscuro (dark mode completo) — fila dentro de la sección "Sistema" | ✅ Implementado |
 | Bloqueo con huella | Pide huella/rostro/PIN del sistema al abrir la app y al volver de background; activar y desactivar requieren autenticarse. Sin biometría ni PIN configurados no se puede activar | ✅ Implementado |
 | Exportar/Importar CSV *(por lista)* | Exportar escribe un `.csv` real (`expo-file-system`) con id/fecha/tipo/descripción/categoría/monto/método de pago/tags/quién pagó, y lo comparte con la hoja del sistema (`expo-sharing`). Importar (`expo-document-picker`) agrega los movimientos de un `.csv` a la lista activa sin duplicar los que ya están. Reemplaza al antiguo "Exportar datos" (texto plano vía `Share`) | ✅ Implementado |
@@ -79,7 +86,8 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Diseño Material (2026-08-17) | Header con flecha llana + título inline (reemplaza el header estilo iOS con botón circular flotante), íconos de fila circulares | ✅ Implementado |
 | Sección "Sistema" fusionada (2026-09-02) | Las secciones antes independientes Apariencia (Modo oscuro), Sistema (Exportar/Borrar) y Acerca de (Versión) se unieron en una sola sección "Sistema" (hoy: Modo oscuro, Bloqueo con huella, Borrar historial, Versión) | ✅ Implementado |
 | Tarjetas sin borde (2026-09-02) | `Card` perdió el `borderWidth` que había ganado en el rediseño Material — se distingue del fondo solo por color de relleno | ✅ Implementado |
-| Secciones reordenadas (listas) | Orden actual: Listas (Tus listas) → En tu lista (Categorías, Presupuestos, Pago y período, Mostrar ingresos, Compartir lista, Exportar/Importar CSV) → Gestión (Métodos de pago, Metas, Deudas) → Detección automática → Sistema | ✅ Implementado |
+| Popups como hojas (2026-09-29) | Todo lo que era un popup centrado (confirmaciones, avisos de permiso, formularios de categoría/presupuesto/métodos/metas/deudas) es una hoja que sube desde abajo, con tap fuera y deslizar hacia abajo para cerrar | ✅ Implementado |
+| Secciones reordenadas (listas) | Orden actual: Cuenta → Listas (Tus listas) → En tu lista (Categorías, Presupuestos, Pago y período, Mostrar ingresos, Compartir lista, Exportar/Importar CSV) → Gestión (Métodos de pago, Metas, Deudas) → Detección automática → Sistema | ✅ Implementado |
 
 ### 2.7 Sistema de Notificaciones (dos capas)
 
@@ -105,7 +113,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 |---------|-------------|--------|
 | Componente | `GuidedTour.tsx` — overlay reutilizable con spotlight paso a paso, cutout circular y tooltip animado | ✅ Implementado |
 | Registro de refs | `tourRefs.ts` — registro global de refs (`getTourRef`, `TOUR_KEYS`) para localizar targets | ✅ Implementado |
-| Pantallas de bienvenida | 4 pasos: categorías → "¿Cuándo y cuánto te pagan?" (`pay-onboarding`, omitible) → detección automática → bancos | ✅ Implementado |
+| Pantallas de bienvenida | 5 pasos: cuenta de Google ("Continuar con Google" / "Ahora no"; si la cuenta ya tenía el onboarding hecho, restaura y entra al Dashboard) → categorías → "¿Cuándo y cuánto te pagan?" (`pay-onboarding`, omitible) → detección automática → bancos | ✅ Implementado |
 | Paso 1 (Dashboard) | Spotlight en el botón de calendario → "¡Bienvenido a MyWallet!": tocarlo muestra los períodos, mantenerlo abre año/rango/pago | ✅ Implementado |
 | Paso 2 (Dashboard) | Spotlight en FAB micrófono → "Registro por voz" | ✅ Implementado |
 | Paso 3 (Dashboard) | Spotlight en botón + → "Registro manual" | ✅ Implementado |
@@ -221,7 +229,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | ID | Historia | Estado |
 |----|---------|--------|
-| HU 6.1 | Como usuario, quiero definir metas de ahorro, abonarles y eliminarlas con swipe-to-delete en Ajustes | ✅ |
+| HU 6.1 | Como usuario, quiero definir metas de ahorro, abonarles, editarlas y eliminarlas desde Ajustes (botones ✏️/🗑️) | ✅ |
 | HU 6.2 | Como usuario, quiero que el presupuesto por categoría sea mensual, y que si mi mes empieza el día que me pagan, se mida desde ese día | ✅ *(modificada: el ciclo sigue el día de inicio de la frecuencia mensual)* |
 | HU 6.3 | Como usuario, quiero ver un desglose de mis ingresos por categoría en la gráfica | ✅ |
 | HU 6.4 | Como usuario, quiero filtrar la lista por una categoría específica tocando su columna en la gráfica, y limpiar el filtro con el botón atrás del dispositivo o deslizando hacia abajo | ✅ |
@@ -273,6 +281,24 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 10.3 | Como usuario, quiero ver un ranking completo de mis categorías ordenado de mayor a menor promedio mensual | ✅ |
 | HU 10.4 | Como usuario, quiero ver la tendencia de mis gastos/ingresos totales mes a mes en un gráfico de barras, eligiendo el rango de fechas que quiero analizar | ✅ |
 | HU 10.5 | Como usuario, quiero acceder a esta pantalla de promedios desde el dock flotante, sin tener que buscarla dentro de Ajustes | ✅ |
+
+### Épica 11: Cuenta, respaldo y listas compartidas *(Sync Fases 1–5, ver `SYNC_ROADMAP.md`)*
+
+| ID | Historia | Estado |
+|----|---------|--------|
+| HU 11.1 | Como usuario, quiero iniciar sesión con Google de forma opcional (en la bienvenida o después en Ajustes → Cuenta), y que sin cuenta la app siga funcionando completa | ✅ |
+| HU 11.2 | Como usuario con sesión, quiero que toda mi información (movimientos, listas, categorías, presupuestos, métodos de pago, metas, deudas y ajustes) se respalde sola en segundo plano, sin tener que esperarla nunca para usar la app | ✅ |
+| HU 11.3 | Como usuario, quiero instalar la app en un teléfono nuevo, iniciar sesión y recuperar todo, sin repetir la bienvenida si ya la había hecho | ✅ |
+| HU 11.4 | Como usuario, quiero ver en Ajustes → Cuenta si mi información está respaldada o cuántos cambios faltan por subir, y poder respaldar en el momento | ✅ |
+| HU 11.5 | Como usuario, al cerrar sesión quiero elegir si mantengo mi información en el teléfono o la borro, sin poder borrar algo que todavía no se respaldó | ✅ |
+| HU 11.6 | Como usuario, si inicio sesión con otra cuenta en un teléfono que tiene datos de una anterior, quiero que la app me pregunte si unirlos o reemplazarlos antes de subir nada | ✅ |
+| HU 11.7 | Como usuario, quiero eliminar mi cuenta y todo lo que tengo en la nube desde la app (o pedirlo en una página web si ya no tengo la app), sin que se borre lo que tengo en el teléfono | ✅ En la app: Ajustes → Cuenta → Eliminar cuenta. Web: landing `/[lang]/delete-account` |
+| HU 11.8 | Como usuario, quiero compartir una lista con otras personas mediante un código de invitación, para que cada una registre desde su propio teléfono y con su cuenta | ✅ Código de 6 caracteres, vence en 7 días |
+| HU 11.9 | Como usuario invitado, quiero unirme a una lista con un código y, si ya estaba en ella con mi nombre, quedar ligado a ese nombre y a lo que ya había pagado | ✅ "¿Quién eres?" → "Soy Ana" / "Soy otra persona" |
+| HU 11.10 | Como usuario de una lista compartida, quiero que el período y los presupuestos sean míos, y que el nombre, el ícono, las categorías y las personas sean de todos | ✅ |
+| HU 11.11 | Como usuario, quiero traer en el momento lo que registraron los demás deslizando hacia abajo sobre el balance del Dashboard | ✅ |
+| HU 11.12 | Como miembro de una lista compartida, quiero poder salir de ella y quedarme con lo que ya tenía como una lista propia; como dueño, quiero poder quitar a alguien o eliminar la lista para todos | ✅ |
+| HU 11.13 | Como usuario, quiero que un movimiento que borro no quede guardado en la nube con su monto y descripción, solo la marca de que se borró | ✅ |
 
 ---
 
@@ -366,7 +392,7 @@ Las categorías se pueden crear desde **tres contextos**:
 | Categorías | Emojis nativos del sistema en círculos suaves |
 | Espacio negativo | Padding lateral 24px, gaps generosos entre secciones |
 | Modales | Slide desde abajo, fondo semi-transparente oscuro |
-| Diálogos de confirmación | `ConfirmDialog` custom con icono + variante + animación spring (reemplaza `Alert.alert` nativo) para acciones destructivas/sensibles |
+| Diálogos de confirmación | `ConfirmDialog` custom con icono + variante, presentado como hoja inferior (reemplaza `Alert.alert` nativo) para acciones destructivas/sensibles. Ningún popup va centrado en pantalla |
 | Notificaciones | Push del sistema (`expo-notifications`) para eventos clave (presupuesto, metas, transacciones detectadas). No se usan banners in-app |
 
 ### Micro-interacciones
@@ -379,7 +405,7 @@ Las categorías se pueden crear desde **tres contextos**:
 | Swipe-to-delete | `PanResponder` + `Animated` revela botón papelera |
 | Long-press gráfica | Popup con 3 opciones tras ~400ms |
 | Colapso de gráfica | Al hacer scroll, la gráfica colapsa suavemente (opacity + maxHeight) |
-| Diálogo de confirmación | Spring scale + fade-in con variante visual (danger/warning/info) |
+| Diálogo de confirmación | Hoja que sube desde abajo (`BottomSheet`) con variante visual (danger/warning/info) |
 | Spotlight onboarding | GuidedTour: fade-in overlay oscuro con cutout circular + spring scale tooltip entre pasos |
 | Reordenamiento de gráfica | `LayoutAnimation` suave al cambiar el orden de categorías por monto |
 | Números animados | `RollingNumber` anima por dígito Balance neto, Gastos e Ingresos al cambiar valores |
@@ -400,7 +426,7 @@ Las categorías se pueden crear desde **tres contextos**:
 
 ### Presupuesto
 - Pago esperado: `defaultPeriod.pay`, por período de la frecuencia elegida (en "varias veces al mes", uno por día de pago). Sin valor = no configurado (no hay barra de pago).
-- Presupuesto por categoría: `emoji → monto` por mes (calendario, o desde el día de inicio si la frecuencia es mensual con desfase), activa alertas en gráfica
+- Presupuesto por categoría (cada lista tiene los suyos; en una lista compartida, cada persona los suyos): `emoji → monto` por mes (calendario, o desde el día de inicio si la frecuencia es mensual con desfase), activa alertas en gráfica
 - Alertas: < 70% base, 70-89% ámbar, ≥ 90% rojo
 - Sin presupuesto: barra al 50% fijo con color base (solo informativo)
 
@@ -421,10 +447,11 @@ Las categorías se pueden crear desde **tres contextos**:
 - Post-procesamiento: texto con cifras en palabras se convierte a dígitos formateados
 
 ### Datos
-- SQLite local con WAL mode
+- SQLite local con WAL mode, siempre la fuente de verdad
 - Sin conexión a internet requerida
-- Sin datos bancarios sensibles almacenados
-- Exportación en CSV como único mecanismo de backup
+- Sin datos bancarios sensibles almacenados, ni en el teléfono ni en la nube; el texto crudo de las notificaciones bancarias no se sube
+- Backup: con sesión iniciada, respaldo automático en Firebase (Firestore, `users/{uid}`; listas compartidas en `spaces/{id}`). Sin sesión, exportar CSV por lista
+- Borrar es lógico (`deleted_at`) para que la sync propague el borrado; en la nube un movimiento borrado es solo `{ updatedAt, deletedAt }`, sin contenido
 
 ---
 
@@ -438,9 +465,9 @@ Las categorías se pueden crear desde **tres contextos**:
 | Accesibilidad | Textos escalables, contraste suficiente en ambos temas |
 | Offline | 100% funcional sin internet; la sync con la nube nunca bloquea la app |
 | Idioma | UI en español, código en inglés |
-| Seguridad | Sin datos sensibles, sin transmisión de datos; bloqueo opcional con huella/rostro/PIN del sistema |
+| Seguridad | Sin datos sensibles; sin sesión no se transmite nada. Con sesión, la única red es Firebase (Auth + Firestore), con reglas que limitan cada respaldo a su dueño y cada lista compartida a sus miembros (`firestore.rules`); bloqueo opcional con huella/rostro/PIN del sistema |
 | Tamaño APK | < 30MB (build de producción) |
 
 ---
 
-*Documento de requerimientos actualizado para MyWallet v1.5.0 — Septiembre 2026*
+*Documento de requerimientos actualizado para MyWallet v1.5.0 — Octubre 2026*

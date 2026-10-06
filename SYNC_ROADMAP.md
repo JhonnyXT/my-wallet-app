@@ -47,7 +47,7 @@ contenido y permisos hechos; faltan el build `prod` por EAS y llenar Play Consol
 | T7 | **El login del onboarding se puede saltar** (decidido 2026-09-29, era D1) | Sin un botón destacado de "Continuar sin cuenta": la pantalla ofrece Google y una opción discreta para saltar, y al saltar se avisa que puede iniciar sesión cuando quiera desde **Ajustes → Cuenta** para respaldar su información por si cambia o pierde el celular. Así el primer arranque no exige internet. |
 | T8 | **Primer login con datos en el teléfono y en la nube: se unen** (era D3) | Nada se pierde y no hay choques porque cada registro tiene id único (Fase 1). |
 | T9 | **Al cerrar sesión se pregunta** "Mantener en este teléfono" / "Borrar de este teléfono" (era D4) | Borrar sirve para dejar o vender el celular; mantener, para solo desconectar la cuenta. |
-| T10 | **Un entorno de Firebase por variant** (era D6, decidido por el usuario) | `dev` → **Firebase Emulator** local (pruebas de desarrollo, sin cuota ni datos reales). `test` → proyecto **`mywallet-test`**: lo usan testers y el usuario en su propio teléfono con datos reales. `prod` → proyecto **`mywallet-prod`**, el de Google Play. Así la data de testers nunca se mezcla con la de usuarios publicados. |
+| T10 | **Un entorno de Firebase por variant** (era D6, decidido por el usuario) | `dev` → **Firebase Emulator** local (pruebas de desarrollo, sin cuota ni datos reales). `test` → proyecto **`mywallet-test-jb`** (`mywallet-test` estaba tomado): lo usan testers y el usuario en su propio teléfono con datos reales. `prod` → proyecto **`mywallet-prod`**, el de Google Play. Así la data de testers nunca se mezcla con la de usuarios publicados. |
 | T11 | **Sin cifrado de extremo a extremo** por ahora (era D7) | Google cifra en reposo. Reevaluar solo si se quiere prometer "ni nosotros vemos tus datos". |
 
 ---
@@ -119,9 +119,10 @@ inviteCodes/{code}             → { spaceId, createdBy, expiresAt }
 - **Bajar (pull):** al iniciar sesión, al abrir la app y con el pull-to-refresh del Dashboard, se
   piden los documentos con `updatedAt` posterior a la última sync y se aplican en SQLite /
   AsyncStorage (si el local es más nuevo, gana el local). Los `deletedAt` borran la copia local.
-- **Pull-to-refresh en el Dashboard:** el gesto de deslizar hacia abajo hoy solo existe con un
-  filtro de categoría activo (`pullMode` en `app/(tabs)/index.tsx`); sin filtro está libre. Se usa
-  para "traer cambios" con un indicador animado propio (sin el spinner por defecto de Android).
+- **Deslizar en el Dashboard:** "traer cambios" es deslizar hacia abajo **sobre el bloque del
+  balance** (`syncPan` + `SyncPullIndicator` en `app/(tabs)/index.tsx`), con sesión y sin filtro de
+  categoría ni búsqueda, con un indicador animado propio (sin el spinner por defecto de Android).
+  Deslizar sobre la lista sigue siendo solo para quitar el filtro de categoría (`pullMode`).
 - **Stores sin tocar Firebase:** la capa de sync escucha los cambios de `useSettingsStore`
   (`subscribe` de Zustand) y de las escrituras de `src/db/db.ts`, y aplica lo que baja con las
   acciones normales de los stores.

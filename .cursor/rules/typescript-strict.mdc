@@ -44,7 +44,7 @@ export const useSettingsStore = create<State>()(
     {
       name: "mywallet-settings",
       storage: createJSONStorage(() => AsyncStorage),
-      version: SETTINGS_VERSION, // 2
+      version: SETTINGS_VERSION, // 3
       migrate: (persisted, version) =>
         migrateSettings(persisted, version, Date.now()) as unknown as State,
     }
@@ -55,7 +55,8 @@ export const useSettingsStore = create<State>()(
 - **Cambios incompatibles del estado persistido = subir `version` + extender `migrate`**, nunca
   renombrar/quitar un campo a secas: el usuario perdería lo guardado. Referencia: `useSettingsStore`
   v1 pasa el antiguo `monthlyBudget` a `defaultPeriod.pay` y borra la clave vieja; v2 agrega
-  `updatedAt` a los ítems sincronizables y `tombstones`. Cada paso va en un `if (version < N)`
+  `updatedAt` a los ítems sincronizables y `tombstones`; v3 agrega `profileUpdatedAt`/
+  `settingsUpdatedAt` en 0. Cada paso va en un `if (version < N)`
   dentro de `migrateSettings()` (`src/store/settingsMigrations.ts`, pura, con tests) para que una
   instalación muy vieja aplique todos en orden.
 - **Ítems sincronizables (`WalletList`, `PaymentMethod`, `SavingsGoal`, `Debt`)**: toda acción que

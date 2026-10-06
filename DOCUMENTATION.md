@@ -24,39 +24,42 @@ MyWallet es tu aplicación personal de control financiero. Diseñada para ser **
 8. [Categorías de gasto e ingreso](#8-categorías-de-gasto-e-ingreso)
 9. [Sistema de notificaciones](#9-sistema-de-notificaciones)
 10. [Promedios (Reportes)](#10-promedios-reportes)
-11. [Preguntas frecuentes y recomendaciones](#11-preguntas-frecuentes-y-recomendaciones)
+11. [Listas y gasto compartido](#11-listas-y-gasto-compartido)
+12. [Cuenta y respaldo en la nube](#12-cuenta-y-respaldo-en-la-nube)
+13. [Preguntas frecuentes y recomendaciones](#13-preguntas-frecuentes-y-recomendaciones)
 
 ---
 
 ## 1. Primeros Pasos
 
-Al abrir MyWallet por primera vez pasas por 4 pantallas de bienvenida:
-1. **Categorías:** eliges las categorías de gasto e ingreso que usas.
-2. **¿Cuándo y cuánto te pagan?:** eliges cada cuánto te pagan y cuánto (ver [Pago y período](#pago-y-período)). Puedes tocar **"Omitir"**: la app queda en mensual, sin pago configurado, y lo cambias cuando quieras en Configuración.
-3. **Detección automática:** te explica cómo la app puede leer las notificaciones de tu banco.
-4. **Bancos:** eliges de qué bancos detectar movimientos.
+Al abrir MyWallet por primera vez pasas por 5 pantallas de bienvenida:
+1. **Tu cuenta:** **"Continuar con Google"** para respaldar tu información, o **"Ahora no"** para seguir sin cuenta (puedes iniciar sesión después en Configuración → Cuenta). Si esa cuenta ya tenía información respaldada, la app la recupera y, si ya habías hecho la bienvenida en otro teléfono, entras directo al Dashboard. Ver [Cuenta y respaldo en la nube](#12-cuenta-y-respaldo-en-la-nube).
+2. **Categorías:** eliges las categorías de gasto e ingreso que usas.
+3. **¿Cuándo y cuánto te pagan?:** eliges cada cuánto te pagan y cuánto (ver [Pago y período](#pago-y-período)). Puedes tocar **"Omitir"**: la app queda en mensual, sin pago configurado, y lo cambias cuando quieras en Configuración.
+4. **Detección automática:** te explica cómo la app puede leer las notificaciones de tu banco.
+5. **Bancos:** eliges de qué bancos detectar movimientos.
 
 Ya en el Dashboard, un **tour guiado** de 3 pasos te muestra el botón de calendario (tus períodos), el registro por voz y el registro manual. Puedes saltarlo tocando **"Omitir"** en cualquier momento.
 
 Si prefieres configurar todo manualmente, sigue estos pasos:
 
 ### Paso 1 — Define cada cuánto y cuánto te pagan
-En **Configuración → Control financiero → Pago y período** eliges la frecuencia de tu pago y el monto. Con eso el Dashboard agrupa tus movimientos por período de pago y te muestra cuánto de tu pago llevas gastado.
+En **Configuración → En tu lista → Pago y período** eliges la frecuencia de tu pago y el monto. Con eso el Dashboard agrupa tus movimientos por período de pago y te muestra cuánto de tu pago llevas gastado.
 
 > 💡 **Recomendación:** Si no sabes cuánto gastas, empieza por registrar todo durante 2 semanas sin presupuesto. Luego usa los datos reales para definir un presupuesto realista.
 
 ### Paso 2 — Configura presupuestos por categoría (opcional pero recomendado)
 Los presupuestos por categoría activan las alertas visuales en la gráfica:
 
-1. En **Configuración → Presupuesto por categoría**, toca la tarjeta para abrir la pantalla de configuración
-2. Dentro del modal, toca cada categoría que quieras controlar
+1. En **Configuración → En tu lista → Presupuestos**, toca la fila para abrir la hoja de presupuestos
+2. Dentro de la hoja, toca cada categoría que quieras controlar
 3. Ingresa el monto límite mensual para esa categoría
 4. Las barras de la gráfica mostrarán en **ámbar** cuando llegues al 70% y en **rojo** al 90%
 
 > 💡 **Ejemplo práctico:** Si tu presupuesto de Comida es $300.000 y llevas $220.000 gastados, la barra mostrará 73% en ámbar — una advertencia visual antes de pasarte.
 
 ### Paso 3 — Revisa tus métodos de pago
-1. En **Configuración → Métodos de pago**, toca la tarjeta para abrir el panel de gestión
+1. En **Configuración → Gestión → Métodos de pago**, toca la fila para abrir el panel de gestión
 2. Verifica que tengas los métodos que usas (Efectivo, Ahorros, Tarjeta)
 3. Puedes renombrarlos (ej: "Nequi", "Bancolombia", "Efectivo diario") o agregar nuevos
 4. Al registrar cada transacción, indica desde qué cuenta salió el dinero
@@ -67,6 +70,9 @@ Los presupuestos por categoría activan las alertas visuales en la gráfica:
 
 Es la pantalla que verás al abrir la app. Está organizada en secciones de arriba a abajo:
 
+### Selector de lista ("Personal ▾")
+Arriba a la izquierda está el nombre de la lista que estás viendo. Tócalo para cambiar de lista, o para **Compartir** (manda un resumen de la lista por WhatsApp, correo…), **Editar** la lista actual o crear una **Nueva**. Las listas compartidas llevan un ícono de personas. Todo el Dashboard (balance, gráfica, lista) muestra solo lo de la lista elegida. Ver [Listas y gasto compartido](#11-listas-y-gasto-compartido).
+
 ### Balance Neto
 - **Número grande:** `Ingresos − Gastos` **del período que estés viendo** (el mes, la quincena, el año o el rango que elijas con el botón de calendario).
 - Si es **positivo** → en ese período entró más de lo que gastaste
@@ -74,6 +80,12 @@ Es la pantalla que verás al abrir la app. Está organizada en secciones de arri
 - **Saldo total:** debajo del número, tu plata real sobre **todo tu historial**, para no perderla de vista mientras miras otro período. No aparece en la vista "Todo el tiempo", porque ahí coincide con el número grande.
 - **Patrimonio neto:** si tienes deudas activas, al lado del saldo total aparece tu saldo menos lo que aún debes.
 - **Durante una búsqueda** el número pasa a mostrar el neto de los resultados encontrados (la etiqueta cambia a "BÚSQUEDA · N resultados") y se ocultan el saldo total y el patrimonio neto.
+
+### Deslizar el balance para traer cambios
+Si iniciaste sesión, **desliza hacia abajo sobre el balance** y suelta: la app trae lo último de tu cuenta (por ejemplo, lo que registraron las otras personas de una lista compartida o lo que hiciste en otro teléfono). Un anillo se llena mientras deslizas, el teléfono vibra cuando ya puedes soltar y al terminar aparece un ✓. Si no hay conexión aparece una nube tachada; no pasa nada, la app lo vuelve a intentar sola. No funciona mientras buscas o filtras por una categoría.
+
+### Chip de cuentas
+En una lista con más personas, bajo los pills aparece un chip con el estado de las cuentas (por ejemplo, **"Ana te debe $X ›"** o **"Están a mano"**). Tócalo para ver el detalle: quién pagó cuánto, cuánto le toca a cada uno y las transferencias para quedar a mano.
 
 ### Pills de tipo (↓ Gastos / ↑ Ingresos)
 - **Sin selección (por defecto):** La lista y la gráfica muestran todos los movimientos
@@ -110,7 +122,7 @@ Cuando no hay movimientos en el período seleccionado:
 - **Período pasado:** se muestra *"Sin registros en este período"*
 
 ### Lista de transacciones recientes
-- Muestra todos los movimientos del período seleccionado
+- Muestra todos los movimientos del período seleccionado, **agrupados por día**: cada grupo lleva su etiqueta ("Hoy", "Ayer" o la fecha) y el neto de ese día
 - Cada item aparece como una **tarjeta con fondo blanco y sombra sutil** (modo claro) / fondo oscuro (modo oscuro)
 - Cada registro muestra la fecha exacta en que fue creado (ej: "3 mar 2026")
 - **Gastos:** monto en negro con signo `−`
@@ -144,6 +156,8 @@ Cuando no hay movimientos en el período seleccionado:
 - **Descripción:** toca la fila con el ícono de documento para abrir un panel colapsable con un campo de texto libre (con NLP) y los tags. Escribe en lenguaje natural, por ejemplo `"Almuerzo en restaurante con compañeros"` o `"Uber al aeropuerto ayer"`. Mientras escribes, la app detecta automáticamente la **fecha** (si mencionas "ayer"/"anteayer") y la **categoría** (según palabras clave) y actualiza esos selectores solos.
   > ℹ️ El **monto ya no se sincroniza** desde el texto de la descripción — tiene su propio campo editable independiente (el número grande de arriba). Escribir un monto en la descripción es solo texto libre, no cambia el importe de la transacción.
 - **Fecha:** toca la fila con el ícono de calendario para abrir un calendario mensual (por defecto: hoy). No permite seleccionar fechas futuras. Selecciona y cierra en el mismo toque, con un chip "Hoy" de acceso directo.
+
+**Lista y Pagó:** si tienes 2 o más listas, arriba de Categoría aparece **LISTA** para elegir en cuál queda el movimiento (empieza en la lista que estás viendo; al editar, puedes moverlo a otra). Si la lista elegida tiene más personas, aparece **PAGÓ** para indicar quién lo pagó ("Tú" va primero).
 
 **Categoría:** lista horizontal siempre visible debajo de la tarjeta, con tus categorías elegidas + un ítem "Nueva" (ícono `+`) al final para crear una al vuelo. Toca cualquiera para seleccionarla directamente — no hay sheet ni confirmación aparte.
 
@@ -352,13 +366,22 @@ Toca el ícono de **lupa (🔍)** en el dock flotante. Una barra de búsqueda ap
 
 Accede tocando ⚙️ en la esquina superior derecha del Dashboard.
 
-La pantalla está organizada en secciones, en este orden: **Listas** (Tus listas) → **En tu
+La pantalla está organizada en secciones, en este orden: **Cuenta** (iniciar sesión con Google,
+o tu correo, el estado del respaldo, Cerrar sesión y Eliminar cuenta — ver [Cuenta y respaldo en
+la nube](#12-cuenta-y-respaldo-en-la-nube)) → **Listas** (Tus listas) → **En tu
 lista** (Categorías, Presupuestos, Pago y período, Mostrar ingresos, Compartir lista, Exportar
 CSV, Importar CSV — todo referido a la lista que tienes activa) → **Gestión** (Métodos de pago,
 Metas de ahorro, Deudas — comunes a todas tus listas) → **Detección automática** → **Sistema**
 (Modo oscuro, Bloqueo con huella, Borrar historial, Versión).
 
-### Control Financiero
+Cada opción que tiene más detalle se abre como una **hoja** que sube desde abajo; la cierras
+tocando fuera de ella o deslizándola hacia abajo.
+
+### En tu lista
+
+Estas opciones aplican solo a la lista que tienes activa (su nombre aparece en el título de la
+sección). Lo de **Listas**, **Mostrar ingresos**, **Compartir lista** y **Exportar/Importar CSV**
+se explica en [Listas y gasto compartido](#11-listas-y-gasto-compartido).
 
 #### Pago y período
 Define **cada cuánto te pagan** y **cuánto**. También se abre desde el Dashboard (mantén presionado el botón de calendario → "Pago y período").
@@ -375,23 +398,23 @@ Define **cada cuánto te pagan** y **cuánto**. También se abre desde el Dashbo
 
 > ℹ️ Si usas **Mensual con desfase**, tus presupuestos por categoría también se miden de ese día al anterior del mes siguiente (ej. del 15 al 14). Con cualquier otra frecuencia, los presupuestos por categoría siguen siendo por mes calendario.
 
-### Métodos de pago *(abre modal de pantalla completa)*
-Toca la tarjeta "Métodos de pago" para abrir el panel de gestión:
-- **Agregar:** Toca el botón "Agregar método"
-- **Editar:** Toca el nombre o tipo del método
+### Métodos de pago *(abre una hoja)*
+Toca la fila "Métodos de pago" (dentro de Gestión) para abrir el panel de gestión:
+- **Agregar:** Toca el botón "Agregar método" → nombre, tipo e ícono (sugerido según el nombre)
+- **Editar:** Toca el ícono ✏️ del método
 - **Eliminar:** Toca el ícono de papelera (debe quedar mínimo 1; se muestra diálogo de confirmación)
 - **Tipos disponibles:** Efectivo, Débito, Ahorros
 - Estos aparecerán en el selector "Cuenta" al registrar transacciones
 
-### Presupuesto por categoría *(abre modal de pantalla completa)*
-Toca la tarjeta "Presupuesto por categoría" para abrir el panel:
+### Presupuestos *(abre una hoja)*
+Toca la fila "Presupuestos" (dentro de En tu lista) para abrir el panel. Cada lista tiene sus propios presupuestos:
 - Lista tus categorías de gasto elegidas
 - Toca cualquiera para ingresar un límite mensual
 - El límite se muestra en verde cuando está configurado
 - Toca **✗** para quitar el límite de una categoría
 - Activa las alertas visuales en la gráfica del Dashboard
 
-### Metas de ahorro *(abre modal de pantalla completa)*
+### Metas de ahorro *(abre una hoja)*
 Toca la fila "Metas de ahorro" (dentro de Gestión) para abrir el panel:
 - **Crear meta:** Toca **"Nueva meta"** → ingresa nombre, emoji, monto objetivo
 - **Editar:** Toca el ícono ✏️ sobre la meta para cambiar nombre, emoji o monto objetivo (no toca lo ya ahorrado)
@@ -401,7 +424,7 @@ Toca la fila "Metas de ahorro" (dentro de Gestión) para abrir el panel:
 
 > ℹ️ Al abonar a una meta, se registra automáticamente como **gasto** en el Dashboard (con el emoji de la meta, descripción "Abono a [nombre]" y tag `#ahorro`). Esto descuenta el dinero de tu balance disponible.
 
-### Deudas *(abre modal de pantalla completa, nuevo)*
+### Deudas *(abre una hoja)*
 Toca la fila "Deudas" (dentro de Gestión) para abrir el panel:
 - **Crear deuda:** Toca **"Nueva deuda"** → ingresa nombre, emoji, monto total de la deuda, cuota mensual y el **día del mes** en que se recuerda pagarla (se repite todos los meses, no es una fecha puntual)
 - **Editar:** Toca el ícono ✏️ sobre la deuda para cambiar cualquiera de esos datos (no toca el saldo pendiente)
@@ -499,7 +522,9 @@ No tienes que salir del formulario para agregar una categoría nueva:
 
 ### Editar categorías después
 
-Desde **Configuración > Mis categorías** puedes ver tus categorías actuales y tocar **"Gestionar categorías"** para volver a la pantalla de selección y agregar/quitar categorías. Al editar una categoría existente puedes cambiar su emoji, nombre y color con el slider.
+Desde **Configuración → En tu lista → Categorías** se abre la hoja **"Tus categorías"** con las de la lista activa (cada lista tiene las suyas). Toca una para editar su emoji, nombre y color con el slider, o toca el botón **+** de arriba para volver a la pantalla de selección y agregar/quitar categorías.
+
+Al crear o editar una categoría (y también una meta, una deuda o un método de pago), la app te **sugiere íconos según el nombre** que vas escribiendo (por ejemplo, "gimnasio" → 🏋️) y elige el mejor mientras no toques uno a mano.
 
 ### El selector de color (slider de tono)
 
@@ -527,7 +552,7 @@ MyWallet usa **exclusivamente notificaciones del sistema (push)** para los event
 | **Alerta de presupuesto** | Cuando alcanzas el porcentaje configurado de gasto en una categoría (default 80%) |
 | **Presupuesto superado** | Cuando superas el 100% del presupuesto de una categoría — segunda notificación tras la del umbral |
 | **Meta de ahorro cumplida** | Cuando el monto acumulado de una meta llega al objetivo |
-| **Transacción detectada** | Cuando MyWallet identifica una transacción en una notificación bancaria. Al tocarla, te lleva directo a la pantalla de revisión |
+| **Transacción detectada** | Cuando MyWallet identifica una transacción en una notificación bancaria. Al tocarla, te lleva al formulario prellenado (si es la única pendiente) o a la pantalla de revisión (si hay varias) |
 | **Cuota de deuda por vencer** *(nuevo)* | Cada mes, en el día de pago que definiste para una deuda |
 | **Deuda liquidada** *(nuevo)* | Cuando el saldo pendiente de una deuda llega a $0 |
 
@@ -562,7 +587,83 @@ Si aún no hay transacciones, verás el mensaje "Aún no hay suficiente historia
 
 ---
 
-## 11. Preguntas Frecuentes y Recomendaciones
+## 11. Listas y Gasto Compartido
+
+Las **listas** separan tus movimientos en mundos aparte: un viaje, el negocio, los gastos de la casa… Cada lista tiene sus propias categorías, presupuestos y su propio período ("Pago y período").
+
+### Personal y tus otras listas
+- **Personal** siempre existe y no se puede borrar. Es "todo tu dinero": muestra sus propios movimientos **más lo que pagaste tú** en cualquier otra lista.
+- **Las demás listas** muestran solo lo suyo, sin importar quién pagó.
+- Cambias de lista con el botón **"Personal ▾"** del Dashboard o en **Configuración → Tus listas** (toca una para activarla).
+
+### Crear, editar o borrar una lista
+1. Dashboard → **"Personal ▾" → Nueva**, o **Configuración → Tus listas → Nueva lista**
+2. Escribe el nombre, elige un ícono y, si quieres, agrega **Personas** (quienes también gastan en esa lista; tú ya estás incluido)
+3. Toca **"Siguiente: categorías →"**, marca las categorías de la lista y toca **"Crear lista"**. La lista nueva empieza viendo "Todo el tiempo".
+
+Para editarla: Dashboard → "Personal ▾" → **Editar** (o el lápiz junto a la lista activa en "Tus listas"). Al final del editor está **"Eliminar lista"**: borra la lista **y todos sus movimientos**, sin deshacer. No puedes quitar a una persona que ya tiene movimientos registrados.
+
+### Quién pagó y las cuentas
+En una lista con personas, cada gasto lleva quién lo pagó (sección **PAGÓ** del formulario). La app reparte **solo los gastos** en partes iguales entre todos (los ingresos no se reparten) y calcula las transferencias mínimas para quedar a mano. El resumen aparece en el **chip de cuentas** del Dashboard (por ejemplo, "Ana te debe $X ›"); tócalo para ver el detalle.
+
+### Opciones de la lista activa (Configuración → En tu lista)
+- **Mostrar ingresos:** apágalo en una lista que sea solo de gastos (ej. "la casa"): el Dashboard deja de mostrar sus ingresos en el balance, la gráfica, la tira de períodos y la lista.
+- **Compartir lista:** manda un resumen de texto (gastos, ingresos, balance y quién pagó cuánto) por WhatsApp, correo, etc. Desde el menú "Personal ▾" del Dashboard comparte el período que estás viendo; desde Configuración, todo el historial.
+- **Exportar CSV:** crea un archivo `.csv` con los movimientos de la lista (incluye método de pago y quién pagó) y lo comparte con la hoja del sistema. Ábrelo en Excel o Google Sheets.
+- **Importar CSV:** elige un archivo `.csv` y sus movimientos se agregan a la lista activa, sin duplicar los que ya están (misma fecha, monto y descripción).
+
+### Listas compartidas (cada persona desde su teléfono)
+Con una lista compartida, cada persona registra desde **su propio teléfono y su cuenta**, y todos ven lo mismo. Necesitas **sesión iniciada** (Configuración → Cuenta) y **conexión** para compartir o unirte; después, registrar funciona igual sin internet.
+
+**Compartir una lista que creaste:**
+1. Abre el editor de la lista (Dashboard → "Personal ▾" → Editar)
+2. Toca **"Compartir lista"**
+3. Aparece un **código de 6 caracteres** que vence en 7 días. Toca **"Compartir código"** para mandarlo, o díctalo.
+
+Cualquier persona de la lista puede generar un código nuevo con **"Invitar a alguien"** en el mismo editor.
+
+**Unirte con un código:**
+1. **Configuración → Tus listas → Unirme con un código**
+2. Escribe el código y toca **"Unirme"**
+3. Si la lista ya tenía personas agregadas por nombre, la app pregunta **"¿Quién eres?"**: elige tu nombre (lo que esa persona ya había pagado queda como tuyo) o **"Soy otra persona"**
+
+**Qué se comparte y qué no:** el nombre, el ícono, las categorías, "Mostrar ingresos", las personas y los movimientos son de todos. El **período y los presupuestos son de cada uno**. En "Tus listas" una lista compartida dice "Compartida · Tú y N personas", y en el editor un **punto verde** marca a quien ya se unió con la app. Cualquiera de la lista puede editar o borrar cualquier movimiento, como en una lista en papel.
+
+**Ver lo que registran los demás:** los cambios llegan solos al abrir la app o al volver a ella; para traerlos en el momento, [desliza hacia abajo sobre el balance](#deslizar-el-balance-para-traer-cambios).
+
+**Salir, quitar a alguien o eliminar:**
+- Si no la creaste tú, el editor muestra **"Salir de la lista"**: dejas de ver lo que registren los demás y la lista se queda en tu teléfono, con lo que ya tenía, como una lista tuya.
+- Quien la creó puede quitar a una persona que se unió (la **x** junto a su nombre). Lo que esa persona pagó sigue contando en las cuentas.
+- Si la creaste tú, **"Eliminar lista"** la borra **para todos**, con todos sus movimientos.
+
+---
+
+## 12. Cuenta y Respaldo en la Nube
+
+Iniciar sesión es **opcional**: sin cuenta la app funciona completa. Con tu cuenta de Google, tus movimientos, listas, categorías, presupuestos, métodos de pago, metas, deudas y ajustes se respaldan en la nube, los recuperas si cambias de teléfono y puedes compartir listas.
+
+### Iniciar sesión
+En la primera pantalla de bienvenida (**"Continuar con Google"**) o después en **Configuración → Cuenta → Iniciar sesión con Google**. Si esa cuenta ya tenía información respaldada, se une con la que tienes en el teléfono, sin perder nada.
+
+### Estado del respaldo
+Con sesión iniciada, la sección **Cuenta** muestra tu correo y una fila con el estado: **"Respaldado hace 5 min"**, **"N cambios pendientes"**, **"Sin conexión"** o **"No se pudo respaldar. Toca para reintentar"**. Toca esa fila para respaldar en el momento. El respaldo corre solo en segundo plano: lo que hagas sin internet se sube cuando vuelve la conexión, y nunca tienes que esperarlo para usar la app.
+
+> ℹ️ El texto de las notificaciones de tu banco que aún no has confirmado **no** se sube: solo los movimientos que guardas.
+
+### Cerrar sesión
+**Configuración → Cuenta → Cerrar sesión** te pregunta qué hacer con la información del teléfono (en tu cuenta sigue guardada):
+- **Mantener en este teléfono:** todo sigue aquí; solo deja de respaldarse.
+- **Borrar de este teléfono:** deja la app como recién instalada y vuelve a la bienvenida. Si hay cambios que aún no se respaldaron, no te deja borrar: conéctate primero para subirlos.
+
+### Si el teléfono tiene datos de otra cuenta
+Si inicias sesión con una cuenta distinta a la que se usó antes en el teléfono, la app pregunta antes de subir nada: **"Unir con esta cuenta"** o **"Borrar del teléfono y usar esta"** (los datos de la otra cuenta siguen guardados en ella). Si hay cambios sin respaldar de la otra cuenta, solo puedes unir, para no perderlos.
+
+### Eliminar la cuenta
+Ver [¿Cómo elimino mi cuenta y mis datos de la nube?](#cómo-elimino-mi-cuenta-y-mis-datos-de-la-nube).
+
+---
+
+## 13. Preguntas Frecuentes y Recomendaciones
 
 ### ¿Mis datos están seguros?
 Sí. **Todo se guarda primero en tu dispositivo** (base de datos SQLite). Sin sesión iniciada, la app no envía nada a ningún servidor. Si inicias sesión con Google, se sube una copia a Firebase (la nube de Google) que **solo tú puedes ver**, salvo lo que pongas en una lista compartida. El texto de las notificaciones de tu banco nunca se sube, ni se guardan números de cuenta o tarjeta.
@@ -571,7 +672,7 @@ Sí. **Todo se guarda primero en tu dispositivo** (base de datos SQLite). Sin se
 No. Iniciar sesión con Google es opcional (primer paso del onboarding, o después en **Ajustes → Cuenta**). Sin cuenta todo funciona igual; con cuenta ganas el respaldo en la nube y las listas compartidas.
 
 ### ¿Qué pasa si desinstalo la app o cambio de celular?
-Con sesión iniciada, instala la app en el teléfono nuevo, inicia sesión con la misma cuenta de Google y recuperas todo. Sin cuenta, desinstalar borra tus datos: antes usa **Ajustes → Exportar CSV** en cada lista para guardar tu historial.
+Con sesión iniciada, instala la app en el teléfono nuevo, inicia sesión con la misma cuenta de Google y recuperas todo. Sin cuenta, desinstalar borra tus datos: antes usa **Configuración → En tu lista → Exportar CSV** en cada lista para guardar tu historial.
 
 ### ¿Cómo elimino mi cuenta y mis datos de la nube?
 **Ajustes → Cuenta → Eliminar cuenta.** Borra tu cuenta, todo tu respaldo en la nube y las listas compartidas que creaste; te saca de las listas de otras personas (lo que registraste ahí se queda para que sus cuentas cuadren). Lo que tienes en el teléfono no se borra. Si ya no tienes la app, puedes pedirlo en https://mywallet-blush.vercel.app/es/delete-account.
@@ -586,7 +687,7 @@ Simplemente toca la categoría correcta en la lista horizontal de **Categoría**
 Sí. Desliza el registro hacia la **derecha** en el Dashboard para revelar el botón azul de editar (ícono de lápiz) y ajusta lo que necesites — monto, descripción, categoría, cuenta o fecha. Si prefieres, también puedes deslizar hacia la izquierda para eliminarlo y crearlo de nuevo.
 
 ### La barra de mi categoría siempre está al 50%, ¿es un error?
-No. Cuando no tienes un presupuesto configurado para esa categoría, la barra se muestra al 50% de forma neutra (solo indica que tienes gastos en ella). Para que la barra sea informativa y muestre el % real consumido, configura un límite en **Configuración → Presupuesto por categoría** (toca la tarjeta para abrir el modal de configuración).
+No. Cuando no tienes un presupuesto configurado para esa categoría, la barra se muestra al 50% de forma neutra (solo indica que tienes gastos en ella). Para que la barra sea informativa y muestre el % real consumido, configura un límite en **Configuración → En tu lista → Presupuestos**, o mantén presionada la columna → **Agregar presupuesto**.
 
 ### ¿Cómo veo solo las transacciones de una categoría?
 Toca (tap corto) sobre cualquier columna de la gráfica. La gráfica se ocultará y la lista mostrará solo los movimientos de esa categoría, con un chip arriba indicando cuál está activa. Para volver a la vista normal, toca el botón **Atrás** del dispositivo o **desliza la lista hacia abajo** desde el tope.
@@ -638,7 +739,7 @@ Una vez por semana:
 
 Una vez al mes:
   1. Revisa cuánto de tu pago llevas gastado (barra de pago en el Dashboard)
-  2. Exporta tus datos como backup (Configuración → Exportar)
+  2. Si no tienes sesión iniciada, exporta tus datos como backup (Configuración → En tu lista → Exportar CSV, en cada lista)
   3. Ajusta los presupuestos por categoría según el mes anterior
 ```
 
@@ -671,12 +772,18 @@ Una vez al mes:
 | **Diálogo de confirmación** | Ventana emergente minimalista con icono, título y botones (reemplaza las alertas nativas del sistema) |
 | **Bloqueo con huella** | Ajuste que pide huella, rostro o PIN del teléfono al abrir la app o volver a ella |
 | **Detalle de transacción** | Tarjeta modal que aparece al hacer tap en un registro, mostrando información completa (categoría, monto, tipo, cuenta, fecha, hora, descripción, tags) |
-| **Guided Tour / Onboarding** | Tour guiado de 5 pasos que aparece la primera vez que abres la app. Te muestra cómo configurar tu ingreso y registrar transacciones |
-|| **Notificación del sistema (push)** | Alerta en la barra de notificaciones del teléfono. MyWallet la usa para: alertas de presupuesto (umbral configurable + 100%), metas de ahorro cumplidas y transacciones bancarias detectadas (con deep link a la pantalla de revisión) |
-|| **Alertas de presupuesto** | Configuración en Ajustes con toggle on/off y slider de porcentaje (50–100%, default 80%) que define cuándo se dispara la primera notificación push de presupuesto por categoría |
-|| **Multi-transacción por voz** | Cuando dices varios montos en un mismo input de voz, la app los detecta y navega a la pantalla "Revisar registros" donde puedes editar, eliminar o agregar más antes de guardar el lote |
-|| **Revisar registros** | Pantalla de revisión del lote multi-voz o de transacciones detectadas. Tarjetas editables por swipe/edición, botón "Guardar todo" y opción "Añadir registro manual" que lleva al formulario y regresa sin guardar aún en DB |
-|| **CSV** | Formato de exportación de datos (Comma-Separated Values). Abre en Excel o Google Sheets como tabla con todas tus transacciones |
+| **Onboarding** | Las 5 pantallas de bienvenida de la primera vez: cuenta (opcional), categorías, pago, detección automática y bancos |
+| **Guided Tour** | Tour guiado de 3 pasos en el Dashboard, justo después del onboarding: botón de calendario, registro por voz y registro manual |
+| **Notificación del sistema (push)** | Alerta en la barra de notificaciones del teléfono. MyWallet la usa para: alertas de presupuesto (umbral configurable + 100%), metas de ahorro cumplidas, cuotas de deudas y transacciones bancarias detectadas (al tocarla abre el formulario o la pantalla de revisión) |
+| **Alertas de presupuesto** | Configuración en Ajustes con toggle on/off y slider de porcentaje (50–100%, default 80%) que define cuándo se dispara la primera notificación push de presupuesto por categoría |
+| **Multi-transacción por voz** | Cuando dices varios montos en un mismo input de voz, la app los detecta y navega a la pantalla "Revisar registros" donde puedes editar, eliminar o agregar más antes de guardar el lote |
+| **Revisar registros** | Pantalla de revisión del lote multi-voz o de transacciones detectadas. Tarjetas editables por swipe/edición, botón "Guardar todo" y opción "Añadir registro manual" que lleva al formulario y regresa sin guardar aún en DB |
+| **CSV** | Formato de archivo de datos (Comma-Separated Values). "Exportar CSV" crea uno con los movimientos de la lista activa, que se abre en Excel o Google Sheets; "Importar CSV" agrega a la lista activa los movimientos de un archivo |
+| **Lista** | Grupo separado de movimientos (un viaje, la casa, el negocio) con sus propias categorías, presupuestos y período. **Personal** siempre existe y muestra todo tu dinero |
+| **Lista compartida** | Lista en la que varias personas registran, cada una desde su teléfono y con su cuenta. Se comparte con un código de invitación |
+| **Código de invitación** | 6 letras y números (vence en 7 días) para unirse a una lista compartida desde Configuración → Tus listas → Unirme con un código |
+| **Cuentas (de una lista)** | Cálculo de quién le debe a quién en una lista con varias personas: reparte los gastos en partes iguales y propone las transferencias para quedar a mano |
+| **Respaldo** | Copia en la nube (Firebase, de Google) de tu información, activa solo con sesión iniciada. Se hace solo en segundo plano |
 | **Promedios** | Pantalla accesible desde el ícono de gráfica del dock flotante. Muestra el promedio mensual histórico de gasto/ingreso por categoría (siempre sobre todo tu historial, no el período filtrado del Dashboard), con un ranking completo y una tarjeta de tendencia mensual con rango de fechas elegible |
 
 ---

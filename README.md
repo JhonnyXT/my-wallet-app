@@ -20,7 +20,12 @@ en Firebase y se pueden compartir listas con otras personas — sin backend prop
 - **Chat NLP experimental**: escribe en lenguaje natural ("almuerzo 15000") y la app extrae
   monto, categoría y fecha.
 - **Presupuestos por categoría** con alertas push al acercarte o superar el límite.
-- **Metas de ahorro** con abonos que se registran como gasto en el balance.
+- **Metas de ahorro** con abonos que se registran como gasto en el balance, y **deudas** con
+  recordatorio mensual.
+- **Listas** (un viaje, la casa, el negocio…) con sus propias categorías, presupuestos y período;
+  quién pagó cada gasto y quién le debe a quién; exportar/importar CSV por lista.
+- **Cuenta de Google opcional**: respaldo automático en la nube y **listas compartidas** con otras
+  personas (cada una desde su teléfono, uniéndose con un código).
 - **Modo oscuro** (sistema / claro / oscuro) en toda la app.
 
 ## Stack técnico
@@ -34,15 +39,14 @@ en Firebase y se pueden compartir listas con otras personas — sin backend prop
 | Base de datos | expo-sqlite (WAL mode), sin ORM |
 | Estilos | NativeWind (Tailwind) + StyleSheet |
 | Notificaciones | expo-notifications + react-native-android-notification-listener (HeadlessJS) |
+| Cuenta y sync | Firebase (Auth con Google + Firestore) vía `@react-native-firebase`, solo en `src/sync/` |
 
 ## Instalación y arranque
 
 Requisitos: Node.js ≥ 20, Android SDK, Java 17.
 
 ```bash
-npm install
-# si hay conflictos de peer deps (React 19 vs librerías con peer React 18):
-npm install --legacy-peer-deps
+npm install   # .npmrc ya fija legacy-peer-deps=true (React 19 vs librerías con peer React 18)
 ```
 
 Desarrollo:
@@ -72,6 +76,7 @@ my-wallet-app/
 │   ├── db/         # SQLite: esquema, CRUD, queries agregadas
 │   ├── services/   # Notificaciones (push + detección bancaria en background)
 │   ├── store/      # Stores Zustand
+│   ├── sync/       # Única capa con red: sesión con Google, respaldo y listas compartidas (Firebase)
 │   ├── theme/       # Tokens de diseño (light/dark)
 │   └── utils/       # Formateo de moneda, parser de notificaciones, NLP de voz/texto
 ├── android/        # Proyecto Android nativo

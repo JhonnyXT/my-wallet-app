@@ -42,8 +42,9 @@ tengan (idempotente) y después crea `idx_tx_uid`. Toda inserción nueva genera 
 
 Borrar una transacción NUNCA hace `DELETE`: fija `deleted_at`, `updated_at` y `sync_state =
 'pending'` (con `AND deleted_at IS NULL`, para no re-fechar un borrado viejo). Así la sync puede
-avisar del borrado a otros teléfonos (`SYNC_ROADMAP.md`, T6). El único `DELETE` físico es
-`purgeSyncedTombstones()`: tombstones `synced` de más de 30 días.
+avisar del borrado a otros teléfonos (`SYNC_ROADMAP.md`, T6). Los únicos `DELETE` físicos son
+`purgeSyncedTombstones()` (tombstones `synced` de más de 30 días) y `wipeAllTransactions()`
+("Borrar de este teléfono" al cerrar sesión, ver más abajo).
 
 `list_id` referencia `WalletList.id` (`useSettingsStore.lists`, ver `AGENTS.md` § Listas y gasto
 compartido); `paid_by` es `""` (`SELF_PAYER`, el dueño del teléfono) o el `id` de un `ListMember`

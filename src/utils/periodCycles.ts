@@ -12,8 +12,8 @@
 export type PeriodCadence =
   | { type: "weekly"; weekStartsOn: number; pay?: number } // 0 = domingo … 6 = sábado
   | { type: "biweekly"; weekStartsOn: number; anchor: string; pay?: number } // anchor: "YYYY-MM-DD"
-  | { type: "semimonthly"; days: number[]; pay?: Record<string, number> } // días 1–28 (ej. [1, 16])
-  | { type: "monthly"; startDay: number; pay?: number } // 1–28
+  | { type: "semimonthly"; days: number[]; pay?: Record<string, number> } // días 1–31 (ej. [1, 16])
+  | { type: "monthly"; startDay: number; pay?: number } // 1–31: en meses más cortos se acota al último día (ver `monthDate`)
   | { type: "all"; pay?: number };
 
 export type CycleCadence = Exclude<PeriodCadence, { type: "all" }>;
@@ -105,10 +105,24 @@ export function parseYMD(s: string): Date {
 }
 
 function sortedDays(days: number[]): number[] {
-  const clean = [...new Set(days.map((x) => Math.min(28, Math.max(1, Math.round(x)))))].sort(
+  const clean = [...new Set(days.map((x) => Math.min(31, Math.max(1, Math.round(x)))))].sort(
     (a, b) => a - b,
   );
   return clean.length > 0 ? clean : [1];
+}
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+/**
+ * Construye una fecha con `day` acotado a los días reales del mes (year/month ya pueden
+ * venir fuera de 0–11/del año actual, `Date` los normaliza igual). Sin este clamp,
+ * `new Date(year, month, 30)` en febrero se desborda al 2 de marzo en vez de quedarse en
+ * el mes pedido: `startDay`/`days` admiten 1–31, pero no todos los meses tienen esos días.
+ */
+function monthDate(year: number, month: number, day: number): Date {
+  return new Date(year, month, Math.min(day, daysInMonth(year, month)));
 }
 
 // ─── Ciclos ──────────────────────────────────────────────────────────────────
@@ -138,14 +152,14 @@ export function cycleStartContaining(c: CycleCadence, date: Date): Date {
     }
     case "monthly":
       return day.getDate() >= c.startDay
-        ? new Date(day.getFullYear(), day.getMonth(), c.startDay)
-        : new Date(day.getFullYear(), day.getMonth() - 1, c.startDay);
+        ? monthDate(day.getFullYear(), day.getMonth(), c.startDay)
+        : monthDate(day.getFullYear(), day.getMonth() - 1, c.startDay);
     case "semimonthly": {
       const days = sortedDays(c.days);
       const reached = days.filter((x) => x <= day.getDate());
       return reached.length > 0
-        ? new Date(day.getFullYear(), day.getMonth(), reached[reached.length - 1])
-        : new Date(day.getFullYear(), day.getMonth() - 1, days[days.length - 1]);
+        ? monthDate(day.getFullYear(), day.getMonth(), reached[reached.length - 1])
+        : monthDate(day.getFullYear(), day.getMonth() - 1, days[days.length - 1]);
     }
   }
 }
@@ -157,13 +171,13 @@ function nextCycleStart(c: CycleCadence, start: Date): Date {
     case "biweekly":
       return addDays(start, 14);
     case "monthly":
-      return new Date(start.getFullYear(), start.getMonth() + 1, c.startDay);
+      return monthDate(start.getFullYear(), start.getMonth() + 1, c.startDay);
     case "semimonthly": {
       const days = sortedDays(c.days);
       const later = days.find((x) => x > start.getDate());
       return later !== undefined
-        ? new Date(start.getFullYear(), start.getMonth(), later)
-        : new Date(start.getFullYear(), start.getMonth() + 1, days[0]);
+        ? monthDate(start.getFullYear(), start.getMonth(), later)
+        : monthDate(start.getFullYear(), start.getMonth() + 1, days[0]);
     }
   }
 }
@@ -175,13 +189,13 @@ function prevCycleStart(c: CycleCadence, start: Date): Date {
     case "biweekly":
       return addDays(start, -14);
     case "monthly":
-      return new Date(start.getFullYear(), start.getMonth() - 1, c.startDay);
+      return monthDate(start.getFullYear(), start.getMonth() - 1, c.startDay);
     case "semimonthly": {
       const days = sortedDays(c.days);
       const earlier = days.filter((x) => x < start.getDate());
       return earlier.length > 0
-        ? new Date(start.getFullYear(), start.getMonth(), earlier[earlier.length - 1])
-        : new Date(start.getFullYear(), start.getMonth() - 1, days[days.length - 1]);
+        ? monthDate(start.getFullYear(), start.getMonth(), earlier[earlier.length - 1])
+        : monthDate(start.getFullYear(), start.getMonth() - 1, days[days.length - 1]);
     }
   }
 }

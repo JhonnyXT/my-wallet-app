@@ -515,8 +515,8 @@ Estado de UI global: búsqueda (searchOpen, searchQuery, activeTags), filtro por
 type PeriodCadence =
   | { type: "weekly"; weekStartsOn: number; pay?: number }                  // 0 = domingo … 6 = sábado
   | { type: "biweekly"; weekStartsOn: number; anchor: string; pay?: number } // anchor "YYYY-MM-DD"
-  | { type: "semimonthly"; days: number[]; pay?: Record<string, number> }    // días 1–28; pago por día
-  | { type: "monthly"; startDay: number; pay?: number }                      // 1–28
+  | { type: "semimonthly"; days: number[]; pay?: Record<string, number> }    // días 1–31; pago por día
+  | { type: "monthly"; startDay: number; pay?: number }                      // 1–31, acotado al mes (ver `monthDate`)
   | { type: "all"; pay?: number };                                           // navega por meses calendario
 
 // Lo que mira el Dashboard (estado local de useTransactionFilters).
@@ -530,6 +530,12 @@ Helpers: `cycleAtOffset`, `listCycles` (tope 400 ciclos), `viewRange`/`viewLabel
 `budgetCycle`/`cycleKey`, `expectedPay` (en `semimonthly` depende del día que abre el ciclo),
 `filterByRange`, `sumByRanges` (una pasada con búsqueda binaria), `toYMD`/`parseYMD` (fechas locales).
 Tests en `periodCycles.test.ts`. Reemplaza al antiguo `periodFilter.ts` (borrado).
+
+**`startDay`/`days` admiten 1–31, acotados al mes real con `monthDate()` (helper interno).** Un
+mes de 28/29/30 días no tiene día 29-31: construir la fecha a mano (`new Date(year, month, 31)` en
+febrero) se desborda al mes siguiente en vez de quedarse en el mes pedido. `monthDate()` evita eso
+acotando al último día real; `cycleStartContaining`/`nextCycleStart`/`prevCycleStart` lo usan en
+vez de `new Date()` directo. `sortedDays()` ya no clampea a 28 (quedó en 1-31, mismo rango).
 
 `useTransactionFilters(transactions)` guarda la vista junto con la frecuencia en que se eligió; si la
 frecuencia cambia, la vista vuelve a la predeterminada en el mismo render. Expone `periodView`,
@@ -1191,7 +1197,7 @@ resto de la app) en vez del header "← Volver" hecho a mano que tenía antes.
 - Filas con estilo estático + `android_ripple` (el estilo-función de `Pressable` se perdía dentro del `Modal`). Suma `StatusBar.currentHeight` al `top` porque el `Modal` es edge-to-edge y `measureInWindow` cuenta desde debajo de la barra de estado.
 
 ### PayPeriodForm / DefaultPeriodSheet
-- `PayPeriodForm`: "cada cuánto y cuánto te pagan". Página principal con vista previa (`PeriodStrip` con los ciclos reales, si hay datos y la frecuencia no es "Todo el tiempo") y filas: Frecuencia, Inicio de la semana (semanal / cada 2 semanas), El ciclo actual empieza (cada 2 semanas: esta semana o la pasada → `anchor`), Días de inicio (varias veces al mes, grilla 1–28, mínimo 2 días), "Añadir desfase de inicio de mes"/Inicio del mes (mensual, grilla 1–28), "¿Cuánto te pagan?" (un monto, o uno por día de pago en varias veces al mes). Cada fila abre una **página interna** del mismo formulario, no otra hoja.
+- `PayPeriodForm`: "cada cuánto y cuánto te pagan". Página principal con vista previa (`PeriodStrip` con los ciclos reales, si hay datos y la frecuencia no es "Todo el tiempo") y filas: Frecuencia, Inicio de la semana (semanal / cada 2 semanas), El ciclo actual empieza (cada 2 semanas: esta semana o la pasada → `anchor`), Días de inicio (varias veces al mes, grilla 1–31, mínimo 2 días), "Añadir desfase de inicio de mes"/Inicio del mes (mensual, grilla 1–31), "¿Cuánto te pagan?" (un monto, o uno por día de pago en varias veces al mes). Cada fila abre una **página interna** del mismo formulario, no otra hoja.
 - Al cambiar de frecuencia conserva el pago solo si la conversión es exacta (mensual ↔ quincenal ↔ todo el tiempo, semanal ↔ cada 2 semanas). Con desfase mensual avisa que los presupuestos por categoría también se medirán de ese día al anterior del mes siguiente.
 - Props: `initial`, `onApply`, `showHeader`, `showPreview`, `renderActions` (reemplaza "Aplicar"; lo usa el onboarding para "Omitir"/"Continuar"). Mantiene su borrador; el padre lo reinicia remontándolo con otra `key`.
 - `DefaultPeriodSheet`: `BottomSheet` con `PayPeriodForm`; guarda con `setDefaultPeriod` y cierra. Se remonta en cada apertura (descarta borradores). Levanta el contenido con la altura del teclado (`Keyboard` listeners), porque `KeyboardAvoidingView` no medía bien dentro del `Modal`. Se abre desde Ajustes ("Pago y período") y desde `PeriodMenu`.

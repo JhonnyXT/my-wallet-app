@@ -64,6 +64,21 @@ describe("cycleStartContaining", () => {
     expect(ymd(cycleStartContaining(paid5and20, d(2026, 7, 3)))).toBe("2026-06-20");
     expect(ymd(cycleStartContaining(paid5and20, d(2026, 7, 10)))).toBe("2026-07-05");
   });
+
+  it("día de inicio 29-31: se acota al último día del mes en vez de desbordar al siguiente", () => {
+    // Antes de este fix, `new Date(2026, 1 /* feb */, 30)` se desbordaba al 2 de marzo.
+    const c: PeriodCadence = { type: "monthly", startDay: 30 };
+    // Febrero no llega al día 30: el ciclo que lo contiene empieza el 30 de enero.
+    expect(ymd(cycleStartContaining(c, d(2026, 2, 28)))).toBe("2026-01-30");
+    expect(ymd(cycleStartContaining(c, d(2026, 3, 29)))).toBe("2026-02-28");
+    expect(ymd(cycleStartContaining(c, d(2026, 3, 30)))).toBe("2026-03-30");
+
+    const days31: PeriodCadence = { type: "semimonthly", days: [1, 31] };
+    expect(ymd(cycleStartContaining(days31, d(2026, 2, 20)))).toBe("2026-02-01");
+    // Febrero no tiene día 31: el ciclo que arranca el 1 de feb pasa al siguiente el 28,
+    // no se desborda al 2 de marzo.
+    expect(ymd(cycleAtOffset(days31, 1, d(2026, 2, 1)).start)).toBe("2026-02-28");
+  });
 });
 
 describe("cycleAtOffset", () => {

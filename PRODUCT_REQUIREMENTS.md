@@ -459,7 +459,7 @@ Las categorías se pueden crear desde **tres contextos**:
 
 | Requisito | Especificación |
 |-----------|---------------|
-| Plataforma | Android 8+ (API 26+), iOS futuro |
+| Plataforma | Android 7.0+ (`minSdk` 24, el de Expo SDK 55), iOS futuro |
 | Rendimiento | Registro < 3s, scroll 60fps, queries < 100ms |
 | Almacenamiento | SQLite local, ~1KB por transacción |
 | Accesibilidad | Textos escalables, contraste suficiente en ambos temas |

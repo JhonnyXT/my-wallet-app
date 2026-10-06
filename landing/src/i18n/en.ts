@@ -242,7 +242,7 @@ export const en: Dictionary = {
   cta: {
     titleA: 'Be among the first.',
     titleB: 'We’ll let you know on launch day.',
-    note: 'For Android 8 or later. We only use your email to tell you about the launch.',
+    note: 'For Android 7 or later. We only use your email to tell you about the launch.',
   },
   footer: {
     privacy: 'Privacy policy',

@@ -242,7 +242,7 @@ export const es = {
   cta: {
     titleA: 'Sé de los primeros.',
     titleB: 'Te avisamos el día del lanzamiento.',
-    note: 'Para Android 8 o superior. Solo usamos tu email para avisarte del lanzamiento.',
+    note: 'Para Android 7 o superior. Solo usamos tu email para avisarte del lanzamiento.',
   },
   footer: {
     privacy: 'Política de privacidad',

@@ -124,7 +124,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
-| Frecuencia predeterminada | Semanal, cada 2 semanas, varias veces al mes (días 1–28), mensual con día de inicio (1–28) o todo el tiempo; se elige en "Pago y período" (Ajustes, menú del calendario u onboarding) | ✅ Implementado |
+| Frecuencia predeterminada | Semanal, cada 2 semanas, varias veces al mes (días 1–31), mensual con día de inicio (1–31) o todo el tiempo; se elige en "Pago y período" (Ajustes, menú del calendario u onboarding) | ✅ Implementado |
 | Tira de períodos | Fila deslizable de ciclos (o años) desde el primer movimiento hasta el actual + 1 futuro, cada uno con su neto; el ítem centrado es el seleccionado, con tick háptico al cruzar | ✅ Implementado |
 | Menú del calendario | Toque largo: ciclo / Año / Todo el tiempo / Rango personalizado… / Restablecer predeterminado / Pago y período | ✅ Implementado |
 | Vista no predeterminada | Punto rojo en el botón + "x" para restablecer; chip con el nombre del período cuando la tira está oculta | ✅ Implementado |

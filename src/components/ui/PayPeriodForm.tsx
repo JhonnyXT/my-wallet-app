@@ -190,12 +190,12 @@ export function PayPeriodForm({
       accessibilityRole="button"
       accessibilityLabel={`${label}: ${value}`}
       android_ripple={{ color: tokens.colors.surface.elevated }}
-      style={styles.settingRow}
+      style={[styles.settingRow, { borderBottomColor: tokens.colors.border.default }]}
     >
       <ThemedText variant="body" style={{ flex: 1 }}>
         {label}
       </ThemedText>
-      <ThemedText variant="body" color="secondary" numberOfLines={1}>
+      <ThemedText variant="body" color="secondary" numberOfLines={1} style={{ marginRight: 2 }}>
         {value}
       </ThemedText>
       <ChevronDown size={16} color={tokens.colors.text.secondary} strokeWidth={2} />
@@ -249,7 +249,7 @@ export function PayPeriodForm({
 
   const dayGrid = (selected: number[], onTap: (day: number) => void) => (
     <View style={styles.grid}>
-      {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => {
+      {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
         const isSel = selected.includes(day);
         return (
           <Pressable
@@ -398,25 +398,31 @@ export function PayPeriodForm({
             ]}
           >
             {label ? (
-              <ThemedText variant="body" color="secondary" style={{ width: 64 }}>
-                {label}
-              </ThemedText>
+              <View style={[styles.payLabel, { left: 16 }]}>
+                <ThemedText variant="body" color="secondary">
+                  {label}
+                </ThemedText>
+              </View>
             ) : null}
-            <ThemedText variant="headline" style={{ fontSize: 22 }}>
-              $
-            </ThemedText>
-            <TextInput
-              value={payDraft[key] ?? ""}
-              onChangeText={(t) => setPayDraft((prev) => ({ ...prev, [key]: formatMoneyInput(t) }))}
-              keyboardType="number-pad"
-              placeholder="0"
-              placeholderTextColor={tokens.colors.text.secondary}
-              autoFocus={i === 0}
-              returnKeyType="done"
-              onSubmitEditing={i === slots.length - 1 ? savePay : undefined}
-              accessibilityLabel={label ? `Pago del ${label.toLowerCase()}` : "Pago"}
-              style={[styles.payInput, { color: tokens.colors.text.primary }]}
-            />
+            <View style={styles.payAmount}>
+              <ThemedText variant="headline" style={{ fontSize: 22 }}>
+                $
+              </ThemedText>
+              <TextInput
+                value={payDraft[key] ?? ""}
+                onChangeText={(t) =>
+                  setPayDraft((prev) => ({ ...prev, [key]: formatMoneyInput(t) }))
+                }
+                keyboardType="number-pad"
+                placeholder="0"
+                placeholderTextColor={tokens.colors.text.secondary}
+                autoFocus={i === 0}
+                returnKeyType="done"
+                onSubmitEditing={i === slots.length - 1 ? savePay : undefined}
+                accessibilityLabel={label ? `Pago del ${label.toLowerCase()}` : "Pago"}
+                style={[styles.payInput, { color: tokens.colors.text.primary }]}
+              />
+            </View>
           </View>
         ))}
         <PressableScale
@@ -528,7 +534,7 @@ export function PayPeriodForm({
                 onPress={() => go("offset")}
                 accessibilityRole="button"
                 android_ripple={{ color: tokens.colors.surface.elevated }}
-                style={styles.settingRow}
+                style={[styles.settingRow, { borderBottomColor: tokens.colors.border.default }]}
               >
                 <View style={[styles.plusCircle, { backgroundColor: tokens.colors.text.primary }]}>
                   <Plus size={14} color={tokens.colors.surface.secondary} strokeWidth={3} />
@@ -591,17 +597,24 @@ export function PayPeriodForm({
 }
 
 const styles = StyleSheet.create({
-  pageHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
-  settings: { marginTop: 12, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 4 },
-  settingRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 14 },
+  pageHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
+  settings: { marginTop: 16, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 2 },
+  settingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
   optionRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    marginBottom: 2,
   },
-  grid: { flexDirection: "row", flexWrap: "wrap" },
+  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", marginTop: 4 },
   gridCell: {
     width: `${100 / 7}%`,
     aspectRatio: 1,
@@ -618,12 +631,21 @@ const styles = StyleSheet.create({
   payField: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "center",
     paddingHorizontal: 16,
     height: 60,
     marginBottom: 10,
+    position: "relative",
   },
-  payInput: { flex: 1, fontSize: 22, fontWeight: "700", paddingVertical: 0 },
+  payLabel: { position: "absolute", top: 0, bottom: 0, justifyContent: "center" },
+  payAmount: { flexDirection: "row", alignItems: "center", gap: 6 },
+  payInput: {
+    minWidth: 90,
+    fontSize: 22,
+    fontWeight: "700",
+    paddingVertical: 0,
+    textAlign: "left",
+  },
   plusCircle: {
     width: 22,
     height: 22,

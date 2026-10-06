@@ -68,9 +68,9 @@ transferirlo manualmente (sin necesidad de mantener el cable/depuración USB act
 
 `prod` se rechaza explícitamente en local (`scripts/build-android.sh prod` sale con error): un
 `assembleRelease` local firmaría con la debug keystore y dispararía el bloqueo de Google Play
-Protect — el mismo problema que documenta la deuda técnica "Sin keystore de producción" más abajo.
-`eas build --profile prod` resuelve esto de raíz: EAS genera y gestiona una keystore de producción
-real por su cuenta (nunca se toca `keytool` a mano). Requiere `eas login` con la cuenta de Expo del
+Protect. `prod` se firma con la keystore de producción que EAS creó el 2026-10-06 y guarda en su
+servidor (nunca se toca `keytool` a mano). Si la cola gratis de EAS no arranca, `eas build --local
+--profile prod` compila en el computador con esa misma keystore (necesita `ANDROID_HOME`/`JAVA_HOME`). Requiere `eas login` con la cuenta de Expo del
 proyecto (`owner: "jhonnyxt"` en `app.config.ts`) y consume cuota de build de esa cuenta — **no
 ejecutar sin que el usuario lo pida explícitamente**, es la última pieza del proceso de release
 (ver también el proceso manual de subir el APK a GitHub Releases, sección Landing page más abajo).

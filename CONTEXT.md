@@ -2,7 +2,7 @@
 
 > **Propósito:** Este documento es la referencia técnica completa del proyecto. Cualquier desarrollador, IA o colaborador que lea este archivo tendrá TODO el contexto necesario para desarrollar, modificar o extender la aplicación sin perder consistencia.
 >
-> **Última actualización:** 2026-10-05 | **Versión:** 1.5.0
+> **Última actualización:** 2026-10-06 | **Versión:** 1.0.0
 >
 > Nota de cobertura: este documento se actualiza incrementalmente por sesión de trabajo — algunas
 > secciones (ej. pantallas de onboarding `notification-onboarding.tsx`/`bank-selection-onboarding.tsx`,
@@ -92,7 +92,7 @@
 - **Babel:** `babel-preset-expo` con `jsxImportSource: "nativewind"` + `react-native-reanimated/plugin` (siempre último)
 - **Metro:** config extendida con `withNativeWind` y `global.css`
 - **TypeScript paths:** `@/*` → raíz del proyecto
-- **EAS:** Perfiles `development` (APK dev), `preview` (APK interno), `production` (autoIncrement)
+- **EAS** (`eas.json`, `appVersionSource: "remote"`): `dev` (APK debug), `test` (APK interno), `prod` (AAB para Play, `autoIncrement` del versionCode) y `prod-apk` (APK de prod para GitHub, sin incrementar: mismo versionCode que el último AAB)
 
 ---
 
@@ -1725,7 +1725,7 @@ formatMoneyInput(text: string): string
 
 | Workflow | Archivo | Acción |
 |----------|---------|--------|
-| EAS Build | `eas-build.yml` | Construye APK Android (perfil `preview`) |
+| EAS Build | `eas-build.yml` | Build de Android en EAS, eligiendo el perfil `prod` (AAB) o `prod-apk` (APK) |
 | EAS Update | `eas-update.yml` | Publica OTA update a `production` |
 
 **Importante:** Los triggers automáticos (`on: push`) fueron deshabilitados para controlar el consumo del plan gratuito de EAS. Solo `workflow_dispatch` está activo.
@@ -1765,15 +1765,11 @@ compartidas, igual que la copia de la landing nueva (`landing/src/legal/docs.ts`
 pedir la eliminación de la cuenta vive en `landing/` (`/[lang]/delete-account`) y las respuestas de
 Data Safety en `PLAY_DATA_SAFETY.md`. Si cambia qué se sube a la nube, revisar los tres.
 
-**Proceso manual al lanzar una versión nueva (sin automatizar):** el botón "Descargar APK" de
-`docs/index.html` apunta a un asset fijo de un GitHub Release (ej.
-`https://github.com/JhonnyXT/my-wallet-app/releases/download/v1.5.0/app-release.apk`), no a "la última
-versión" de forma dinámica. Al sacar una versión nueva hay que, manualmente:
-1. Publicar un GitHub Release nuevo con el APK compilado: `gh release create vX.Y.Z <ruta-al-apk> ...`
-2. Actualizar el link de descarga en `docs/index.html` para que apunte al asset nuevo.
-
-Si se omite el paso 2, la landing sigue ofreciendo una versión vieja del APK sin que nada lo avise —
-no hay CI/workflow que sincronice esto. Queda como deuda de proceso (ver sección 18).
+**Versiones y release:** versionName en semver (`1.0.0` = lanzamiento, 2026-10-06); el versionCode
+de `prod` lo lleva EAS y solo crece. El botón "Descargar APK" de `docs/index.html` apunta a
+`https://github.com/JhonnyXT/my-wallet-app/releases/latest/download/MyWallet.apk`: por versión
+basta con `npm run eas:prod:apk` y `gh release create vX.Y.Z MyWallet.apk --latest` (el asset tiene
+que llamarse `MyWallet.apk`), sin tocar el HTML. Detalle en `AGENTS.md` (Landing page y GitHub Pages).
 
 La landing se diseñó con ayuda de la skill/plugin `ui-ux-pro-max`, instalada a nivel de usuario de
 Claude Code — no es parte de este repo ni de `.agents/skills/`, no requiere instalación local para
@@ -2061,5 +2057,5 @@ registro, no se mantiene al día: si algo aquí contradice a `AGENTS.md` o al c�
 
 ---
 
-*Documento generado para MyWallet v1.5.0 — Mayo 2026*
+*Documento generado para MyWallet v1.0.0 — Octubre 2026*
 *Mantener actualizado ante cualquier cambio significativo en arquitectura, stores, DB o componentes.*

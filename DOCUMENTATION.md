@@ -1,6 +1,6 @@
 # MyWallet — Guía Completa de Usuario
 
-> **Versión:** 1.5.0 | **Plataforma:** Android (iOS en desarrollo) | **Idioma:** Español
+> **Versión:** 1.0.0 | **Plataforma:** Android (iOS en desarrollo) | **Idioma:** Español
 
 ---
 
@@ -448,7 +448,7 @@ Configura cuándo y cómo recibir notificaciones push relacionadas con tus presu
 
 > 💡 Si solo quieres saber cuándo te pasas (y no antes), pon el slider en 100%. Solo recibirás la notificación de "presupuesto superado".
 
-### Detección automática *(nuevo en v1.5.0)*
+### Detección automática
 
 MyWallet puede detectar transacciones directamente desde las notificaciones de tus apps bancarias y mostrarte un resumen para que las confirmes antes de guardar.
 
@@ -788,4 +788,4 @@ Una vez al mes:
 
 ---
 
-*Documentación generada para MyWallet v1.5.0*
+*Documentación generada para MyWallet v1.0.0*

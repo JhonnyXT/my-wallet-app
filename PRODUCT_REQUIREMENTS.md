@@ -1,6 +1,6 @@
 # MyWallet — Requerimientos de Producto
 
-> **Versión:** 1.5.0 | **Plataforma:** Android (iOS futuro) | **Moneda:** COP | **Idioma UI:** Español
+> **Versión:** 1.0.0 | **Plataforma:** Android (iOS futuro) | **Moneda:** COP | **Idioma UI:** Español
 
 ---
 
@@ -241,7 +241,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 6.8 | Como usuario, quiero que la etiqueta de presupuesto diga "Ingreso mensual" y muestre el monto configurado | Reemplazada por HU 5.3 ("Pago y período") |
 | HU 6.9 | Como usuario, quiero que al abonar a una meta de ahorro se registre como gasto en mi Dashboard para que mi balance refleje el dinero comprometido | ✅ |
 
-### Épica 8: Detección Automática de Transacciones *(v1.5.0)*
+### Épica 8: Detección Automática de Transacciones
 
 | ID | Historia | Estado |
 |----|---------|--------|
@@ -470,4 +470,4 @@ Las categorías se pueden crear desde **tres contextos**:
 
 ---
 
-*Documento de requerimientos actualizado para MyWallet v1.5.0 — Octubre 2026*
+*Documento de requerimientos actualizado para MyWallet v1.0.0 — Octubre 2026*

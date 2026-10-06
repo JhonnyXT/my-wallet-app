@@ -56,8 +56,8 @@ Si falla con `INSTALL_FAILED_UPDATE_INCOMPATIBLE` o `App not installed`:
 ```
 
 > Instalar con `adb install -r` también evita el bloqueo de Google Play Protect ("App blocked to
-> protect your device") que dispara el APK release firmado con la clave de debug — ver la deuda
-> técnica "Sin keystore de producción" en `AGENTS.md`.
+> protect your device") que dispara el APK release firmado con la clave de debug (dev/test se firman
+> así a propósito; `prod` usa la keystore de EAS, ver Build variants en `AGENTS.md`).
 
 ## Paso 5 — Confirmar
 

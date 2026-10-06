@@ -96,7 +96,7 @@ de datos SQLite de esa app** — el dispositivo es el teléfono real del usuario
 
 Checklist:
 1. ¿`AndroidManifest.xml` tiene `tools:replace="android:allowBackup"`?
-2. ¿El keystore es consistente? (release usa debug keystore actualmente)
+2. ¿El keystore es consistente? (dev/test firman con la debug keystore; prod con la de EAS — instalar un variant sobre otro build firmado distinto falla)
 3. ¿USB debugging está habilitado en el dispositivo?
 4. ¿El dispositivo permite instalación desde fuentes desconocidas?
 

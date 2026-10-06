@@ -85,10 +85,12 @@ my-wallet-app/
 
 ## Estado del proyecto
 
-Versión actual: **1.5.0**. Deuda técnica conocida: Jest cubre utilidades puras y `notificationParser`
-pero componentes/stores/`src/db/` (SQLite) todavía no tienen estrategia de testing, y el build
-release todavía firma con la keystore de debug (sin keystore de producción). ESLint/Prettier ya
-están configurados. Detalle completo en [`AGENTS.md`](./AGENTS.md).
+Versión actual: **1.0.0** (lanzamiento; descarga en
+[GitHub Releases](https://github.com/JhonnyXT/my-wallet-app/releases/latest), Google Play
+pendiente). El build `prod` se firma con la keystore de producción que guarda EAS (`npm run eas:prod`
+para el AAB de Play, `npm run eas:prod:apk` para el APK). Deuda técnica conocida: Jest cubre
+utilidades puras y `notificationParser`, pero componentes/stores/`src/db/` (SQLite) todavía no tienen
+estrategia de testing. Detalle completo en [`AGENTS.md`](./AGENTS.md).
 
 ## Documentación
 

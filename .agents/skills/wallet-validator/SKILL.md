@@ -20,7 +20,7 @@ metadata:
 
 ## Gotchas
 - `amount > 0` = gasto, `amount < 0` = ingreso — convención invertida.
-- Colores hex aceptados fuera del tema: `#135BEC` (botón primario, fijo entre temas) y el rojo/verde de gasto/ingreso (`#EF4444`/`#22C55E`, `#E53E3E`/`#16A34A`, fondos `#FEE2E2`/`#DCFCE7`) — estos últimos aún sin token compartido (ver Deuda técnica en `AGENTS.md`). Cualquier otro hex fuera de `buildStyles`/tokens es un hallazgo.
+- Colores hex aceptados fuera del tema: `#135BEC` (botón primario, fijo entre temas) y el rojo/verde de gasto/ingreso (`#EF4444`/`#22C55E`, `#E53E3E`/`#16A34A`, fondos `#FEE2E2`/`#DCFCE7`) — en código nuevo, tomarlos de `moneyColors` (`src/theme/tokens.ts`) en vez de escribir el hex. Cualquier otro hex fuera de `buildStyles`/tokens es un hallazgo.
 - El `main` de `package.json` DEBE ser `"index.js"` (no `"expo-router/entry"`).
 
 ## Instructions

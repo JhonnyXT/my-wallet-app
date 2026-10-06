@@ -1811,12 +1811,10 @@ clonar/editar el HTML.
 - **ANR de `react-native-android-notification-listener`:** su `BootUpReceiver` (en `BOOT_COMPLETED`) llama `startForegroundService()` sobre un servicio que nunca llama `startForeground()`; Android lo mata con ANR (visto en `adb shell dumpsys dropbox` en el Samsung de pruebas). **Resuelto el 2026-09-30** quitando el receiver con `plugins/withoutNotificationListenerBootReceiver.js` (`tools:node="remove"`); el sistema re-enlaza el listener solo.
 - **Réplica del Dashboard en la demo de la landing desactualizada:** `landing/src/demo/phone/Dashboard.tsx` sigue con el pill "Este mes" y el balance de todo el historial; no tiene el botón de calendario, la tira de períodos, "Saldo total" ni la barra de pago.
 
-### Colores de gasto/ingreso duplicados sin token compartido
-`app/(tabs)/index.tsx` (`pillExpenseActive`/`pillIncomeActive`) y `app/reports.tsx`
-(`SEGMENT_COLORS`) definen los mismos cuatro valores hardcodeados (rojo `#FEE2E2`/`#E53E3E`, verde
-`#DCFCE7`/`#16A34A`) en dos archivos distintos, sin un token compartido en `src/theme/tokens.ts`.
-Consistente hoy porque se copiaron a mano, pero un cambio de paleta futuro requeriría tocar ambos
-lugares — no es bloqueante, solo una oportunidad de consolidación pendiente.
+### ~~Colores de gasto/ingreso duplicados sin token compartido~~ (resuelto 2026-10-06)
+Ahora viven en `moneyColors` (`src/theme/tokens.ts`) y los usan el Dashboard, `reports.tsx` (que
+perdió su `SEGMENT_COLORS` local), `TransactionDetailModal`, `FloatingDock`, `CategoryChart` y
+`voice-batch-review.tsx`.
 
 ### Proceso manual sin automatizar: link de descarga de la landing (`docs/index.html`)
 El botón "Descargar APK" de la landing pública (GitHub Pages) apunta a un asset fijo de un GitHub
@@ -2052,7 +2050,7 @@ registro, no se mantiene al día: si algo aquí contradice a `AGENTS.md` o al c�
 ### Deuda técnica resuelta
 
 - [x] ~~Sin framework de testing (ni Jest ni Vitest)~~ — Jest instalado (`jest.config.js`, `npm test`). Cobertura: los 9 fixtures de `notificationParser/fixtures.ts` (uno por `it()`) + `formatMoney`, `periodFilter`, `colorUtils`, `transactionFormatters`, `voiceParser`, `nlp`, `descriptionExtractor` (`extractDescription`/`shortenDescription`, 16 tests — ampliado 2026-09-23 con los casos "sujeto primero" y "Enviaste" vs "Pagaste"), `theme` (`guessCategoryEmoji`, 6 tests — nuevo 2026-09-23, ver gotcha de esa fecha sobre categorías que no deben cruzar gasto/ingreso) (94 tests, 0 fallos). Alcance actual: solo utilidades puras y lógica de parsing — componentes `.tsx`, stores Zustand y `src/db/` (SQLite) quedan fuera hasta definir estrategia de mocking (`jest-expo`, mocks de `expo-sqlite`/AsyncStorage). Al escribir un test que importe (aunque sea transitivamente) algo de `src/db/`, mockear solo la función puntual usada — ver ejemplo en `parseNotification.test.ts`, que mockea `localISOString` sin traer `expo-sqlite`.
-- [x] ~~Sin ESLint ni Prettier configurados~~ — `eslint-config-expo@~55.0.1` (flat config, pineado a la versión de SDK 55) + Prettier. `react/no-unescaped-entities` desactivada (regla de React DOM sin sentido en RN, ver `eslint.config.js`). Todo el código de `app/`/`src/`/configs de raíz reformateado; docs (`*.md`/`*.mdc`) y `docs/` (landing) excluidos a propósito de Prettier — ver sección Lint arriba. Estado: 0 errores, 35 warnings legítimos (unused vars, `react-hooks/exhaustive-deps`) pendientes de resolver incrementalmente, no bloquean nada.
+- [x] ~~Sin ESLint ni Prettier configurados~~ — `eslint-config-expo@~55.0.1` (flat config, pineado a la versión de SDK 55) + Prettier. `react/no-unescaped-entities` desactivada (regla de React DOM sin sentido en RN, ver `eslint.config.js`). Todo el código de `app/`/`src/`/configs de raíz reformateado; docs (`*.md`/`*.mdc`) y `docs/` (landing) excluidos a propósito de Prettier — ver sección Lint arriba. Estado (2026-10-06): 0 errores y 0 warnings; los `exhaustive-deps` que se omiten a propósito llevan un `eslint-disable-next-line` con el motivo.
 - [x] ~~3 componentes huérfanos: `ActionPills`, `CustomTabBar`, `AnimatedNumber`~~ — eliminados
 - [x] ~~Hook muerto: `src/features/voice/useVoiceExpense.ts`~~ — eliminado
 - [x] ~~Constantes AsyncStorage duplicadas (settings.tsx + notificationHeadlessTask.ts)~~ — consolidadas en `src/constants/banks.ts`

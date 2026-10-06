@@ -15,6 +15,7 @@ import { DEFAULT_LIST_ID } from "@/src/constants/lists";
 import { useTheme } from "@/src/context/ThemeContext";
 import { SELF_PAYER, type TransactionRow } from "@/src/db/db";
 import type { AppTheme } from "@/src/theme";
+import { moneyColors } from "@/src/theme/tokens";
 import type { SavingsGoal } from "@/src/store/slices/goalsSlice";
 import type { PaymentMethod, WalletList } from "@/src/store/useSettingsStore";
 import {
@@ -97,7 +98,7 @@ export function TransactionDetailModal({
                   {desc || catName}
                 </Text>
                 <Text style={styles.category}>{catName}</Text>
-                <Text style={[styles.amount, { color: isExp ? "#E53E3E" : "#16A34A" }]}>
+                <Text style={[styles.amount, { color: isExp ? moneyColors.expense.text : moneyColors.income.text }]}>
                   {isExp ? "- " : "+ "}
                   {formatDetailAmount(tx.amount)}
                 </Text>

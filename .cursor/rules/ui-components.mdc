@@ -32,6 +32,13 @@ const st = useMemo(() => buildStyles(theme), [theme]);
 | `accent` | `#135BEC` | `#4B82EF` |
 | `inputBg` | `#F1F5F9` | `#21262D` |
 
+### Rojo/verde de gasto e ingreso
+
+`moneyColors` de `src/theme/tokens.ts` (`expense`/`income`, cada uno con `bg` y `text`, iguales en
+light y dark). Todo lo que pinte "gasto" o "ingreso" (pills, toggles, badges, montos) lo toma de ahí
+en vez de escribir `#FEE2E2`/`#E53E3E`/`#DCFCE7`/`#16A34A`. No usar `state.danger`/`state.success`
+para eso: son el rojo/verde de borrar y de avisos.
+
 ### Capa aditiva de tokens (Card/ListRow/StackedScreenHeader…)
 
 Los componentes que portan el patrón de lista agrupada de Habit Tracker (`Card`, `SectionHeader`,

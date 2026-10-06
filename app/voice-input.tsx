@@ -13,7 +13,7 @@ import { router } from "expo-router";
 import { Mic, Pause, Play, Sparkles, X } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
   FadeIn,
@@ -38,7 +38,6 @@ import type {
   ExpoSpeechRecognitionResultEvent,
 } from "expo-speech-recognition";
 
-const { width: SW } = Dimensions.get("window");
 const ORB_SIZE = 192;
 
 // ─── Guard: expo-speech-recognition solo en native build ─────────────────────
@@ -64,6 +63,8 @@ let SpeechModule: {
 } | null = null;
 
 try {
+  // require() a propósito: un import estático rompería en Expo Go, donde el módulo nativo no existe.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   SpeechModule = require("expo-speech-recognition").ExpoSpeechRecognitionModule;
 } catch {
   // No disponible en Expo Go

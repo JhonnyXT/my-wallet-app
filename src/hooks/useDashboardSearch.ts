@@ -75,7 +75,7 @@ export function useDashboardSearch({
       stiffness: 180,
     }).start();
     if (searchOpen) setTimeout(() => searchInputRef.current?.focus(), 120);
-  }, [searchOpen]);
+  }, [searchOpen, searchBarAnim]);
 
   const searchBarOpacity = searchBarAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
 
@@ -101,7 +101,7 @@ export function useDashboardSearch({
       onShow.remove();
       onHide.remove();
     };
-  }, [baseSearchBottom]);
+  }, [baseSearchBottom, keyboardExtraAnim]);
 
   // ── Tags únicos disponibles ───────────────────────────────────────────────
   const allTags = useMemo(() => {

@@ -2038,6 +2038,8 @@ function AutoDetectSection() {
       }
     })();
     checkPermission();
+    // Solo al abrir: `checkPermission` se recrea en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Re-verificar permiso cuando el usuario vuelve de ajustes del sistema
@@ -2048,6 +2050,8 @@ function AutoDetectSection() {
       }
     });
     return () => sub.remove();
+    // Un solo listener de AppState; `checkPermissionAndAutoEnable` se recrea en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkPermission = useCallback(async () => {

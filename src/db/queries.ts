@@ -1,4 +1,3 @@
-import * as SQLite from "expo-sqlite";
 import type { TransactionRow } from "./db";
 import {
   localISOString as localISO,

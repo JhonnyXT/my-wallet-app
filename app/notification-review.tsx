@@ -5,7 +5,7 @@
  * Diseño basado en la pantalla "Review Transactions (Light)" de Stitch.
  */
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Platform, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { ChevronLeft, Pencil, Check, BellOff, Plus, Trash2 } from "lucide-react-native";
@@ -26,7 +26,6 @@ import { shortenDescription } from "@/src/utils/notificationParser/descriptionEx
 import { resolveCategory } from "@/src/utils/transactionFormatters";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { PressableScale } from "@/src/components/ui/PressableScale";
-import type { AppTheme } from "@/src/theme";
 import type { UserCategory } from "@/src/constants/categoryPresets";
 import type { SavingsGoal } from "@/src/store/useSettingsStore";
 
@@ -176,6 +175,8 @@ export default function NotificationReviewScreen() {
       .filter((p) => !newIds.has(p.id))
       .map((p) => pendingToReview(p, userCategories, savingsGoals));
     if (newOnes.length > 0) setItems((prev) => [...newOnes, ...prev]);
+    // Sin `items`: solo agrega los que llegan a la cola; con él, cada edición local volvería a correrlo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingItems, userCategories, savingsGoals]);
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);

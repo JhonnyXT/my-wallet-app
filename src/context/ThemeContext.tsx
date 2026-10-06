@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from "react";
+import { createContext, useContext } from "react";
 import { light, type AppTheme } from "@/src/theme";
 
 const ThemeContext = createContext<AppTheme>(light);

@@ -55,6 +55,7 @@ import { CategoryChart } from "@/src/components/ui/CategoryChart";
 import { TransactionItem } from "@/src/components/ui/TransactionItem";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
+import { moneyColors } from "@/src/theme/tokens";
 import { PeriodStrip } from "@/src/components/ui/PeriodStrip";
 import { PeriodMenu, type MenuAnchor, type PeriodMenuAction } from "@/src/components/ui/PeriodMenu";
 import { DateRangeSheet } from "@/src/components/ui/DateRangeSheet";
@@ -128,7 +129,6 @@ export default function DashboardScreen() {
     [showIncome, transactions],
   );
   const deleteTransaction = useFinanceStore((s) => s.deleteTransaction);
-  const addTransaction = useFinanceStore((s) => s.addTransaction);
   const allListCategories = useAllListCategories();
   const resetExpense = useExpenseStore((s) => s.reset);
   const setExpenseCategory = useExpenseStore((s) => s.setCategory);
@@ -274,7 +274,6 @@ export default function DashboardScreen() {
     keyboardExtraAnim,
     searchBarOpacity,
     tagSuggestions,
-    isTypingTag,
     handleSelectTag,
     handleSearchTextChange,
     handleSearchSubmit,
@@ -1019,7 +1018,7 @@ export default function DashboardScreen() {
                 <ArrowDown
                   size={13}
                   strokeWidth={2.8}
-                  color={typeFilter !== "income" ? "#E53E3E" : theme.textSub}
+                  color={typeFilter !== "income" ? moneyColors.expense.text : theme.textSub}
                 />
                 <RollingNumber
                   value={expenseTotal}
@@ -1045,7 +1044,7 @@ export default function DashboardScreen() {
                   <ArrowUp
                     size={13}
                     strokeWidth={2.8}
-                    color={typeFilter === "income" ? "#16A34A" : theme.textSub}
+                    color={typeFilter === "income" ? moneyColors.income.text : theme.textSub}
                   />
                   <RollingNumber
                     value={incomeTotal}
@@ -1507,11 +1506,11 @@ function createStyles(t: AppTheme) {
       letterSpacing: 0.1,
     },
     // Activo — gasto
-    pillExpenseActive: { backgroundColor: "#FEE2E2" }, // rojo claro (no rosa)
-    pillExpenseText: { color: "#E53E3E" }, // rojo medio, no demasiado intenso
+    pillExpenseActive: { backgroundColor: moneyColors.expense.bg },
+    pillExpenseText: { color: moneyColors.expense.text },
     // Activo — ingreso
-    pillIncomeActive: { backgroundColor: "#DCFCE7" }, // verde claro
-    pillIncomeText: { color: "#16A34A" }, // verde medio
+    pillIncomeActive: { backgroundColor: moneyColors.income.bg },
+    pillIncomeText: { color: moneyColors.income.text },
     // Inactivo — gris neutro
     pillInactive: { backgroundColor: t.pillNeutral ?? "#F1F5F9" },
     pillInactiveText: { color: t.textSub, fontWeight: "600" as const },

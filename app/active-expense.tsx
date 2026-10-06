@@ -68,13 +68,6 @@ const SUGGESTED_TAGS = ["#viaje", "#trabajo", "#comida", "#salud", "#ocio"];
 
 type LucideIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 
-// ─── Info extra de cuentas ────────────────────────────────────────────────────
-const ACCOUNT_DETAILS: Record<AccountType, { Icon: LucideIcon; desc: string }> = {
-  cash: { Icon: Banknote, desc: "Dinero disponible" },
-  savings: { Icon: Landmark, desc: "Cuenta de ahorros" },
-  credit: { Icon: CreditCard, desc: "Tarjeta de crédito" },
-};
-
 // ─── Iconos de tipo de cuenta ─────────────────────────────────────────────────
 const PAYMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   cash: Banknote,

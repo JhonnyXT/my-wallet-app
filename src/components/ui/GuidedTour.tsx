@@ -101,7 +101,7 @@ export function GuidedTour({
         }),
       ]).start();
     }
-  }, [visible, spotRect, reduceMotion]);
+  }, [visible, spotRect, reduceMotion, fadeAnim, tooltipScale]);
 
   if (!visible || !step) return null;
 

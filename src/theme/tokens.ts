@@ -97,6 +97,16 @@ export const tokenColors = {
 
 export type TokenColors = (typeof tokenColors)["light"];
 
+// ─── Gasto / ingreso ───────────────────────────────────────────────────────────
+// Rojo y verde de "↓ Gasto / ↑ Ingreso": pills del Dashboard, toggle de Promedios, monto del
+// detalle, badges de la revisión por voz… Iguales en light y dark (así se diseñaron los pills).
+// No confundir con `state.danger`/`state.success` (borrar, avisos): son otro tono.
+
+export const moneyColors = {
+  expense: { bg: "#FEE2E2", text: "#E53E3E" },
+  income: { bg: "#DCFCE7", text: "#16A34A" },
+} as const;
+
 // ─── Hook de acceso ─────────────────────────────────────────────────────────────
 // Reutiliza el esquema ya resuelto por AppTheme (dark mode manual + sistema,
 // resuelto en app/_layout.tsx) en vez de leer useColorScheme() por separado.

@@ -45,7 +45,7 @@ export function useDashboardTour(): UseDashboardTourReturn {
         onAction: () => completeOnboarding(),
       },
     ],
-    [],
+    [setOnboardingStep, completeOnboarding],
   );
 
   // Pasos de onboardingStep: 0 calendario → 3 voz → 4 manual → completado. Los valores 1 y

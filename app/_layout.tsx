@@ -178,6 +178,8 @@ export default function RootLayout() {
     if (splashDone && !hasSelectedCategories) {
       router.replace("/login-onboarding");
     }
+    // Sin `router`: si cambiara de identidad a mitad del onboarding, volvería a mandar al login.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [splashDone, hasSelectedCategories]);
 
   return (

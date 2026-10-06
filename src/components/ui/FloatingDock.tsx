@@ -20,6 +20,7 @@ import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useUIStore } from "@/src/store/useUIStore";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
+import { moneyColors } from "@/src/theme/tokens";
 import { getTourRef, TOUR_KEYS } from "@/src/utils/tourRefs";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -168,7 +169,7 @@ export function FloatingDock() {
           >
             <Text style={styles.optionLabel}>Ingreso</Text>
             <View style={[styles.optionIcon, styles.optionIconIncome]}>
-              <ArrowUp size={18} color="#16A34A" strokeWidth={2.5} />
+              <ArrowUp size={18} color={moneyColors.income.text} strokeWidth={2.5} />
             </View>
           </TouchableOpacity>
 
@@ -337,7 +338,7 @@ function createStyles(t: AppTheme) {
       justifyContent: "center",
     },
     optionIconIncome: {
-      backgroundColor: "#DCFCE7",
+      backgroundColor: moneyColors.income.bg,
     },
     optionIconExpense: {
       backgroundColor: "#FFE4E6",

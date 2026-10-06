@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo, useCallback } from "react";
+import { useRef, useState, useMemo } from "react";
 import { View, Text, StyleSheet, Animated, PanResponder, TouchableOpacity } from "react-native";
 import * as Haptics from "expo-haptics";
 import AnimatedRN, { FadeInDown } from "react-native-reanimated";

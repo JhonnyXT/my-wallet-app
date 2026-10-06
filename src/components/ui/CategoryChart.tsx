@@ -19,7 +19,6 @@ import {
   TouchableOpacity,
   Platform,
   Pressable,
-  StatusBar,
   Dimensions,
   LayoutAnimation,
   UIManager,
@@ -43,6 +42,7 @@ import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useAllListCategories } from "@/src/hooks/useAllListCategories";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
 import { useTheme } from "@/src/context/ThemeContext";
+import { moneyColors } from "@/src/theme/tokens";
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
 import { SheetActions, SheetHeader, useSheetPadding } from "@/src/components/ui/SheetParts";
 
@@ -291,7 +291,7 @@ function BudgetEditModal({ state, onClose }: { state: BudgetEditState; onClose: 
 
 // ─── Popup (tooltip flotante, Stitch design) ─────────────────────────────────
 function CategoryPopup({ popup }: { popup: PopupState }) {
-  const { emoji, total, budget, selection, isIncomeMode } = popup;
+  const { total, budget, selection, isIncomeMode } = popup;
   const remaining = budget !== undefined ? budget - total : undefined;
   const overBudget = remaining !== undefined && remaining < 0;
 
@@ -315,7 +315,7 @@ function CategoryPopup({ popup }: { popup: PopupState }) {
       Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 15 }),
       Animated.timing(opacity, { toValue: 1, duration: 120, useNativeDriver: true }),
     ]).start();
-  }, []);
+  }, [scale, opacity]);
 
   return (
     <Animated.View style={[popupStyles.card, { transform: [{ scale }], opacity }]}>
@@ -338,7 +338,7 @@ function CategoryPopup({ popup }: { popup: PopupState }) {
           style={[
             popupStyles.centerText,
             overBudget && { color: "#DC2626" },
-            isIncomeMode && { color: "#16A34A" },
+            isIncomeMode && { color: moneyColors.income.text },
           ]}
           numberOfLines={1}
         >

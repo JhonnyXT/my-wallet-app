@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, Image, Animated, StyleSheet, Dimensions } from "react-native";
+import { Text, Image, Animated, StyleSheet, Dimensions } from "react-native";
 import { useReduceMotion } from "@/src/hooks/useReduceMotion";
 
 const { width } = Dimensions.get("window");

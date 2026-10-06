@@ -16,27 +16,22 @@ import {
   PanResponder,
   ScrollView,
   KeyboardAvoidingView,
-  Platform,
-  Pressable,
   Alert,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight, Pencil, Check, Trash2, Plus } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 
-import {
-  useVoiceStore,
-  type PendingTransaction,
-  type ManualAddItem,
-} from "@/src/store/useVoiceStore";
+import { useVoiceStore, type PendingTransaction } from "@/src/store/useVoiceStore";
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
 import { PressableScale } from "@/src/components/ui/PressableScale";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useTheme } from "@/src/context/ThemeContext";
-import { getCategoryColor, getCategoryName } from "@/src/constants/theme";
+import { getCategoryColor } from "@/src/constants/theme";
 import { formatMoneyDisplay } from "@/src/utils/formatMoney";
 import type { AppTheme } from "@/src/theme";
+import { moneyColors } from "@/src/theme/tokens";
 
 // ─── Tipos locales ────────────────────────────────────────────────────────────
 
@@ -721,11 +716,11 @@ const cardS = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 20,
   },
-  badgeExpense: { backgroundColor: "#FEE2E2" },
-  badgeIncome: { backgroundColor: "#DCFCE7" },
+  badgeExpense: { backgroundColor: moneyColors.expense.bg },
+  badgeIncome: { backgroundColor: moneyColors.income.bg },
   badgeText: { fontSize: 11, fontWeight: "700" },
   badgeExpenseText: { color: "#DC2626" },
-  badgeIncomeText: { color: "#16A34A" },
+  badgeIncomeText: { color: moneyColors.income.text },
   right: { alignItems: "flex-end", gap: 6 },
   amount: { fontSize: 15, fontWeight: "700", letterSpacing: -0.3 },
   editBtn: { padding: 4 },
@@ -747,11 +742,11 @@ const editS = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#F1F5F9",
   },
-  toggleBtnExpenseActive: { backgroundColor: "#FEE2E2" },
-  toggleBtnIncomeActive: { backgroundColor: "#DCFCE7" },
+  toggleBtnExpenseActive: { backgroundColor: moneyColors.expense.bg },
+  toggleBtnIncomeActive: { backgroundColor: moneyColors.income.bg },
   toggleText: { fontSize: 14, fontWeight: "600", color: "#64748B" },
   toggleTextExpenseActive: { color: "#DC2626" },
-  toggleTextIncomeActive: { color: "#16A34A" },
+  toggleTextIncomeActive: { color: moneyColors.income.text },
   label: { fontSize: 11, fontWeight: "600", letterSpacing: 0.5, marginBottom: 6 },
   inputWrap: {
     flexDirection: "row",

@@ -29,7 +29,7 @@ import {
 } from "@/src/db/queries";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useAllListCategories } from "@/src/hooks/useAllListCategories";
-import { useAppTokens } from "@/src/theme/tokens";
+import { moneyColors, useAppTokens } from "@/src/theme/tokens";
 import { formatCOP } from "@/src/utils/formatMoney";
 
 type ReportType = "expense" | "income";
@@ -352,12 +352,6 @@ export default function ReportsScreen() {
 
 // ─── Subcomponentes ───────────────────────────────────────────────────────────
 
-// Mismos colores que los pills "↓ Gasto / ↑ Ingreso" del Dashboard (app/(tabs)/index.tsx) —
-// rojo claro para gasto, verde claro para ingreso, iguales en light y dark.
-const SEGMENT_COLORS = {
-  expense: { bg: "#FEE2E2", text: "#E53E3E" },
-  income: { bg: "#DCFCE7", text: "#16A34A" },
-} as const;
 
 function TypeSegment({
   label,
@@ -371,7 +365,7 @@ function TypeSegment({
   onPress: () => void;
 }) {
   const tokens = useAppTokens();
-  const colors = SEGMENT_COLORS[kind];
+  const colors = moneyColors[kind];
   return (
     <PressableScale
       onPress={() => {

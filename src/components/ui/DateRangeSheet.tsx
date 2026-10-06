@@ -277,7 +277,6 @@ export function DateRangeSheet({
           const isFuture = date > today;
           const isStart = rangeStart ? isSameDay(date, rangeStart) : false;
           const isEnd = rangeEnd ? isSameDay(date, rangeEnd) : false;
-          const isEdge = isStart || isEnd;
           const inRangeDay =
             rangeStart && rangeEnd && date >= rangeStart && date <= rangeEnd ? true : false;
           const isToday = isSameDay(date, today);

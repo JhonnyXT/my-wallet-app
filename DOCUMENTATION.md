@@ -87,6 +87,11 @@ Si iniciaste sesión, **desliza hacia abajo sobre el balance** y suelta: la app 
 ### Chip de cuentas
 En una lista con más personas, bajo los pills aparece un chip con el estado de las cuentas (por ejemplo, **"Ana te debe $X ›"** o **"Están a mano"**). Tócalo para ver el detalle: quién pagó cuánto, cuánto le toca a cada uno y las transferencias para quedar a mano.
 
+### Chip de recurrentes pendientes *(nuevo, función Pro)*
+Si tienes [recurrentes](#7-configuración-settings) vencidos sin confirmar, bajo los pills aparece
+**"N recurrentes por confirmar ›"**. Tócalo: si solo hay uno pendiente, te lleva directo al
+formulario para confirmarlo; si hay varios, abre una lista para que confirmes u omitas cada uno.
+
 ### Pills de tipo (↓ Gastos / ↑ Ingresos)
 - **Sin selección (por defecto):** La lista y la gráfica muestran todos los movimientos
 - **Toca Gastos (↓):** Filtra todo para ver solo tus gastos. El pill se activa en **rojo suave**
@@ -366,13 +371,14 @@ Toca el ícono de **lupa (🔍)** en el dock flotante. Una barra de búsqueda ap
 
 Accede tocando ⚙️ en la esquina superior derecha del Dashboard.
 
-La pantalla está organizada en secciones, en este orden: **Cuenta** (iniciar sesión con Google,
-o tu correo, el estado del respaldo, Cerrar sesión y Eliminar cuenta — ver [Cuenta y respaldo en
-la nube](#12-cuenta-y-respaldo-en-la-nube)) → **Listas** (Tus listas) → **En tu
-lista** (Categorías, Presupuestos, Pago y período, Mostrar ingresos, Compartir lista, Exportar
-CSV, Importar CSV — todo referido a la lista que tienes activa) → **Gestión** (Métodos de pago,
-Metas de ahorro, Deudas — comunes a todas tus listas) → **Detección automática** → **Sistema**
-(Modo oscuro, Bloqueo con huella, Borrar historial, Versión).
+La pantalla está organizada en secciones, en este orden: **Plan** (tu plan Free o Pro, con la
+prueba de 14 días de Pro) → **Cuenta** (iniciar sesión con Google, o tu correo, el estado del
+respaldo, Cerrar sesión y Eliminar cuenta — ver [Cuenta y respaldo en la nube](#12-cuenta-y-respaldo-en-la-nube))
+→ **Listas** (Tus listas) → **En tu lista** (Categorías, Presupuestos, Pago y período, Mostrar
+ingresos, Compartir lista, Exportar CSV, Importar CSV — todo referido a la lista que tienes
+activa) → **Gestión** (Métodos de pago, Metas de ahorro, Deudas, Recurrentes — comunes a todas tus
+listas) → **Detección automática** → **Sistema** (Modo oscuro, Bloqueo con huella, Borrar
+historial, Versión).
 
 Cada opción que tiene más detalle se abre como una **hoja** que sube desde abajo; la cierras
 tocando fuera de ella o deslizándola hacia abajo.
@@ -436,6 +442,35 @@ Toca la fila "Deudas" (dentro de Gestión) para abrir el panel:
 > ℹ️ Al pagar una deuda, se registra automáticamente como **gasto** en el Dashboard (con el emoji de la deuda, descripción "Pago de [nombre]" y tag `#deuda`). Esto descuenta el dinero de tu balance disponible.
 
 > 💡 Si tienes deudas activas, el Dashboard muestra **"Patrimonio neto"** bajo el balance neto: tu saldo total menos el saldo pendiente de todas tus deudas.
+
+### Recurrentes *(nuevo, función Pro)*
+
+Para un gasto o ingreso que se repite siempre igual (arriendo, salario, suscripción), crea un
+**recurrente** una sola vez y MyWallet te avisa y te lo registra con un toque cada vez que toca —
+ya no tienes que anotarlo a mano cada mes o cada semana. Toca la fila "Recurrentes" (dentro de
+Gestión) para abrir el panel:
+
+- **Crear recurrente:** Toca **"Nuevo recurrente"** → nombre, ícono, monto, tipo (gasto/ingreso),
+  categoría, cuenta, en qué lista se registra y la **cadencia**: **semanal** (eliges el día de la
+  semana) o **mensual** (eliges el día del mes, del 1 al 31; si ese mes no tiene ese día, por
+  ejemplo el 31 en febrero, ese mes no se activa). Si el monto cambia cada vez (ej. una factura de
+  servicios), activa **"El monto varía"**: así, al confirmarlo, siempre se abre el formulario para
+  que edites el monto real antes de guardar.
+- **Pausar/Reanudar:** útil si sabes que ese cobro no va a aparecer por un tiempo (ej. te vas de
+  viaje) — mientras está pausado no notifica ni aparece como pendiente, y no pierdes su
+  configuración.
+- **Editar:** cambia cualquier dato sin afectar lo que ya confirmaste antes.
+- **Eliminar:** deja de notificar y lo quita de la lista.
+- **Cuando vence:** si el monto es fijo, llega una notificación que confirmas con un solo toque; si
+  el monto varía, la notificación abre el formulario ya prellenado para que ajustes el monto antes
+  de guardar. **Ninguna transacción se registra sola** — siempre la confirmas tú primero.
+- **Si no abres la app a tiempo:** al volver a abrirla, verás un chip "N recurrentes por confirmar
+  ›" bajo el balance del Dashboard con lo vencido pendiente, aunque nunca hayas tocado la
+  notificación push. Si hay varios, se listan uno por uno para que confirmes u omitas cada uno
+  (cada uno puede tener su propia lista, categoría y cuenta).
+
+> ℹ️ Crear un recurrente nuevo, o reanudar uno pausado, requiere plan **Pro** (o la prueba gratis
+> de 14 días). Editar o pausar uno que ya tienes activo no se bloquea aunque tu plan Pro termine.
 
 ### Alertas de presupuesto *(nuevo)*
 
@@ -677,6 +712,11 @@ Con sesión iniciada, instala la app en el teléfono nuevo, inicia sesión con l
 ### ¿Cómo elimino mi cuenta y mis datos de la nube?
 **Ajustes → Cuenta → Eliminar cuenta.** Borra tu cuenta, todo tu respaldo en la nube y las listas compartidas que creaste; te saca de las listas de otras personas (lo que registraste ahí se queda para que sus cuentas cuadren). Lo que tienes en el teléfono no se borra. Si ya no tienes la app, puedes pedirlo en https://usemywallet.vercel.app/es/delete-account.
 
+### Creé un recurrente y luego se terminó mi prueba Pro, ¿deja de funcionar?
+No de golpe: un recurrente ya creado te sigue avisando y lo puedes seguir editando o pausando
+aunque tu plan vuelva a Free. Lo único que exige Pro es **crear uno nuevo** o **reanudar** uno que
+tenías pausado.
+
 ### ¿Cómo registro un ingreso?
 Toca el **+** del dock flotante → selecciona **Ingreso (verde)**. La pantalla mostrará "Nuevo Ingreso" y el monto aparecerá en verde con signo `+`.
 
@@ -766,6 +806,7 @@ Una vez al mes:
 | **Swipe-to-edit** | Deslizar una transacción del Dashboard hacia la **derecha** para revelar el botón azul de editar (ícono de lápiz) y abrir el formulario prellenado |
 | **Deuda** | Registro de una deuda (tarjeta de crédito, préstamo, etc.) con monto total, saldo pendiente, cuota mensual y día de pago recurrente. Se gestiona en Ajustes → Deudas |
 | **Patrimonio neto** | Saldo total menos el saldo pendiente de todas tus deudas activas. Aparece bajo el balance en el Dashboard solo si tienes deudas registradas |
+| **Recurrente** *(función Pro)* | Gasto o ingreso que se repite (arriendo, salario, suscripción) con cadencia semanal o mensual; MyWallet te avisa y lo registra con un toque (o editable, si el monto varía) cada vez que vence. Se gestiona en Ajustes → Recurrentes |
 | **Filtro por categoría** | Tap corto en una columna del CategoryChart filtra la lista a solo esa categoría. Se limpia con el botón Atrás del dispositivo o con un pull-down (deslizar la lista hacia abajo desde el tope) |
 | **Pull-down para limpiar filtro** | Gesto de deslizar la lista hacia abajo desde su posición inicial. NO recarga datos (no muestra spinner) — solo limpia el filtro de categoría activo |
 | **Ghost bar** | Línea fantasma punteada que aparece detrás del fill de una columna **con presupuesto** marcando el límite. Si te pasas del 100%, sigue indicando exactamente dónde estaba el presupuesto dentro de la barra excedida |

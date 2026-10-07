@@ -44,12 +44,29 @@ Referencia: `@/src/store/useSettingsStore.ts`
 - `amount < 0` → Ingreso
 - Balance neto = `SUM(amount)` donde negativo suma al saldo del usuario.
 
+### Gating de funciones Pro
+- Toda función Pro (`src/billing/plans.ts` → `ProFeature`) se bloquea en el **punto de entrada de
+  la acción** (crear/activar/reanudar), nunca envolviendo toda la pantalla ni con un chequeo en la
+  UI solamente: `if (!canUse(feature)) { openPaywall(feature); return; }` antes de mutar cualquier
+  estado. Referencia: `requirePro()` en `src/sync/spaceActions.ts` (compartir/invitar/unirse a
+  espacios), y la creación/reanudación de un recurrente en `app/settings.tsx`
+  (`src/store/slices/recurringSlice.ts`).
+- Perder Pro **no corta de golpe** lo que ya existía: no se pausa ni se borra retroactivamente
+  nada creado mientras el plan era Pro (respaldo en la nube, espacios, recurrentes ya activos)
+  — solo se bloquea **crear algo nuevo** o **reactivar/reanudar** lo pausado. Editar algo ya
+  activo nunca se gatea.
+- Pro no es solo "lo que cuesta en Firebase" (nube/espacios): también incluye funciones 100%
+  locales que no cuestan nada en Firebase pero son de valor premium (ej. recurrentes, 2026-10-07)
+  — no asumir que toda función Pro necesita cuenta/internet para funcionar.
+
 ## Arquitectura: Feature-Sliced Simplificado
 
 ```
 app/                → Pantallas (Expo Router). Solo orquestan: leen stores, llaman utils, renderizan UI.
-src/store/          → Estado global (Zustand). Un store por dominio. 6 stores, 2 persistidos
+src/store/          → Estado global (Zustand). Un store por dominio. 7 stores, 2 persistidos
                       (useSettingsStore organizado en slices/ por dominio).
+src/billing/        → Plan Free/Pro: entitlement, paywall, precios. Nunca importado por src/sync/
+                      al revés (src/sync/ sí importa de aquí para el gating).
 src/db/             → Capa de datos SQLite pura, sin lógica de negocio.
 src/components/ui/  → Componentes reutilizables, reciben props, agnósticos a la pantalla.
 src/features/       → Hooks de dominio (NLP, voz).

@@ -170,7 +170,7 @@ descubre sus comandos, subagentes y skills automáticamente de sus carpetas.
 | Estilos | NativeWind (Tailwind) + StyleSheet.create | ^4.2.2 |
 | Componentes UI | Propios (`src/components/ui/`) + lucide-react-native | ^0.576.0 |
 | Routing | Expo Router (file-based, Stack + Tabs) | ~55.0.3 |
-| Estado | Zustand (6 stores, 2 persistidos con AsyncStorage) | ^5.0.11 |
+| Estado | Zustand (7 stores, 2 persistidos con AsyncStorage) | ^5.0.11 |
 | Red / Sync | Solo `@react-native-firebase` (app/auth/firestore) + `@react-native-google-signin/google-signin`, encapsulados en `src/sync/` (`sync.boundary.test.ts` lo vigila). Respaldo de toda la data en `users/{uid}` (Fase 3 de `SYNC_ROADMAP.md`) y listas compartidas en `spaces/{id}` (Fase 4) | ^26.4.0 / ^16.1.5 |
 | Base de datos | expo-sqlite (WAL mode) | ^55.0.10 |
 | ORM | Sin ORM (SQL directo con placeholders) | — |
@@ -222,12 +222,13 @@ my-wallet-app/
 │   ├── hooks/                        # useDashboardScroll, useDashboardSearch, useDashboardTotals, useDashboardTour, useTransactionFilters, useActiveListShare, useAllListCategories, useCsvTransfer, useListEditor
 │   ├── services/                     # notificationService.ts, notificationHeadlessTask.ts
 │   ├── sync/                         # ÚNICA capa con red: firebase.ts (cliente + emulador en dev), session.ts (login/eliminar), engine.ts (motor de respaldo), remote.ts (Firestore), merge/mappers/meta (puras), metaStore, status, useSession, errors, net (tope de tiempo); espacios: spaces.ts (traer/subir), spacesRemote.ts (Firestore), spaceActions.ts (compartir/unirse/salir), spaceMappers.ts (puras)
-│   ├── store/                        # 6 stores Zustand (useSettingsStore + useNotificationStore persistidos)
-│   │   ├── settingsMigrations.ts     # migrateSettings(): migrate puro de useSettingsStore (v0→v1→v2→v3), con tests
-│   │   └── slices/                   # 9 slices de useSettingsStore: budget, categories, debts, goals, lists, notifications, payments, prefs, tombstones
+│   ├── store/                        # 7 stores Zustand (useSettingsStore + useNotificationStore persistidos)
+│   │   ├── settingsMigrations.ts     # migrateSettings(): migrate puro de useSettingsStore (v0→v1→v2→v3→v4), con tests
+│   │   ├── useRecurringQueueStore.ts # Cola de recurrentes (Pro) vencidos sin confirmar, NO persistida — se recalcula con recompute()
+│   │   └── slices/                   # 10 slices de useSettingsStore: budget, categories, debts, goals, lists, notifications, payments, prefs, recurring, tombstones
 │   ├── theme/index.ts                # Tokens AppTheme: light + dark
 │   ├── types/                        # chat.ts
-│   └── utils/                        # formatMoney, nlp, voiceParser, notificationParser, colorUtils, tourRefs, chatHelpers, periodCycles, transactionFormatters, fuzzyMatch, csv, listShareText, settlement, emojiSearch, ids (newId), syncMerge (pickWinner)
+│   └── utils/                        # formatMoney, nlp, voiceParser, notificationParser, colorUtils, tourRefs, chatHelpers, periodCycles, transactionFormatters, fuzzyMatch, csv, listShareText, settlement, emojiSearch, ids (newId), syncMerge (pickWinner), recurring (nextDueDate/dueRecurring, gastos recurrentes)
 │
 ├── scripts/                          # build-android.sh (build:dev/build:test), seed-dev-data.py (datos de prueba en dev)
 ├── index.js                          # Entrypoint: registra HeadlessJS task + delega a expo-router/entry
@@ -262,6 +263,7 @@ my-wallet-app/
 | `/voice-input` | `app/voice-input.tsx` | fullScreenModal ↑ | Entrada por voz con orb animado |
 | `/voice-batch-review` | `app/voice-batch-review.tsx` | fullScreenModal ↑ | Revisión de multi-transacciones por voz |
 | `/notification-review` | `app/notification-review.tsx` | fullScreenModal ↑ | Revisión de transacciones bancarias detectadas |
+| `/recurring-review` | `app/recurring-review.tsx` | fullScreenModal ↑ | Cola de confirmación de ocurrencias vencidas de recurrentes (Pro) cuando hay 2+: Confirmar / Editar y confirmar / Omitir por fila |
 | `/active-expense` | `app/active-expense.tsx` | fullScreenModal ↑ | Formulario nuevo gasto/ingreso |
 | `/settings` | `app/settings.tsx` | fullScreenModal ↑ | Configuración completa |
 | `/reports` | `app/reports.tsx` | fullScreenModal ↑ | "Promedios": promedio mensual histórico de gasto/ingreso por categoría, con tarjeta de tendencia mensual acotable por rango de fechas |
@@ -280,9 +282,10 @@ my-wallet-app/
 |-------|-----------|-----------------|
 | `useFinanceStore` | No (cache SQLite) | Transacciones CRUD + batch |
 | `useExpenseStore` | No | Formulario gasto/ingreso activo |
-| `useSettingsStore` | AsyncStorage (`version: 3`, `migrateSettings()`) | Config: categorías, presupuesto por categoría, metas, deudas, métodos pago, período predeterminado + pago esperado (`defaultPeriod`), dark mode, bloqueo con huella, onboarding, **listas** (`lists`, `activeListId`, slice `listsSlice`) |
+| `useSettingsStore` | AsyncStorage (`version: 4`, `migrateSettings()`) | Config: categorías, presupuesto por categoría, metas, deudas, **recurrentes** (`recurringExpenses`, slice `recurringSlice`, Pro), métodos pago, período predeterminado + pago esperado (`defaultPeriod`), dark mode, bloqueo con huella, onboarding, **listas** (`lists`, `activeListId`, slice `listsSlice`) |
 | `useVoiceStore` | No | Estado voz: transcript, pendingBatch, pendingManualItem |
 | `useNotificationStore` | AsyncStorage | Cola transacciones detectadas desde notificaciones bancarias |
+| `useRecurringQueueStore` | No (derivada, se recalcula con `recompute()`) | Cola de ocurrencias vencidas sin confirmar de recurrentes (Pro) — ver "Gastos/ingresos recurrentes (Pro)" |
 | `useUIStore` | No | Búsqueda (query, tags), filtro por categoría desde el chart, overlay de entrada rápida NLP |
 | `useEntitlementStore` (`src/billing/`) | AsyncStorage, aparte (no se respalda en la nube) | Plan Free/Pro y prueba de 14 días (simulados hoy, ver Reglas inmutables #1 y "Monetización") |
 
@@ -347,7 +350,7 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
 ### Notificaciones y detección automática
 
 - La configuración de detección automática usa `AsyncStorage` directo (no `useSettingsStore`) para poder leerla desde HeadlessJS sin React. Sus claves `AUTO_DETECT_ENABLED_KEY`/`ALLOWED_BANKS_KEY` viven solo en `src/constants/banks.ts`.
-- `notificationService.ts` define 4 canales Android (API 26+): `budget-alerts`, `goal-alerts`, `bank-transactions`, `debt-reminders`. `initNotifications()` corre en el bootstrap de `_layout.tsx` para que existan antes de cualquier notificación.
+- `notificationService.ts` define 5 canales Android (API 26+): `budget-alerts`, `goal-alerts`, `bank-transactions`, `debt-reminders`, `recurring-expenses`. `initNotifications()` corre en el bootstrap de `_layout.tsx` para que existan antes de cualquier notificación.
 - `budgetNotifiedMonth` usa claves compuestas `"emoji:threshold"` / `"emoji:overspent"`: hasta 2 notificaciones por categoría por ciclo de presupuesto (al cruzar el umbral y al superar el 100%). El valor guardado es la fecha de inicio del ciclo (`cycleKey(budgetCycle(defaultPeriod, now))`, `"YYYY-MM-DD"`), no el mes calendario.
 - **Ciclo del presupuesto por categoría = `budgetCycle()`** (`src/utils/periodCycles.ts`): un mes que arranca en el `startDay` del período predeterminado si su frecuencia es `monthly`; con cualquier otra frecuencia (semanal, quincenal, todo el tiempo) es el mes calendario (día 1). Lo usan `notifyIfBudgetExceeded()` (`useFinanceStore`) y `checkAndNotifyBudget()`, así que el gasto medido y la clave de "ya notificado" siempre coinciden.
 - **`src/utils/notificationParser/` es una carpeta, un módulo por responsabilidad** (`types`, `intentClassifier`, `amountExtractor`, `directionClassifier`, `descriptionExtractor`, `bankPatterns`, `parseNotification`, `fixtures`); se importa como `@/src/utils/notificationParser`. `intentClassifier` clasifica `otp` / `security_alert` / `payment_reminder` / `marketing` / `app_update` / `possible_transaction` ANTES de parsear, para que recordatorios como "Tienes un pago por $X. Completa tu pago..." no se registren como gasto. Al agregar un patrón: primero el caso en `fixtures.ts` con su resultado esperado, después ajustar `intentClassifier`/`bankPatterns`, y verificar contra todos los fixtures para no romper otro banco.
@@ -398,9 +401,13 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
 - **Qué es Free y qué es Pro**: todo lo local es gratis para siempre (registro manual/voz/NLP,
   detección automática de notificaciones bancarias, categorías, presupuestos, metas, deudas,
   métodos de pago, listas múltiples y reparto de gasto sin nube, períodos de pago, reportes, CSV,
-  biometría, tema oscuro). **Pro = lo que tiene costo real en Firebase**: respaldo/sync en la
-  nube (Sync Fase 3) y espacios compartidos (Sync Fase 4, incluido unirse como invitado — no solo
-  crear). El gating vive en `canUse("cloudBackup" | "sharedSpaces")`, nunca en la UI sola.
+  biometría, tema oscuro). Pro agrupa dos cosas de naturaleza distinta: lo que tiene costo real en
+  Firebase (respaldo/sync en la nube, Sync Fase 3; espacios compartidos, Sync Fase 4, incluido
+  unirse como invitado — no solo crear) y, desde los gastos/ingresos recurrentes (2026-10-07),
+  funciones 100% locales que no cuestan nada en Firebase pero son la función premium de
+  conveniencia que faltaba (ver "Gastos/ingresos recurrentes (Pro)" más abajo) — no todo Pro
+  depende de tener cuenta/internet. El gating vive en
+  `canUse("cloudBackup" | "sharedSpaces" | "recurringExpenses")`, nunca en la UI sola.
 - **Precios** (COP, Play Console permite precios por país): mensual $14.900, anual $99.900
   (ahorra 44 %), prueba de 14 días. Constantes en `src/billing/plans.ts`
   (`PRICES_COP`/`TRIAL_DAYS`/`ANNUAL_SAVINGS_PCT`), nunca hardcodeadas en una pantalla.
@@ -543,8 +550,8 @@ unirse exigen plan Pro** (ver "Monetización" arriba); sin Pro, `spaceActions.ts
 
 ### Ajustes (`app/settings.tsx`)
 
-- Secciones en este orden: **PLAN** (`PlanSection`, nueva: estado del plan Free/Pro, abre el paywall; en dev/test suma los controles de simulación — ver "Monetización: plan Free/Pro") → **CUENTA** (`AccountSection`: "Iniciar sesión con Google", o correo + estado del respaldo + "Cerrar sesión" + "Eliminar cuenta"; ver "Respaldo en la nube (Sync Fase 3)") → **LISTAS** ("Tus listas", detail = cantidad, abre `ListsSheet`) → **EN TU LISTA · {emoji} {nombre}** (título dinámico con la lista activa: Categorías, Presupuestos, "Pago y período", "Mostrar ingresos" con `Switch`, "Compartir lista", "Exportar CSV", "Importar CSV") → GESTIÓN, global no por lista (Métodos de pago, Metas de ahorro, Deudas) → DETECCIÓN AUTOMÁTICA ("Detectar transacciones", "Bancos activos") → SISTEMA (Modo oscuro, Bloqueo con huella, Borrar historial, Versión — ya no tiene "Exportar datos", reemplazada por "Exportar CSV"/"Importar CSV" dentro de "EN TU LISTA").
-- **"Pago y período" reemplaza al antiguo "Ingreso mensual":** ya no existe `monthlyBudget`; el pago esperado vive en `defaultPeriod.pay` (por día de pago en `semimonthly`, `Record<string, number>` con el día como clave string para sobrevivir a JSON). El paso v0 → v1 de `migrateSettings()` (`src/store/settingsMigrations.ts`) pasa un `monthlyBudget > 0` a `defaultPeriod.pay`. Cualquier otro cambio incompatible del estado persistido debe subir `SETTINGS_VERSION` (hoy 3) y agregar su paso a `migrateSettings()`, con test.
+- Secciones en este orden: **PLAN** (`PlanSection`, nueva: estado del plan Free/Pro, abre el paywall; en dev/test suma los controles de simulación — ver "Monetización: plan Free/Pro") → **CUENTA** (`AccountSection`: "Iniciar sesión con Google", o correo + estado del respaldo + "Cerrar sesión" + "Eliminar cuenta"; ver "Respaldo en la nube (Sync Fase 3)") → **LISTAS** ("Tus listas", detail = cantidad, abre `ListsSheet`) → **EN TU LISTA · {emoji} {nombre}** (título dinámico con la lista activa: Categorías, Presupuestos, "Pago y período", "Mostrar ingresos" con `Switch`, "Compartir lista", "Exportar CSV", "Importar CSV") → GESTIÓN, global no por lista (Métodos de pago, Metas de ahorro, Deudas, Recurrentes — Pro) → DETECCIÓN AUTOMÁTICA ("Detectar transacciones", "Bancos activos") → SISTEMA (Modo oscuro, Bloqueo con huella, Borrar historial, Versión — ya no tiene "Exportar datos", reemplazada por "Exportar CSV"/"Importar CSV" dentro de "EN TU LISTA").
+- **"Pago y período" reemplaza al antiguo "Ingreso mensual":** ya no existe `monthlyBudget`; el pago esperado vive en `defaultPeriod.pay` (por día de pago en `semimonthly`, `Record<string, number>` con el día como clave string para sobrevivir a JSON). El paso v0 → v1 de `migrateSettings()` (`src/store/settingsMigrations.ts`) pasa un `monthlyBudget > 0` a `defaultPeriod.pay`. Cualquier otro cambio incompatible del estado persistido debe subir `SETTINGS_VERSION` (hoy 4: v3→v4 agregó `recurringExpenses: []` para instalaciones existentes) y agregar su paso a `migrateSettings()`, con test.
 - "Bloqueo con huella" (`BiometricLockRow`) es una fila con `Switch` en el slot `right`; activar y desactivar piden autenticarse, para que nadie con el teléfono desbloqueado lo quite. Sin huella/rostro/PIN configurados, activar muestra un `ConfirmDialog` informativo en vez del prompt. No hay secciones "APARIENCIA" ni "ACERCA DE", ni párrafos explicativos.
 - Cada sección es una sola `Card` con `Divider` entre filas (`inset={tokens.spacing.md * 2 + 34}`), no una tarjeta por fila; el usuario lo prefirió así. Íconos con color propio por fila (verde, azul, morado `#7C3AED`, rojo, gris, `Radar` `#0D9488`, `Landmark` `#EA580C`), no monocromáticos.
 - Las filas del screen principal no llevan `detail` (truncaba los títulos), salvo "Tus listas" (cantidad) y "Versión" (`v{APP_VERSION}`) — ahí el detail es el dato.
@@ -558,9 +565,76 @@ unirse exigen plan Pro** (ver "Monetización" arriba); sin Pro, `spaceActions.ts
 
 ### Deudas y metas
 
-- **Deudas** (`src/store/slices/debtsSlice.ts`, uno de los 9 slices de `useSettingsStore`): `Debt` = `id, name, emoji, totalAmount, remainingAmount, monthlyPayment, dueDay (1-31), createdAt, updatedAt`. Acciones: `addDebt`, `updateDebtBalance` (pagar, reduce saldo), `editDebt` (nombre/emoji/monto/cuota/día, no toca saldo), `removeDebt`. UI: `DebtsSection` con botones explícitos de editar/eliminar (no swipe), `NuevaDeudaModal` con `DayOfMonthSheet` (grilla 1-31: día que se repite cada mes, no una fecha), `AbonarDeudaModal` (crea un gasto con tag `#deuda` y reduce el saldo).
+- **Deudas** (`src/store/slices/debtsSlice.ts`, uno de los 10 slices de `useSettingsStore`): `Debt` = `id, name, emoji, totalAmount, remainingAmount, monthlyPayment, dueDay (1-31), createdAt, updatedAt`. Acciones: `addDebt`, `updateDebtBalance` (pagar, reduce saldo), `editDebt` (nombre/emoji/monto/cuota/día, no toca saldo), `removeDebt`. UI: `DebtsSection` con botones explícitos de editar/eliminar (no swipe), `NuevaDeudaModal` con `DayOfMonthSheet` (grilla 1-31: día que se repite cada mes, no una fecha), `AbonarDeudaModal` (crea un gasto con tag `#deuda` y reduce el saldo).
 - Recordatorio de deuda: `scheduleDebtReminder`/`cancelDebtReminder`/`notifyDebtPaidOff` en `notificationService.ts`, con trigger `SchedulableTriggerInputTypes.MONTHLY` el `dueDay` a las 9am. Si ese día no existe en un mes (31 en febrero), ese mes no dispara; es una limitación aceptada.
 - **Metas de ahorro** (`goalsSlice.ts`): `editSavingsGoal` edita nombre/emoji/monto objetivo; `updateSavingsGoal` solo registra abonos. `GoalItem` usa botones explícitos de editar/eliminar, igual que Deudas y Métodos de pago.
+
+### Gastos/ingresos recurrentes (Pro, 2026-10-07)
+
+Un gasto/ingreso que se repite (arriendo, salario, suscripción) con cadencia semanal (día de
+semana) o mensual (día 1–31, acotado al mes real como `Debt.dueDay`, mismo helper `monthDate()`).
+100% local: no necesita sesión ni internet — es la función Pro que faltaba más allá de
+nube/espacios (ver "Monetización" arriba), distinta de esas dos porque no tiene costo en Firebase.
+
+- **Modelo** (`src/store/slices/recurringSlice.ts`, 10º slice de `useSettingsStore`,
+  `SETTINGS_VERSION` subió a 4): `RecurringExpense { id, name, emoji, amount (siempre positivo),
+  isExpense, categoryEmoji, paymentMethod, listId, cadence, amountVaries, active,
+  lastHandledCycleKey, createdAt, updatedAt }`. `listId` queda fijo desde la creación — RF-012:
+  nunca se registra en la lista activa del momento de confirmar, sino en la que tenía el
+  recurrente al crearlo. `amountVaries` decide el flujo de confirmación: `false` = un toque con el
+  monto guardado, `true` = siempre abre `active-expense.tsx` editable. `lastHandledCycleKey` es la
+  idempotencia (última ocurrencia confirmada U omitida); el slice no llama notificaciones, eso lo
+  hace quien invoca (`app/settings.tsx`), mismo patrón que `debtsSlice.ts` con
+  `scheduleDebtReminder`.
+- **Cálculo de fechas puro** (`src/utils/recurring.ts`, con tests): `nextDueDate`/`cycleKeyOf`/
+  `upcomingDueDate`/`isDue`/`dueRecurring(list, now)`. La cola de vencidos tiene un tope de
+  `RECURRING_QUEUE_CAP = 6` ocurrencias por recurrente: si se acumulan más (el usuario no abrió la
+  app en mucho tiempo), las más viejas que el tope se dan por **omitidas automáticamente**
+  (`autoSkip`) sin insertar nada — quien llama a `dueRecurring` debe aplicar ese `markHandled` antes
+  de mostrar la cola (lo hace `useRecurringQueueStore.recompute()`).
+- **`useRecurringQueueStore` NO está persistido, a propósito** — patrón distinto del de
+  `useNotificationStore` (que sí se persiste porque un HeadlessJS en background la llena sin que la
+  app esté abierta). Acá no hay ningún proceso de background escribiendo la cola: se recalcula
+  barata desde `recurringExpenses` + la fecha actual llamando `recompute()` explícitamente (sin
+  `subscribe`, para que quede claro cuándo corre) — en el bootstrap de `_layout.tsx` (tras
+  `waitForSettingsHydration()`), al enfocar el Dashboard y `recurring-review.tsx`
+  (`useFocusEffect`), y tras cualquier alta/edición/pausa/reanudación/eliminación en Ajustes o
+  confirmación/omisión en `active-expense.tsx`/`recurring-review.tsx`. Si una cola nueva de este
+  tipo necesita recalcularse sola en respuesta a un cambio de store, este es el patrón a replicar
+  (derivada + `recompute()` explícito), no agregar un `subscribe`.
+- **Notificaciones** (`notificationService.ts`): canal `recurring-expenses`,
+  `scheduleRecurringReminder`/`cancelRecurringReminder` con trigger nativo `WEEKLY`/`MONTHLY` de
+  `expo-notifications` (reutiliza el patrón de `scheduleDebtReminder`, primera vez que sirve para
+  otra entidad). **El `weekday` de la cadencia de la app es 0=domingo…6=sábado (como
+  `Date.getDay()`), pero el trigger `WEEKLY` nativo de `expo-notifications` usa 1=domingo…7=sábado**
+  — `scheduleRecurringReminder` suma `+1` al convertir; si se toca ese código, no quitar el `+1` ni
+  reusarlo tal cual para otra cadencia semanal futura sin verificar el offset de esa API.
+- **Gating Pro** (`canUse("recurringExpenses")` + `openPaywall("recurringExpenses")`): solo bloquea
+  **crear** uno nuevo o **reanudar** uno pausado — nunca editar uno ya activo, mismo criterio que
+  el respaldo en la nube ("no se corta de golpe" al perder Pro).
+- **UI**: `app/settings.tsx` → Gestión → "Recurrentes" abre una hoja con `RecurringSection`
+  (lenguaje visual de `DebtItem`: botones pausar/editar/eliminar explícitos) + `NuevoRecurrenteModal`,
+  un asistente de 3 pasos dentro de la misma hoja (1 Lo básico: monto grande coloreado por
+  gasto/ingreso + nombre/ícono; 2 Detalles: categoría/cuenta/lista como chips; 3 Frecuencia: tarjetas
+  mensual/semanal con radio, día en grilla inline, switch "el monto varía"), un solo botón principal
+  ("Siguiente"/"Crear") y "Atrás" en lugar de "Cancelar" desde el paso 2 (diseño minimalista, 2026-10-07).
+  `app/active-expense.tsx` suma `from=recurring-detect` (monto fijo, confirma con un toque) y
+  `from=recurring-edit` (monto variable, editable), ambos vía `recId` + `cycleKey` en la URL; el
+  prefill fuerza `listId` al del recurrente y oculta la sección LISTA, igual que
+  `batch-review`/`notification-edit`. `app/recurring-review.tsx` es la cola de confirmación cuando
+  hay 2+ vencidos (sin "guardar todo": cada fila puede ser de un recurrente distinto, con su propia
+  lista/categoría/cuenta). El Dashboard (`app/(tabs)/index.tsx`) muestra un chip "N recurrentes por
+  confirmar ›" bajo los pills (mismo estilo que el chip de cuentas de lista compartida; se apila
+  arriba de ese si ambos aplican), oculto en búsqueda/filtro de categoría, que toca directo a
+  `active-expense` si hay 1 solo vencido o a `/recurring-review` si hay más. El deep link de
+  notificación push suma `data.screen === "recurring-review"` en `app/_layout.tsx`
+  (`resolveRecurringNotificationTarget`, mismo criterio "si es el único vencido, saltar la lista e
+  ir directo al formulario" que `resolveBankNotificationTarget`).
+- **Fuera de alcance de esta fase** (no es deuda técnica urgente, es una decisión de scope
+  documentada en `specs/gastos-recurrentes/requirements.md`): sync a la nube de
+  `recurringExpenses` (nace local-first, igual que nacieron Deudas antes de que existiera sync —
+  no toca `tombstonesSlice` ni `src/sync/`), cadencias quincenal/semimensual (`expo-notifications`
+  no tiene trigger nativo para eso) y reportes/promedios específicos de recurrentes.
 
 ### Reportes (`app/reports.tsx`, "Promedios")
 

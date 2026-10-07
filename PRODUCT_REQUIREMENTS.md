@@ -79,6 +79,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Presupuesto por categoría | Límite por cada categoría de gasto de la lista activa (hoja "Presupuestos") | ✅ Implementado |
 | Metas de ahorro | Crear/editar/abonar/eliminar metas (hoja); editar/eliminar con íconos explícitos ✏️/🗑️, ya no swipe-to-delete. Al abonar se crea transacción de gasto automáticamente (con emoji de la meta, tag #ahorro) | ✅ Implementado |
 | Deudas *(nuevo)* | Crear/editar/pagar/eliminar deudas (hoja): nombre, emoji, monto total, cuota mensual, día de pago recurrente. Al pagar se crea transacción de gasto automáticamente (tag #deuda) y se reduce el saldo pendiente. Recordatorio push mensual en el día de pago; notificación al liquidar la deuda | ✅ Implementado |
+| Recurrentes *(nuevo, Pro)* | Crear/editar/pausar/reanudar/eliminar un gasto/ingreso que se repite (hoja): nombre, emoji, monto, tipo, categoría, cuenta, lista, cadencia (semanal o mensual, día acotado al mes real) y si el monto varía. Al vencer, notifica y se confirma con un toque (monto fijo) o editando antes de guardar (monto variable); vencidos acumulados sin confirmar aparecen en una cola al abrir la app, sin depender de haber tocado la notificación. Crear o reanudar exige plan Pro | ✅ Implementado |
 | Modo oscuro | Sistema / Claro / Oscuro (dark mode completo) — fila dentro de la sección "Sistema" | ✅ Implementado |
 | Bloqueo con huella | Pide huella/rostro/PIN del sistema al abrir la app y al volver de background; activar y desactivar requieren autenticarse. Sin biometría ni PIN configurados no se puede activar | ✅ Implementado |
 | Exportar/Importar CSV *(por lista)* | Exportar escribe un `.csv` real (`expo-file-system`) con id/fecha/tipo/descripción/categoría/monto/método de pago/tags/quién pagó, y lo comparte con la hoja del sistema (`expo-sharing`). Importar (`expo-document-picker`) agrega los movimientos de un `.csv` a la lista activa sin duplicar los que ya están. Reemplaza al antiguo "Exportar datos" (texto plano vía `Share`) | ✅ Implementado |
@@ -87,7 +88,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Sección "Sistema" fusionada (2026-09-02) | Las secciones antes independientes Apariencia (Modo oscuro), Sistema (Exportar/Borrar) y Acerca de (Versión) se unieron en una sola sección "Sistema" (hoy: Modo oscuro, Bloqueo con huella, Borrar historial, Versión) | ✅ Implementado |
 | Tarjetas sin borde (2026-09-02) | `Card` perdió el `borderWidth` que había ganado en el rediseño Material — se distingue del fondo solo por color de relleno | ✅ Implementado |
 | Popups como hojas (2026-09-29) | Todo lo que era un popup centrado (confirmaciones, avisos de permiso, formularios de categoría/presupuesto/métodos/metas/deudas) es una hoja que sube desde abajo, con tap fuera y deslizar hacia abajo para cerrar | ✅ Implementado |
-| Secciones reordenadas (listas) | Orden actual: Cuenta → Listas (Tus listas) → En tu lista (Categorías, Presupuestos, Pago y período, Mostrar ingresos, Compartir lista, Exportar/Importar CSV) → Gestión (Métodos de pago, Metas, Deudas) → Detección automática → Sistema | ✅ Implementado |
+| Secciones reordenadas (listas) | Orden actual: Plan → Cuenta → Listas (Tus listas) → En tu lista (Categorías, Presupuestos, Pago y período, Mostrar ingresos, Compartir lista, Exportar/Importar CSV) → Gestión (Métodos de pago, Metas, Deudas, Recurrentes) → Detección automática → Sistema | ✅ Implementado |
 
 ### 2.7 Sistema de Notificaciones (dos capas)
 
@@ -95,13 +96,14 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 
 | Sección | Descripción | Estado |
 |---------|-------------|--------|
-| Servicio | `src/services/notificationService.ts` — `requestNotificationPermissions`, `checkAndNotifyBudget`, `checkAndNotifyGoalCompleted`, `scheduleDebtReminder`/`cancelDebtReminder`/`notifyDebtPaidOff` *(deudas, nuevo)* | ✅ Implementado |
+| Servicio | `src/services/notificationService.ts` — `requestNotificationPermissions`, `checkAndNotifyBudget`, `checkAndNotifyGoalCompleted`, `scheduleDebtReminder`/`cancelDebtReminder`/`notifyDebtPaidOff`, `scheduleRecurringReminder`/`cancelRecurringReminder` *(recurrentes, Pro, nuevo)* | ✅ Implementado |
 | Permiso | Se solicita la primera vez que el usuario configura un presupuesto por categoría (vía `ConfirmDialog` previo) | ✅ Implementado |
 | Anti-duplicación presupuesto | `budgetNotifiedMonth: Record<string, string>` en `useSettingsStore` — hasta dos notificaciones por categoría (umbral y 100%) por ciclo de presupuesto (mes calendario, o desde el día de inicio si la frecuencia es mensual con desfase) | ✅ Implementado |
 | Anti-duplicación transacción detectada | Una sola push por transacción aunque Android entregue la notificación del banco dos veces (`addPendingItem` → `isNew`, e `identifier` único por ítem) | ✅ Implementado |
 | Anti-duplicación metas | `goalNotifiedIds: string[]` en `useSettingsStore` — una sola notificación por meta | ✅ Implementado |
 | Limpieza automática | `clearExpiredBudgetNotifications()` se ejecuta en el bootstrap de la app (`app/_layout.tsx`) para limpiar flags de ciclos anteriores | ✅ Implementado |
 | Recordatorio de deudas *(nuevo)* | `scheduleDebtReminder()` usa un trigger `MONTHLY` nativo de `expo-notifications` (primer trigger programado por fecha del proyecto, todo lo demás es disparo inmediato) — dispara en el `dueDay` de la deuda a las 9am; se cancela solo al liquidar la deuda | ✅ Implementado |
+| Recordatorio de recurrentes *(nuevo, Pro)* | `scheduleRecurringReminder()` usa un trigger `WEEKLY`/`MONTHLY` nativo de `expo-notifications` (canal propio `recurring-expenses`); al tocarla, si solo queda ese recurrente vencido la app lleva directo al formulario prellenado, si hay más abre la cola de confirmación (`recurring-review.tsx`) | ✅ Implementado |
 
 #### Capa 2 — Banners in-app
 
@@ -300,6 +302,20 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 11.12 | Como miembro de una lista compartida, quiero poder salir de ella y quedarme con lo que ya tenía como una lista propia; como dueño, quiero poder quitar a alguien o eliminar la lista para todos | ✅ |
 | HU 11.13 | Como usuario, quiero que un movimiento que borro no quede guardado en la nube con su monto y descripción, solo la marca de que se borró | ✅ |
 
+### Épica 12: Gastos/Ingresos Recurrentes (Pro) *(nuevo, 2026-10-07, ver `specs/gastos-recurrentes/`)*
+
+| ID | Historia | Estado |
+|----|---------|--------|
+| HU 12.1 | Como usuaria Pro, quiero crear un recurrente mensual (nombre, monto, categoría, cuenta, día del mes) para no tener que acordarme de anotar el arriendo cada mes | ✅ |
+| HU 12.2 | Como usuario con un recurrente vencido de monto fijo, quiero confirmarlo con un toque desde la notificación, sin reabrir el formulario completo | ✅ |
+| HU 12.3 | Como usuario que no tocó la notificación (o la borró sin querer), quiero ver los recurrentes vencidos pendientes al abrir la app, para no perderlos | ✅ Chip "N recurrentes por confirmar ›" en el Dashboard + cola en `recurring-review.tsx` |
+| HU 12.4 | Como usuario, quiero pausar un recurrente (ej. me voy de viaje) sin tener que borrar y volver a crear su configuración | ✅ |
+| HU 12.5 | Como usuario, quiero eliminar un recurrente que ya no aplica, y que deje de notificarme | ✅ |
+| HU 12.6 | Como usuario con un recurrente de monto variable (ej. factura de servicios), quiero que la confirmación abra el formulario prellenado y editable, no que registre un monto que puede estar mal | ✅ |
+| HU 12.7 | Como usuario, quiero ver todos mis recurrentes activos y su próxima fecha en un solo lugar (Ajustes → Recurrentes) | ✅ |
+| HU 12.8 | Como usuario Free, al intentar crear un recurrente o reanudar uno pausado quiero ver la oferta de Pro en vez de que se cree algo | ✅ |
+| HU 12.9 | Como usuario, si un recurrente acumula varios ciclos vencidos sin confirmar (ej. no abrí la app en meses), quiero ver una fila por ciclo hasta un tope razonable, sin que los más viejos se pierdan sin aviso | ✅ Tope de 6 ciclos por recurrente; los más viejos que el tope se dan por omitidos automáticamente |
+
 ---
 
 ## 4. Categorías (Sistema Dinámico)
@@ -453,9 +469,9 @@ Las categorías se pueden crear desde **tres contextos**:
 - Backup: con sesión iniciada **y plan Pro**, respaldo automático en Firebase (Firestore, `users/{uid}`; listas compartidas en `spaces/{id}`, también Pro). Sin Pro (o sin sesión), exportar CSV por lista sigue disponible y gratis
 - Borrar es lógico (`deleted_at`) para que la sync propague el borrado; en la nube un movimiento borrado es solo `{ updatedAt, deletedAt }`, sin contenido
 
-### Monetización (2026-10-06)
+### Monetización (2026-10-06, ampliada 2026-10-07)
 - **Plan Free** (para siempre, sin cuenta): registro manual/voz/NLP, detección automática de notificaciones bancarias, categorías, presupuestos y alertas, metas, deudas, métodos de pago, listas múltiples y reparto de gasto sin nube, períodos de pago, reportes/promedios, exportar/importar CSV, biometría, tema oscuro
-- **Plan Pro** (suscripción, prueba de 14 días): respaldo/sync automático en la nube multi-dispositivo, espacios compartidos (crear, invitar y unirse) sin límite
+- **Plan Pro** (suscripción, prueba de 14 días): respaldo/sync automático en la nube multi-dispositivo, espacios compartidos (crear, invitar y unirse) sin límite, y gastos/ingresos recurrentes automáticos *(nuevo, 2026-10-07)* — esta última es 100% local (no depende de cuenta ni internet), la primera función Pro que no tiene costo en Firebase: Pro agrupa tanto lo que cuesta en la nube como funciones de conveniencia premium
 - Precios de referencia (COP, Play Console permite ajustar por país): mensual $14.900, anual $99.900 (ahorra 44%)
 - **Hoy el cobro es simulado** (`src/billing/`): no hay Google Play ni RevenueCat todavía; `subscribePro()` activa Pro sin cobrar, y en `prod` el botón de suscribirse queda desactivado hasta que exista la tienda. Ver `AGENTS.md` → "Monetización: plan Free/Pro" para el detalle técnico
 

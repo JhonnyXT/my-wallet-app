@@ -45,11 +45,12 @@ import {
   ChevronRight,
   Infinity as InfinityIcon,
 } from "lucide-react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { scrollBottomPadding, DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { SELF_PAYER, type TransactionRow } from "@/src/db/db";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { useRecurringQueueStore } from "@/src/store/useRecurringQueueStore";
 import { syncNow, useSession, useSyncStatus } from "@/src/sync";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import { useUIStore } from "@/src/store/useUIStore";
@@ -318,6 +319,26 @@ export default function DashboardScreen() {
   // Cuentas de la lista activa si tiene más personas: sobre todo su historial (no el período).
   const { settlement, payerLabel } = useActiveListSettlement();
   const shareActiveList = useShareActiveList();
+
+  // Recurrentes vencidos sin confirmar (RF-015): se recalcula al enfocar el Dashboard (volver de
+  // Ajustes tras crear/pausar uno, o de confirmar/omitir en recurring-review), no solo al montar.
+  const recurringQueue = useRecurringQueueStore((s) => s.queue);
+  const recomputeRecurringQueue = useRecurringQueueStore((s) => s.recompute);
+  useFocusEffect(
+    useCallback(() => {
+      recomputeRecurringQueue();
+    }, [recomputeRecurringQueue]),
+  );
+  const handleRecurringChipPress = useCallback(() => {
+    Haptics.selectionAsync();
+    if (recurringQueue.length === 1) {
+      const { recurring, cycleKey } = recurringQueue[0];
+      const mode = recurring.amountVaries ? "recurring-edit" : "recurring-detect";
+      router.push(`/active-expense?from=${mode}&recId=${recurring.id}&cycleKey=${cycleKey}`);
+    } else {
+      router.push("/recurring-review");
+    }
+  }, [recurringQueue]);
 
   // Las deudas son del día a día: el patrimonio neto solo se muestra en Personal.
   const listDebt = activeListId === DEFAULT_LIST_ID ? totalDebt : 0;
@@ -1119,6 +1140,21 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
               )}
             </Reanimated.View>
+            {/* Recurrentes vencidos sin confirmar: arriba del chip de cuentas compartidas (RF-015). */}
+            {recurringQueue.length > 0 && !isSearching && !categoryFilter && (
+              <Pressable
+                onPress={handleRecurringChipPress}
+                style={styles.settleChip}
+                accessibilityRole="button"
+                accessibilityHint="Toca para confirmar u omitir tus recurrentes vencidos"
+              >
+                <Text style={styles.settleChipText}>
+                  {recurringQueue.length} recurrente{recurringQueue.length !== 1 ? "s" : ""} por
+                  confirmar
+                </Text>
+                <ChevronRight size={16} color={theme.textSub} strokeWidth={2.2} />
+              </Pressable>
+            )}
             {/* Cuentas de una lista con más personas: una línea; el detalle, en una hoja. */}
             {settlement && !isSearching && !categoryFilter && (
               <Pressable

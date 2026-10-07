@@ -7,13 +7,14 @@ import * as Notifications from "expo-notifications";
 import { initDatabase, purgeSyncedTombstones } from "@/src/db/db";
 import { startSync } from "@/src/sync";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
-import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { useSettingsStore, waitForSettingsHydration } from "@/src/store/useSettingsStore";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
 import {
   useNotificationStore,
   getPendingItemAfterHydration,
   type PendingNotificationItem,
 } from "@/src/store/useNotificationStore";
+import { useRecurringQueueStore } from "@/src/store/useRecurringQueueStore";
 import { ThemeProvider } from "@/src/context/ThemeContext";
 import { AnimatedSplash } from "@/src/components/ui/AnimatedSplash";
 import { BiometricLockGate } from "@/src/components/ui/BiometricLockGate";
@@ -83,6 +84,34 @@ async function resolveBankNotificationTarget(
   return "/notification-review";
 }
 
+/**
+ * Resuelve a dónde navegar al tocar una notificación de un recurrente vencido. Mismo criterio que
+ * `resolveBankNotificationTarget`: si la ocurrencia tocada es la ÚNICA vencida en TODA la cola (no
+ * solo de ese recurrente — RF-014 puede dejar varias del mismo), salta `recurring-review` y va
+ * directo al formulario; si hay más de una, abre la lista completa. El prefill de
+ * `useExpenseStore` ocurre DENTRO de `active-expense.tsx` (no acá, a diferencia de
+ * `prefillExpenseFromPendingItem`): a esta pantalla también se llega desde `recurring-review.tsx`
+ * sin pasar por este resolver, así que centralizar el prefill ahí cubre las dos entradas con una
+ * sola lógica. `cycleKey` viaja en la URL porque un mismo recurrente puede tener varios ciclos
+ * vencidos a la vez (RF-014): identifica cuál se está confirmando.
+ */
+async function resolveRecurringNotificationTarget(): Promise<
+  | `/active-expense?from=recurring-detect&recId=${string}&cycleKey=${string}`
+  | `/active-expense?from=recurring-edit&recId=${string}&cycleKey=${string}`
+  | "/recurring-review"
+> {
+  await waitForSettingsHydration();
+  useRecurringQueueStore.getState().recompute();
+  const { queue } = useRecurringQueueStore.getState();
+  if (queue.length === 1) {
+    const occurrence = queue[0];
+    const mode = occurrence.recurring.amountVaries ? "recurring-edit" : "recurring-detect";
+    const { id: recId } = occurrence.recurring;
+    return `/active-expense?from=${mode}&recId=${recId}&cycleKey=${occurrence.cycleKey}`;
+  }
+  return "/recurring-review";
+}
+
 export default function RootLayout() {
   const loadTransactions = useFinanceStore((s) => s.loadTransactions);
   const darkMode = useSettingsStore((s) => s.darkMode);
@@ -110,6 +139,8 @@ export default function RootLayout() {
         | undefined;
       if (data?.screen === "notification-review") {
         router.push(await resolveBankNotificationTarget(data));
+      } else if (data?.screen === "recurring-review") {
+        router.push(await resolveRecurringNotificationTarget());
       } else {
         // Arranque en frío normal (ícono del launcher, no deep link): forzar
         // siempre el dashboard como destino, nunca la última pantalla en la que
@@ -130,6 +161,8 @@ export default function RootLayout() {
           | undefined;
         if (data?.screen === "notification-review") {
           router.push(await resolveBankNotificationTarget(data));
+        } else if (data?.screen === "recurring-review") {
+          router.push(await resolveRecurringNotificationTarget());
         }
       },
     );
@@ -157,6 +190,11 @@ export default function RootLayout() {
         // Sin await: la purga de borrados ya subidos no debe demorar el arranque.
         purgeSyncedTombstones().catch((e) => console.warn("[bootstrap] Purga de borrados:", e));
         await loadTransactions();
+        // Recurrentes vencidos sin confirmar (Pro): recurringExpenses vive en useSettingsStore,
+        // que rehidrata async — esperar explícitamente, aunque loadTransactions() ya la espera
+        // por su cuenta, para no depender de ese orden si el bootstrap cambia más adelante.
+        await waitForSettingsHydration();
+        useRecurringQueueStore.getState().recompute();
         // Respaldo en segundo plano (Sync Fase 3): sin sesión no hace nada; nunca bloquea.
         startSync();
         // Importación dinámica para evitar dependencia circular con notificationService
@@ -248,6 +286,14 @@ export default function RootLayout() {
         />
         <Stack.Screen
           name="notification-review"
+          options={{
+            presentation: "fullScreenModal",
+            animation: "slide_from_bottom",
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="recurring-review"
           options={{
             presentation: "fullScreenModal",
             animation: "slide_from_bottom",

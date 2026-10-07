@@ -4,7 +4,7 @@
  */
 import * as Notifications from "expo-notifications";
 import { Linking, Platform } from "react-native";
-import { useSettingsStore, type Debt } from "@/src/store/useSettingsStore";
+import { useSettingsStore, type Debt, type RecurringExpense } from "@/src/store/useSettingsStore";
 import { DEFAULT_LIST_ID } from "@/src/constants/lists";
 import { formatCOP } from "@/src/utils/formatMoney";
 import { budgetCycle, cycleKey } from "@/src/utils/periodCycles";
@@ -28,6 +28,7 @@ const CHANNEL_BUDGET = "budget-alerts";
 const CHANNEL_GOALS = "goal-alerts";
 const CHANNEL_BANK = "bank-transactions";
 const CHANNEL_DEBTS = "debt-reminders";
+const CHANNEL_RECURRING = "recurring-expenses";
 
 async function ensureChannels() {
   if (Platform.OS !== "android") return;
@@ -48,6 +49,11 @@ async function ensureChannels() {
   });
   await Notifications.setNotificationChannelAsync(CHANNEL_DEBTS, {
     name: "Recordatorios de deudas",
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: null,
+  });
+  await Notifications.setNotificationChannelAsync(CHANNEL_RECURRING, {
+    name: "Gastos e ingresos recurrentes",
     importance: Notifications.AndroidImportance.HIGH,
     sound: null,
   });
@@ -334,5 +340,65 @@ export async function notifyDebtPaidOff(debtName: string, debtEmoji: string): Pr
     });
   } catch (e) {
     if (__DEV__) console.error("[notifyDebtPaidOff] error:", e);
+  }
+}
+
+// ─── Gastos/ingresos recurrentes (Pro) ─────────────────────────────────────────
+
+/** Identificador estable por recurrente — permite cancelar/reprogramar sin acumular duplicados. */
+function recurringReminderId(recurringId: string): string {
+  return `recurring-reminder-${recurringId}`;
+}
+
+/**
+ * Programa (o reprograma) el recordatorio de un recurrente con un trigger nativo `WEEKLY`/
+ * `MONTHLY` (AlarmManager vía expo-notifications) — no depende de que la app esté corriendo.
+ * `cadence.weekday` sigue la convención de la app (0=domingo…6=sábado, igual que `Date.getDay()`);
+ * el trigger `WEEKLY` de expo-notifications usa 1=domingo…7=sábado, de ahí el `+ 1`.
+ * Al tocar la notificación, el sistema abre la app con `data: { screen: "recurring-review" }`.
+ * Llamar tras crear/editar/reanudar un recurrente; `cancelRecurringReminder` tras pausarlo o
+ * borrarlo (ver `app/settings.tsx`, que es quien orquesta esto — el slice no llama notificaciones).
+ */
+export async function scheduleRecurringReminder(recurring: RecurringExpense): Promise<void> {
+  if (!useSettingsStore.getState().notificationsEnabled) return;
+  try {
+    await ensureChannels();
+    await cancelRecurringReminder(recurring.id);
+    const amtStr = formatCOP(recurring.amount);
+    const label = recurring.isExpense ? "por vencer" : "por recibir";
+    await Notifications.scheduleNotificationAsync({
+      identifier: recurringReminderId(recurring.id),
+      content: {
+        title: `"${recurring.name}" ${label}`,
+        body: `${amtStr} · Toca para confirmar`,
+        sound: true,
+        data: { screen: "recurring-review", recurringId: recurring.id },
+        ...(Platform.OS === "android" && { channelId: CHANNEL_RECURRING }),
+      },
+      trigger:
+        recurring.cadence.type === "weekly"
+          ? {
+              type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+              weekday: recurring.cadence.weekday + 1,
+              hour: 9,
+              minute: 0,
+            }
+          : {
+              type: Notifications.SchedulableTriggerInputTypes.MONTHLY,
+              day: recurring.cadence.day,
+              hour: 9,
+              minute: 0,
+            },
+    });
+  } catch (e) {
+    if (__DEV__) console.error("[scheduleRecurringReminder] error:", e);
+  }
+}
+
+export async function cancelRecurringReminder(recurringId: string): Promise<void> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(recurringReminderId(recurringId));
+  } catch {
+    // No había recordatorio programado — nada que cancelar.
   }
 }

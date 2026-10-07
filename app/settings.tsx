@@ -30,14 +30,18 @@ import { DEFAULT_LIST_ID } from "@/src/constants/lists";
 import { type UserCategory } from "@/src/constants/categoryPresets";
 import { EmojiSuggestPicker, useAutoEmoji } from "@/src/components/ui/EmojiSuggestPicker";
 import { useTheme } from "@/src/context/ThemeContext";
+import { canUse, openPaywall } from "@/src/billing";
 import {
   cancelDebtReminder,
+  cancelRecurringReminder,
   checkAndNotifyGoalCompleted,
   notifyDebtPaidOff,
   requestNotificationPermissions,
   scheduleDebtReminder,
+  scheduleRecurringReminder,
 } from "@/src/services/notificationService";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
+import { useRecurringQueueStore } from "@/src/store/useRecurringQueueStore";
 import { ListsSheet } from "@/src/components/ui/ListsSheet";
 import { useShareActiveList } from "@/src/hooks/useActiveListShare";
 import { useCsvTransfer, type ImportResult } from "@/src/hooks/useCsvTransfer";
@@ -49,13 +53,17 @@ import {
   type Debt,
   type PaymentMethod,
   type PaymentMethodType,
+  type RecurringCadence,
+  type RecurringExpense,
   type SavingsGoal,
 } from "@/src/store/useSettingsStore";
 import type { AppTheme } from "@/src/theme";
-import { useAppTokens } from "@/src/theme/tokens";
+import { moneyColors, useAppTokens } from "@/src/theme/tokens";
 import { hexToHue, hueToColors } from "@/src/utils/colorUtils";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
 import { KNOWN_BANKS } from "@/src/utils/notificationParser";
+import { WEEKDAY_LONG, WEEKDAY_SHORT } from "@/src/utils/periodCycles";
+import { upcomingDueDate } from "@/src/utils/recurring";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
@@ -73,10 +81,13 @@ import {
   Layers,
   LayoutGrid,
   Moon,
+  Pause,
   Pencil,
   PiggyBank,
+  Play,
   Plus,
   Radar,
+  Repeat,
   Share2,
   Target,
   Trash2,
@@ -1245,6 +1256,8 @@ function GoalItem({
 
 const DEBT_EMOJIS = ["💳", "🏦", "🚗", "🏠", "🎓", "📱", "🛍️", "💰", "🏥", "✈️"];
 const DEBT_COLOR = "#9F1239";
+const RECURRING_EMOJIS = ["🏠", "📱", "💡", "🚗", "💼", "🎓", "🏋️", "🎬", "🐾", "💳"];
+const RECURRING_COLOR = "#0D9488";
 
 // ─── Popup: Nueva Deuda ────────────────────────────────────────────────────────
 
@@ -1794,6 +1807,737 @@ function DebtsSection() {
   );
 }
 
+// ─── Gastos/ingresos recurrentes (Pro) ─────────────────────────────────────────
+
+/** Chip de selección (categoría/cuenta/lista): emoji + nombre, tinte del acento al elegir. */
+function RecurringChip({
+  emoji,
+  label,
+  selected,
+  onPress,
+}: {
+  emoji: string;
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const tokens = useAppTokens();
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      style={{
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderRadius: tokens.radius.full,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        backgroundColor: selected ? tokens.colors.accent.subtle : tokens.colors.surface.elevated,
+        borderWidth: 1.5,
+        borderColor: selected ? tokens.colors.accent.default : "transparent",
+      }}
+    >
+      <Text style={{ fontSize: 15 }}>{emoji}</Text>
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: selected ? "700" : "500",
+          color: selected ? tokens.colors.accent.default : tokens.colors.text.primary,
+        }}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function RecurringChipWrap({ children }: { children: React.ReactNode }) {
+  return <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{children}</View>;
+}
+
+function WeekdayPicker({
+  selected,
+  onSelect,
+}: {
+  selected: number;
+  onSelect: (weekday: number) => void;
+}) {
+  const tokens = useAppTokens();
+  return (
+    <View style={{ flexDirection: "row", gap: 6 }}>
+      {WEEKDAY_SHORT.map((label, weekday) => {
+        const isSel = weekday === selected;
+        return (
+          <TouchableOpacity
+            key={weekday}
+            onPress={() => onSelect(weekday)}
+            activeOpacity={0.7}
+            style={{
+              flex: 1,
+              height: 44,
+              borderRadius: tokens.radius.md,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: isSel
+                ? tokens.colors.accent.default
+                : tokens.colors.surface.elevated,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: isSel ? "700" : "500",
+                color: isSel ? "#FFFFFF" : tokens.colors.text.secondary,
+              }}
+            >
+              {label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Día del mes (1–31) en una grilla de 7 columnas, sin abrir otra hoja. */
+function MonthDayGrid({ selected, onSelect }: { selected: number; onSelect: (d: number) => void }) {
+  const tokens = useAppTokens();
+  const days = useMemo(() => Array.from({ length: 31 }, (_, i) => i + 1), []);
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+      {days.map((d) => {
+        const isSel = d === selected;
+        return (
+          <TouchableOpacity
+            key={d}
+            onPress={() => onSelect(d)}
+            activeOpacity={0.6}
+            style={{
+              width: `${100 / 7}%`,
+              height: 40,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <View
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 17,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: isSel ? tokens.colors.accent.default : "transparent",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: isSel ? "700" : "500",
+                  color: isSel ? "#FFFFFF" : tokens.colors.text.primary,
+                }}
+              >
+                {d}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Opción grande seleccionable con radio a la derecha (mismo patrón de las listas de selección). */
+function RecurringOption({
+  label,
+  hint,
+  selected,
+  onPress,
+}: {
+  label: string;
+  hint: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const tokens = useAppTokens();
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: tokens.radius.lg,
+        backgroundColor: tokens.colors.surface.elevated,
+        borderWidth: 1.5,
+        borderColor: selected ? tokens.colors.accent.default : "transparent",
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 15, fontWeight: "700", color: tokens.colors.text.primary }}>
+          {label}
+        </Text>
+        <Text style={{ fontSize: 12, marginTop: 2, color: tokens.colors.text.secondary }}>
+          {hint}
+        </Text>
+      </View>
+      <View
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: 11,
+          borderWidth: 2,
+          borderColor: selected ? tokens.colors.accent.default : tokens.colors.border.default,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {selected && (
+          <View
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 5,
+              backgroundColor: tokens.colors.accent.default,
+            }}
+          />
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const RECURRING_STEP_TITLES = ["Lo básico", "Detalles", "Frecuencia"] as const;
+
+function NuevoRecurrenteModal({
+  visible,
+  editTarget,
+  onClose,
+}: {
+  visible: boolean;
+  editTarget?: RecurringExpense | null;
+  onClose: () => void;
+}) {
+  const sheetPad = useSheetPadding();
+  const theme = useTheme();
+  const tokens = useAppTokens();
+  const addRecurring = useSettingsStore((st) => st.addRecurring);
+  const editRecurring = useSettingsStore((st) => st.editRecurring);
+  const paymentMethods = useSettingsStore((st) => st.paymentMethods);
+  const lists = useSettingsStore((st) => st.lists);
+  const activeListId = useSettingsStore((st) => st.activeListId);
+  const userCategories = useSettingsStore((st) => st.userCategories);
+  const isEditing = !!editTarget;
+
+  const icon = useAutoEmoji(RECURRING_EMOJIS[0]);
+  const { reset: resetIcon } = icon;
+  const [step, setStep] = useState(0);
+  const [name, setName] = useState("");
+  const [amountDisplay, setAmountDisplay] = useState("");
+  const [isExpense, setIsExpense] = useState(true);
+  const [categoryEmoji, setCategoryEmoji] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState(paymentMethods[0]?.id ?? "cash");
+  const [listId, setListId] = useState(activeListId);
+  const [cadenceType, setCadenceType] = useState<"monthly" | "weekly">("monthly");
+  const [day, setDay] = useState(1);
+  const [weekday, setWeekday] = useState(1);
+  const [amountVaries, setAmountVaries] = useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      resetIcon(RECURRING_EMOJIS[0]);
+      setStep(0);
+      setName("");
+      setAmountDisplay("");
+      setIsExpense(true);
+      setCategoryEmoji("");
+      setPaymentMethod(paymentMethods[0]?.id ?? "cash");
+      setListId(activeListId);
+      setCadenceType("monthly");
+      setDay(1);
+      setWeekday(1);
+      setAmountVaries(false);
+    } else if (editTarget) {
+      resetIcon(editTarget.emoji, true);
+      setName(editTarget.name);
+      setAmountDisplay(formatMoneyInput(String(editTarget.amount)));
+      setIsExpense(editTarget.isExpense);
+      setCategoryEmoji(editTarget.categoryEmoji);
+      setPaymentMethod(editTarget.paymentMethod);
+      setListId(editTarget.listId);
+      setCadenceType(editTarget.cadence.type);
+      setDay(editTarget.cadence.type === "monthly" ? editTarget.cadence.day : 1);
+      setWeekday(editTarget.cadence.type === "weekly" ? editTarget.cadence.weekday : 1);
+      setAmountVaries(editTarget.amountVaries);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, editTarget, resetIcon]);
+
+  // La categoría por defecto es la primera disponible de ese tipo — se recalcula si el
+  // usuario no eligió ninguna todavía o si cambia gasto/ingreso.
+  useEffect(() => {
+    if (!visible) return;
+    const available = userCategories.filter((c) => c.type === (isExpense ? "expense" : "income"));
+    if (!available.some((c) => c.emoji === categoryEmoji)) {
+      setCategoryEmoji(available[0]?.emoji ?? "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, isExpense, userCategories]);
+
+  const cadence: RecurringCadence = useMemo(
+    () => (cadenceType === "monthly" ? { type: "monthly", day } : { type: "weekly", weekday }),
+    [cadenceType, day, weekday],
+  );
+
+  const hasBasics = name.trim().length > 0 && amountDisplay.replace(/\D/g, "").length > 0;
+  const canContinue = step === 0 ? hasBasics : step === 1 ? !!categoryEmoji : true;
+  const isLastStep = step === RECURRING_STEP_TITLES.length - 1;
+
+  const handleCreate = () => {
+    const amount = parseInt(amountDisplay.replace(/\D/g, ""), 10);
+    if (!name.trim() || !amount || !categoryEmoji) return;
+
+    const base = {
+      name: name.trim(),
+      emoji: icon.emoji,
+      amount,
+      isExpense,
+      categoryEmoji,
+      paymentMethod,
+      listId,
+      cadence,
+      amountVaries,
+    };
+
+    if (isEditing && editTarget) {
+      editRecurring(editTarget.id, base);
+      scheduleRecurringReminder({ ...editTarget, ...base });
+    } else {
+      const recurring = addRecurring(base);
+      scheduleRecurringReminder(recurring);
+    }
+    useRecurringQueueStore.getState().recompute();
+    onClose();
+  };
+
+  const money = isExpense ? moneyColors.expense : moneyColors.income;
+
+  return (
+    <BottomSheet visible={visible} onClose={onClose} avoidKeyboard style={sheetPad}>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <SheetHeader
+          title={isEditing ? "Editar recurrente" : "Nuevo recurrente"}
+          subtitle={`Paso ${step + 1} de ${RECURRING_STEP_TITLES.length} · ${RECURRING_STEP_TITLES[step]}`}
+        />
+
+        {/* Progreso: una barra por paso */}
+        <View style={{ flexDirection: "row", gap: 6, marginBottom: 8 }}>
+          {RECURRING_STEP_TITLES.map((t, i) => (
+            <View
+              key={t}
+              style={{
+                flex: 1,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor:
+                  i <= step ? tokens.colors.accent.default : tokens.colors.surface.elevated,
+              }}
+            />
+          ))}
+        </View>
+
+        {step === 0 && (
+          <View>
+            {/* Monto como protagonista: el color dice si es gasto o ingreso */}
+            <View style={{ alignItems: "center", marginTop: 20 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ fontSize: 32, fontWeight: "700", color: money.text }}>$</Text>
+                <TextInput
+                  style={{
+                    fontSize: 46,
+                    fontWeight: "800",
+                    color: money.text,
+                    minWidth: 70,
+                    paddingHorizontal: 4,
+                    paddingVertical: 4,
+                    textAlign: "center",
+                  }}
+                  value={amountDisplay}
+                  onChangeText={(t) => setAmountDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
+                  placeholder="0"
+                  placeholderTextColor={theme.textTertiary}
+                  keyboardType="number-pad"
+                />
+              </View>
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  marginTop: 10,
+                  padding: 3,
+                  borderRadius: 999,
+                  backgroundColor: tokens.colors.surface.elevated,
+                }}
+              >
+                {([true, false] as const).map((val) => {
+                  const isSel = isExpense === val;
+                  const c = val ? moneyColors.expense : moneyColors.income;
+                  return (
+                    <TouchableOpacity
+                      key={String(val)}
+                      onPress={() => setIsExpense(val)}
+                      activeOpacity={0.7}
+                      style={{
+                        paddingHorizontal: 22,
+                        paddingVertical: 8,
+                        borderRadius: 999,
+                        backgroundColor: isSel ? c.bg : "transparent",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "700",
+                          color: isSel ? c.text : tokens.colors.text.secondary,
+                        }}
+                      >
+                        {val ? "Gasto" : "Ingreso"}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <SheetLabel>Nombre</SheetLabel>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 25,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: tokens.colors.surface.elevated,
+                }}
+              >
+                <Text style={{ fontSize: 24 }}>{icon.emoji}</Text>
+              </View>
+              <TextInput
+                style={{
+                  flex: 1,
+                  backgroundColor: theme.inputBg,
+                  borderRadius: 14,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  fontSize: 15,
+                  color: theme.text,
+                }}
+                value={name}
+                onChangeText={(t) => {
+                  setName(t);
+                  icon.onNameChange(t);
+                }}
+                placeholder="Ej. Arriendo"
+                placeholderTextColor={theme.textTertiary}
+                autoCapitalize="sentences"
+                maxLength={30}
+              />
+            </View>
+
+            {name.trim().length > 0 && (
+              <View style={{ marginTop: 10 }}>
+                <EmojiSuggestPicker
+                  query={name}
+                  selected={icon.emoji}
+                  onSelect={icon.pick}
+                  catalog={RECURRING_EMOJIS}
+                />
+              </View>
+            )}
+          </View>
+        )}
+
+        {step === 1 && (
+          <View>
+            <SheetLabel first>Categoría</SheetLabel>
+            <RecurringChipWrap>
+              {userCategories
+                .filter((c) => c.type === (isExpense ? "expense" : "income"))
+                .map((cat) => (
+                  <RecurringChip
+                    key={cat.emoji}
+                    emoji={cat.emoji}
+                    label={cat.name}
+                    selected={cat.emoji === categoryEmoji}
+                    onPress={() => setCategoryEmoji(cat.emoji)}
+                  />
+                ))}
+            </RecurringChipWrap>
+
+            {paymentMethods.length > 0 && (
+              <>
+                <SheetLabel>Cuenta</SheetLabel>
+                <RecurringChipWrap>
+                  {paymentMethods.map((m) => (
+                    <RecurringChip
+                      key={m.id}
+                      emoji={paymentMethodEmoji(m)}
+                      label={m.name}
+                      selected={m.id === paymentMethod}
+                      onPress={() => setPaymentMethod(m.id)}
+                    />
+                  ))}
+                </RecurringChipWrap>
+              </>
+            )}
+
+            {lists.length > 1 && (
+              <>
+                <SheetLabel>Lista</SheetLabel>
+                <RecurringChipWrap>
+                  {lists.map((l) => (
+                    <RecurringChip
+                      key={l.id}
+                      emoji={l.emoji}
+                      label={l.name}
+                      selected={l.id === listId}
+                      onPress={() => setListId(l.id)}
+                    />
+                  ))}
+                </RecurringChipWrap>
+              </>
+            )}
+          </View>
+        )}
+
+        {step === 2 && (
+          <View>
+            <SheetLabel first>Se repite</SheetLabel>
+            <View style={{ gap: 8 }}>
+              <RecurringOption
+                label="Cada mes"
+                hint="Un día fijo del mes"
+                selected={cadenceType === "monthly"}
+                onPress={() => setCadenceType("monthly")}
+              />
+              <RecurringOption
+                label="Cada semana"
+                hint="Un día fijo de la semana"
+                selected={cadenceType === "weekly"}
+                onPress={() => setCadenceType("weekly")}
+              />
+            </View>
+
+            <SheetLabel>{cadenceType === "monthly" ? "Día del mes" : "Día de la semana"}</SheetLabel>
+            {cadenceType === "monthly" ? (
+              <MonthDayGrid selected={day} onSelect={setDay} />
+            ) : (
+              <WeekdayPicker selected={weekday} onSelect={setWeekday} />
+            )}
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginTop: 20,
+              }}
+            >
+              <ThemedText variant="subheadline" style={{ flex: 1, paddingRight: 12 }}>
+                El monto varía cada vez
+              </ThemedText>
+              <Switch
+                value={amountVaries}
+                onValueChange={setAmountVaries}
+                trackColor={{ true: theme.accent }}
+              />
+            </View>
+          </View>
+        )}
+
+        <SheetActions
+          confirmLabel={isLastStep ? (isEditing ? "Guardar" : "Crear") : "Siguiente"}
+          cancelLabel={step === 0 ? "Cancelar" : "Atrás"}
+          onConfirm={isLastStep ? handleCreate : () => setStep(step + 1)}
+          onCancel={step === 0 ? onClose : () => setStep(step - 1)}
+          disabled={!canContinue}
+          style={{ marginTop: 24 }}
+        />
+      </ScrollView>
+    </BottomSheet>
+  );
+}
+
+function RecurringItem({
+  recurring,
+  onEdit,
+  onDelete,
+  onTogglePause,
+}: {
+  recurring: RecurringExpense;
+  onEdit: () => void;
+  onDelete: () => void;
+  onTogglePause: () => void;
+}) {
+  const tokens = useAppTokens();
+  const fmt = (v: number) =>
+    `$${Math.round(v)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+  const cadenceLabel =
+    recurring.cadence.type === "monthly"
+      ? `Cada mes, día ${recurring.cadence.day}`
+      : `Cada ${WEEKDAY_LONG[recurring.cadence.weekday]}`;
+  const nextLabel = recurring.active
+    ? upcomingDueDate(recurring, new Date()).toLocaleDateString("es-CO", {
+        day: "2-digit",
+        month: "short",
+      })
+    : "Pausado";
+
+  return (
+    <Card style={{ marginBottom: 8, gap: 10 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.md }}>
+        <View
+          style={[
+            catSheet.emojiCircle,
+            {
+              backgroundColor: recurring.active
+                ? tokens.colors.surface.elevated
+                : tokens.colors.surface.secondary,
+              opacity: recurring.active ? 1 : 0.6,
+            },
+          ]}
+        >
+          <Text style={catSheet.emoji}>{recurring.emoji}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[catSheet.name, { color: tokens.colors.text.primary }]} numberOfLines={1}>
+            {recurring.name}
+          </Text>
+          <Text style={[catSheet.meta, { color: tokens.colors.text.secondary }]}>
+            {recurring.isExpense ? "−" : "+"} {fmt(recurring.amount)} · {cadenceLabel}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={onTogglePause} hitSlop={8} style={{ padding: 4 }}>
+          {recurring.active ? (
+            <Pause size={15} color={tokens.colors.text.secondary} strokeWidth={2} />
+          ) : (
+            <Play size={15} color={tokens.colors.text.secondary} strokeWidth={2} />
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onEdit} hitSlop={8} style={{ padding: 4 }}>
+          <Pencil size={15} color={tokens.colors.text.secondary} strokeWidth={2} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onDelete} hitSlop={8} style={{ padding: 4 }}>
+          <Trash2 size={15} color={tokens.colors.state.danger} strokeWidth={2} />
+        </TouchableOpacity>
+      </View>
+      <ThemedText variant="footnote" color="secondary">
+        {recurring.active ? `Próxima: ${nextLabel}` : "Pausado — no notifica"}
+      </ThemedText>
+    </Card>
+  );
+}
+
+function RecurringSection() {
+  const tokens = useAppTokens();
+  const recurringExpenses = useSettingsStore((st) => st.recurringExpenses);
+  const pauseRecurring = useSettingsStore((st) => st.pauseRecurring);
+  const resumeRecurring = useSettingsStore((st) => st.resumeRecurring);
+  const removeRecurring = useSettingsStore((st) => st.removeRecurring);
+
+  const [showNuevo, setShowNuevo] = useState(false);
+  const [editTarget, setEditTarget] = useState<RecurringExpense | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ id: string; name: string } | null>(null);
+
+  function handleOpenCreate() {
+    if (!canUse("recurringExpenses")) {
+      openPaywall("recurringExpenses");
+      return;
+    }
+    setShowNuevo(true);
+  }
+
+  function handleTogglePause(r: RecurringExpense) {
+    if (r.active) {
+      pauseRecurring(r.id);
+      cancelRecurringReminder(r.id);
+    } else {
+      if (!canUse("recurringExpenses")) {
+        openPaywall("recurringExpenses");
+        return;
+      }
+      resumeRecurring(r.id);
+      scheduleRecurringReminder({ ...r, active: true });
+    }
+    useRecurringQueueStore.getState().recompute();
+  }
+
+  return (
+    <>
+      {recurringExpenses.length === 0 ? (
+        <View
+          style={{
+            alignItems: "center",
+            gap: tokens.spacing.sm + 2,
+            paddingVertical: tokens.spacing.lg,
+          }}
+        >
+          <Text style={{ fontSize: 32 }}>🔁</Text>
+          <ThemedText variant="subheadline" color="secondary" style={{ textAlign: "center" }}>
+            Aún no tienes recurrentes{"\n"}arriendo, salario, suscripciones — te los recordamos
+            solos
+          </ThemedText>
+        </View>
+      ) : (
+        recurringExpenses.map((r) => (
+          <RecurringItem
+            key={r.id}
+            recurring={r}
+            onEdit={() => setEditTarget(r)}
+            onDelete={() => setDeleteDialog({ id: r.id, name: r.name })}
+            onTogglePause={() => handleTogglePause(r)}
+          />
+        ))
+      )}
+
+      <SheetAddButton
+        label="Nuevo recurrente"
+        onPress={handleOpenCreate}
+        style={{ marginTop: 4 }}
+      />
+
+      <NuevoRecurrenteModal visible={showNuevo} onClose={() => setShowNuevo(false)} />
+      <NuevoRecurrenteModal
+        visible={!!editTarget}
+        editTarget={editTarget}
+        onClose={() => setEditTarget(null)}
+      />
+
+      <ConfirmDialog
+        visible={!!deleteDialog}
+        variant="danger"
+        title="Eliminar recurrente"
+        message={`¿Seguro que quieres eliminar "${deleteDialog?.name ?? ""}"?`}
+        confirmLabel="Eliminar"
+        onConfirm={() => {
+          if (deleteDialog) {
+            cancelRecurringReminder(deleteDialog.id);
+            removeRecurring(deleteDialog.id);
+            useRecurringQueueStore.getState().recompute();
+          }
+          setDeleteDialog(null);
+        }}
+        onCancel={() => setDeleteDialog(null)}
+      />
+    </>
+  );
+}
+
 // ─── Modal para editar categoría ──────────────────────────────────────────────
 function EditCategoryModal({
   cat,
@@ -2299,6 +3043,7 @@ export default function SettingsScreen() {
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [showDebtsModal, setShowDebtsModal] = useState(false);
+  const [showRecurringModal, setShowRecurringModal] = useState(false);
   const [editingCat, setEditingCat] = useState<UserCategory | null>(null);
   const [deleteCatDialog, setDeleteCatDialog] = useState<{ id: string; name: string } | null>(null);
   // Impide dejar un tipo (gasto/ingreso) sin ninguna categoría activa — mismo criterio
@@ -2508,6 +3253,14 @@ export default function SettingsScreen() {
               showChevron
               onPress={() => setShowDebtsModal(true)}
             />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
+            <ListRow
+              label="Recurrentes"
+              icon={<Repeat size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg={RECURRING_COLOR}
+              showChevron
+              onPress={() => setShowRecurringModal(true)}
+            />
           </Card>
         </Enter>
 
@@ -2635,6 +3388,15 @@ export default function SettingsScreen() {
         onClose={() => setShowDebtsModal(false)}
       >
         <DebtsSection />
+      </SettingsSheet>
+
+      {/* ── Hoja: Recurrentes ─────────────────────── */}
+      <SettingsSheet
+        visible={showRecurringModal}
+        title="Recurrentes"
+        onClose={() => setShowRecurringModal(false)}
+      >
+        <RecurringSection />
       </SettingsSheet>
 
       {/* ── Bottom sheet: Categorías ─────────────────────────────────── */}

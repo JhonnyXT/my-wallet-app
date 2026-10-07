@@ -6,7 +6,7 @@
 import { DEFAULT_CADENCE, type PeriodCadence } from "@/src/utils/periodCycles";
 import { EMPTY_TOMBSTONES } from "./slices/tombstonesSlice";
 
-export const SETTINGS_VERSION = 3;
+export const SETTINGS_VERSION = 4;
 
 /** Colecciones que se sincronizan ítem por ítem (cada ítem lleva `updatedAt`). */
 const SYNCED_COLLECTIONS = ["lists", "paymentMethods", "savingsGoals", "debts"] as const;
@@ -47,6 +47,12 @@ export function migrateSettings(
   if (version < 3) {
     if (typeof state.profileUpdatedAt !== "number") state.profileUpdatedAt = 0;
     if (typeof state.settingsUpdatedAt !== "number") state.settingsUpdatedAt = 0;
+  }
+
+  // v3 → v4: gastos/ingresos recurrentes (Pro). Nuevo slice, instalación existente arranca sin
+  // ninguno.
+  if (version < 4) {
+    if (!Array.isArray(state.recurringExpenses)) state.recurringExpenses = [];
   }
 
   return state;

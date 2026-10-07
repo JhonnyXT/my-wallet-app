@@ -11,6 +11,7 @@
  *   - notificationsSlice:  configuración de notificaciones del sistema
  *   - listsSlice:          listas de transacciones separadas (Personal, un viaje…) y la activa
  *   - tombstonesSlice:     borrados de listas/métodos/metas/deudas, para la sync
+ *   - recurringSlice:      gastos/ingresos recurrentes (Pro)
  *
  * La API pública es idéntica a la versión anterior: todos los importadores
  * existentes funcionan sin cambios.
@@ -42,6 +43,12 @@ import {
   type SpaceLink,
 } from "./slices/listsSlice";
 import { createTombstonesSlice, type TombstonesSlice } from "./slices/tombstonesSlice";
+import {
+  createRecurringSlice,
+  type RecurringSlice,
+  type RecurringCadence,
+  type RecurringExpense,
+} from "./slices/recurringSlice";
 
 // ─── Re-exportar tipos públicos (sin cambios para los importadores) ────────────
 
@@ -56,6 +63,8 @@ export type {
   WalletList,
   ListMember,
   SpaceLink,
+  RecurringCadence,
+  RecurringExpense,
 };
 
 // ─── Tipo combinado del store ─────────────────────────────────────────────────
@@ -68,7 +77,8 @@ export type SettingsState = CategoriesSlice &
   PrefsSlice &
   NotificationsSlice &
   ListsSlice &
-  TombstonesSlice;
+  TombstonesSlice &
+  RecurringSlice;
 
 // ─── Helpers de categorías (misma API pública) ────────────────────────────────
 
@@ -98,6 +108,7 @@ export const useSettingsStore = create<SettingsState>()(
       ...createNotificationsSlice(...a),
       ...createListsSlice(...a),
       ...createTombstonesSlice(...a),
+      ...createRecurringSlice(...a),
     }),
     {
       name: "mywallet-settings",

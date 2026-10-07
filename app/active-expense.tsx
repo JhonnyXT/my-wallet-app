@@ -32,6 +32,7 @@ import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useNotificationStore } from "@/src/store/useNotificationStore";
+import { useRecurringQueueStore } from "@/src/store/useRecurringQueueStore";
 import { localISOString, SELF_PAYER } from "@/src/db/db";
 
 import { checkAndNotifyBudget } from "@/src/services/notificationService";
@@ -89,10 +90,12 @@ export default function ActiveExpenseScreen() {
   const addTx = useFinanceStore((s) => s.addTransaction);
   const updateTx = useFinanceStore((s) => s.updateTransaction);
   const theme = useTheme();
-  const { from, editId, notifId } = useLocalSearchParams<{
+  const { from, editId, notifId, recId, cycleKey } = useLocalSearchParams<{
     from?: string;
     editId?: string;
     notifId?: string;
+    recId?: string;
+    cycleKey?: string;
   }>();
   const fromBatchReview = from === "batch-review";
   const fromNotificationEdit = from === "notification-edit";
@@ -100,13 +103,24 @@ export default function ActiveExpenseScreen() {
   // por la lista de revisión) — a diferencia de notification-edit, acá SÍ hay que
   // guardar en la base de datos de una (ver handleConfirm) y sacar el item de la cola.
   const fromNotificationDetect = from === "notification-detect";
+  // Confirmar un recurrente vencido (Pro): ambos modos guardan directo en la DB (ver
+  // handleConfirm) y marcan el ciclo como manejado — a diferencia de notification-edit, acá no
+  // hay una cola intermedia de edición en memoria. La única diferencia entre los dos es de dónde
+  // vino el usuario (notificación con monto fijo vs. "Editar y confirmar" de un monto variable);
+  // el formulario en sí se comporta igual en ambos.
+  const fromRecurringDetect = from === "recurring-detect";
+  const fromRecurringEdit = from === "recurring-edit";
+  const fromRecurring = fromRecurringDetect || fromRecurringEdit;
   const editingId = editId ? Number(editId) : null;
   const isEditMode = editingId !== null;
   const setPendingManualItem = useVoiceStore((s) => s.setPendingManualItem);
   const removePendingNotification = useNotificationStore((s) => s.removePendingItem);
-  // Si venimos de voice-batch-review o notification-edit/-detect, solo volvemos atrás al guardar
+  const markRecurringHandled = useSettingsStore((s) => s.markHandled);
+  const recurringExpenses = useSettingsStore((s) => s.recurringExpenses);
+  // Si venimos de voice-batch-review, notification-edit/-detect o recurring-edit/-detect, solo
+  // volvemos atrás al guardar.
   const navigateAfterSave = () =>
-    fromBatchReview || fromNotificationEdit || fromNotificationDetect
+    fromBatchReview || fromNotificationEdit || fromNotificationDetect || fromRecurring
       ? router.back()
       : router.dismissAll();
   const st = useMemo(() => buildS(theme), [theme]);
@@ -117,12 +131,20 @@ export default function ActiveExpenseScreen() {
   const budgetByCategory = useSettingsStore((s) => s.budgetByCategory);
   const savingsGoals = useSettingsStore((s) => s.savingsGoals);
   const transactions = useFinanceStore((s) => s.transactions);
-  // Lista a la que va el movimiento: arranca en la activa; al editar, en la suya.
-  // Cambiarla mueve el movimiento de lista (ej. un gasto del viaje registrado en Personal).
+  // Lista a la que va el movimiento: arranca en la activa; al editar, en la suya; al confirmar un
+  // recurrente, en la suya propia (RF-012: nunca la activa del momento de confirmar — la sección
+  // LISTA ni se muestra en este modo, ver showListPicker).
   const lists = useSettingsStore((s) => s.lists);
   const activeListId = useSettingsStore((s) => s.activeListId);
-  const [listId, setListId] = useState(activeListId);
-  const showListPicker = lists.length > 1 && !fromBatchReview && !fromNotificationEdit;
+  const [listId, setListId] = useState(() => {
+    if (fromRecurring && recId) {
+      const r = recurringExpenses.find((x) => x.id === recId);
+      if (r) return r.listId;
+    }
+    return activeListId;
+  });
+  const showListPicker =
+    lists.length > 1 && !fromBatchReview && !fromNotificationEdit && !fromRecurring;
   // Quién pagó: tú por defecto; en una lista con más personas se elige entre ellas.
   const [paidBy, setPaidBy] = useState(SELF_PAYER);
   const listMembers = useMemo(
@@ -220,6 +242,34 @@ export default function ActiveExpenseScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, editingId, transactions]);
 
+  // ─── Confirmar un recurrente vencido: prellenar con sus datos ─────────────
+  // Igual guard de "una sola vez" que el modo edición. Se calcula acá (no en `app/_layout.tsx`)
+  // porque a esta pantalla se llega desde dos lugares — la notificación (vía deep link) y
+  // "Editar y confirmar" de `recurring-review.tsx` — y centralizarlo cubre ambos con una sola
+  // lógica. La fecha viene de `cycleKey` (ej. "2026-07-05"), no de "hoy" (RF-008).
+  const recurringInitDone = useRef(false);
+  useEffect(() => {
+    if (!fromRecurring || recurringInitDone.current) return;
+    const r = recurringExpenses.find((x) => x.id === recId);
+    if (!r || !cycleKey) return;
+    recurringInitDone.current = true;
+    const [y, m, day] = cycleKey.split("-").map(Number);
+    const catName = resolveCategory(r.categoryEmoji, userCategories, savingsGoals);
+    store.setFromVoice({
+      amount: r.amount,
+      isExpense: r.isExpense,
+      categoryEmoji: r.categoryEmoji,
+      categoryName: catName,
+      date: "custom",
+      customDate: new Date(y, m - 1, day),
+      note: r.name,
+      rawTranscript: "",
+      account: r.paymentMethod as AccountType,
+      tags: [],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromRecurring, recId, cycleKey, recurringExpenses]);
+
   function handleNewCategoryCreated(cat: UserCategory) {
     addUserCategory(cat);
     store.setCategory(cat.emoji, cat.name);
@@ -259,7 +309,13 @@ export default function ActiveExpenseScreen() {
     // Edición de un item ya estructurado (notificación bancaria, batch de voz, o una
     // transacción existente): los campos ya vienen correctos, no hay que re-parsear
     // el texto libre y arriesgar sobreescribir el monto/categoría reales.
-    if (fromBatchReview || fromNotificationEdit || fromNotificationDetect || isEditMode) return;
+    const isStructuredMode =
+      fromBatchReview ||
+      fromNotificationEdit ||
+      fromNotificationDetect ||
+      fromRecurring ||
+      isEditMode;
+    if (isStructuredMode) return;
 
     const text = store.note?.trim() ?? "";
     if (text.length < 2) return;
@@ -398,6 +454,13 @@ export default function ActiveExpenseScreen() {
     // Ya se guardó en la DB directo (sin pasar por notification-review): sacar el
     // item de la cola de pendientes para que no vuelva a aparecer duplicado.
     if (fromNotificationDetect && notifId) removePendingNotification(notifId);
+
+    // Recurrente confirmado: marcar ese ciclo como manejado y recalcular la cola de vencidos
+    // (otros ciclos del mismo recurrente, si RF-014 dejó más de uno, siguen pendientes).
+    if (fromRecurring && recId && cycleKey) {
+      markRecurringHandled(recId, cycleKey);
+      useRecurringQueueStore.getState().recompute();
+    }
 
     store.reset();
     navigateAfterSave();

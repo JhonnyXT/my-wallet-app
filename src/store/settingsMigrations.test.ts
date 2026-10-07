@@ -79,7 +79,8 @@ describe("migrateSettings v1 → v2", () => {
     expect(strip(out.paymentMethods)).toEqual(input.paymentMethods);
     expect(strip(out.savingsGoals)).toEqual(input.savingsGoals);
     expect(strip(out.debts)).toEqual(input.debts);
-    // profileUpdatedAt/settingsUpdatedAt los agrega el paso v2 → v3 (se prueba aparte).
+    // profileUpdatedAt/settingsUpdatedAt los agrega el paso v2 → v3, recurringExpenses el v3 → v4
+    // (se prueban aparte).
     const {
       lists,
       paymentMethods,
@@ -88,6 +89,7 @@ describe("migrateSettings v1 → v2", () => {
       tombstones,
       profileUpdatedAt,
       settingsUpdatedAt,
+      recurringExpenses,
       ...rest
     } = out;
     const { lists: _l, paymentMethods: _p, savingsGoals: _s, debts: _d, ...inputRest } = input;
@@ -118,6 +120,7 @@ describe("migrateSettings v1 → v2", () => {
       tombstones: EMPTY_TOMBSTONES,
       profileUpdatedAt: 0,
       settingsUpdatedAt: 0,
+      recurringExpenses: [],
     });
   });
 
@@ -141,6 +144,23 @@ describe("migrateSettings v2 → v3", () => {
     const out = migrateSettings({ profileUpdatedAt: 5, settingsUpdatedAt: 6 }, 2, NOW);
     expect(out.profileUpdatedAt).toBe(5);
     expect(out.settingsUpdatedAt).toBe(6);
+  });
+});
+
+describe("migrateSettings v3 → v4", () => {
+  it("agrega recurringExpenses vacío cuando no existe", () => {
+    const out = migrateSettings({ profileUpdatedAt: 0, settingsUpdatedAt: 0 }, 3, NOW);
+    expect(out.recurringExpenses).toEqual([]);
+  });
+
+  it("conserva los recurrentes ya existentes", () => {
+    const existing = [{ id: "r1", name: "Arriendo" }];
+    const out = migrateSettings(
+      { profileUpdatedAt: 0, settingsUpdatedAt: 0, recurringExpenses: existing },
+      3,
+      NOW,
+    );
+    expect(out.recurringExpenses).toBe(existing);
   });
 });
 

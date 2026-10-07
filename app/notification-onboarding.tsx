@@ -204,9 +204,6 @@ export default function NotificationOnboarding() {
       </View>
 
       <View style={st.footer}>
-        <Pressable style={st.skipBtn} onPress={goToApp}>
-          <Text style={st.skipText}>Omitir</Text>
-        </Pressable>
         <Pressable
           style={[st.activateBtn, requesting && { opacity: 0.7 }]}
           onPress={handlePrimaryPress}
@@ -215,6 +212,9 @@ export default function NotificationOnboarding() {
           <Text style={st.activateText}>
             {granted ? "Continuar" : requesting ? "Esperando permiso…" : "Activar detección"}
           </Text>
+        </Pressable>
+        <Pressable style={st.skipBtn} onPress={goToApp}>
+          <Text style={st.skipText}>Omitir</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -240,7 +240,7 @@ function buildStyles(t: AppTheme) {
       shadowOffset: { width: 0, height: 1 },
       elevation: t.isDark ? 0 : 2,
     },
-    header: { paddingHorizontal: 28, paddingTop: 20 },
+    header: { paddingHorizontal: 28, paddingTop: 20, alignItems: "center" },
     title: {
       fontSize: 28,
       fontWeight: "800",
@@ -248,11 +248,13 @@ function buildStyles(t: AppTheme) {
       letterSpacing: -0.5,
       lineHeight: 34,
       marginBottom: 16,
+      textAlign: "center",
     },
     subtitle: {
       fontSize: 14,
       color: t.textSub,
       lineHeight: 21,
+      textAlign: "center",
     },
     content: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28 },
     privacy: {
@@ -264,16 +266,14 @@ function buildStyles(t: AppTheme) {
       maxWidth: 280,
     },
     footer: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 24,
-      paddingVertical: 20,
-      gap: 20,
+      alignItems: "stretch",
+      paddingHorizontal: 28,
+      paddingTop: 16,
+      paddingBottom: 12,
     },
-    skipBtn: { paddingVertical: 16, paddingHorizontal: 4 },
+    skipBtn: { paddingVertical: 16, alignItems: "center" },
     skipText: { fontSize: 14, fontWeight: "600", color: t.textSub },
     activateBtn: {
-      flex: 1,
       backgroundColor: ACCENT,
       borderRadius: 9999,
       paddingVertical: 16,

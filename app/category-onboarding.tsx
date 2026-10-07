@@ -224,8 +224,21 @@ function buildStyles(t: AppTheme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
     scrollContent: { paddingHorizontal: 24, paddingTop: 40 },
-    title: { fontSize: 28, fontWeight: "800", color: t.text, letterSpacing: -0.5 },
-    subtitle: { fontSize: 14, color: t.textSub, marginTop: 8, lineHeight: 20, marginBottom: 28 },
+    title: {
+      fontSize: 28,
+      fontWeight: "800",
+      color: t.text,
+      letterSpacing: -0.5,
+      textAlign: "center",
+    },
+    subtitle: {
+      fontSize: 14,
+      color: t.textSub,
+      marginTop: 8,
+      lineHeight: 20,
+      marginBottom: 28,
+      textAlign: "center",
+    },
     sectionTitle: {
       fontSize: 16,
       fontWeight: "700",
@@ -233,6 +246,7 @@ function buildStyles(t: AppTheme) {
       marginBottom: 14,
       textTransform: "uppercase",
       letterSpacing: 0.5,
+      textAlign: "center",
     },
     bottomBar: {
       position: "absolute",

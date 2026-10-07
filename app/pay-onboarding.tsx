@@ -59,11 +59,11 @@ export default function PayOnboarding() {
           }}
           renderActions={(apply) => (
             <View style={st.footer}>
-              <Pressable style={st.skipBtn} onPress={next} accessibilityRole="button">
-                <Text style={st.skipText}>Omitir</Text>
-              </Pressable>
               <Pressable style={st.primaryBtn} onPress={apply} accessibilityRole="button">
                 <Text style={st.primaryText}>Continuar</Text>
+              </Pressable>
+              <Pressable style={st.skipBtn} onPress={next} accessibilityRole="button">
+                <Text style={st.skipText}>Omitir</Text>
               </Pressable>
             </View>
           )}
@@ -99,13 +99,19 @@ function buildStyles(t: AppTheme) {
       letterSpacing: -0.5,
       lineHeight: 34,
       marginBottom: 16,
+      textAlign: "center",
     },
-    subtitle: { fontSize: 14, color: t.textSub, lineHeight: 21, marginBottom: 8 },
-    footer: { flexDirection: "row", alignItems: "center", gap: 20, marginTop: 32 },
-    skipBtn: { paddingVertical: 16, paddingHorizontal: 4 },
+    subtitle: {
+      fontSize: 14,
+      color: t.textSub,
+      lineHeight: 21,
+      marginBottom: 8,
+      textAlign: "center",
+    },
+    footer: { alignItems: "stretch", marginTop: 32 },
+    skipBtn: { paddingVertical: 16, alignItems: "center" },
     skipText: { fontSize: 14, fontWeight: "600", color: t.textSub },
     primaryBtn: {
-      flex: 1,
       backgroundColor: ACCENT,
       borderRadius: 9999,
       paddingVertical: 16,

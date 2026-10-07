@@ -8,7 +8,9 @@ export type SyncPhase =
   | "offline"
   | "error"
   /** Los datos del teléfono son de otra cuenta: hay que elegir antes de unir (RF-13). */
-  | "needs-decision";
+  | "needs-decision"
+  /** Sin Pro: no se sube nada (el respaldo es de Pro). Lo local sigue intacto. */
+  | "paused";
 
 interface SyncStatus {
   phase: SyncPhase;

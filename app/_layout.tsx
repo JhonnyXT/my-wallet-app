@@ -17,6 +17,7 @@ import {
 import { ThemeProvider } from "@/src/context/ThemeContext";
 import { AnimatedSplash } from "@/src/components/ui/AnimatedSplash";
 import { BiometricLockGate } from "@/src/components/ui/BiometricLockGate";
+import { BillingHost } from "@/src/components/ui/BillingHost";
 import { light, dark } from "@/src/theme";
 import { guessCategoryEmoji } from "@/src/constants/theme";
 import { resolveCategory } from "@/src/utils/transactionFormatters";
@@ -223,6 +224,13 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
+          name="plan-onboarding"
+          options={{
+            animation: "fade",
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="voice-input"
           options={{
             presentation: "fullScreenModal",
@@ -273,6 +281,7 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
 
+      <BillingHost enabled={splashDone && hasSelectedCategories} />
       <BiometricLockGate ready={splashDone} />
       {!splashDone && <AnimatedSplash ready={appReady} onFinish={() => setSplashDone(true)} />}
     </ThemeProvider>

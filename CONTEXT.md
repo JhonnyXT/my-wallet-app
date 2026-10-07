@@ -21,6 +21,7 @@
 6. [Estado Global (Zustand Stores)](#6-estado-global-zustand-stores)
 6b. [Listas y Gasto Compartido](#6b-listas-y-gasto-compartido)
 6c. [Cuenta y Sincronización (Firebase)](#6c-cuenta-y-sincronización-firebase)
+6d. [Monetización: plan Free/Pro](#6d-monetización-plan-freepro-2026-10-06)
 7. [Base de Datos (SQLite)](#7-base-de-datos-sqlite)
 8. [Sistema de Temas (Light / Dark)](#8-sistema-de-temas-light--dark)
 9. [Sistema NLP (Procesamiento de Lenguaje Natural)](#9-sistema-nlp-procesamiento-de-lenguaje-natural)
@@ -326,7 +327,7 @@ Stack
 ├── active-expense           → Modal slide_from_bottom
 ├── settings                 → Modal slide_from_bottom
 ├── reports                  → Modal slide_from_bottom ("Promedios")
-├── login-onboarding → category-onboarding → pay-onboarding → notification-onboarding → bank-selection-onboarding  (fade, router.push; _layout entra con router.replace("/login-onboarding"))
+├── login-onboarding → category-onboarding → pay-onboarding → notification-onboarding → bank-selection-onboarding → plan-onboarding  (fade, router.push; _layout entra con router.replace("/login-onboarding"))
 └── +not-found               → 404
 
 BiometricLockGate            → capa hermana ENCIMA del Stack (no lo envuelve), para que deep links y
@@ -704,6 +705,8 @@ cómo probar con el emulador) en `AGENTS.md` → "Datos listos para sync", "Resp
   de 4 min); `useSession()` expone el usuario.
 
 ### Motor de respaldo (Fase 3, `engine.ts`)
+- Solo sube con plan Pro (`canUse("cloudBackup")`, ver sección 6d); sin Pro sigue trayendo (nunca
+  sube) como mucho cada 6h para restaurar sin gastar lecturas de quien no paga.
 - Una corrida a la vez: **traer → unir → subir** contra `users/{uid}` (`remote.ts`). Disparadores:
   sesión iniciada, volver a primer plano (máx. 1 vez cada 30 s), `syncNow()` (deslizar el balance
   del Dashboard, tocar el estado en Ajustes, restaurar) y cambios locales (solo subir, 3 s de
@@ -722,6 +725,8 @@ cómo probar con el emulador) en `AGENTS.md` → "Datos listos para sync", "Resp
   los propios, borra `users/{uid}` y luego el usuario; lo local vuelve a `pending`).
 
 ### Espacios compartidos (Fase 4)
+- Compartir, invitar y unirse exigen plan Pro (`requirePro()` en `spaceActions.ts`, ver 6d); sin
+  Pro lanza `SpaceError("pro-required")` antes de tocar Firestore y la UI abre el paywall.
 - Firestore: `spaces/{id}` (membresía: `ownerUid`, `memberUids`, `deletedAt`), `members/{memberId}`,
   `config/list` (nombre, ícono, categorías, mostrar ingresos) y `transactions/{uid}`;
   `inviteCodes/{code}` (6 caracteres sin 0/O/1/I, 7 días).
@@ -740,7 +745,65 @@ cómo probar con el emulador) en `AGENTS.md` → "Datos listos para sync", "Resp
 listas compartidas; la landing tiene `/[lang]/delete-account` (URL de eliminación que pide Play);
 `PLAY_DATA_SAFETY.md` guarda las respuestas del formulario de Data Safety; `app.config.ts` →
 `android.blockedPermissions` quita permisos que la app no usa. Falta el build `prod` por EAS y
-llenar Play Console (`SYNC_ROADMAP.md`).
+llenar Play Console (`SYNC_ROADMAP.md`). **Pendiente, aparte de lo anterior**: la landing, la
+política de privacidad y `PLAY_DATA_SAFETY.md` todavía dicen "gratis para siempre, todas las
+funciones" — hay que actualizarlos con el plan Free/Pro (sección 6d) antes de publicar.
+
+## 6d. Monetización: plan Free/Pro (2026-10-06)
+
+**Capa `src/billing/`**, paralela a `src/sync/` (nunca al revés: `src/sync/` importa de
+`src/billing/` para el gating, no lo contrario):
+- `plans.ts`: `PRICES_COP` (mensual $14.900, anual $99.900, `ANNUAL_SAVINGS_PCT` calculado),
+  `TRIAL_DAYS = 14`, `PRO_PERKS` (textos del paywall), `FEATURE_PITCH` (por qué se bloqueó cada
+  función).
+- `trial.ts`: funciones puras (`isTrialActive`, `trialDaysLeft`, `trialEndsAt`,
+  `expiredTrialStart`), con tests — el patrón ya usado por `periodCycles.ts`/`settlement.ts`.
+- `useEntitlementStore.ts`: store Zustand persistido APARTE de `useSettingsStore` (clave
+  `mywallet-entitlement`, no se respalda en la nube — las reglas de Firestore dejan al dueño
+  escribir cualquier cosa en `users/{uid}`, así que un cliente podría falsificar su propio plan si
+  viajara ahí). Campos: `plan` (`"free" | "pro"`), `trialStartedAt`, `trialUsed`,
+  `trialEndedNotice`. Acciones: `startProTrial`, `expireTrialIfDue`, `subscribePro` (simulado),
+  `setFree`/`resetEntitlement`/`simulateTrialExpired` (solo dev/test).
+- `entitlement.ts`: `hasPro(state, now?)` y `canUse(feature, now?)` sin React — las usa
+  `src/sync/engine.ts` y `src/sync/spaceActions.ts`. `waitForEntitlementHydration()` (mismo patrón
+  que `waitForNotificationStoreHydration` de `useNotificationStore.ts`) evita que una sync que
+  arranca con la app vea "Free" por un instante antes de rehidratar desde AsyncStorage.
+- `useEntitlement()`: hook para pantallas (`isPro`, `isSubscribed`, `inTrial`, `daysLeft`,
+  `canStartTrial`).
+- `usePaywallStore`/`openPaywall(feature?)`: una sola hoja (`PaywallSheet`) montada en la raíz
+  (`BillingHost`, `_layout.tsx`); cualquier pantalla la abre sin montar su propia copia.
+
+**Cobro 100% simulado hoy**: la app no está publicada, no hay RevenueCat ni Google Play Billing.
+`subscribePro()` activa Pro sin cobrar nada; en variant `prod` el botón "Suscribirme" del paywall
+queda desactivado ("Próximamente en Google Play") y solo la prueba de 14 días funciona de verdad
+(simulada igual, pero sin el aviso de "modo de pruebas"). En dev/test, `PlanSection` (Ajustes →
+PLAN) suma "Simular fin de prueba"/"Volver a Free"/"Reiniciar plan" (gateadas con
+`isDev || isTest` de `src/constants/appVariant.ts`) para no esperar 14 días reales al probar.
+
+**Qué es Free y qué es Pro** (decisión de producto, no técnica): Free = todo lo que corre 100%
+local (registro manual/voz/NLP, detección automática de notificaciones bancarias, categorías,
+presupuestos, metas, deudas, métodos de pago, listas múltiples y reparto de gasto sin nube,
+períodos de pago, reportes, CSV, biometría, tema oscuro) — nada de esto se gatea nunca. Pro = lo
+único que tiene costo real en Firebase: respaldo/sync en la nube (Fase 3) y espacios compartidos
+(Fase 4, incluido unirse como invitado, no solo crear/compartir).
+
+**Onboarding**: paso 5 (último), `app/plan-onboarding.tsx` — "Elige cómo empezar", mismo patrón de
+layout que `login-onboarding.tsx` (ícono/título/beneficios centrados), botón "Probar Pro N días
+gratis" y "Seguir con el plan gratuito" debajo. `login-onboarding.tsx` (paso 0) ya no promete
+respaldo/listas compartidas como gratis: dice que son Pro, con la prueba de 14 días.
+
+**Probado con el emulador** (2026-10-06): con plan Free, un gasto nuevo en una lista compartida NO
+sube a `users/{uid}/transactions` ni a `spaces/{id}/transactions` (quedan en 0 y en el conteo
+previo). Al activar la prueba de Pro, ese mismo gasto sube solo, sin acción del usuario (el
+`useEntitlementStore.subscribe` del motor dispara una corrida al ganar o perder Pro).
+
+**Pendiente, no implementado**: integración real con RevenueCat o Play Billing directo (comparados
+en el chat que originó esto: RevenueCat gratis hasta US$2.500/mes de ingresos, luego 1%, con
+verificación y restore listos; Play Billing directo sin costo pero validación solo en cliente),
+botones "Restaurar compra"/"Gestionar suscripción" (deep link a Play), entitlement verificado del
+lado servidor (hoy `requirePro()` en `spaceActions.ts` es solo barrera de cliente, burlable con un
+cliente modificado), y actualizar landing/política de privacidad/`PLAY_DATA_SAFETY.md` (ver nota
+en "Cumplimiento (Fase 5)" arriba).
 
 ---
 

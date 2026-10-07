@@ -11,6 +11,12 @@
 import { AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getAuth, onAuthStateChanged } from "@react-native-firebase/auth";
+import {
+  canUse,
+  hasPro,
+  useEntitlementStore,
+  waitForEntitlementHydration,
+} from "@/src/billing";
 import { ALLOWED_BANKS_KEY, AUTO_DETECT_ENABLED_KEY } from "@/src/constants/banks";
 import {
   applyRemoteTransactions,
@@ -77,6 +83,11 @@ const LOCAL_CHANGE_DEBOUNCE_MS = 3000;
 const OFFLINE_RETRY_MS = 60000;
 /** Volver a primer plano no trae más de una vez por este intervalo (lecturas = cuota). */
 const FOREGROUND_MIN_INTERVAL_MS = 30000;
+/**
+ * Sin Pro la subida está pausada y solo se trae (restaurar lo que ya había en la nube). Para no
+ * gastar lecturas de quien ya no paga, esa traída se repite como mucho una vez por este intervalo.
+ */
+const FREE_PULL_MIN_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 interface ProfileDoc {
   userName: string;
@@ -398,18 +409,34 @@ async function syncOnce(uid: string, opts: { pull: boolean }): Promise<void> {
     status.set({ phase: "needs-decision" });
     return;
   }
+  // Respaldo en la nube = Pro (prueba o suscripción). Sin Pro: nunca se sube, y solo se trae
+  // de vez en cuando para restaurar lo que ya estuviera guardado. Lo local sigue intacto.
+  await waitForEntitlementHydration();
+  const pro = canUse("cloudBackup");
+  const pullDue =
+    opts.pull && (pro || !meta.lastSyncAt || Date.now() - meta.lastSyncAt > FREE_PULL_MIN_INTERVAL_MS);
+  if (!pro && !pullDue) {
+    status.set({ phase: "paused", pending: await countPending(meta) });
+    return;
+  }
   status.set({ phase: "syncing" });
   try {
     meta = trackBanks(meta, parseBanks(await AsyncStorage.getItem(ALLOWED_BANKS_KEY)), Date.now());
-    if (opts.pull) meta = await pull(uid, meta);
-    if (!meta.tombstonesStripped) {
-      await markSyncedTombstonesPending();
-      meta = { ...meta, tombstonesStripped: true };
+    if (pullDue) meta = await pull(uid, meta);
+    if (pro) {
+      if (!meta.tombstonesStripped) {
+        await markSyncedTombstonesPending();
+        meta = { ...meta, tombstonesStripped: true };
+      }
+      meta = await push(uid, meta);
     }
-    meta = await push(uid, meta);
     meta = { ...meta, ownerUid: uid, lastSyncAt: Date.now() };
     await saveMeta(meta);
-    status.set({ phase: "idle", lastSyncAt: meta.lastSyncAt, pending: await countPending(meta) });
+    status.set({
+      phase: pro ? "idle" : "paused",
+      lastSyncAt: meta.lastSyncAt,
+      pending: await countPending(meta),
+    });
   } catch (e) {
     await saveMeta(meta).catch(() => undefined);
     const offline = isOffline(e);
@@ -485,6 +512,12 @@ export function startSync(): void {
       if (retryTimer) clearTimeout(retryTimer);
       useSyncStatus.getState().set({ phase: "idle", pending: 0, lastSyncAt: null });
     }
+  });
+
+  // Al ganar Pro (empezar la prueba o suscribirse) se respalda de inmediato; al perderlo, una
+  // corrida pone el estado en "pausado" (sin subir nada) en vez de dejar "Respaldado".
+  useEntitlementStore.subscribe((s, prev) => {
+    if (hasPro(s) !== hasPro(prev)) void syncNow();
   });
 
   let lastForeground = 0;

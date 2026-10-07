@@ -176,7 +176,8 @@ export default function LoginOnboarding() {
         <FloatingAppIcon />
         <Text style={st.title}>Guarda tu información{"\n"}en tu cuenta</Text>
         <Text style={st.subtitle}>
-          MyWallet funciona completa sin internet. Con tu cuenta de Google, además:
+          MyWallet funciona completa sin internet. Con tu cuenta de Google puedes recuperar lo que
+          ya tengas respaldado y, con Pro (pruébalo 14 días gratis), además:
         </Text>
 
         <View style={st.benefits}>
@@ -221,7 +222,7 @@ export default function LoginOnboarding() {
         variant="info"
         emoji="☁️"
         title="Puedes hacerlo después"
-        message="Cuando quieras, inicia sesión desde Ajustes → Cuenta para respaldar tu información por si cambias o pierdes el celular."
+        message="Cuando quieras, inicia sesión desde Ajustes → Cuenta. El respaldo en la nube y las listas compartidas son parte de Pro, que puedes probar 14 días gratis."
         confirmLabel="Entendido"
         onConfirm={() => {
           setSkipNotice(false);

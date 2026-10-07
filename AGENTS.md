@@ -269,7 +269,8 @@ my-wallet-app/
 | `/category-onboarding` | `app/category-onboarding.tsx` | fade | Onboarding paso 1: selección inicial de categorías |
 | `/pay-onboarding` | `app/pay-onboarding.tsx` | fade | Onboarding paso 2: cada cuánto y cuánto te pagan (`PayPeriodForm`); "Omitir" deja mensual sin pago |
 | `/notification-onboarding` | `app/notification-onboarding.tsx` | fade | Onboarding paso 3: explica la detección automática de notificaciones bancarias |
-| `/bank-selection-onboarding` | `app/bank-selection-onboarding.tsx` | fade | Onboarding paso 4 (último): elegir de qué bancos detectar transacciones |
+| `/bank-selection-onboarding` | `app/bank-selection-onboarding.tsx` | fade | Onboarding paso 4: elegir de qué bancos detectar transacciones |
+| `/plan-onboarding` | `app/plan-onboarding.tsx` | fade | Onboarding paso 5 (último): "Elige cómo empezar" — probar Pro 14 días o seguir con el plan gratuito |
 
 ---
 
@@ -283,12 +284,13 @@ my-wallet-app/
 | `useVoiceStore` | No | Estado voz: transcript, pendingBatch, pendingManualItem |
 | `useNotificationStore` | AsyncStorage | Cola transacciones detectadas desde notificaciones bancarias |
 | `useUIStore` | No | Búsqueda (query, tags), filtro por categoría desde el chart, overlay de entrada rápida NLP |
+| `useEntitlementStore` (`src/billing/`) | AsyncStorage, aparte (no se respalda en la nube) | Plan Free/Pro y prueba de 14 días (simulados hoy, ver Reglas inmutables #1 y "Monetización") |
 
 ---
 
 ## Reglas inmutables
 
-1. **Local-first, con y sin internet**: SQLite + AsyncStorage en el dispositivo son SIEMPRE la fuente de verdad para leer y escribir. La app funciona completa sin internet y **ninguna pantalla ni acción puede bloquearse esperando la red** (nada de spinners obligatorios, ni "sin conexión, intenta más tarde" para registrar un gasto). Con internet y sesión iniciada, los cambios se sincronizan con Firebase (Firestore) en segundo plano: respaldo de toda la data del usuario y espacios compartidos. La **única** vía de red permitida es el SDK de Firebase, encapsulado en la capa de sync (`src/sync/`); nada de `fetch`/`axios`/`http(s)://` sueltos ni otras APIs externas en pantallas, stores o utilidades. Iniciar sesión es opcional: sin cuenta la app funciona igual, solo que sin respaldo ni espacios compartidos. Plan y estado en [`SYNC_ROADMAP.md`](SYNC_ROADMAP.md).
+1. **Local-first, con y sin internet**: SQLite + AsyncStorage en el dispositivo son SIEMPRE la fuente de verdad para leer y escribir. La app funciona completa sin internet y **ninguna pantalla ni acción puede bloquearse esperando la red** (nada de spinners obligatorios, ni "sin conexión, intenta más tarde" para registrar un gasto). Con internet, sesión iniciada **y plan Pro**, los cambios se sincronizan con Firebase (Firestore) en segundo plano: respaldo de toda la data del usuario y espacios compartidos (ver "Monetización: plan Free/Pro"). La **única** vía de red permitida es el SDK de Firebase, encapsulado en la capa de sync (`src/sync/`); nada de `fetch`/`axios`/`http(s)://` sueltos ni otras APIs externas en pantallas, stores o utilidades. Iniciar sesión es opcional: sin cuenta la app funciona igual, solo que sin respaldo ni espacios compartidos. Plan y estado en [`SYNC_ROADMAP.md`](SYNC_ROADMAP.md).
 2. **Moneda COP**: formatear con regex `replace(/\B(?=(\d{3})+(?!\d))/g, ".")`. NUNCA `toLocaleString()`.
 3. **Fechas locales**: usar `localISOString()` de `src/db/db.ts`. NUNCA `toISOString()`.
 4. **Categorías dinámicas**: consultar `userCategories` del store antes de fallbacks legacy.
@@ -380,9 +382,57 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
 - **`updatedAt` de la lista activa:** como su período/categorías/presupuestos viven en `defaultPeriod`/`userCategories`/`budgetByCategory` (patrón de intercambio), esos setters también mueven `lists[activeListId].updatedAt` (`touchList()`). Cambiar de lista no cuenta como edición (`swapActiveList` solo toca la entrante si recibe la copia de categorías de Personal).
 - **Conflictos:** `pickWinner()` (`src/utils/syncMerge.ts`, pura): mayor `updatedAt` gana; empate → gana el borrado; empate sin borrados → local, salvo en `updatedAt` 0 (nunca editado: Personal/perfil/ajustes de una instalación anterior a la sync y todo lo de un teléfono recién instalado), donde gana lo remoto para que restaurar no pierda nada. La usan `mergeCollection`/`remoteDocWins`/`transactionsToApply` (`src/sync/merge.ts`).
 
+### Monetización: plan Free/Pro (2026-10-06)
+
+- **Capa `src/billing/`**, paralela a `src/sync/`: `plans.ts` (precios, textos de Pro),
+  `trial.ts` (funciones puras de la prueba de 14 días, con tests), `useEntitlementStore.ts`
+  (store persistido aparte de `useSettingsStore`: `plan`, `trialStartedAt`, `trialUsed`,
+  `trialEndedNotice`), `entitlement.ts` (`hasPro`/`canUse(feature)`/`waitForEntitlementHydration`,
+  sin React — las usa el motor de sync y `spaceActions.ts`), `useEntitlement()` (hook para
+  pantallas) y `usePaywallStore`/`openPaywall(feature?)` (hoja global, una sola instancia).
+- **HOY el cobro es 100% simulado**: no hay Google Play ni RevenueCat todavía (la app ni siquiera
+  está publicada). `subscribePro()` "paga" sin cobrar nada; en `prod` el botón de suscribirse del
+  paywall queda desactivado ("Próximamente en Google Play") y solo la prueba de 14 días funciona.
+  En dev/test, Ajustes → PLAN suma "Simular fin de prueba"/"Volver a Free"/"Reiniciar plan"
+  (`isDev || isTest`, `src/constants/appVariant.ts`) para probar sin esperar 14 días reales.
+- **Qué es Free y qué es Pro**: todo lo local es gratis para siempre (registro manual/voz/NLP,
+  detección automática de notificaciones bancarias, categorías, presupuestos, metas, deudas,
+  métodos de pago, listas múltiples y reparto de gasto sin nube, períodos de pago, reportes, CSV,
+  biometría, tema oscuro). **Pro = lo que tiene costo real en Firebase**: respaldo/sync en la
+  nube (Sync Fase 3) y espacios compartidos (Sync Fase 4, incluido unirse como invitado — no solo
+  crear). El gating vive en `canUse("cloudBackup" | "sharedSpaces")`, nunca en la UI sola.
+- **Precios** (COP, Play Console permite precios por país): mensual $14.900, anual $99.900
+  (ahorra 44 %), prueba de 14 días. Constantes en `src/billing/plans.ts`
+  (`PRICES_COP`/`TRIAL_DAYS`/`ANNUAL_SAVINGS_PCT`), nunca hardcodeadas en una pantalla.
+- **`PaywallSheet`** (hoja global, montada en `BillingHost` en `_layout.tsx`): beneficios +
+  mensual/anual + CTA ("Probar N días gratis" si no se usó la prueba, si no "Suscribirme"/
+  "Próximamente en Google Play" en `prod`). Se abre con `openPaywall(feature?)` desde cualquier
+  función bloqueada (ej. `useListEditor.tsx` al compartir/unirse sin Pro) o desde `PlanSection`
+  en Ajustes. `BillingHost` también muestra el `ConfirmDialog` de "tu prueba terminó" (revisa el
+  vencimiento al abrir la app y al volver a primer plano, `AppState`).
+- **Onboarding**: paso 5 (último), `app/plan-onboarding.tsx` — "Elige cómo empezar", probar Pro o
+  seguir gratis. `login-onboarding.tsx` (paso 0) ya no promete respaldo/listas compartidas como
+  gratis: aclara que son Pro (14 días de prueba).
+- **Sin Pro, el respaldo no se corta de golpe**: `syncOnce` (`engine.ts`) sigue trayendo (nunca
+  sube) como mucho cada `FREE_PULL_MIN_INTERVAL_MS` (6 h), para poder restaurar en un teléfono
+  nuevo sin gastar lecturas de quien no paga. `useSyncStatus.phase` suma `"paused"` para ese caso
+  (`AccountSection` lo etiqueta "Respaldo pausado · requiere Pro" y toca abre el paywall). Al
+  ganar o perder Pro, `useEntitlementStore.subscribe` dispara una corrida de inmediato.
+- **Compartir/invitar/unirse a espacios exige Pro en el servidor del cliente**: `requirePro()` en
+  `src/sync/spaceActions.ts` (`shareList`/`createInvite`/`joinWithCode`) lanza
+  `SpaceError("pro-required")` antes de tocar Firestore. Sin backend propio, esto es solo barrera
+  de cliente (burlable con un cliente modificado); verificar compras de verdad es trabajo de
+  RevenueCat cuando exista.
+- **Probado con el emulador** (ver "Probar en `dev`" más abajo): en Free un gasto nuevo NO sube a
+  `users/{uid}/transactions` ni a `spaces/{id}/transactions`; al pasar a Pro, sube solo.
+- **Pendiente, no implementado todavía**: integración real con RevenueCat/Play Billing,
+  `restaurar compra`, `gestionar suscripción` (deep link a Play), entitlement verificado del lado
+  servidor, y actualizar landing/política de privacidad/`PLAY_DATA_SAFETY.md` (hoy siguen diciendo
+  "gratis para siempre, todas las funciones" — cambiar antes de publicar en Google Play).
+
 ### Respaldo en la nube (Sync Fase 3)
 
-- **Motor (`src/sync/engine.ts`)**: una corrida a la vez, **traer → unir → subir**. Se dispara al iniciar sesión (y al abrir la app con sesión, vía `onAuthStateChanged`), al volver a primer plano (máx. 1 vez cada 30 s), con `syncNow()` (deslizar en el Dashboard, tocar el estado en Ajustes, restaurar) y tras cambios locales (solo subir, 3 s de espera para agrupar). `startSync()` se llama una vez en el bootstrap de `_layout.tsx`. Sin conexión: cada llamada de red tiene tope de 30 s y reintenta cada 60 s; ninguna pantalla espera.
+- **Motor (`src/sync/engine.ts`)**: una corrida a la vez, **traer → unir → subir**, y solo sube con plan Pro (`canUse("cloudBackup")`; ver "Monetización" arriba). Se dispara al iniciar sesión (y al abrir la app con sesión, vía `onAuthStateChanged`), al volver a primer plano (máx. 1 vez cada 30 s), con `syncNow()` (deslizar en el Dashboard, tocar el estado en Ajustes, restaurar) y tras cambios locales (solo subir, 3 s de espera para agrupar). `startSync()` se llama una vez en el bootstrap de `_layout.tsx`. Sin conexión: cada llamada de red tiene tope de 30 s y reintenta cada 60 s; ninguna pantalla espera.
 - **Cambios locales sin acoplar capas**: `db.ts` llama `emitLocalChange()` (`src/utils/localChanges.ts`) en cada escritura del usuario; el motor lo escucha. `useSettingsStore` se observa con `subscribe` solo en los campos que se respaldan, y nunca mientras la sync aplica lo traído (`applying`), para no entrar en bucle.
 - **Qué está pendiente de subir**: transacciones por `sync_state`; ítems de ajustes por `meta.pushed[kind][id]` (versión subida, en `mywallet-sync-meta` de AsyncStorage, `metaStore.ts`); perfil/ajustes por `profileUpdatedAt`/`settingsUpdatedAt` (store v3); bancos (AsyncStorage directo) comparando contra el último valor visto.
 - **Traer**: `getDocsFromServer` con `serverUpdatedAt >= cursor` (hora del servidor; un reloj de teléfono atrasado no hace perder ediciones), por páginas. Conflictos con `pickWinner` (`updatedAt`). La lista activa traída se aplica a `defaultPeriod`/`userCategories`/`budgetByCategory` (`applySettingsPatch`, `src/store/remoteSettings.ts`); si llega borrada, la app vuelve a Personal. El upsert de transacciones repite la regla de `pickWinner` en SQL como última barrera.
@@ -401,7 +451,9 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
 ### Espacios compartidos (Sync Fase 4)
 
 Diseño completo en `specs/sync-fase-4-espacios/` (local). Una lista (no Personal) se comparte y
-varias personas, cada una con su cuenta y su teléfono, registran en ella.
+varias personas, cada una con su cuenta y su teléfono, registran en ella. **Compartir, invitar y
+unirse exigen plan Pro** (ver "Monetización" arriba); sin Pro, `spaceActions.ts` lanza
+`SpaceError("pro-required")` antes de llamar a Firestore y la UI abre el paywall.
 
 - **Modelo en Firestore**: `spaces/{id}` solo lleva la membresía (`ownerUid`, `memberUids`, `deletedAt`; las reglas la leen con `get()`); `members/{memberId}` una persona por documento, con o sin app (`uid: null` = sin app, `leftAt` = salió o la quitaron, sigue ahí para que lo que pagó cuente); `config/list` lo compartido; `transactions/{uid}` sin `list_id` ni `createdBy`. `inviteCodes/{code}` → `{ spaceId, createdBy, expiresAt }`.
 - **Qué se comparte** (decisión del usuario): nombre, ícono, categorías, "mostrar ingresos" y personas. **Período y presupuestos son de cada persona** y siguen en su respaldo `users/{uid}/lists/{id}` (que ahora también lleva `space`). Por eso una lista compartida tiene dos versiones: `updatedAt` (cualquier cambio, respaldo personal) y `space.sharedUpdatedAt` (lo compartido, `config/list`); `touchList(…, shared)` decide cuál mueve. Al traer el respaldo personal, `keepLocalShared` (`merge.ts`) no deja que una copia vieja pise lo compartido.
@@ -491,7 +543,7 @@ varias personas, cada una con su cuenta y su teléfono, registran en ella.
 
 ### Ajustes (`app/settings.tsx`)
 
-- Secciones en este orden: **CUENTA** (`AccountSection`: "Iniciar sesión con Google", o correo + estado del respaldo + "Cerrar sesión" + "Eliminar cuenta"; ver "Respaldo en la nube (Sync Fase 3)") → **LISTAS** ("Tus listas", detail = cantidad, abre `ListsSheet`) → **EN TU LISTA · {emoji} {nombre}** (título dinámico con la lista activa: Categorías, Presupuestos, "Pago y período", "Mostrar ingresos" con `Switch`, "Compartir lista", "Exportar CSV", "Importar CSV") → GESTIÓN, global no por lista (Métodos de pago, Metas de ahorro, Deudas) → DETECCIÓN AUTOMÁTICA ("Detectar transacciones", "Bancos activos") → SISTEMA (Modo oscuro, Bloqueo con huella, Borrar historial, Versión — ya no tiene "Exportar datos", reemplazada por "Exportar CSV"/"Importar CSV" dentro de "EN TU LISTA").
+- Secciones en este orden: **PLAN** (`PlanSection`, nueva: estado del plan Free/Pro, abre el paywall; en dev/test suma los controles de simulación — ver "Monetización: plan Free/Pro") → **CUENTA** (`AccountSection`: "Iniciar sesión con Google", o correo + estado del respaldo + "Cerrar sesión" + "Eliminar cuenta"; ver "Respaldo en la nube (Sync Fase 3)") → **LISTAS** ("Tus listas", detail = cantidad, abre `ListsSheet`) → **EN TU LISTA · {emoji} {nombre}** (título dinámico con la lista activa: Categorías, Presupuestos, "Pago y período", "Mostrar ingresos" con `Switch`, "Compartir lista", "Exportar CSV", "Importar CSV") → GESTIÓN, global no por lista (Métodos de pago, Metas de ahorro, Deudas) → DETECCIÓN AUTOMÁTICA ("Detectar transacciones", "Bancos activos") → SISTEMA (Modo oscuro, Bloqueo con huella, Borrar historial, Versión — ya no tiene "Exportar datos", reemplazada por "Exportar CSV"/"Importar CSV" dentro de "EN TU LISTA").
 - **"Pago y período" reemplaza al antiguo "Ingreso mensual":** ya no existe `monthlyBudget`; el pago esperado vive en `defaultPeriod.pay` (por día de pago en `semimonthly`, `Record<string, number>` con el día como clave string para sobrevivir a JSON). El paso v0 → v1 de `migrateSettings()` (`src/store/settingsMigrations.ts`) pasa un `monthlyBudget > 0` a `defaultPeriod.pay`. Cualquier otro cambio incompatible del estado persistido debe subir `SETTINGS_VERSION` (hoy 3) y agregar su paso a `migrateSettings()`, con test.
 - "Bloqueo con huella" (`BiometricLockRow`) es una fila con `Switch` en el slot `right`; activar y desactivar piden autenticarse, para que nadie con el teléfono desbloqueado lo quite. Sin huella/rostro/PIN configurados, activar muestra un `ConfirmDialog` informativo en vez del prompt. No hay secciones "APARIENCIA" ni "ACERCA DE", ni párrafos explicativos.
 - Cada sección es una sola `Card` con `Divider` entre filas (`inset={tokens.spacing.md * 2 + 34}`), no una tarjeta por fila; el usuario lo prefirió así. Íconos con color propio por fila (verde, azul, morado `#7C3AED`, rojo, gris, `Radar` `#0D9488`, `Landmark` `#EA580C`), no monocromáticos.

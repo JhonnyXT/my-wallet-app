@@ -7,6 +7,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { Alert } from "react-native";
+import { canUse, openPaywall } from "@/src/billing";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { InviteSheet } from "@/src/components/ui/InviteSheet";
 import { JoinSpaceSheet } from "@/src/components/ui/JoinSpaceSheet";
@@ -60,7 +61,14 @@ export function useListEditor({ onListChanged }: { onListChanged?: () => void } 
   }, []);
   const openNew = useCallback(() => openEditor("new"), [openEditor]);
   const openEdit = useCallback((listId: string) => openEditor(listId), [openEditor]);
-  const openJoin = useCallback(() => setJoinOpen(true), []);
+  // Unirse a un espacio compartido es de Pro: sin Pro se muestra el paywall, no la hoja del código.
+  const openJoin = useCallback(() => {
+    if (!canUse("sharedSpaces")) {
+      openPaywall("sharedSpaces");
+      return;
+    }
+    setJoinOpen(true);
+  }, []);
 
   const goToList = useCallback(
     (id: string) => {
@@ -107,6 +115,12 @@ export function useListEditor({ onListChanged }: { onListChanged?: () => void } 
     const listId = editing;
     if (!listId || listId === "new" || shareBusy) return;
     setShareError(null);
+    if (!canUse("sharedSpaces")) {
+      // El paywall es otra hoja: se abre cuando el editor ya terminó de cerrarse.
+      setEditing(null);
+      setTimeout(() => openPaywall("sharedSpaces"), AFTER_CLOSE_MS);
+      return;
+    }
     if (!uid) {
       setShareError(spaceErrorMessage("signed-out"));
       return;

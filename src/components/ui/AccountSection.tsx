@@ -10,6 +10,7 @@ import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Cloud, CloudOff, LogIn, LogOut, RefreshCw, UserRound, UserX } from "lucide-react-native";
 import { useAppTokens } from "@/src/theme/tokens";
+import { openPaywall, useEntitlement } from "@/src/billing";
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
 import { Card, Divider } from "@/src/components/ui/Card";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
@@ -47,6 +48,7 @@ function timeAgo(ts: number, now: number): string {
 }
 
 function statusLabel(phase: SyncPhase, pending: number, lastSyncAt: number | null): string {
+  if (phase === "paused") return "Respaldo pausado · requiere Pro";
   if (phase === "syncing") return "Respaldando…";
   if (phase === "needs-decision") return "Elige qué hacer con los datos de este teléfono";
   if (pending > 0) {
@@ -123,6 +125,7 @@ export function AccountSection() {
   const tokens = useAppTokens();
   const { user } = useSession();
   const { phase, pending, lastSyncAt } = useSyncStatus();
+  const { isPro } = useEntitlement();
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [error, setError] = useState<string | null>(null);
@@ -159,10 +162,11 @@ export function AccountSection() {
     await run(async () => {
       const { blockedPending } = await signOutWith(mode);
       if (blockedPending > 0) {
+        const n = blockedPending === 1 ? "1 cambio" : `${blockedPending} cambios`;
         setError(
-          blockedPending === 1
-            ? "Hay 1 cambio sin respaldar. Conéctate para subirlo antes de borrar."
-            : `Hay ${blockedPending} cambios sin respaldar. Conéctate para subirlos antes de borrar.`,
+          isPro
+            ? `Hay ${n} sin respaldar. Conéctate para subirlos antes de borrar.`
+            : `Hay ${n} que no están en la nube (el respaldo es parte de Pro). Pasa a Pro para subirlos o elige "Mantener en este teléfono".`,
         );
         return;
       }
@@ -196,16 +200,18 @@ export function AccountSection() {
                 )
               }
               iconBg={
-                offline || pending > 0 || phase === "needs-decision"
+                offline || pending > 0 || phase === "needs-decision" || phase === "paused"
                   ? "#D97706"
                   : tokens.colors.state.success
               }
               onPress={
                 phase === "needs-decision"
                   ? () => setDialog("conflict")
-                  : phase === "syncing"
-                    ? undefined
-                    : () => void syncNow()
+                  : phase === "paused"
+                    ? () => openPaywall("cloudBackup")
+                    : phase === "syncing"
+                      ? undefined
+                      : () => void syncNow()
               }
             />
             <Divider inset={inset} />

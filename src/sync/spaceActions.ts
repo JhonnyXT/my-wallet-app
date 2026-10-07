@@ -8,6 +8,7 @@
  */
 import { getAuth, type User } from "@react-native-firebase/auth";
 import { getRandomBytes } from "expo-crypto";
+import { canUse } from "@/src/billing";
 import { DEFAULT_LIST_ID } from "@/src/constants/lists";
 import { markListTransactionsPending } from "@/src/db/db";
 import {
@@ -47,6 +48,11 @@ import {
   rejoinMember,
   removeFromSpace,
 } from "./spacesRemote";
+
+/** Espacios compartidos = Pro (prueba o suscripción). La UI muestra el paywall antes de llegar aquí. */
+function requirePro(): void {
+  if (!canUse("sharedSpaces")) throw new SpaceError("pro-required");
+}
 
 export interface Invite {
   code: string;
@@ -108,6 +114,7 @@ async function newInvite(spaceId: string, uid: string): Promise<Invite> {
 
 /** Código nuevo para invitar a alguien a una lista ya compartida (cualquier miembro). */
 export async function createInvite(listId: string): Promise<Invite> {
+  requirePro();
   const user = requireUser();
   return guarded(async () => {
     const link = findList(listId).space;
@@ -123,6 +130,7 @@ export async function createInvite(listId: string): Promise<Invite> {
  * Sus movimientos se suben al espacio en segundo plano y dejan el respaldo personal (RF-16).
  */
 export async function shareList(listId: string): Promise<Invite> {
+  requirePro();
   const user = requireUser();
   if (listId === DEFAULT_LIST_ID) throw new SpaceError("unknown");
   const invite = await guarded(async () => {
@@ -247,6 +255,7 @@ async function linkLocal(spaceId: string, selfMemberId: string): Promise<string>
  * devuelve "choose" para preguntar "¿Quién eres?"; si no, termina.
  */
 export async function joinWithCode(input: string): Promise<JoinResult> {
+  requirePro();
   const user = requireUser();
   const code = normalizeInviteCode(input);
   if (!code) throw new SpaceError("invalid-code");

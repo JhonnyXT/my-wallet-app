@@ -151,19 +151,10 @@ export default function BankSelectionOnboarding() {
     });
   }, []);
 
-  // El flujo de onboarding llega aquí con la pila [category-onboarding,
-  // notification-onboarding, bank-selection-onboarding] (cada paso hace `push`,
-  // no `replace`, para que el botón "atrás" de cada pantalla funcione). Un
-  // `replace` simple aquí solo reemplaza este último escalón, dejando
-  // "(tabs)" apilado ENCIMA de category-onboarding/notification-onboarding en
-  // vez de como raíz — el siguiente `router.dismissAll()` (ej. al guardar un
-  // gasto) volvía a category-onboarding en lugar del dashboard. `dismissAll()`
-  // primero colapsa la pila a su base (category-onboarding, la ruta que
-  // reemplazó a "(tabs)" al iniciar el onboarding) y luego el `replace` deja
-  // "(tabs)" como única pantalla.
-  const goToApp = useCallback(() => {
-    router.dismissAll();
-    router.replace("/(tabs)");
+  // Último paso antes de los planes (`plan-onboarding`, que cierra el onboarding); usa `push`
+  // como el resto para que "atrás" funcione.
+  const goToPlans = useCallback(() => {
+    router.push("/plan-onboarding");
   }, [router]);
 
   const handleSave = useCallback(async () => {
@@ -179,8 +170,8 @@ export default function BankSelectionOnboarding() {
         allSelected ? "[]" : JSON.stringify([...selected]),
       );
     }
-    goToApp();
-  }, [selected, goToApp]);
+    goToPlans();
+  }, [selected, goToPlans]);
 
   return (
     <SafeAreaView style={st.screen} edges={["top", "bottom"]}>
@@ -242,11 +233,11 @@ export default function BankSelectionOnboarding() {
       </View>
 
       <View style={st.footer}>
-        <Pressable style={st.skipBtn} onPress={goToApp}>
-          <Text style={st.skipText}>Omitir</Text>
-        </Pressable>
         <Pressable style={st.saveBtn} onPress={handleSave}>
           <Text style={st.saveText}>Guardar y continuar</Text>
+        </Pressable>
+        <Pressable style={st.skipBtn} onPress={goToPlans}>
+          <Text style={st.skipText}>Omitir</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -272,7 +263,7 @@ function buildStyles(t: AppTheme) {
       shadowOffset: { width: 0, height: 1 },
       elevation: t.isDark ? 0 : 2,
     },
-    header: { paddingHorizontal: 28, paddingTop: 20 },
+    header: { paddingHorizontal: 28, paddingTop: 20, alignItems: "center" },
     title: {
       fontSize: 28,
       fontWeight: "900",
@@ -280,8 +271,9 @@ function buildStyles(t: AppTheme) {
       letterSpacing: -0.5,
       lineHeight: 34,
       marginBottom: 12,
+      textAlign: "center",
     },
-    subtitle: { fontSize: 14, color: t.textSub, lineHeight: 21 },
+    subtitle: { fontSize: 14, color: t.textSub, lineHeight: 21, textAlign: "center" },
 
     listCard: {
       flex: 1,
@@ -321,20 +313,19 @@ function buildStyles(t: AppTheme) {
     },
 
     footer: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 24,
-      paddingVertical: 20,
+      alignItems: "stretch",
+      paddingHorizontal: 28,
+      paddingTop: 16,
+      paddingBottom: 12,
       backgroundColor: t.isDark ? t.itemBg : "#FFFFFF",
     },
-    skipBtn: { paddingVertical: 16, paddingHorizontal: 8 },
+    skipBtn: { paddingVertical: 16, alignItems: "center" },
     skipText: { fontSize: 14, fontWeight: "600", color: t.textSub },
     saveBtn: {
       backgroundColor: ACCENT,
       borderRadius: 9999,
       paddingVertical: 16,
-      paddingHorizontal: 28,
+      alignItems: "center",
       shadowColor: ACCENT,
       shadowOpacity: t.isDark ? 0 : 0.25,
       shadowRadius: 12,

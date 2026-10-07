@@ -10,7 +10,7 @@
 
 - **Principio de diseño:** Minimalismo funcional — cero fricción, registro en menos de 3 segundos
 - **Estética:** Interfaz limpia inspirada en Google Stitch Design System y MonAI
-- **Dato fundamental:** local-first — 100% funcional sin internet con datos locales en SQLite, sin servidor propio ni suscripciones. Con cuenta (Google, opcional) y conexión, respaldo en la nube y listas compartidas vía Firebase (Fases 1–4 implementadas; la Fase 5, publicación, sigue en curso: ver `SYNC_ROADMAP.md`)
+- **Dato fundamental:** local-first — 100% funcional sin internet con datos locales en SQLite, sin servidor propio. Con cuenta (Google, opcional) y conexión, respaldo en la nube y listas compartidas vía Firebase (Fases 1–4 implementadas; la Fase 5, publicación, sigue en curso: ver `SYNC_ROADMAP.md`). Desde 2026-10-06 esas dos funciones son de **plan Pro** (prueba de 14 días, luego suscripción simulada hasta que exista Google Play/RevenueCat): ver `AGENTS.md` → "Monetización: plan Free/Pro". Todo lo demás (registro manual/voz, detección automática de notificaciones bancarias, presupuestos, metas, deudas, listas múltiples, reportes, CSV…) sigue gratis para siempre.
 - **Público objetivo:** Usuarios en Colombia que quieren controlar su dinero de forma rápida, simple y visual
 
 ---
@@ -113,7 +113,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 |---------|-------------|--------|
 | Componente | `GuidedTour.tsx` — overlay reutilizable con spotlight paso a paso, cutout circular y tooltip animado | ✅ Implementado |
 | Registro de refs | `tourRefs.ts` — registro global de refs (`getTourRef`, `TOUR_KEYS`) para localizar targets | ✅ Implementado |
-| Pantallas de bienvenida | 5 pasos: cuenta de Google ("Continuar con Google" / "Ahora no"; si la cuenta ya tenía el onboarding hecho, restaura y entra al Dashboard) → categorías → "¿Cuándo y cuánto te pagan?" (`pay-onboarding`, omitible) → detección automática → bancos | ✅ Implementado |
+| Pantallas de bienvenida | 6 pasos: cuenta de Google ("Continuar con Google" / "Ahora no"; si la cuenta ya tenía el onboarding hecho, restaura y entra al Dashboard) → categorías → "¿Cuándo y cuánto te pagan?" (`pay-onboarding`, omitible) → detección automática → bancos → "Elige cómo empezar" (`plan-onboarding`: probar Pro 14 días o seguir con el plan gratuito, ver `AGENTS.md` → "Monetización") | ✅ Implementado |
 | Paso 1 (Dashboard) | Spotlight en el botón de calendario → "¡Bienvenido a MyWallet!": tocarlo muestra los períodos, mantenerlo abre año/rango/pago | ✅ Implementado |
 | Paso 2 (Dashboard) | Spotlight en FAB micrófono → "Registro por voz" | ✅ Implementado |
 | Paso 3 (Dashboard) | Spotlight en botón + → "Registro manual" | ✅ Implementado |
@@ -450,8 +450,14 @@ Las categorías se pueden crear desde **tres contextos**:
 - SQLite local con WAL mode, siempre la fuente de verdad
 - Sin conexión a internet requerida
 - Sin datos bancarios sensibles almacenados, ni en el teléfono ni en la nube; el texto crudo de las notificaciones bancarias no se sube
-- Backup: con sesión iniciada, respaldo automático en Firebase (Firestore, `users/{uid}`; listas compartidas en `spaces/{id}`). Sin sesión, exportar CSV por lista
+- Backup: con sesión iniciada **y plan Pro**, respaldo automático en Firebase (Firestore, `users/{uid}`; listas compartidas en `spaces/{id}`, también Pro). Sin Pro (o sin sesión), exportar CSV por lista sigue disponible y gratis
 - Borrar es lógico (`deleted_at`) para que la sync propague el borrado; en la nube un movimiento borrado es solo `{ updatedAt, deletedAt }`, sin contenido
+
+### Monetización (2026-10-06)
+- **Plan Free** (para siempre, sin cuenta): registro manual/voz/NLP, detección automática de notificaciones bancarias, categorías, presupuestos y alertas, metas, deudas, métodos de pago, listas múltiples y reparto de gasto sin nube, períodos de pago, reportes/promedios, exportar/importar CSV, biometría, tema oscuro
+- **Plan Pro** (suscripción, prueba de 14 días): respaldo/sync automático en la nube multi-dispositivo, espacios compartidos (crear, invitar y unirse) sin límite
+- Precios de referencia (COP, Play Console permite ajustar por país): mensual $14.900, anual $99.900 (ahorra 44%)
+- **Hoy el cobro es simulado** (`src/billing/`): no hay Google Play ni RevenueCat todavía; `subscribePro()` activa Pro sin cobrar, y en `prod` el botón de suscribirse queda desactivado hasta que exista la tienda. Ver `AGENTS.md` → "Monetización: plan Free/Pro" para el detalle técnico
 
 ---
 

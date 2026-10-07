@@ -69,6 +69,8 @@ export type SpaceErrorKind =
   | "taken"
   /** Las reglas no lo permiten (ya no es miembro, no es el dueño). */
   | "not-allowed"
+  /** Compartir, invitar y unirse a espacios es de Pro (src/billing). */
+  | "pro-required"
   | "unknown";
 
 export class SpaceError extends Error {
@@ -102,6 +104,8 @@ export function spaceErrorMessage(kind: SpaceErrorKind): string {
       return "Esa persona ya se unió desde otro teléfono. Únete como otra persona.";
     case "not-allowed":
       return "Ya no tienes acceso a ese espacio.";
+    case "pro-required":
+      return "Compartir listas con otras personas es parte de MyWallet Pro.";
     default:
       return "No se pudo completar. Inténtalo de nuevo en un momento.";
   }

@@ -41,27 +41,45 @@ export function Privacidad({ t, policyLabel, locale }: { t: Dictionary['privacid
         </div>
         <div className="flex flex-col gap-3 rounded-[20px] border border-accent bg-card p-[22px] sm:gap-4 sm:rounded-[22px] sm:p-[30px]">
           <span className="flex items-center justify-between">
-            <span className="text-base font-bold text-accent sm:text-[17px]">{t.data.name}</span>
-            <span className="font-mono text-[11px] font-bold text-dim uppercase">{t.data.tag}</span>
+            <span className="text-base font-bold text-accent sm:text-[17px]">{t.pro.name}</span>
+            <span className="font-mono text-[11px] font-bold text-dim uppercase">{t.pro.badge}</span>
           </span>
-          <ul className="mt-1 flex flex-col gap-3 sm:gap-3.5">
-            {(Object.keys(DATA_ICONS) as DataKey[]).map((key) => {
-              const Icon = DATA_ICONS[key];
-              const item = t.data.items[key];
-              return (
-                <li key={key} className="flex items-start gap-2.5 text-sm leading-[1.45] sm:text-[15px]">
-                  <Icon size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden />
-                  <span>
-                    <b className="font-bold">{item.t}.</b> <span className="text-dim">{item.d}</span>
-                  </span>
-                </li>
-              );
-            })}
+          <span className="flex flex-wrap items-baseline gap-x-1.5">
+            <span className="text-[40px] leading-none font-extrabold tracking-[-0.03em] text-accent sm:text-[46px]">{t.pro.price}</span>
+          </span>
+          <span className="text-[13px] text-faint sm:text-sm">{t.pro.per}</span>
+          <ul className="mt-1 flex flex-col gap-2.5 sm:gap-[11px]">
+            {t.pro.items.map((item) => (
+              <li key={item} className="flex items-center gap-2.5 text-sm sm:text-[15px]">
+                <Check size={16} className="shrink-0 text-accent" aria-hidden />
+                {item}
+              </li>
+            ))}
           </ul>
-          <Link href={`/${locale}/privacy`} className="mt-1 text-sm text-dim underline hover:text-ink">
-            {policyLabel}
-          </Link>
         </div>
+      </div>
+      <div className="flex w-full flex-col gap-3 rounded-[20px] border border-line bg-card p-[22px] sm:gap-4 sm:rounded-[22px] sm:p-[30px]">
+        <span className="flex items-center justify-between">
+          <span className="text-base font-bold sm:text-[17px]">{t.data.name}</span>
+          <span className="font-mono text-[11px] font-bold text-dim uppercase">{t.data.tag}</span>
+        </span>
+        <ul className="mt-1 grid grid-cols-1 gap-3 sm:gap-3.5 md:grid-cols-2">
+          {(Object.keys(DATA_ICONS) as DataKey[]).map((key) => {
+            const Icon = DATA_ICONS[key];
+            const item = t.data.items[key];
+            return (
+              <li key={key} className="flex items-start gap-2.5 text-sm leading-[1.45] sm:text-[15px]">
+                <Icon size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+                <span>
+                  <b className="font-bold">{item.t}.</b> <span className="text-dim">{item.d}</span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <Link href={`/${locale}/privacy`} className="mt-1 text-sm text-dim underline hover:text-ink">
+          {policyLabel}
+        </Link>
       </div>
     </section>
   );

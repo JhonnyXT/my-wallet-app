@@ -25,7 +25,7 @@ const privacyEs: LegalDoc = {
   title: 'Política de privacidad',
   updated: 'Última actualización: octubre de 2026',
   intro: [
-    'MyWallet funciona completa en tu teléfono, con o sin internet. Iniciar sesión con Google es opcional: si lo haces, guardamos una copia de tus datos en la nube de Google (Firebase) para que no los pierdas si cambias de celular y para que puedas compartir listas. Sin cuenta, tus datos no salen de tu teléfono. Esta política explica también qué pasa con tus datos si te unes a la lista de espera.',
+    'MyWallet funciona completa en tu teléfono, con o sin internet, y eso es gratis para siempre. Iniciar sesión con Google es opcional y gratis. El respaldo en la nube y compartir listas son parte del plan Pro (de pago, con prueba de 14 días): si los activas, guardamos una copia de tus datos en la nube de Google (Firebase) para que no los pierdas si cambias de celular y para que puedas compartir listas. Sin cuenta, o sin Pro, tus datos no salen de tu teléfono. Esta política explica también qué pasa con tus datos si te unes a la lista de espera.',
   ],
   sections: [
     {
@@ -35,20 +35,22 @@ const privacyEs: LegalDoc = {
       ],
     },
     {
-      h: '2. Cuenta y respaldo en la nube (opcional)',
+      h: '2. Cuenta, respaldo en la nube y plan Pro',
       list: [
-        'Qué se sube: si inicias sesión con Google, una copia de lo anterior y tus preferencias (modo oscuro, alertas, bancos a detectar). De tu cuenta de Google: nombre, correo e identificador, gestionados por Firebase Authentication; nunca tu contraseña.',
+        'Qué se sube: con cuenta y plan Pro activo, una copia de lo anterior y tus preferencias (modo oscuro, alertas, bancos a detectar). De tu cuenta de Google: nombre, correo e identificador, gestionados por Firebase Authentication; nunca tu contraseña.',
         'Dónde: Google Firebase (Cloud Firestore y Authentication), en servidores de Google Cloud en Estados Unidos. Google actúa como proveedor de servicio y cifra los datos en tránsito y en reposo.',
         'Quién puede verlos: solo tú; las reglas de seguridad impiden que otra cuenta lea tu respaldo (salvo lo que pongas en una lista compartida).',
         'Para qué: solo para respaldar, restaurar y compartir listas. Nunca para publicidad, analíticas ni perfiles.',
         'Lo que no se sube: el texto de las notificaciones de tu banco, ni siquiera las pendientes por revisar (solo los movimientos que tú confirmas), ni audio.',
       ],
-      p: ['Sin sesión iniciada, la app no se conecta a ningún servidor.'],
+      p: [
+        'Sin sesión iniciada, la app no se conecta a ningún servidor. Con sesión iniciada pero sin plan Pro, la app solo trae (nunca sube) tu último respaldo cada cierto tiempo, para poder restaurarlo en un teléfono nuevo sin pagar.',
+      ],
     },
     {
-      h: '3. Listas compartidas',
+      h: '3. Listas compartidas (plan Pro)',
       p: [
-        'Puedes compartir una lista (por ejemplo, “Vacaciones”) con un código. Quienes se unen ven y pueden editar su nombre, ícono, categorías y la opción “mostrar ingresos”, las personas de la lista (al unirte se muestra tu primer nombre de Google) y sus movimientos con quién pagó cada uno. El período y los presupuestos son de cada persona. Tus otras listas nunca se comparten.',
+        'Con plan Pro puedes compartir una lista (por ejemplo, “Vacaciones”) con un código. Quienes se unen ven y pueden editar su nombre, ícono, categorías y la opción “mostrar ingresos”, las personas de la lista (al unirte se muestra tu primer nombre de Google) y sus movimientos con quién pagó cada uno. El período y los presupuestos son de cada persona. Tus otras listas nunca se comparten.',
         'Si sales de una lista compartida, los movimientos que registraste en ella siguen visibles para los demás, para que las cuentas entre ustedes sigan cuadrando.',
       ],
     },
@@ -102,7 +104,7 @@ const privacyEn: LegalDoc = {
   title: 'Privacy Policy',
   updated: 'Last updated: October 2026',
   intro: [
-    'MyWallet works fully on your phone, with or without internet. Signing in with Google is optional: if you do, we keep a copy of your data in Google’s cloud (Firebase) so you don’t lose it when you change phones and so you can share lists. Without an account, your data never leaves your phone. This policy also covers what happens to your data if you join the waitlist.',
+    'MyWallet works fully on your phone, with or without internet, and that is free forever. Signing in with Google is optional and free. Cloud backup and shared lists are part of the Pro plan (paid, with a 14-day trial): if you turn them on, we keep a copy of your data in Google’s cloud (Firebase) so you don’t lose it when you change phones and so you can share lists. Without an account, or without Pro, your data never leaves your phone. This policy also covers what happens to your data if you join the waitlist.',
   ],
   sections: [
     {
@@ -112,20 +114,22 @@ const privacyEn: LegalDoc = {
       ],
     },
     {
-      h: '2. Account and cloud backup (optional)',
+      h: '2. Account, cloud backup and the Pro plan',
       list: [
-        'What is uploaded: if you sign in with Google, a copy of the above plus your preferences (dark mode, alerts, banks to detect). From your Google account: name, email and user ID, handled by Firebase Authentication; never your password.',
+        'What is uploaded: with an account and an active Pro plan, a copy of the above plus your preferences (dark mode, alerts, banks to detect). From your Google account: name, email and user ID, handled by Firebase Authentication; never your password.',
         'Where: Google Firebase (Cloud Firestore and Authentication), on Google Cloud servers in the United States. Google acts as a service provider and encrypts data in transit and at rest.',
         'Who can see it: only you; security rules prevent any other account from reading your backup (except what you put in a shared list).',
         'What for: only to back up, restore and share lists. Never for advertising, analytics or profiling.',
         'What is never uploaded: the text of your bank notifications, not even the ones waiting for review (only the transactions you confirm), and no audio.',
       ],
-      p: ['Without signing in, the app doesn’t connect to any server.'],
+      p: [
+        'Without signing in, the app doesn’t connect to any server. Signed in without a Pro plan, the app only pulls (never uploads) your latest backup every so often, so you can restore it on a new phone without paying.',
+      ],
     },
     {
-      h: '3. Shared lists',
+      h: '3. Shared lists (Pro plan)',
       p: [
-        'You can share a list (say, “Vacation”) with a code. People who join can see and edit its name, icon, categories and the “show income” option, the people in the list (when you join, your Google first name is shown) and its transactions, including who paid each one. Period and budgets are personal to each person. Your other lists are never shared.',
+        'With a Pro plan you can share a list (say, “Vacation”) with a code. People who join can see and edit its name, icon, categories and the “show income” option, the people in the list (when you join, your Google first name is shown) and its transactions, including who paid each one. Period and budgets are personal to each person. Your other lists are never shared.',
         'If you leave a shared list, the transactions you recorded in it stay visible to the others, so the balances between you still add up.',
       ],
     },

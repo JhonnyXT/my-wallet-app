@@ -471,7 +471,7 @@ Las categorías se pueden crear desde **tres contextos**:
 
 ### Monetización (2026-10-06, ampliada 2026-10-07)
 - **Plan Free** (para siempre, sin cuenta): registro manual/voz/NLP, detección automática de notificaciones bancarias, categorías, presupuestos y alertas, metas, deudas, métodos de pago, listas múltiples y reparto de gasto sin nube, períodos de pago, reportes/promedios, exportar/importar CSV, biometría, tema oscuro
-- **Plan Pro** (suscripción, prueba de 14 días): respaldo/sync automático en la nube multi-dispositivo, espacios compartidos (crear, invitar y unirse) sin límite, y gastos/ingresos recurrentes automáticos *(nuevo, 2026-10-07)* — esta última es 100% local (no depende de cuenta ni internet), la primera función Pro que no tiene costo en Firebase: Pro agrupa tanto lo que cuesta en la nube como funciones de conveniencia premium
+- **Plan Pro** (suscripción, prueba de 14 días): respaldo/sync automático en la nube multi-dispositivo, espacios compartidos (crear, invitar y unirse) sin límite, y gastos/ingresos recurrentes automáticos *(nuevo, 2026-10-07)* — el uso de recurrentes es 100% local (no depende de cuenta ni internet), la primera función Pro que no tiene costo en Firebase, aunque con sesión y Pro también se respaldan en la nube junto con el resto: Pro agrupa tanto lo que cuesta en la nube como funciones de conveniencia premium
 - Precios de referencia (COP, Play Console permite ajustar por país): mensual $14.900, anual $99.900 (ahorra 44%)
 - **Hoy el cobro es simulado** (`src/billing/`): no hay Google Play ni RevenueCat todavía; `subscribePro()` activa Pro sin cobrar, y en `prod` el botón de suscribirse queda desactivado hasta que exista la tienda. Ver `AGENTS.md` → "Monetización: plan Free/Pro" para el detalle técnico
 

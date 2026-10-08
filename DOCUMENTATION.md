@@ -472,6 +472,11 @@ Gestión) para abrir el panel:
 > ℹ️ Crear un recurrente nuevo, o reanudar uno pausado, requiere plan **Pro** (o la prueba gratis
 > de 14 días). Editar o pausar uno que ya tienes activo no se bloquea aunque tu plan Pro termine.
 
+> ☁️ Si tienes sesión iniciada y plan Pro, tus recurrentes también se respaldan en la nube con el
+> resto de tus datos: al restaurar en otro teléfono vuelven a aparecer (y MyWallet reprograma sus
+> avisos en ese teléfono). Si confirmas u omites uno en un teléfono, el otro no te lo vuelve a
+> ofrecer cuando sincroniza.
+
 ### Alertas de presupuesto *(nuevo)*
 
 Configura cuándo y cómo recibir notificaciones push relacionadas con tus presupuestos por categoría:
@@ -495,7 +500,7 @@ MyWallet puede detectar transacciones directamente desde las notificaciones de t
 5. Vuelve a la app — el toggle quedará activo
 6. Si es la primera vez que la app pide notificaciones (y no las activaste antes desde "Alertas de presupuesto"), el sistema también pedirá el permiso normal de notificaciones — acéptalo para que te avise por push cada vez que detecte una transacción
 
-> ℹ️ El acceso a notificaciones (paso 4) y el permiso de notificaciones push (paso 6) son dos permisos distintos de Android: el primero permite que la app *lea* las notificaciones bancarias; el segundo permite que la app *te avise* con un push cuando detecta una transacción. Si solo activas el primero, las transacciones detectadas seguirán apareciendo en la pantalla de revisión, pero no recibirás el aviso push.
+> ℹ️ El acceso a notificaciones (paso 4) y el permiso de notificaciones push (paso 6) son dos permisos distintos de Android: el primero permite que la app *lea* las notificaciones bancarias; el segundo permite que la app *te avise* con un push cuando detecta una transacción. Si solo activas el primero, las transacciones detectadas seguirán apareciendo en la pantalla de revisión, pero no recibirás el aviso push. Si el permiso de push está desactivado, en esta misma sección aparece la fila **"Alertas desactivadas · Activar"**: tócala para pedirlo de nuevo (o abrir los ajustes del sistema si ya no se puede pedir).
 
 **¿Qué bancos son compatibles?**
 Bancolombia, Nequi, Davivienda, DaviPlata, BBVA, Banco de Occidente, Banco Popular, AV Villas, Nubank, Lulo Bank, Scotiabank Colpatria, Rappi Pay, Tpaga, Banco de Bogotá, Itaú.

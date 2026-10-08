@@ -64,6 +64,7 @@ contenido y permisos hechos; faltan el build `prod` por EAS y llenar Play Consol
 | Métodos de pago (`paymentMethods`, con `emoji?`) | AsyncStorage (`paymentsSlice`) | ✅ | |
 | Metas de ahorro (`savingsGoals`) | AsyncStorage (`goalsSlice`) | ✅ | |
 | Deudas (`debts`) | AsyncStorage (`debtsSlice`) | ✅ | Los recordatorios mensuales (`scheduleDebtReminder`) se reprograman en cada teléfono al bajar las deudas. |
+| Recurrentes (`recurringExpenses`, Pro) | AsyncStorage (`recurringSlice`) | ✅ | `users/{uid}/recurring`; `lastHandledCycleKey` viaja con el ítem. Las alarmas son del teléfono: se reprograman al bajar los cambios. |
 | Alertas de presupuesto (activadas, umbral) | AsyncStorage (`notificationsSlice`) | ✅ | |
 | Bancos activos y "Detectar transacciones" | AsyncStorage directo (`ALLOWED_BANKS_KEY`, `AUTO_DETECT_ENABLED_KEY`) | ✅ bancos / ⚠️ activación | La lista de bancos sí. "Detectar" depende del permiso de notificaciones de CADA teléfono: al restaurar, mostrarlo apagado hasta que se conceda el permiso otra vez. |
 | Nombre del usuario (`userName`), modo oscuro (`darkMode`) | AsyncStorage (`prefsSlice`) | ✅ | Preferencias de la cuenta. |
@@ -87,6 +88,9 @@ users/{uid}
   goals/{id}                   → { name, emoji, targetAmount, savedAmount, createdAt, updatedAt, deletedAt? }
   debts/{id}                   → { name, emoji, totalAmount, remainingAmount, monthlyPayment,
                                    dueDay, createdAt, updatedAt, deletedAt? }
+  recurring/{id}               → { name, emoji, amount, isExpense, categoryEmoji, paymentMethod,
+                                   listId, cadence, amountVaries, active, lastHandledCycleKey,
+                                   createdAt, updatedAt, deletedAt? }
   transactions/{txId}          → { amount, description, category_emoji, date, tags, payment_method,
                                    list_id, paid_by, updatedAt, deletedAt? }
                                    (borrado: solo { updatedAt, deletedAt }, sin contenido)

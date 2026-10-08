@@ -199,7 +199,7 @@ my-wallet-app/
 │   │   ├── useExpenseStore.ts       # Formulario gasto/ingreso en curso
 │   │   ├── useNotificationStore.ts  # Cola persistida (AsyncStorage) de transacciones detectadas de notificaciones bancarias
 │   │   ├── useSettingsStore.ts      # Config usuario (persist AsyncStorage, version 4) + flags de notificaciones
-│   │   ├── settingsMigrations.ts    # migrateSettings(): migrate puro v0→v1→v2→v3→v4, con tests
+│   │   ├── settingsMigrations.ts    # migrateSettings(): migrate puro v0→v1→v2→v3→v4→v5, con tests
 │   │   ├── remoteSettings.ts        # applySettingsPatch(): aplicar lo traído de la nube respetando la lista activa
 │   │   │   └── slices/               # 10 slices por dominio: categories, budget, payments, goals, debts, recurring, prefs, notifications, lists, tombstones
 │   │   ├── useRecurringQueueStore.ts # Cola de recurrentes (Pro) vencidos sin confirmar, NO persistida — recompute() explícito
@@ -515,13 +515,13 @@ No existe `monthlyBudget` (el antiguo "Ingreso mensual"): el pago esperado vive 
 El presupuesto por categoría se mide por `budgetCycle(defaultPeriod, now)`: un mes que arranca en el
 `startDay` si la frecuencia es mensual, o el mes calendario con cualquier otra frecuencia.
 
-**Persistencia:** `zustand/middleware/persist` con `createJSONStorage(() => AsyncStorage)`, key `"mywallet-settings"`, `version: 4` (`SETTINGS_VERSION`). El `migrate` vive en `src/store/settingsMigrations.ts` (`migrateSettings()`, pura y con tests): v0 → v1 pasa un `monthlyBudget > 0` a `defaultPeriod.pay` (si la frecuencia no es quincenal y no hay pago ya) y borra la clave vieja; v1 → v2 (Sync Fase 1) agrega `updatedAt` a cada ítem de `lists`/`paymentMethods`/`savingsGoals`/`debts` y el registro `tombstones` vacío, sin tocar ids ni nada más; v2 → v3 (Sync Fase 3) agrega `profileUpdatedAt`/`settingsUpdatedAt` en 0 (fecha de edición del perfil y de las alertas, para el respaldo; en 0, al restaurar gana la nube); v3 → v4 (recurrentes, Pro) agrega `recurringExpenses: []` si no existe — instalación existente arranca sin ninguno.
+**Persistencia:** `zustand/middleware/persist` con `createJSONStorage(() => AsyncStorage)`, key `"mywallet-settings"`, `version: 5` (`SETTINGS_VERSION`). El `migrate` vive en `src/store/settingsMigrations.ts` (`migrateSettings()`, pura y con tests): v0 → v1 pasa un `monthlyBudget > 0` a `defaultPeriod.pay` (si la frecuencia no es quincenal y no hay pago ya) y borra la clave vieja; v1 → v2 (Sync Fase 1) agrega `updatedAt` a cada ítem de `lists`/`paymentMethods`/`savingsGoals`/`debts` y el registro `tombstones` vacío, sin tocar ids ni nada más; v2 → v3 (Sync Fase 3) agrega `profileUpdatedAt`/`settingsUpdatedAt` en 0 (fecha de edición del perfil y de las alertas, para el respaldo; en 0, al restaurar gana la nube); v3 → v4 (recurrentes, Pro) agrega `recurringExpenses: []` si no existe — instalación existente arranca sin ninguno; v4 → v5 (recurrentes entran al respaldo en la nube) pone `updatedAt` a los recurrentes que no lo tengan y suma `recurringExpenses` al registro `tombstones` (sin esa clave la sync leería `undefined`).
 
 **Respaldo (Sync Fase 3):** `applyRemoteSettings(patch)` aplica lo traído de la nube sin mover fechas de edición (`applySettingsPatch`, `src/store/remoteSettings.ts`, respeta la lista activa) y `resetSettingsStore()` deja el store como recién instalado ("Borrar de este teléfono"). El motor vive en `src/sync/engine.ts`; detalle en AGENTS.md → "Respaldo en la nube (Sync Fase 3)".
 
 **Espacios compartidos (Sync Fase 4):** una `WalletList` puede tener `space` (`SpaceLink`: `spaceId`, `ownerUid`, `selfMemberId`, `sharedUpdatedAt`) y sus `members` llevan `uid`/`status` (`joined`/`guest`/`left`). `linkSpace`/`unlinkSpace` la ligan o la dejan como propia; lo compartido (nombre, ícono, categorías, mostrar ingresos, personas) mueve `sharedUpdatedAt`, período y presupuestos solo `updatedAt`. `applySettingsPatch` acepta `spaces` (crear, compartido, personas, desconectar). Detalle en AGENTS.md → "Espacios compartidos (Sync Fase 4)".
 
-**Datos listos para sync (Fase 1):** cada ítem de `lists`/`paymentMethods`/`savingsGoals`/`debts` lleva `updatedAt` (epoch ms), que mueven sus acciones de alta/edición; los nuevos toman id de `newId()` (UUID v4, `src/utils/ids.ts`, `expo-crypto`), los existentes y los fijos (`personal`, `cash`, `savings`, `credit`) conservan el suyo. Los borrados no se marcan dentro del arreglo: `remove*` quita el ítem y anota `tombstones[kind][id] = deletedAt` (`tombstonesSlice`), así ningún consumidor filtra borrados. Editar `defaultPeriod`/`userCategories`/`budgetByCategory` mueve el `updatedAt` de la lista activa (`touchList()`); cambiar de lista no. `addPaymentMethod` ya no recibe id (lo genera el slice) y `setPaymentMethods` se eliminó (sin uso). Los campos `hasCompletedOnboarding` y `onboardingStep` también se persisten.
+**Datos listos para sync (Fase 1):** cada ítem de `lists`/`paymentMethods`/`savingsGoals`/`debts`/`recurringExpenses` lleva `updatedAt` (epoch ms), que mueven sus acciones de alta/edición; los nuevos toman id de `newId()` (UUID v4, `src/utils/ids.ts`, `expo-crypto`), los existentes y los fijos (`personal`, `cash`, `savings`, `credit`) conservan el suyo. Los borrados no se marcan dentro del arreglo: `remove*` quita el ítem y anota `tombstones[kind][id] = deletedAt` (`tombstonesSlice`), así ningún consumidor filtra borrados. Editar `defaultPeriod`/`userCategories`/`budgetByCategory` mueve el `updatedAt` de la lista activa (`touchList()`); cambiar de lista no. `addPaymentMethod` ya no recibe id (lo genera el slice) y `setPaymentMethods` se eliminó (sin uso). Los campos `hasCompletedOnboarding` y `onboardingStep` también se persisten.
 
 ### useUIStore (no persistido)
 Estado de UI global: búsqueda (searchOpen, searchQuery, activeTags), filtro por categoría desde el chart (categoryFilter) y overlay de entrada rápida NLP (isExpenseInputOpen, prefillText). Acciones principales: setSearchOpen(), closeSearch(), setCategoryFilter(filter), clearCategoryFilter(), openExpenseInput(prefill?), closeExpenseInput().
@@ -738,7 +738,7 @@ cómo probar con el emulador) en `AGENTS.md` → "Datos listos para sync", "Resp
 ### Datos listos para sync (Fase 1)
 - `transactions`: `uid` (UUID v4, el id en la nube), `updated_at`/`deleted_at` (epoch ms),
   `sync_state` (`pending`/`synced`), borrado lógico — ver sección 7.
-- Ítems de ajustes (`lists`, `paymentMethods`, `savingsGoals`, `debts`): `updatedAt` e ids nuevos
+- Ítems de ajustes (`lists`, `paymentMethods`, `savingsGoals`, `debts`, `recurringExpenses`): `updatedAt` e ids nuevos
   con `newId()`; borrar los quita del arreglo y anota `tombstones[kind][id]` (`tombstonesSlice`).
   Perfil y alertas: `profileUpdatedAt`/`settingsUpdatedAt` (store v3).
 - Conflictos: `pickWinner()` (`src/utils/syncMerge.ts`) — gana el mayor `updatedAt`, el borrado gana
@@ -862,7 +862,7 @@ compartidos: funciona 100% local, sin necesitar sesión ni internet — por eso 
 sinónimo exacto de "lo que cuesta en Firebase" (ver 6d).
 
 **Modelo** (`src/store/slices/recurringSlice.ts`, 10º slice de `useSettingsStore`,
-`SETTINGS_VERSION` subió a 4 — ver sección 6): `RecurringExpense` (tipos completos en la sección 6
+`SETTINGS_VERSION` subió a 4 y luego a 5 con el respaldo en la nube — ver sección 6): `RecurringExpense` (tipos completos en la sección 6
 de arriba). CRUD: `addRecurring`/`editRecurring`/`pauseRecurring`/`resumeRecurring`/
 `removeRecurring`/`markHandled`. El slice es puro estado — no llama notificaciones, eso lo hace
 quien lo invoca (`app/settings.tsx`), mismo patrón que `debtsSlice.ts` + `scheduleDebtReminder`.
@@ -930,11 +930,25 @@ golpe" que el respaldo en la nube, ver 6d).
   criterio "si es el único vencido, saltar la lista e ir directo al formulario" que
   `resolveBankNotificationTarget`.
 
-**Fuera de alcance de esta fase** (decisión de scope, no deuda técnica urgente — ver
-`specs/gastos-recurrentes/requirements.md`): sync a la nube de `recurringExpenses` (nace
-local-first, igual que nacieron Deudas/Metas antes de que existiera la sync; no toca
-`tombstonesSlice` ni `src/sync/`), cadencias quincenal/semimensual (`expo-notifications` no tiene
-trigger nativo para eso) y reportes/promedios específicos de recurrentes.
+**Respaldo en la nube (2026-10-07).** `recurringExpenses` es una colección más de
+`SETTINGS_KINDS` en `src/sync/engine.ts` (`users/{uid}/recurring`, ruta en `COLLECTION_PATH`),
+igual que Deudas: `updatedAt` por ítem, `removeRecurring` anota `tombstones.recurringExpenses`
+(`tombstonesSlice`), conflictos con `pickWinner`, `meta.pushed.recurringExpenses` para lo ya
+subido. Sigue exigiendo Pro como el resto del respaldo (`canUse("cloudBackup")`). Decisiones:
+- `lastHandledCycleKey` viaja con el recurrente: confirmar u omitir en un teléfono evita que otro
+  lo ofrezca de nuevo tras sincronizar.
+- Las alarmas NO se sincronizan (son del teléfono): tras traer cambios, `pull` reprograma o
+  cancela el recordatorio de los recurrentes que cambiaron (`remoteWon`) y llama
+  `useRecurringQueueStore.recompute()`. `wipeLocalData` cancela los de este teléfono.
+- `loadMeta` (`metaStore.ts`) une `pushed` por colección: un meta guardado antes de existir la
+  colección no traía su clave y `meta.pushed[kind]` quedaba `undefined`.
+- Verificado en dispositivo (Samsung, `dev` + emulador): un recurrente existente subió tras la
+  migración; borrarlo dejó solo `{ updatedAt, deletedAt }` en la nube; uno escrito directo en la
+  nube bajó, apareció en la lista y programó su alarma. No se probó entre dos teléfonos reales.
+
+**Fuera de alcance** (decisión de scope, ver `specs/gastos-recurrentes/requirements.md`):
+cadencias quincenal/semimensual (`expo-notifications` no tiene trigger nativo para eso) y
+reportes/promedios específicos de recurrentes.
 
 ---
 
@@ -1637,7 +1651,7 @@ siguiente quedó de antes de esa sección y arranca en CUENTA, no en PLAN:
 3. **GESTIÓN** — una sola `Card` con filas separadas por `Divider` (no una tarjeta por fila,
    se probó y se revirtió a pedido del usuario), **global, no por lista**: Métodos de pago,
    Metas de ahorro, Deudas, **Recurrentes** *(nuevo, Pro — ver sección 6e)*.
-4. **DETECCIÓN AUTOMÁTICA** — `AutoDetectSection` (solo "Detectar transacciones" + "Bancos activos")
+4. **DETECCIÓN AUTOMÁTICA** — `AutoDetectSection` (solo "Detectar transacciones" + "Bancos activos"), más la fila roja "Alertas desactivadas · Activar" cuando falta `POST_NOTIFICATIONS` (Android 13+; sin él la transacción entra a pendientes pero Android descarta la push en silencio). `AutoDetectSection` pide ese permiso al encender el interruptor y al auto-activarse al volver de la pantalla del sistema, con `askNotificationPermissionIfPossible()` (nunca abre Ajustes, para no entrar en bucle) — el listener y la push son dos permisos distintos
 5. **SISTEMA** — Modo oscuro, Bloqueo con huella, Borrar historial de transacciones, Versión (ya
    no tiene "Exportar datos": reemplazada por "Exportar CSV"/"Importar CSV" de la sección
    EN TU LISTA, ver más abajo)

@@ -44,7 +44,7 @@ export const useSettingsStore = create<State>()(
     {
       name: "mywallet-settings",
       storage: createJSONStorage(() => AsyncStorage),
-      version: SETTINGS_VERSION, // 4
+      version: SETTINGS_VERSION, // 5
       migrate: (persisted, version) =>
         migrateSettings(persisted, version, Date.now()) as unknown as State,
     }

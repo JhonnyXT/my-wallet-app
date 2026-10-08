@@ -89,8 +89,8 @@ En una lista con más personas, bajo los pills aparece un chip con el estado de 
 
 ### Chip de recurrentes pendientes *(nuevo, función Pro)*
 Si tienes [recurrentes](#7-configuración-settings) vencidos sin confirmar, bajo los pills aparece
-**"N recurrentes por confirmar ›"**. Tócalo: si solo hay uno pendiente, te lleva directo al
-formulario para confirmarlo; si hay varios, abre una lista para que confirmes u omitas cada uno.
+**"N recurrentes por confirmar ›"**. Tócalo: abre una lista donde confirmas cada uno con un toque (✓), lo
+editas antes de confirmar si su monto varía (✏️) o lo omites (✕). Al resolver el último, la lista se cierra sola.
 
 ### Pills de tipo (↓ Gastos / ↑ Ingresos)
 - **Sin selección (por defecto):** La lista y la gráfica muestran todos los movimientos

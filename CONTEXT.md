@@ -921,8 +921,10 @@ golpe" que el respaldo en la nube, ver 6d).
   (cada fila puede ser de un recurrente distinto, con su propia lista/categoría/cuenta).
 - Dashboard (`app/(tabs)/index.tsx`): chip "N recurrentes por confirmar ›" bajo los pills (mismo
   estilo que el chip de cuentas de lista compartida; se apila arriba de ese si ambos aplican),
-  oculto en búsqueda/filtro de categoría. Toca directo a `active-expense` si hay 1 solo vencido, o
-  a `/recurring-review` si hay más.
+  oculto en búsqueda/filtro de categoría. Siempre abre `/recurring-review` (con 1 solo vencido
+  también: desde el formulario directo no habría cómo omitirlo). Al abrir la app,
+  `syncRecurringReminders()` reprograma los recordatorios de los recurrentes activos (Android borra
+  las alarmas al forzar detención de la app).
 - Deep link de notificación push: `data.screen` ahora admite `"recurring-review"` además de
   `"notification-review"` (`app/_layout.tsx`, `resolveRecurringNotificationTarget`), con el mismo
   criterio "si es el único vencido, saltar la lista e ir directo al formulario" que
@@ -1527,7 +1529,7 @@ En light, `surface.primary` `#F2F2F4` (sin cambios).
 - **Botón "Personal ▾" en el header** *(nuevo)*, a la izquierda (simétrico a los íconos de la derecha): abre `ListMenu` para elegir/compartir/editar la lista activa o crear una nueva. Ver sección 6b.
 - **`showIncome` de la lista activa** *(nuevo)*: si es `false`, `displayedTransactions` filtra los ingresos antes de calcular balance/pills/tira/gráfica, y el filtro de tipo (pills) fuerza "Gastos" (no se puede elegir "Ingresos").
 - **Chip de cuentas** *(nuevo)*, bajo los pills, solo con lista activa ≠ Personal y con `members`: `settlementHeadline()` resume el estado ("Ana te debe $X", "Están a mano", "N cuentas pendientes") y abre `SettlementSheet` al tocarlo. Oculto durante una búsqueda o con `categoryFilter` activo.
-- **Chip "N recurrentes por confirmar ›"** *(nuevo, Pro, 2026-10-07)*, bajo los pills (mismo estilo que el chip de cuentas; se apila arriba de ese si ambos aplican), visible solo si `useRecurringQueueStore.queue` tiene ítems y oculto en búsqueda/filtro de categoría. `useFocusEffect` llama `recompute()` al enfocar el Dashboard. Tocarlo navega directo a `active-expense` (modo `recurring-detect`/`recurring-edit`) si hay 1 solo vencido, o a `/recurring-review` si hay más. Ver sección 6e.
+- **Chip "N recurrentes por confirmar ›"** *(nuevo, Pro, 2026-10-07)*, bajo los pills (mismo estilo que el chip de cuentas; se apila arriba de ese si ambos aplican), visible solo si `useRecurringQueueStore.queue` tiene ítems y oculto en búsqueda/filtro de categoría. `useFocusEffect` llama `recompute()` al enfocar el Dashboard. Tocarlo siempre abre `/recurring-review` (confirmar con un toque / editar y confirmar / omitir; se cierra sola al vaciarse). Ver sección 6e.
 - **Lista agrupada por día** *(nuevo, `groupTransactionsByDay`/`dayLabel` en `transactionFormatters.ts`)*: cada grupo de la `FlatList` muestra su etiqueta ("Hoy"/"Ayer"/fecha) y el neto del día, no solo filas sueltas de `TransactionItem`.
 - **Deslizar el balance para traer cambios** *(Sync Fase 3/4)*: con sesión (`useSession`), sin `categoryFilter` y sin búsqueda, un `PanResponder` de captura (`syncPan`) sobre el bloque del balance baja balance y lista con curva de goma (`rubberBand`) y, pasado `PULL_HOLD_OFFSET`, llama `syncNow()`. `SyncPullIndicator` (`src/components/dashboard/`) llena un anillo con el recorrido, vibra al poder soltar, gira (mín. 0,7 s) y termina con ✓ o, si a los 8 s no hubo respuesta, con `CloudOff` (la sync sigue en segundo plano). Todo con Reanimated (`useSharedValue`): un `Animated` de RN desde JS era pisado por las animaciones de Reanimated del balance. Deslizar sobre la **lista** sigue siendo solo para quitar el filtro de categoría.
 
@@ -1811,10 +1813,11 @@ es una hoja (`BottomSheet`, sube desde abajo). Alcance: `settings.tsx`, `categor
   pasar por el formulario).
 - `useFocusEffect` recalcula `useRecurringQueueStore` al entrar y tras cada acción, para que la
   lista no muestre filas ya resueltas.
-- Llega desde el chip del Dashboard ("N recurrentes por confirmar ›", solo si hay 2+) o desde el
+- Llega desde el chip del Dashboard ("N recurrentes por confirmar ›", con 1 o más) o desde el
   deep link de una notificación de recurrente cuando hay más de un vencido
-  (`resolveRecurringNotificationTarget` en `app/_layout.tsx`; con exactamente 1 vencido, el deep
-  link y el chip saltan esta pantalla e van directo a `active-expense`).
+  (`resolveRecurringNotificationTarget` en `app/_layout.tsx`; con exactamente 1 vencido, solo el
+  deep link de la notificación salta esta pantalla y va directo a `active-expense`). Se cierra sola
+  al confirmar/omitir el último.
 
 ### Reports (`app/reports.tsx`) — "Promedios" *(nuevo)*
 - Pantalla de un solo propósito: promedio de gasto/ingreso mensual histórico por categoría — capacidad que no existía en ningún otro lugar de la app (el Dashboard solo muestra totales del período filtrado, nunca un promedio a través del historial). Deliberadamente **sin filtro de período global**; se evaluó y se descartó.

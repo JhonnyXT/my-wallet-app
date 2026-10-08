@@ -329,16 +329,12 @@ export default function DashboardScreen() {
       recomputeRecurringQueue();
     }, [recomputeRecurringQueue]),
   );
+  // Siempre abre la lista (aunque sea 1): ahí se confirma con un toque o se omite; desde el
+  // formulario directo no habría cómo omitir un vencido.
   const handleRecurringChipPress = useCallback(() => {
     Haptics.selectionAsync();
-    if (recurringQueue.length === 1) {
-      const { recurring, cycleKey } = recurringQueue[0];
-      const mode = recurring.amountVaries ? "recurring-edit" : "recurring-detect";
-      router.push(`/active-expense?from=${mode}&recId=${recurring.id}&cycleKey=${cycleKey}`);
-    } else {
-      router.push("/recurring-review");
-    }
-  }, [recurringQueue]);
+    router.push("/recurring-review");
+  }, []);
 
   // Las deudas son del día a día: el patrimonio neto solo se muestra en Personal.
   const listDebt = activeListId === DEFAULT_LIST_ID ? totalDebt : 0;

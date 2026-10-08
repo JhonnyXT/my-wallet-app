@@ -198,8 +198,11 @@ export default function RootLayout() {
         // Respaldo en segundo plano (Sync Fase 3): sin sesión no hace nada; nunca bloquea.
         startSync();
         // Importación dinámica para evitar dependencia circular con notificationService
-        const { initNotifications } = await import("@/src/services/notificationService");
+        const { initNotifications, syncRecurringReminders } = await import(
+          "@/src/services/notificationService"
+        );
         await initNotifications();
+        await syncRecurringReminders();
         const settings = useSettingsStore.getState();
         settings.clearExpiredBudgetNotifications(cycleKey(budgetCycle(settings.defaultPeriod, new Date())));
       } catch (e) {

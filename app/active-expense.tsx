@@ -296,13 +296,8 @@ export default function ActiveExpenseScreen() {
   const accent = isExpense ? RED : theme.isDark ? GREEN : "#15803D";
   const accentBg = isExpense ? "#FEF2F2" : "#F0FDF4";
   const accentText = isExpense ? "#B91C1C" : "#15803D";
-  const title = isEditMode
-    ? isExpense
-      ? "Editar Gasto"
-      : "Editar Ingreso"
-    : isExpense
-      ? "Nuevo Gasto"
-      : "Nuevo Ingreso";
+  const titleVerb = isEditMode ? "Editar" : fromRecurring ? "Confirmar" : "Nuevo";
+  const title = `${titleVerb} ${isExpense ? "Gasto" : "Ingreso"}`;
 
   // ─── Parser reactivo: actualiza selectores en tiempo real ───────────────
   useEffect(() => {

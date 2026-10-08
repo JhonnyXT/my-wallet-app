@@ -625,8 +625,12 @@ nube/espacios (ver "Monetización" arriba), distinta de esas dos porque no tiene
   hay 2+ vencidos (sin "guardar todo": cada fila puede ser de un recurrente distinto, con su propia
   lista/categoría/cuenta). El Dashboard (`app/(tabs)/index.tsx`) muestra un chip "N recurrentes por
   confirmar ›" bajo los pills (mismo estilo que el chip de cuentas de lista compartida; se apila
-  arriba de ese si ambos aplican), oculto en búsqueda/filtro de categoría, que toca directo a
-  `active-expense` si hay 1 solo vencido o a `/recurring-review` si hay más. El deep link de
+  arriba de ese si ambos aplican), oculto en búsqueda/filtro de categoría, que siempre abre
+  `/recurring-review` (aunque haya 1 solo vencido: desde el formulario directo no habría cómo
+  omitirlo; la lista confirma con un toque, edita u omite, y se cierra sola al vaciarse). Al abrir
+  la app, `syncRecurringReminders()` (bootstrap de `_layout.tsx`) reprograma el recordatorio de cada
+  recurrente activo: Android borra las alarmas de una app al forzar su detención, y sin esto el
+  usuario dejaba de recibir avisos (verificado en dispositivo con `dumpsys alarm`). El deep link de
   notificación push suma `data.screen === "recurring-review"` en `app/_layout.tsx`
   (`resolveRecurringNotificationTarget`, mismo criterio "si es el único vencido, saltar la lista e
   ir directo al formulario" que `resolveBankNotificationTarget`).

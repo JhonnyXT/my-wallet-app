@@ -2152,25 +2152,22 @@ function NuevoRecurrenteModal({
           <View>
             {/* Monto como protagonista: el color dice si es gasto o ingreso */}
             <View style={{ alignItems: "center", marginTop: 20 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ fontSize: 32, fontWeight: "700", color: money.text }}>$</Text>
-                <TextInput
-                  style={{
-                    fontSize: 46,
-                    fontWeight: "800",
-                    color: money.text,
-                    minWidth: 70,
-                    paddingHorizontal: 4,
-                    paddingVertical: 4,
-                    textAlign: "center",
-                  }}
-                  value={amountDisplay}
-                  onChangeText={(t) => setAmountDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
-                  placeholder="0"
-                  placeholderTextColor={theme.textTertiary}
-                  keyboardType="number-pad"
-                />
-              </View>
+              <TextInput
+                style={{
+                  alignSelf: "stretch",
+                  fontSize: amountDisplay.length >= 11 ? 30 : amountDisplay.length >= 9 ? 38 : 46,
+                  fontWeight: "800",
+                  color: money.text,
+                  paddingHorizontal: 4,
+                  paddingVertical: 4,
+                  textAlign: "center",
+                }}
+                value={amountDisplay ? `$ ${amountDisplay}` : ""}
+                onChangeText={(t) => setAmountDisplay(formatMoneyInput(t.replace(/\D/g, "")))}
+                placeholder="$ 0"
+                placeholderTextColor={theme.textTertiary}
+                keyboardType="number-pad"
+              />
 
               <View
                 style={{
@@ -2391,12 +2388,13 @@ function RecurringItem({
     recurring.cadence.type === "monthly"
       ? `Cada mes, día ${recurring.cadence.day}`
       : `Cada ${WEEKDAY_LONG[recurring.cadence.weekday]}`;
-  const nextLabel = recurring.active
-    ? upcomingDueDate(recurring, new Date()).toLocaleDateString("es-CO", {
-        day: "2-digit",
-        month: "short",
-      })
-    : "Pausado";
+  const now = new Date();
+  const next = upcomingDueDate(recurring, now);
+  const nextLabel = !recurring.active
+    ? "Pausado — no notifica"
+    : next <= now
+      ? "Por confirmar"
+      : `Próxima: ${next.toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}`;
 
   return (
     <Card style={{ marginBottom: 8, gap: 10 }}>
@@ -2419,7 +2417,7 @@ function RecurringItem({
             {recurring.name}
           </Text>
           <Text style={[catSheet.meta, { color: tokens.colors.text.secondary }]}>
-            {recurring.isExpense ? "−" : "+"} {fmt(recurring.amount)} · {cadenceLabel}
+            {recurring.isExpense ? "−" : "+"} {fmt(recurring.amount)}
           </Text>
         </View>
         <TouchableOpacity onPress={onTogglePause} hitSlop={8} style={{ padding: 4 }}>
@@ -2437,7 +2435,7 @@ function RecurringItem({
         </TouchableOpacity>
       </View>
       <ThemedText variant="footnote" color="secondary">
-        {recurring.active ? `Próxima: ${nextLabel}` : "Pausado — no notifica"}
+        {cadenceLabel} · {nextLabel}
       </ThemedText>
     </Card>
   );

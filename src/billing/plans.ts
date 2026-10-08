@@ -37,6 +37,11 @@ export const PRO_PERKS: ProPerk[] = [
     description: "Registra gastos con tu pareja, familia o amigos en la misma lista.",
   },
   {
+    emoji: "🔁",
+    title: "Gastos recurrentes",
+    description: "Arriendo, salario o suscripciones: te recordamos y registras con un toque.",
+  },
+  {
     emoji: "✨",
     title: "Lo nuevo, primero",
     description: "Las funciones avanzadas que vienen en camino se suman a Pro.",

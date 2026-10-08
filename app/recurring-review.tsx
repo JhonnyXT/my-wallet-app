@@ -5,7 +5,7 @@
  * un recurrente distinto (lista, categoría, cuenta propias — RF-012) y un recurrente de monto
  * variable exige pasar por el formulario, no un guardado en lote.
  */
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
@@ -109,6 +109,13 @@ export default function RecurringReviewScreen() {
       recompute();
     }, [recompute]),
   );
+
+  // Al confirmar/omitir el último vencido, la pantalla ya no tiene nada que mostrar: se cierra sola.
+  const hadItems = useRef(false);
+  useEffect(() => {
+    if (queue.length > 0) hadItems.current = true;
+    else if (hadItems.current) router.back();
+  }, [queue.length]);
 
   function handleBack() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

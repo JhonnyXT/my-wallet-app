@@ -395,6 +395,19 @@ export async function scheduleRecurringReminder(recurring: RecurringExpense): Pr
   }
 }
 
+/**
+ * Reprograma el recordatorio de todos los recurrentes activos. Android borra las alarmas de una
+ * app al forzar su detención (y algunos fabricantes lo hacen al "dormir" apps): sin esto, quien
+ * pasó por eso dejaba de recibir avisos hasta editar cada recurrente. Es idempotente
+ * (`scheduleRecurringReminder` reemplaza por `identifier`), así que se llama en cada arranque.
+ */
+export async function syncRecurringReminders(): Promise<void> {
+  const { recurringExpenses } = useSettingsStore.getState();
+  for (const r of recurringExpenses) {
+    if (r.active) await scheduleRecurringReminder(r);
+  }
+}
+
 export async function cancelRecurringReminder(recurringId: string): Promise<void> {
   try {
     await Notifications.cancelScheduledNotificationAsync(recurringReminderId(recurringId));

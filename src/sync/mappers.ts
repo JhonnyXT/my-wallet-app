@@ -14,6 +14,7 @@ export const COLLECTION_PATH: Record<ItemCollection, string> = {
   paymentMethods: "paymentMethods",
   savingsGoals: "goals",
   debts: "debts",
+  recurringExpenses: "recurring",
   transactions: "transactions",
 };
 

@@ -29,12 +29,18 @@ import {
   markTransactionsSynced,
   wipeAllTransactions,
 } from "@/src/db/db";
-import { cancelDebtReminder, scheduleDebtReminder } from "@/src/services/notificationService";
+import {
+  cancelDebtReminder,
+  cancelRecurringReminder,
+  scheduleDebtReminder,
+  scheduleRecurringReminder,
+} from "@/src/services/notificationService";
 import { withLiveActiveList, type WalletList } from "@/src/store/slices/listsSlice";
 import type { TombstoneKind } from "@/src/store/slices/tombstonesSlice";
 import type { RemoteSettingsPatch } from "@/src/store/remoteSettings";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { useNotificationStore } from "@/src/store/useNotificationStore";
+import { useRecurringQueueStore } from "@/src/store/useRecurringQueueStore";
 import {
   applyRemoteSettings,
   resetSettingsStore,
@@ -78,7 +84,13 @@ import { deleteSpaceData, removeFromSpace } from "./spacesRemote";
 import { pendingSpaceConfigs, pullSpaces, pushSpaceConfigs, pushSpaceRows } from "./spaces";
 import { useSyncStatus } from "./status";
 
-const SETTINGS_KINDS: TombstoneKind[] = ["lists", "paymentMethods", "savingsGoals", "debts"];
+const SETTINGS_KINDS: TombstoneKind[] = [
+  "lists",
+  "paymentMethods",
+  "savingsGoals",
+  "debts",
+  "recurringExpenses",
+];
 const LOCAL_CHANGE_DEBOUNCE_MS = 3000;
 const OFFLINE_RETRY_MS = 60000;
 /** Volver a primer plano no trae más de una vez por este intervalo (lecturas = cuota). */
@@ -130,6 +142,7 @@ async function pull(uid: string, meta: SyncMeta): Promise<SyncMeta> {
   const state = useSettingsStore.getState();
   const patch: RemoteSettingsPatch = {};
   let changedDebtIds: string[] = [];
+  let changedRecurringIds: string[] = [];
   for (const kind of SETTINGS_KINDS) {
     const docs = remoteItems[kind] ?? [];
     if (docs.length === 0) continue;
@@ -148,6 +161,7 @@ async function pull(uid: string, meta: SyncMeta): Promise<SyncMeta> {
     if (merged.remoteWon.length > 0) {
       (patch as Record<string, unknown>)[kind] = merged;
       if (kind === "debts") changedDebtIds = merged.remoteWon;
+      if (kind === "recurringExpenses") changedRecurringIds = merged.remoteWon;
     }
   }
   if (profile && remoteDocWins(state.profileUpdatedAt, profile)) {
@@ -191,6 +205,18 @@ async function pull(uid: string, meta: SyncMeta): Promise<SyncMeta> {
     const debt = debts.find((d) => d.id === id);
     if (debt && debt.remainingAmount > 0) await scheduleDebtReminder(debt).catch(() => undefined);
     else await cancelDebtReminder(id).catch(() => undefined);
+  }
+
+  // Recordatorios de los recurrentes que cambiaron (las alarmas son del teléfono, no se sincronizan)
+  // y cola de vencidos recalculada con lo traído.
+  if (changedRecurringIds.length > 0) {
+    const recurring = useSettingsStore.getState().recurringExpenses;
+    for (const id of changedRecurringIds) {
+      const r = recurring.find((x) => x.id === id);
+      if (r?.active) await scheduleRecurringReminder(r).catch(() => undefined);
+      else await cancelRecurringReminder(id).catch(() => undefined);
+    }
+    useRecurringQueueStore.getState().recompute();
   }
 
   // 4. Transacciones.
@@ -541,6 +567,7 @@ export function startSync(): void {
       s.paymentMethods !== prev.paymentMethods ||
       s.savingsGoals !== prev.savingsGoals ||
       s.debts !== prev.debts ||
+      s.recurringExpenses !== prev.recurringExpenses ||
       s.tombstones !== prev.tombstones ||
       s.defaultPeriod !== prev.defaultPeriod ||
       s.userCategories !== prev.userCategories ||
@@ -567,6 +594,9 @@ export async function pendingChanges(): Promise<number> {
 export async function wipeLocalData(): Promise<void> {
   for (const debt of useSettingsStore.getState().debts) {
     await cancelDebtReminder(debt.id).catch(() => undefined);
+  }
+  for (const r of useSettingsStore.getState().recurringExpenses) {
+    await cancelRecurringReminder(r.id).catch(() => undefined);
   }
   await wipeAllTransactions();
   applying = true;

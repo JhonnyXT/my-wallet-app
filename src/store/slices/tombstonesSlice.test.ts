@@ -9,6 +9,7 @@ describe("addTombstone", () => {
       paymentMethods: {},
       savingsGoals: {},
       debts: { d1: 100 },
+      recurringExpenses: {},
     });
   });
 

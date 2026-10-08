@@ -44,6 +44,7 @@ function state(over: Partial<RemoteSettingsState> = {}): RemoteSettingsState {
     paymentMethods: [],
     savingsGoals: [],
     debts: [],
+    recurringExpenses: [],
     tombstones: EMPTY_TOMBSTONES,
     userName: "",
     darkMode: "system",
@@ -233,5 +234,33 @@ describe("applySettingsPatch — espacios", () => {
     expect(out.lists![1].space).toBeUndefined();
     expect(out.lists![1].updatedAt).toBe(77);
     expect(out.lists![1].members).toEqual([{ id: "uid-ana", name: "Ana", status: "guest" }]);
+  });
+});
+
+describe("applySettingsPatch · recurrentes", () => {
+  const rec = {
+    id: "r1",
+    name: "Arriendo",
+    emoji: "🏠",
+    amount: 1000000,
+    isExpense: true,
+    categoryEmoji: "🏠",
+    paymentMethod: "savings",
+    listId: "personal",
+    cadence: { type: "monthly" as const, day: 1 },
+    amountVaries: false,
+    active: true,
+    lastHandledCycleKey: null,
+    createdAt: "2026-10-01T00:00:00",
+    updatedAt: 5,
+  };
+
+  it("aplica los recurrentes traídos y su registro de borrados", () => {
+    const out = applySettingsPatch(state(), {
+      recurringExpenses: { items: [rec], tombstones: { r2: 9 }, remoteWon: ["r1"] },
+    });
+    expect(out.recurringExpenses).toEqual([rec]);
+    expect(out.tombstones?.recurringExpenses).toEqual({ r2: 9 });
+    expect(out.tombstones?.lists).toEqual({});
   });
 });

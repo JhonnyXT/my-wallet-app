@@ -14,6 +14,7 @@ import { unlinkedList, type ListMember, type WalletList } from "./slices/listsSl
 import type { PaymentMethod } from "./slices/paymentsSlice";
 import type { SavingsGoal } from "./slices/goalsSlice";
 import type { Debt } from "./slices/debtsSlice";
+import type { RecurringExpense } from "./slices/recurringSlice";
 import type { DarkModeOption } from "./slices/prefsSlice";
 import type { Tombstones } from "./slices/tombstonesSlice";
 
@@ -29,6 +30,7 @@ export interface RemoteSettingsPatch {
   paymentMethods?: MergedCollection<PaymentMethod>;
   savingsGoals?: MergedCollection<SavingsGoal>;
   debts?: MergedCollection<Debt>;
+  recurringExpenses?: MergedCollection<RecurringExpense>;
   /** Solo si el documento remoto ganó. */
   profile?: {
     userName: string;
@@ -104,6 +106,7 @@ export interface RemoteSettingsState {
   paymentMethods: PaymentMethod[];
   savingsGoals: SavingsGoal[];
   debts: Debt[];
+  recurringExpenses: RecurringExpense[];
   tombstones: Tombstones;
   userName: string;
   darkMode: DarkModeOption;
@@ -158,7 +161,17 @@ export function applySettingsPatch(
     out.debts = patch.debts.items;
     tombstones.debts = patch.debts.tombstones;
   }
-  if (patch.lists || patch.paymentMethods || patch.savingsGoals || patch.debts) {
+  if (patch.recurringExpenses) {
+    out.recurringExpenses = patch.recurringExpenses.items;
+    tombstones.recurringExpenses = patch.recurringExpenses.tombstones;
+  }
+  if (
+    patch.lists ||
+    patch.paymentMethods ||
+    patch.savingsGoals ||
+    patch.debts ||
+    patch.recurringExpenses
+  ) {
     out.tombstones = tombstones;
   }
 

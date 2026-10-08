@@ -6,10 +6,10 @@
 import { DEFAULT_CADENCE, type PeriodCadence } from "@/src/utils/periodCycles";
 import { EMPTY_TOMBSTONES } from "./slices/tombstonesSlice";
 
-export const SETTINGS_VERSION = 4;
+export const SETTINGS_VERSION = 5;
 
 /** Colecciones que se sincronizan ítem por ítem (cada ítem lleva `updatedAt`). */
-const SYNCED_COLLECTIONS = ["lists", "paymentMethods", "savingsGoals", "debts"] as const;
+const SYNCED_COLLECTIONS = ["lists", "paymentMethods", "savingsGoals", "debts", "recurringExpenses"] as const;
 
 export function migrateSettings(
   persisted: unknown,
@@ -53,6 +53,18 @@ export function migrateSettings(
   // ninguno.
   if (version < 4) {
     if (!Array.isArray(state.recurringExpenses)) state.recurringExpenses = [];
+  }
+
+  // v4 → v5: los recurrentes entran al respaldo en la nube. Cada uno necesita `updatedAt` y el
+  // registro de borrados una entrada para su colección (sin ella la sync leería `undefined`).
+  if (version < 5) {
+    const items = state.recurringExpenses;
+    if (Array.isArray(items)) {
+      state.recurringExpenses = items.map((item: Record<string, unknown>) =>
+        typeof item.updatedAt === "number" ? item : { ...item, updatedAt: now },
+      );
+    }
+    state.tombstones = { ...EMPTY_TOMBSTONES, ...(state.tombstones as object | undefined) };
   }
 
   return state;

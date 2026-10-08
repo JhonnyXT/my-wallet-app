@@ -211,7 +211,7 @@ const deleteAccountEs: LegalDoc = {
       h: 'Qué se elimina',
       list: [
         'Tu cuenta (nombre, correo e identificador de Google en Firebase Authentication).',
-        'Todo tu respaldo en la nube: movimientos, listas, categorías, presupuestos, pago y período, métodos de pago, metas, deudas y preferencias.',
+        'Todo tu respaldo en la nube: movimientos, listas, categorías, presupuestos, pago y período, métodos de pago, metas, deudas, gastos recurrentes y preferencias.',
         'Las listas compartidas que creaste, para todas las personas que estaban en ellas.',
       ],
     },

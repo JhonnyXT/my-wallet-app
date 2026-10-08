@@ -1,6 +1,7 @@
 import type { StateCreator } from "zustand";
 import { localISOString } from "@/src/db/db";
 import { newId } from "@/src/utils/ids";
+import { addTombstone, type TombstonesSlice } from "./tombstonesSlice";
 
 /** Cadencias soportadas en esta fase — las que `expo-notifications` dispara nativamente. */
 export type RecurringCadence =
@@ -26,7 +27,7 @@ export interface RecurringExpense {
   /** Última clave de ciclo confirmada U omitida (idempotencia) — null = nunca se manejó ninguna. */
   lastHandledCycleKey: string | null;
   createdAt: string;
-  /** Última edición, epoch ms (sync futura). */
+  /** Última edición, epoch ms (versión para la sync). */
   updatedAt: number;
 }
 
@@ -64,9 +65,12 @@ export interface RecurringSlice {
   markHandled: (id: string, cycleKey: string) => void;
 }
 
-export const createRecurringSlice: StateCreator<RecurringSlice, [], [], RecurringSlice> = (
-  set,
-) => ({
+export const createRecurringSlice: StateCreator<
+  RecurringSlice & TombstonesSlice,
+  [],
+  [],
+  RecurringSlice
+> = (set) => ({
   recurringExpenses: [],
 
   addRecurring: (recurring) => {
@@ -106,6 +110,7 @@ export const createRecurringSlice: StateCreator<RecurringSlice, [], [], Recurrin
   removeRecurring: (id) =>
     set((s) => ({
       recurringExpenses: s.recurringExpenses.filter((r) => r.id !== id),
+      tombstones: addTombstone(s.tombstones, "recurringExpenses", id, Date.now()),
     })),
 
   markHandled: (id, cycleKey) =>

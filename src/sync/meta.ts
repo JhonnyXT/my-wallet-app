@@ -40,7 +40,7 @@ export function emptyMeta(): SyncMeta {
   return {
     ownerUid: null,
     cursors: {},
-    pushed: { lists: {}, paymentMethods: {}, savingsGoals: {}, debts: {} },
+    pushed: { lists: {}, paymentMethods: {}, savingsGoals: {}, debts: {}, recurringExpenses: {} },
     pushedDocs: {},
     pushedSpaces: {},
     banks: null,

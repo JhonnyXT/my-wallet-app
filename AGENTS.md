@@ -223,7 +223,7 @@ my-wallet-app/
 │   ├── services/                     # notificationService.ts, notificationHeadlessTask.ts
 │   ├── sync/                         # ÚNICA capa con red: firebase.ts (cliente + emulador en dev), session.ts (login/eliminar), engine.ts (motor de respaldo), remote.ts (Firestore), merge/mappers/meta (puras), metaStore, status, useSession, errors, net (tope de tiempo); espacios: spaces.ts (traer/subir), spacesRemote.ts (Firestore), spaceActions.ts (compartir/unirse/salir), spaceMappers.ts (puras)
 │   ├── store/                        # 7 stores Zustand (useSettingsStore + useNotificationStore persistidos)
-│   │   ├── settingsMigrations.ts     # migrateSettings(): migrate puro de useSettingsStore (v0→v1→v2→v3→v4), con tests
+│   │   ├── settingsMigrations.ts     # migrateSettings(): migrate puro de useSettingsStore (v0→v1→v2→v3→v4→v5), con tests
 │   │   ├── useRecurringQueueStore.ts # Cola de recurrentes (Pro) vencidos sin confirmar, NO persistida — se recalcula con recompute()
 │   │   └── slices/                   # 10 slices de useSettingsStore: budget, categories, debts, goals, lists, notifications, payments, prefs, recurring, tombstones
 │   ├── theme/index.ts                # Tokens AppTheme: light + dark
@@ -282,7 +282,7 @@ my-wallet-app/
 |-------|-----------|-----------------|
 | `useFinanceStore` | No (cache SQLite) | Transacciones CRUD + batch |
 | `useExpenseStore` | No | Formulario gasto/ingreso activo |
-| `useSettingsStore` | AsyncStorage (`version: 4`, `migrateSettings()`) | Config: categorías, presupuesto por categoría, metas, deudas, **recurrentes** (`recurringExpenses`, slice `recurringSlice`, Pro), métodos pago, período predeterminado + pago esperado (`defaultPeriod`), dark mode, bloqueo con huella, onboarding, **listas** (`lists`, `activeListId`, slice `listsSlice`) |
+| `useSettingsStore` | AsyncStorage (`version: 5`, `migrateSettings()`) | Config: categorías, presupuesto por categoría, metas, deudas, **recurrentes** (`recurringExpenses`, slice `recurringSlice`, Pro), métodos pago, período predeterminado + pago esperado (`defaultPeriod`), dark mode, bloqueo con huella, onboarding, **listas** (`lists`, `activeListId`, slice `listsSlice`) |
 | `useVoiceStore` | No | Estado voz: transcript, pendingBatch, pendingManualItem |
 | `useNotificationStore` | AsyncStorage | Cola transacciones detectadas desde notificaciones bancarias |
 | `useRecurringQueueStore` | No (derivada, se recalcula con `recompute()`) | Cola de ocurrencias vencidas sin confirmar de recurrentes (Pro) — ver "Gastos/ingresos recurrentes (Pro)" |
@@ -552,7 +552,7 @@ unirse exigen plan Pro** (ver "Monetización" arriba); sin Pro, `spaceActions.ts
 ### Ajustes (`app/settings.tsx`)
 
 - Secciones en este orden: **PLAN** (`PlanSection`, nueva: estado del plan Free/Pro, abre el paywall; en dev/test suma los controles de simulación — ver "Monetización: plan Free/Pro") → **CUENTA** (`AccountSection`: "Iniciar sesión con Google", o correo + estado del respaldo + "Cerrar sesión" + "Eliminar cuenta"; ver "Respaldo en la nube (Sync Fase 3)") → **LISTAS** ("Tus listas", detail = cantidad, abre `ListsSheet`) → **EN TU LISTA · {emoji} {nombre}** (título dinámico con la lista activa: Categorías, Presupuestos, "Pago y período", "Mostrar ingresos" con `Switch`, "Compartir lista", "Exportar CSV", "Importar CSV") → GESTIÓN, global no por lista (Métodos de pago, Metas de ahorro, Deudas, Recurrentes — Pro) → DETECCIÓN AUTOMÁTICA ("Detectar transacciones", "Bancos activos") → SISTEMA (Modo oscuro, Bloqueo con huella, Borrar historial, Versión — ya no tiene "Exportar datos", reemplazada por "Exportar CSV"/"Importar CSV" dentro de "EN TU LISTA").
-- **"Pago y período" reemplaza al antiguo "Ingreso mensual":** ya no existe `monthlyBudget`; el pago esperado vive en `defaultPeriod.pay` (por día de pago en `semimonthly`, `Record<string, number>` con el día como clave string para sobrevivir a JSON). El paso v0 → v1 de `migrateSettings()` (`src/store/settingsMigrations.ts`) pasa un `monthlyBudget > 0` a `defaultPeriod.pay`. Cualquier otro cambio incompatible del estado persistido debe subir `SETTINGS_VERSION` (hoy 4: v3→v4 agregó `recurringExpenses: []` para instalaciones existentes) y agregar su paso a `migrateSettings()`, con test.
+- **"Pago y período" reemplaza al antiguo "Ingreso mensual":** ya no existe `monthlyBudget`; el pago esperado vive en `defaultPeriod.pay` (por día de pago en `semimonthly`, `Record<string, number>` con el día como clave string para sobrevivir a JSON). El paso v0 → v1 de `migrateSettings()` (`src/store/settingsMigrations.ts`) pasa un `monthlyBudget > 0` a `defaultPeriod.pay`. Cualquier otro cambio incompatible del estado persistido debe subir `SETTINGS_VERSION` (hoy 5: v3→v4 agregó `recurringExpenses: []`; v4→v5 les puso `updatedAt` y sumó la colección al registro de borrados al entrar al respaldo) y agregar su paso a `migrateSettings()`, con test.
 - "Bloqueo con huella" (`BiometricLockRow`) es una fila con `Switch` en el slot `right`; activar y desactivar piden autenticarse, para que nadie con el teléfono desbloqueado lo quite. Sin huella/rostro/PIN configurados, activar muestra un `ConfirmDialog` informativo en vez del prompt. No hay secciones "APARIENCIA" ni "ACERCA DE", ni párrafos explicativos.
 - Cada sección es una sola `Card` con `Divider` entre filas (`inset={tokens.spacing.md * 2 + 34}`), no una tarjeta por fila; el usuario lo prefirió así. Íconos con color propio por fila (verde, azul, morado `#7C3AED`, rojo, gris, `Radar` `#0D9488`, `Landmark` `#EA580C`), no monocromáticos.
 - Las filas del screen principal no llevan `detail` (truncaba los títulos), salvo "Tus listas" (cantidad) y "Versión" (`v{APP_VERSION}`) — ahí el detail es el dato.
@@ -635,11 +635,17 @@ nube/espacios (ver "Monetización" arriba), distinta de esas dos porque no tiene
   notificación push suma `data.screen === "recurring-review"` en `app/_layout.tsx`
   (`resolveRecurringNotificationTarget`, mismo criterio "si es el único vencido, saltar la lista e
   ir directo al formulario" que `resolveBankNotificationTarget`).
-- **Fuera de alcance de esta fase** (no es deuda técnica urgente, es una decisión de scope
-  documentada en `specs/gastos-recurrentes/requirements.md`): sync a la nube de
-  `recurringExpenses` (nace local-first, igual que nacieron Deudas antes de que existiera sync —
-  no toca `tombstonesSlice` ni `src/sync/`), cadencias quincenal/semimensual (`expo-notifications`
-  no tiene trigger nativo para eso) y reportes/promedios específicos de recurrentes.
+- **Respaldo en la nube (2026-10-07)**: `recurringExpenses` es una colección más de `SETTINGS_KINDS`
+  (`users/{uid}/recurring`), igual que Deudas: `updatedAt` por ítem, `removeRecurring` anota
+  `tombstones.recurringExpenses`, conflictos con `pickWinner`. `lastHandledCycleKey` viaja con el
+  recurrente: confirmar u omitir en un teléfono evita que el otro lo vuelva a ofrecer tras sincronizar.
+  Las alarmas NO se sincronizan (son del teléfono): tras traer cambios, `pull` reprograma/cancela
+  el recordatorio de los que cambiaron y llama `useRecurringQueueStore.recompute()`.
+  `loadMeta` une `pushed` por colección: un meta guardado antes de existir una colección no la trae.
+  Sigue exigiendo Pro como el resto del respaldo.
+- **Fuera de alcance** (decisión de scope, `specs/gastos-recurrentes/requirements.md`):
+  cadencias quincenal/semimensual (`expo-notifications` no tiene trigger nativo para eso) y
+  reportes/promedios específicos de recurrentes.
 
 ### Reportes (`app/reports.tsx`, "Promedios")
 

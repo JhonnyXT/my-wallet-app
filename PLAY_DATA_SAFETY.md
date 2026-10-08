@@ -34,7 +34,7 @@ Todos se marcan **Recopilado: sí · Compartido: no · Procesamiento efímero: n
 | Información personal → **Nombre** | Nombre de Google (Firebase Auth) y el primer nombre que ven los miembros de una lista compartida | Funcionalidad de la app, Administración de la cuenta |
 | Información personal → **Dirección de correo** | Correo de Google (Firebase Auth) | Administración de la cuenta |
 | Información personal → **IDs de usuario** | `uid` de Firebase | Funcionalidad de la app, Administración de la cuenta |
-| Información financiera → **Otra información financiera** | Movimientos (monto, descripción, categoría, fecha, etiquetas, método de pago, quién pagó), presupuestos, pago esperado, metas, deudas | Funcionalidad de la app |
+| Información financiera → **Otra información financiera** | Movimientos (monto, descripción, categoría, fecha, etiquetas, método de pago, quién pagó), presupuestos, pago esperado, metas, deudas, gastos recurrentes | Funcionalidad de la app |
 | Actividad en la app → **Otro contenido generado por el usuario** | Listas, categorías propias, nombres de las personas de una lista | Funcionalidad de la app |
 
 **No** declarar (no salen del teléfono por la app, o no se tocan):

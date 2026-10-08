@@ -160,7 +160,42 @@ describe("migrateSettings v3 → v4", () => {
       3,
       NOW,
     );
-    expect(out.recurringExpenses).toBe(existing);
+    expect(out.recurringExpenses).toEqual([{ ...existing[0], updatedAt: NOW }]);
+  });
+});
+
+describe("migrateSettings v4 → v5", () => {
+  it("agrega updatedAt a los recurrentes que no lo tienen y conserva el que ya traen", () => {
+    const out = migrateSettings(
+      {
+        recurringExpenses: [{ id: "r1" }, { id: "r2", updatedAt: 7 }],
+        tombstones: EMPTY_TOMBSTONES,
+      },
+      4,
+      NOW,
+    );
+    expect(out.recurringExpenses).toEqual([
+      { id: "r1", updatedAt: NOW },
+      { id: "r2", updatedAt: 7 },
+    ]);
+  });
+
+  it("agrega la colección de recurrentes al registro de borrados sin perder los demás", () => {
+    const out = migrateSettings(
+      {
+        recurringExpenses: [],
+        tombstones: { lists: { l1: 5 }, paymentMethods: {}, savingsGoals: {}, debts: {} },
+      },
+      4,
+      NOW,
+    );
+    expect(out.tombstones).toEqual({
+      lists: { l1: 5 },
+      paymentMethods: {},
+      savingsGoals: {},
+      debts: {},
+      recurringExpenses: {},
+    });
   });
 });
 

@@ -2,10 +2,10 @@ import type { StateCreator } from "zustand";
 
 /**
  * Registro de borrados de los ajustes que se sincronizan (SYNC_ROADMAP.md, T6). Los arreglos
- * (`lists`, `paymentMethods`, `savingsGoals`, `debts`) guardan solo lo vivo, así ningún consumidor
+ * (`lists`, `paymentMethods`, `savingsGoals`, `debts`, `recurringExpenses`) guardan solo lo vivo, así ningún consumidor
  * tiene que filtrar borrados; la sync lee de aquí qué avisar a los otros teléfonos.
  */
-export type TombstoneKind = "lists" | "paymentMethods" | "savingsGoals" | "debts";
+export type TombstoneKind = "lists" | "paymentMethods" | "savingsGoals" | "debts" | "recurringExpenses";
 
 /** id → cuándo se borró (epoch ms), por colección. */
 export type Tombstones = Record<TombstoneKind, Record<string, number>>;
@@ -15,6 +15,7 @@ export const EMPTY_TOMBSTONES: Tombstones = {
   paymentMethods: {},
   savingsGoals: {},
   debts: {},
+  recurringExpenses: {},
 };
 
 export function addTombstone(

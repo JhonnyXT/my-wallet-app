@@ -32,6 +32,8 @@ import { EmojiSuggestPicker, useAutoEmoji } from "@/src/components/ui/EmojiSugge
 import { useTheme } from "@/src/context/ThemeContext";
 import { canUse, openPaywall } from "@/src/billing";
 import {
+  areNotificationsAllowed,
+  askNotificationPermissionIfPossible,
   cancelDebtReminder,
   cancelRecurringReminder,
   checkAndNotifyGoalCompleted,
@@ -70,6 +72,7 @@ import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
 import { router } from "expo-router";
 import {
+  BellOff,
   Check,
   CreditCard,
   Download,
@@ -2762,6 +2765,9 @@ function AutoDetectSection() {
   const [enabled, setEnabled] = useState(false);
   const [allowedBanks, setAllowedBanks] = useState<string[]>([]);
   const [hasPermission, setHasPermission] = useState(false);
+  // Permiso de push (distinto del acceso del listener): sin él la transacción se detecta pero
+  // Android descarta el aviso en silencio.
+  const [alertsAllowed, setAlertsAllowed] = useState(true);
   const [showPermDialog, setShowPermDialog] = useState(false);
   const [showBankSelector, setShowBankSelector] = useState(false);
 
@@ -2781,6 +2787,7 @@ function AutoDetectSection() {
       }
     })();
     checkPermission();
+    areNotificationsAllowed().then(setAlertsAllowed);
     // Solo al abrir: `checkPermission` se recrea en cada render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -2812,9 +2819,14 @@ function AutoDetectSection() {
       const authorized = status === "authorized";
       setHasPermission(authorized);
       if (authorized) {
+        const wasEnabled = (await AsyncStorage.getItem(AUTO_DETECT_ENABLED_KEY)) === "true";
         setEnabled(true);
         await AsyncStorage.setItem(AUTO_DETECT_ENABLED_KEY, "true");
+        // Al activarse por primera vez desde la pantalla del sistema, pedir también el permiso
+        // de push (si el sistema aún lo permite); el resto lo cubre la fila de aviso.
+        if (!wasEnabled) await askNotificationPermissionIfPossible();
       }
+      setAlertsAllowed(await areNotificationsAllowed());
     } catch {
       setHasPermission(false);
     }
@@ -2832,6 +2844,7 @@ function AutoDetectSection() {
         // notificaciones de la app. requestNotificationPermissions() no vuelve a pedirlo
         // si ya fue concedido antes (por esta misma sección o por Alertas de presupuesto).
         await requestNotificationPermissions();
+        setAlertsAllowed(await areNotificationsAllowed());
       }
       setEnabled(value);
       await AsyncStorage.setItem(AUTO_DETECT_ENABLED_KEY, value ? "true" : "false");
@@ -2885,6 +2898,22 @@ function AutoDetectSection() {
               showChevron
               onPress={() => setShowBankSelector(true)}
             />
+            {!alertsAllowed && (
+              <>
+                <Divider inset={tokens.spacing.md * 2 + 34} />
+                <ListRow
+                  label="Alertas desactivadas"
+                  detail="Activar"
+                  icon={<BellOff size={16} color="#FFFFFF" strokeWidth={2} />}
+                  iconBg="#DC2626"
+                  showChevron
+                  onPress={async () => {
+                    await requestNotificationPermissions();
+                    setAlertsAllowed(await areNotificationsAllowed());
+                  }}
+                />
+              </>
+            )}
           </Reanimated.View>
         )}
       </Card>

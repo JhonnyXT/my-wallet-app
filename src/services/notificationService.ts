@@ -107,6 +107,26 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return granted;
 }
 
+/** ¿Puede la app mostrar notificaciones push? (sin Android 13+ el permiso se concede aparte). */
+export async function areNotificationsAllowed(): Promise<boolean> {
+  if (Platform.OS === "web") return false;
+  const { status } = await Notifications.getPermissionsAsync();
+  return status === "granted";
+}
+
+/**
+ * Pide el permiso de notificaciones solo si el sistema todavía muestra el diálogo; nunca abre
+ * Ajustes. Sirve para caminos automáticos (ej. volver de la pantalla de acceso a notificaciones),
+ * donde abrir Ajustes en cada vuelta a primer plano sería un bucle.
+ */
+export async function askNotificationPermissionIfPossible(): Promise<boolean> {
+  if (Platform.OS === "web") return false;
+  const { status, canAskAgain } = await Notifications.getPermissionsAsync();
+  if (status === "granted") return true;
+  if (!canAskAgain) return false;
+  return requestNotificationPermissions();
+}
+
 // ─── Presupuesto excedido ─────────────────────────────────────────────────────
 
 export async function checkAndNotifyBudget(

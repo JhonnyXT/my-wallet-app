@@ -157,12 +157,16 @@ export function AccountSection() {
   async function signOut(mode: "keep" | "wipe") {
     setDialog(null);
     await run(async () => {
-      const { blockedPending } = await signOutWith(mode);
+      const { blockedPending, alreadySignedOut } = await signOutWith(mode);
       if (blockedPending > 0) {
         setError(
-          blockedPending === 1
-            ? "Hay 1 cambio sin respaldar. Conéctate para subirlo antes de borrar."
-            : `Hay ${blockedPending} cambios sin respaldar. Conéctate para subirlos antes de borrar.`,
+          alreadySignedOut
+            ? blockedPending === 1
+              ? "Hay 1 cambio sin respaldar que llegó justo al cerrar sesión. No se borró: vuelve a entrar con tu cuenta para subirlo."
+              : `Hay ${blockedPending} cambios sin respaldar que llegaron justo al cerrar sesión. No se borraron: vuelve a entrar con tu cuenta para subirlos.`
+            : blockedPending === 1
+              ? "Hay 1 cambio sin respaldar. Conéctate para subirlo antes de borrar."
+              : `Hay ${blockedPending} cambios sin respaldar. Conéctate para subirlos antes de borrar.`,
         );
         return;
       }

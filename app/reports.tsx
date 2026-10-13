@@ -117,7 +117,11 @@ export default function ReportsScreen() {
     () => summarizeFixedRecurring(recurringExpenses, type === "expense", activeListId),
     [recurringExpenses, type, activeListId],
   );
-  const fixedSharePct = totalAvg > 0 ? Math.round((fixed.monthlyTotal / totalAvg) * 100) : null;
+  // El peso frente al promedio solo dice algo con historial suficiente y si lo fijo cabe dentro de lo
+  // que de verdad se gasta (recurrentes recién creados darían porcentajes absurdos, como 866%).
+  const fixedShareRaw = totalAvg > 0 ? Math.round((fixed.monthlyTotal / totalAvg) * 100) : null;
+  const fixedSharePct =
+    months >= 2 && fixedShareRaw !== null && fixedShareRaw <= 100 ? fixedShareRaw : null;
 
   const maxTrend = trend ? Math.max(...trend.map((t) => t.total), 1) : 1;
   const trendRangeLabel = `${MONTH_ABBR[trendRange.start.getMonth()]} ${trendRange.start.getFullYear()} – ${MONTH_ABBR[trendRange.end.getMonth()]} ${trendRange.end.getFullYear()}`;
@@ -641,8 +645,8 @@ function FixedRecurringRow({
         <ThemedText variant="body" numberOfLines={1}>
           {recurring.name}
         </ThemedText>
-        <ThemedText variant="footnote" color="secondary" numberOfLines={1}>
-          {describeCadence(recurring.cadence)} · {formatCOP(recurring.amount)}
+        <ThemedText variant="footnote" color="secondary" numberOfLines={2}>
+          {describeCadence(recurring.cadence)} · {formatCOP(recurring.amount).replace(" ", "\u00A0")}
         </ThemedText>
       </View>
       <ThemedText variant="body" numberOfLines={1}>

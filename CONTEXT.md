@@ -958,8 +958,12 @@ cuatro; "cada 2 semanas" pide cuál de las dos próximas fechas es la próxima (
 "dos veces al mes" dos grillas de día (deben ser distintos). Promedios (`app/reports.tsx`) suma la
 tarjeta "fijos recurrentes": `summarizeFixedRecurring` lleva cada recurrente activo de la lista a
 su equivalente mensual (`occurrencesPerMonth`) y la muestra según el selector Gastos/Ingresos.
-Pendiente de verificar en dispositivo (no había teléfono conectado): crear un recurrente de cada
-cadencia nueva, ver sus alarmas en `dumpsys alarm` y la tarjeta en Promedios.
+Verificado en el Samsung (build debug `dev`, 2026-10-12): un cada-2-semanas (viernes, próxima el
+23 oct) programó 4 alarmas de fecha fija a las 9:00 (23 oct, 6 nov, 20 nov, 4 dic); un dos-veces-
+al-mes (15 y 30) programó dos alarmas mensuales; "dos días iguales" bloquea "Crear" con el aviso;
+editar un cada-2-semanas conserva día y fase; borrar uno cancela TODAS sus alarmas (`dumpsys
+alarm`); la tarjeta de Promedios sumó $268.333/mes (80.000×2 + 50.000×26/12). El porcentaje
+"X% de tu promedio mensual" solo aparece con ≥ 2 meses de historial y ≤ 100 %: con 1 mes salía 866 %.
 
 ---
 

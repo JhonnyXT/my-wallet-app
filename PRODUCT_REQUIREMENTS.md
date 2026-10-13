@@ -315,8 +315,8 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | HU 12.7 | Como usuario, quiero ver todos mis recurrentes activos y su próxima fecha en un solo lugar (Ajustes → Recurrentes) | ✅ |
 | HU 12.8 | Como usuario Free, al intentar crear un recurrente o reanudar uno pausado quiero ver la oferta de Pro en vez de que se cree algo | ✅ |
 | HU 12.9 | Como usuario, si un recurrente acumula varios ciclos vencidos sin confirmar (ej. no abrí la app en meses), quiero ver una fila por ciclo hasta un tope razonable, sin que los más viejos se pierdan sin aviso | ✅ Tope de 6 ciclos por recurrente; los más viejos que el tope se dan por omitidos automáticamente |
-| HU 12.10 | Como usuario que cobra o paga cada 2 semanas o dos veces al mes (ej. el 15 y el 30), quiero poder crear un recurrente con ese ritmo en vez de forzarlo a semanal o mensual | ✅ Cadencias `biweekly` y `semimonthly` *(2026-10-12)*; pendiente de verificar en dispositivo |
-| HU 12.11 | Como usuario, quiero ver cuánto suman mis recurrentes al mes (gasto e ingreso fijo) y cuáles pesan más, para saber qué parte de lo que gasto ya está comprometida | ✅ Tarjeta "fijos recurrentes" en Promedios *(2026-10-12)*; pendiente de verificar en dispositivo |
+| HU 12.10 | Como usuario que cobra o paga cada 2 semanas o dos veces al mes (ej. el 15 y el 30), quiero poder crear un recurrente con ese ritmo en vez de forzarlo a semanal o mensual | ✅ Cadencias `biweekly` y `semimonthly` *(2026-10-12)*, verificadas en dispositivo (alarmas, edición y borrado) |
+| HU 12.11 | Como usuario, quiero ver cuánto suman mis recurrentes al mes (gasto e ingreso fijo) y cuáles pesan más, para saber qué parte de lo que gasto ya está comprometida | ✅ Tarjeta "fijos recurrentes" en Promedios *(2026-10-12)*, verificada en dispositivo |
 
 ---
 

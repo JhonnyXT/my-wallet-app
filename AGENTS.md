@@ -666,7 +666,7 @@ nube/espacios (ver "Monetización" arriba), distinta de esas dos porque no tiene
   con el equivalente mensual de los recurrentes ACTIVOS de la lista activa
   (`summarizeFixedRecurring`: semanal ≈ 52/12 veces al mes, cada 2 semanas ≈ 26/12, dos veces al mes
   = 2), su peso frente al promedio mensual y los 5 más altos. Sigue el selector Gastos/Ingresos y
-  se oculta si no hay ninguno. Es un equivalente para comparar, no lo que cae en un mes puntual.
+  se oculta si no hay ninguno; el % frente al promedio solo se muestra con ≥ 2 meses de historial y ≤ 100 %. Es un equivalente para comparar, no lo que cae en un mes puntual.
 
 ### Reportes (`app/reports.tsx`, "Promedios")
 

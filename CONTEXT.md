@@ -964,6 +964,11 @@ al-mes (15 y 30) programó dos alarmas mensuales; "dos días iguales" bloquea "C
 editar un cada-2-semanas conserva día y fase; borrar uno cancela TODAS sus alarmas (`dumpsys
 alarm`); la tarjeta de Promedios sumó $268.333/mes (80.000×2 + 50.000×26/12). El porcentaje
 "X% de tu promedio mensual" solo aparece con ≥ 2 meses de historial y ≤ 100 %: con 1 mes salía 866 %.
+**El aviso dispara de verdad** (2026-10-12): moviendo temporalmente la hora a unos minutos después de
+la actual (cambio de prueba, no commiteado), un mensual (trigger `MONTHLY` nativo) y un
+cada-2-semanas (aviso de fecha fija) programados para las 19:48 llegaron como notificación con la app
+en segundo plano. Las alarmas tienen ventana de tolerancia (~7 min en `dumpsys alarm`): Android puede
+agruparlas y entregarlas unos minutos después de la hora.
 
 ---
 

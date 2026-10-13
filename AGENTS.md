@@ -662,6 +662,10 @@ nube/espacios (ver "Monetización" arriba), distinta de esas dos porque no tiene
   el recordatorio de los que cambiaron y llama `useRecurringQueueStore.recompute()`.
   `loadMeta` une `pushed` por colección: un meta guardado antes de existir una colección no la trae.
   Sigue exigiendo Pro como el resto del respaldo.
+- **Los avisos se probaron disparando de verdad** (2026-10-12, Samsung, cambiando la hora a unos
+  minutos adelante): llegaron el `MONTHLY` y el de fecha fija de `biweekly`. Son alarmas con ventana
+  de tolerancia (~7 min): para una prueba, esperar hasta ~10 min después de la hora; **no** cerrar
+  la app con `force-stop` (borra las alarmas).
 - **Reporte de fijos** (`app/reports.tsx`, "Promedios"): tarjeta "Gastos/Ingresos fijos recurrentes"
   con el equivalente mensual de los recurrentes ACTIVOS de la lista activa
   (`summarizeFixedRecurring`: semanal ≈ 52/12 veces al mes, cada 2 semanas ≈ 26/12, dos veces al mes

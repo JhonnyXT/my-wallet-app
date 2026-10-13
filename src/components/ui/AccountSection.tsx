@@ -160,12 +160,14 @@ export function AccountSection() {
   async function signOut(mode: "keep" | "wipe") {
     setDialog(null);
     await run(async () => {
-      const { blockedPending } = await signOutWith(mode);
+      const { blockedPending, alreadySignedOut } = await signOutWith(mode);
       if (blockedPending > 0) {
         const n = blockedPending === 1 ? "1 cambio" : `${blockedPending} cambios`;
         setError(
           isPro
-            ? `Hay ${n} sin respaldar. Conéctate para subirlos antes de borrar.`
+            ? alreadySignedOut
+              ? `Hay ${n} sin respaldar que llegaron justo al cerrar sesión. No se borraron: vuelve a entrar con tu cuenta para subirlos.`
+              : `Hay ${n} sin respaldar. Conéctate para subirlos antes de borrar.`
             : `Hay ${n} que no están en la nube (el respaldo es parte de Pro). Pasa a Pro para subirlos o elige "Mantener en este teléfono".`,
         );
         return;

@@ -62,6 +62,7 @@ import { keepLocalShared, mergeCollection, remoteDocWins, transactionsToApply } 
 import {
   advanceCursor,
   belongsToOtherAccount,
+  emptyMeta,
   forgetSpace,
   markPushed,
   needsPush,
@@ -615,6 +616,14 @@ export async function wipeLocalData(): Promise<void> {
 /**
  * Los datos del teléfono son de otra cuenta (RF-13): "merge" los une con la actual; "replace"
  * los borra del teléfono (solo sin pendientes) y trae los de la actual.
+ *
+ * "merge" resetea cursors/pushed/pushedDocs/pushedSpaces antes de guardar el ownerUid nuevo: son
+ * el progreso de sync de la cuenta ANTERIOR (hasta dónde trajo, qué ya subió), y reutilizarlo tal
+ * cual con la cuenta nueva deja la traída y la subida silenciosamente incompletas — un cursor
+ * heredado puede ser más reciente que datos reales de la cuenta nueva aún sin bajar, y los ids
+ * fijos que existen en todo dispositivo (lista "personal", métodos de pago por defecto) quedan
+ * marcados como "ya subidos" sin haberse escrito nunca en la cuenta nueva. `banks` sí se conserva:
+ * es configuración del teléfono, no de la cuenta.
  */
 export async function resolveAccountConflict(choice: "merge" | "replace"): Promise<void> {
   const uid = currentUid();
@@ -622,7 +631,9 @@ export async function resolveAccountConflict(choice: "merge" | "replace"): Promi
   if (choice === "replace") {
     await wipeLocalData();
   } else {
-    await saveMeta({ ...(await loadMeta()), ownerUid: uid });
+    const prev = await loadMeta();
+    const reset = prev.ownerUid !== uid ? { ...emptyMeta(), banks: prev.banks } : prev;
+    await saveMeta({ ...reset, ownerUid: uid });
   }
   await syncNow();
 }
@@ -673,14 +684,29 @@ export async function deleteAccountAndCloudData(): Promise<void> {
 /**
  * Cerrar sesión (T9). "keep" no toca nada local. "wipe" deja el teléfono como recién instalado,
  * solo si no hay cambios sin respaldar (RF-12): si los hay, no cierra sesión y devuelve cuántos.
+ *
+ * Se chequean los pendientes dos veces: antes y después de `signOut()`. Este último hace red
+ * (Firebase + Google Sign-In) y no bloquea el resto de la app mientras corre (Regla inmutable #1
+ * — ver AccountSection), así que en esa ventana puede entrar un cambio local nuevo (ej. una
+ * notificación bancaria detectada en background). Sin el segundo chequeo, `wipeLocalData()` lo
+ * borraría sin haberse respaldado nunca, justo lo que el primer chequeo pretendía impedir. Si el
+ * segundo chequeo bloquea, la sesión YA se cerró (no se puede deshacer `signOut()`) pero los datos
+ * locales se conservan intactos sin borrar — `alreadySignedOut` se lo indica a quien llama, para
+ * no decirle "conéctate" a alguien que ya salió.
  */
-export async function signOutWith(mode: "keep" | "wipe"): Promise<{ blockedPending: number }> {
+export async function signOutWith(
+  mode: "keep" | "wipe",
+): Promise<{ blockedPending: number; alreadySignedOut?: boolean }> {
   if (mode === "wipe") {
     await syncNow().catch(() => undefined);
     const pending = await pendingChanges();
     if (pending > 0) return { blockedPending: pending };
   }
   await signOut();
-  if (mode === "wipe") await wipeLocalData();
+  if (mode === "wipe") {
+    const pendingAfter = await pendingChanges();
+    if (pendingAfter > 0) return { blockedPending: pendingAfter, alreadySignedOut: true };
+    await wipeLocalData();
+  }
   return { blockedPending: 0 };
 }

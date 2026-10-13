@@ -6,6 +6,8 @@
  * El único control de período vive dentro de la tarjeta "Tendencia", acotando solo esa
  * gráfica de barras mensuales — patrón "Monthly ▾" dentro del propio gráfico, no chips
  * globales arriba de la pantalla.
+ * La tarjeta "fijos recurrentes" resume los recurrentes activos de la lista (equivalente mensual)
+ * y sigue el selector Gastos/Ingresos; no depende del historial, solo de lo configurado.
  */
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -28,9 +30,11 @@ import {
   type MonthlyTotal,
 } from "@/src/db/queries";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
+import { useSettingsStore, type RecurringExpense } from "@/src/store/useSettingsStore";
 import { useAllListCategories } from "@/src/hooks/useAllListCategories";
 import { moneyColors, useAppTokens } from "@/src/theme/tokens";
 import { formatCOP } from "@/src/utils/formatMoney";
+import { describeCadence, summarizeFixedRecurring } from "@/src/utils/recurring";
 
 type ReportType = "expense" | "income";
 
@@ -75,6 +79,8 @@ export default function ReportsScreen() {
   const [trendRange, setTrendRange] = useState(defaultTrendRange);
   const [trendSheetOpen, setTrendSheetOpen] = useState(false);
   const [trend, setTrend] = useState<MonthlyTotal[] | null>(null);
+  const recurringExpenses = useSettingsStore((s) => s.recurringExpenses);
+  const activeListId = useSettingsStore((s) => s.activeListId);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,6 +112,12 @@ export default function ReportsScreen() {
   const topSharePct = totalAvg > 0 && topItem ? topItem.avgMonthly / totalAvg : 0;
   const ringOffset = RING_CIRC * (1 - topSharePct);
   const maxItemAvg = topItem?.avgMonthly ?? 0;
+
+  const fixed = useMemo(
+    () => summarizeFixedRecurring(recurringExpenses, type === "expense", activeListId),
+    [recurringExpenses, type, activeListId],
+  );
+  const fixedSharePct = totalAvg > 0 ? Math.round((fixed.monthlyTotal / totalAvg) * 100) : null;
 
   const maxTrend = trend ? Math.max(...trend.map((t) => t.total), 1) : 1;
   const trendRangeLabel = `${MONTH_ABBR[trendRange.start.getMonth()]} ${trendRange.start.getFullYear()} – ${MONTH_ABBR[trendRange.end.getMonth()]} ${trendRange.end.getFullYear()}`;
@@ -299,8 +311,60 @@ export default function ReportsScreen() {
           </Card>
         </Enter>
 
+        {/* ── Fijos recurrentes (equivalente mensual de lo configurado) ───── */}
+        {fixed.items.length > 0 ? (
+          <Enter index={4}>
+            <Card style={{ borderRadius: tokens.radius.xl, gap: tokens.spacing.sm }}>
+              <ThemedText variant="footnote" color="secondary" style={styles.eyebrow}>
+                {type === "expense" ? "Gastos fijos recurrentes" : "Ingresos fijos recurrentes"}
+              </ThemedText>
+              <ThemedText variant="body">
+                <ThemedText
+                  variant="headline"
+                  style={{
+                    fontSize: 28,
+                    fontWeight: "800",
+                    color: type === "expense" ? moneyColors.expense.text : moneyColors.income.text,
+                  }}
+                >
+                  {formatCOP(fixed.monthlyTotal)}
+                </ThemedText>
+                <ThemedText variant="footnote" color="secondary">
+                  {" "}
+                  /mes
+                </ThemedText>
+              </ThemedText>
+              <ThemedText variant="footnote" color="secondary">
+                {fixed.items.length === 1
+                  ? "1 recurrente activo"
+                  : `${fixed.items.length} recurrentes activos`}
+                {fixedSharePct !== null
+                  ? ` · ${fixedSharePct}% de tu promedio mensual`
+                  : ""}
+              </ThemedText>
+              <View style={{ marginTop: tokens.spacing.xs }}>
+                {fixed.items.slice(0, FIXED_ROWS).map(({ recurring, monthly }, i) => (
+                  <View key={recurring.id}>
+                    {i > 0 ? <Divider /> : null}
+                    <FixedRecurringRow recurring={recurring} monthly={monthly} />
+                  </View>
+                ))}
+              </View>
+              {fixed.items.length > FIXED_ROWS ? (
+                <ThemedText variant="footnote" color="secondary">
+                  +{fixed.items.length - FIXED_ROWS} más en Ajustes → Recurrentes
+                </ThemedText>
+              ) : null}
+              <ThemedText variant="footnote" color="secondary">
+                Es un equivalente mensual para comparar: un mes puntual puede traer una vez más o
+                menos de lo semanal.
+              </ThemedText>
+            </Card>
+          </Enter>
+        ) : null}
+
         {/* ── Ranking completo ────────────────────────────────────────────── */}
-        <Enter index={4}>
+        <Enter index={5}>
           <Card padded={false}>
             <View style={{ padding: tokens.spacing.md, paddingBottom: tokens.spacing.sm }}>
               <ThemedText variant="footnote" color="secondary" style={styles.eyebrow}>
@@ -535,6 +599,60 @@ function AverageRow({
           }}
         />
       </View>
+    </View>
+  );
+}
+
+/** Filas visibles en la tarjeta de fijos; el resto se ve en Ajustes → Recurrentes. */
+const FIXED_ROWS = 5;
+
+function FixedRecurringRow({
+  recurring,
+  monthly,
+}: {
+  recurring: RecurringExpense;
+  monthly: number;
+}) {
+  const tokens = useAppTokens();
+  const colors = getCategoryColor(recurring.categoryEmoji);
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: tokens.spacing.sm,
+        paddingVertical: tokens.spacing.sm,
+      }}
+    >
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: tokens.radius.full,
+          backgroundColor: colors.bg,
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <ThemedText style={{ fontSize: 18 }}>{recurring.emoji}</ThemedText>
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <ThemedText variant="body" numberOfLines={1}>
+          {recurring.name}
+        </ThemedText>
+        <ThemedText variant="footnote" color="secondary" numberOfLines={1}>
+          {describeCadence(recurring.cadence)} · {formatCOP(recurring.amount)}
+        </ThemedText>
+      </View>
+      <ThemedText variant="body" numberOfLines={1}>
+        <ThemedText variant="body" style={{ fontWeight: "700" }}>
+          {formatCOP(monthly)}
+        </ThemedText>
+        <ThemedText variant="footnote" color="secondary">
+          /mes
+        </ThemedText>
+      </ThemedText>
     </View>
   );
 }

@@ -3441,7 +3441,9 @@ export default function SettingsScreen() {
           !importResult
             ? ""
             : !importResult.recognized
-              ? "El archivo no es un CSV exportado desde MyWallet. Usa Exportar CSV en la app para generarlo."
+              ? importResult.tooLarge
+                ? "El archivo es demasiado grande para importarlo (máx. 8 MB)."
+                : "El archivo no es un CSV exportado desde MyWallet. Usa Exportar CSV en la app para generarlo."
               : [
                   `Se importaron ${importResult.imported} movimientos en ${activeList.emoji} ${activeList.name}.`,
                   importResult.duplicates > 0

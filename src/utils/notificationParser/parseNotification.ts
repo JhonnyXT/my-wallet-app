@@ -2,6 +2,7 @@ import { localISOString } from "@/src/db/db";
 import { KNOWN_BANKS, BANK_PACKAGE_NAMES, type BankConfig } from "@/src/constants/banks";
 import { classifyIntent } from "./intentClassifier";
 import { BANK_PATTERNS, GENERIC_PATTERN } from "./bankPatterns";
+import { redactCardDigits } from "./descriptionExtractor";
 import type { ParsedTransaction } from "./types";
 
 /**
@@ -57,8 +58,11 @@ export function parseNotification(
     description: (result.description ?? bank.displayName).substring(0, 80),
     bankName: bank.displayName,
     packageName,
-    rawTitle: title.substring(0, 100), // limitado a 100 chars para no almacenar saldos largos
-    rawText: text.substring(0, 200), // limitado para privacidad
+    // Limitados en longitud Y pasados por redactCardDigits(): son "para debugging" pero se
+    // persisten en la cola de pendientes (AsyncStorage) mientras el ítem no se confirme/descarte,
+    // así que no pueden conservar dígitos de tarjeta/cuenta (Regla inmutable #6).
+    rawTitle: redactCardDigits(title).substring(0, 100),
+    rawText: redactCardDigits(text).substring(0, 200),
     confidence: result.confidence ?? "medium",
     detectedAt: localISOString(postedAt),
   };

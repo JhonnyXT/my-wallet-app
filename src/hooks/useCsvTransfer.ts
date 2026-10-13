@@ -19,11 +19,17 @@ const LEGACY_ACCOUNTS: Record<string, string> = {
   credit: "Tarjeta",
 };
 
+/** Tope de tamaño de un CSV a importar: evita cargar en memoria un archivo gigante
+ * (craftado o corrupto) de una sola vez con `.text()`, que agota memoria y crashea. */
+const MAX_IMPORT_CSV_BYTES = 8 * 1024 * 1024; // 8 MB
+
 export interface ImportResult {
   recognized: boolean;
   imported: number;
   duplicates: number;
   invalid: number;
+  /** El archivo elegido superaba MAX_IMPORT_CSV_BYTES y no se leyó. */
+  tooLarge?: boolean;
 }
 
 function fileSlug(name: string): string {
@@ -84,6 +90,11 @@ export function useCsvTransfer() {
       copyToCacheDirectory: true,
     });
     if (picked.canceled || !picked.assets?.[0]) return null;
+
+    const size = picked.assets[0].size;
+    if (typeof size === "number" && size > MAX_IMPORT_CSV_BYTES) {
+      return { recognized: false, imported: 0, duplicates: 0, invalid: 0, tooLarge: true };
+    }
 
     const text = await new File(picked.assets[0].uri).text();
     const { rows, invalid, recognized } = parseTransactionsCsv(text);

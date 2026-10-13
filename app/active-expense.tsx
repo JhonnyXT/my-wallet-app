@@ -99,24 +99,35 @@ export default function ActiveExpenseScreen() {
   }>();
   const fromBatchReview = from === "batch-review";
   const fromNotificationEdit = from === "notification-edit";
+  const pendingNotificationItems = useNotificationStore((s) => s.pendingItems);
+  const recurringExpenses = useSettingsStore((s) => s.recurringExpenses);
   // Vino directo de tocar la notificación bancaria (un solo item pendiente, sin pasar
   // por la lista de revisión) — a diferencia de notification-edit, acá SÍ hay que
   // guardar en la base de datos de una (ver handleConfirm) y sacar el item de la cola.
-  const fromNotificationDetect = from === "notification-detect";
+  // Exige que notifId corresponda a un ítem REAL todavía pendiente: así una navegación a esta
+  // pantalla que no vino de tocar la notificación real (ej. un deep link `mywalletapp://` con un
+  // notifId inventado, lanzado por otra app del dispositivo) no activa el guardado directo ni el
+  // resto del comportamiento de este modo — cae al flujo normal de gasto/ingreso manual.
+  const fromNotificationDetect =
+    from === "notification-detect" &&
+    !!notifId &&
+    pendingNotificationItems.some((i) => i.id === notifId);
   // Confirmar un recurrente vencido (Pro): ambos modos guardan directo en la DB (ver
   // handleConfirm) y marcan el ciclo como manejado — a diferencia de notification-edit, acá no
   // hay una cola intermedia de edición en memoria. La única diferencia entre los dos es de dónde
   // vino el usuario (notificación con monto fijo vs. "Editar y confirmar" de un monto variable);
   // el formulario en sí se comporta igual en ambos.
-  const fromRecurringDetect = from === "recurring-detect";
-  const fromRecurringEdit = from === "recurring-edit";
+  // Mismo criterio que notification-detect arriba: recId tiene que ser un recurrente que existe
+  // de verdad (no uno inventado por un deep link ajeno al flujo real de notificación).
+  const recurringExists = !!recId && recurringExpenses.some((x) => x.id === recId);
+  const fromRecurringDetect = from === "recurring-detect" && recurringExists;
+  const fromRecurringEdit = from === "recurring-edit" && recurringExists;
   const fromRecurring = fromRecurringDetect || fromRecurringEdit;
   const editingId = editId ? Number(editId) : null;
   const isEditMode = editingId !== null;
   const setPendingManualItem = useVoiceStore((s) => s.setPendingManualItem);
   const removePendingNotification = useNotificationStore((s) => s.removePendingItem);
   const markRecurringHandled = useSettingsStore((s) => s.markHandled);
-  const recurringExpenses = useSettingsStore((s) => s.recurringExpenses);
   // Si venimos de voice-batch-review, notification-edit/-detect o recurring-edit/-detect, solo
   // volvemos atrás al guardar.
   const navigateAfterSave = () =>

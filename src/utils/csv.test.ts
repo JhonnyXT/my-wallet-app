@@ -103,6 +103,25 @@ describe("CSV de movimientos", () => {
     ]);
   });
 
+  it("neutraliza CSV injection: una celda que empieza en = + - @ o tab se prefija con '", () => {
+    const malicious: CsvTransaction[] = [
+      {
+        date: "2026-09-29T08:35:06.000",
+        amount: 1000,
+        description: '=HYPERLINK("http://evil","click")',
+        category_emoji: "🍔",
+        tags: "",
+        payment_method: "cash",
+        paid_by: "",
+      },
+    ];
+    const csv = transactionsToCsv(malicious, helpers);
+    const line = csv.split("\n")[1];
+    // La coma interna sigue forzando comillas, con las internas dobladas como siempre;
+    // lo nuevo es el apóstrofe inicial que neutraliza la fórmula para la hoja de cálculo.
+    expect(line).toContain('"\'=HYPERLINK(""http://evil"",""click"")"');
+  });
+
   it("clave de duplicado por fecha, monto y descripción", () => {
     expect(duplicateKey({ date: "2026-09-01T12:00:00.000", amount: 5, description: " a " })).toBe(
       "2026-09-01T12:00:00|5|a",

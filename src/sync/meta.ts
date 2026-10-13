@@ -113,3 +113,21 @@ export function forgetSpace(meta: SyncMeta, spaceId: string): SyncMeta {
 export function belongsToOtherAccount(meta: SyncMeta, uid: string): boolean {
   return meta.ownerUid !== null && meta.ownerUid !== uid;
 }
+
+/**
+ * "Unir" tras un conflicto de cuentas (RF-13): si el `ownerUid` previo es de verdad otra cuenta,
+ * resetea `cursors`/`pushed`/`pushedDocs`/`pushedSpaces` antes de adoptar la cuenta nueva. Son el
+ * progreso de sync de la cuenta ANTERIOR (hasta dónde trajo, qué ya subió) — reutilizarlo tal cual
+ * deja la traída y la subida de la cuenta nueva silenciosamente incompletas: un cursor heredado
+ * puede ser más reciente que datos reales de la cuenta nueva aún sin bajar, y los ids fijos que
+ * existen en todo dispositivo (lista "personal", métodos de pago por defecto) quedan marcados
+ * como "ya subidos" sin haberse escrito nunca en la cuenta nueva. `banks` sí se conserva: es
+ * configuración del teléfono (AsyncStorage directo), no de la cuenta.
+ *
+ * Si `ownerUid` ya era este mismo uid (o nunca hubo dueño), no hay nada que resetear: se devuelve
+ * `meta` tal cual, solo con el `ownerUid` fijado.
+ */
+export function mergeIntoAccount(meta: SyncMeta, uid: string): SyncMeta {
+  const base = meta.ownerUid !== null && meta.ownerUid !== uid ? { ...emptyMeta(), banks: meta.banks } : meta;
+  return { ...base, ownerUid: uid };
+}

@@ -361,6 +361,7 @@ Toca el ícono de **lupa (🔍)** en el dock flotante. Una barra de búsqueda ap
 - La búsqueda **filtra en tiempo real** mientras escribes
 - El balance en la parte superior se actualiza para mostrar los totales de los resultados
 - El label cambia a "BÚSQUEDA · N resultados"
+- Junto a la **✗** hay un ícono de **calendario**: ábrelo para cambiar el período sin cerrar el teclado — **Rango personalizado…**, **Año**, el período actual (por su nombre, ej. "Octubre") o **Todo el tiempo**. La opción activa lleva un check
 - Para cerrar la búsqueda: toca el botón **✗** circular al final de la barra
 
 > 💡 La búsqueda funciona sobre el período y tipo actualmente seleccionados. Si estás viendo el mes actual, busca solo dentro de ese mes.
@@ -395,8 +396,8 @@ Define **cada cuánto te pagan** y **cuánto**. También se abre desde el Dashbo
 - **Frecuencia:**
   - **Semanal** — períodos de 7 días; eliges el día en que empieza la semana.
   - **Cada 2 semanas** — períodos de 14 días; eliges el día de inicio de la semana y si el período actual empezó esta semana o la pasada.
-  - **Varias veces al mes** — por ejemplo quincenal: tocas los días en que te pagan (mínimo 2, del 1 al 28); cada uno empieza un período.
-  - **Mensual** — por defecto empieza el día 1; con **"Añadir desfase de inicio de mes"** eliges otro día (del 1 al 28), por ejemplo el día que te pagan.
+  - **Varias veces al mes** — por ejemplo quincenal: tocas los días en que te pagan (mínimo 2, del 1 al 31; en un mes más corto cuenta el último día); cada uno empieza un período.
+  - **Mensual** — por defecto empieza el día 1; con **"Añadir desfase de inicio de mes"** eliges otro día (del 1 al 31), por ejemplo el día que te pagan.
   - **Todo el tiempo** — sin cortes: todo tu historial junto (el calendario navega por meses).
 - **¿Cuánto te pagan?** — el monto que recibes en cada período (en "Varias veces al mes", uno por cada día de pago). Se compara con lo que gastas en la barra del Dashboard. Si lo dejas vacío, no hay barra.
 - Arriba ves una **vista previa** con tus períodos reales según la frecuencia elegida.

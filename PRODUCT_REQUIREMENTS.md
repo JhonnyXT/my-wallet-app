@@ -37,6 +37,7 @@ La estructura es plana y directa. No hay menús de hamburguesa ni navegaciones c
 | Detalle de transacción | Hoja (`BottomSheet`) al hacer **tap** en un item: emoji, monto, categoría, tipo, cuenta, fecha, hora (12h), descripción, tags | ✅ Implementado |
 | Selector de lista ("Personal ▾") | Botón a la izquierda del header: elegir lista, Compartir (resumen en texto del período visto), Editar la activa, Nueva. Ícono de personas en las listas compartidas | ✅ Implementado |
 | Chip de cuentas | Bajo los pills, en una lista con más personas: "Ana te debe $X ›" / "Están a mano" / "N cuentas pendientes"; abre el detalle (`SettlementSheet`) | ✅ Implementado |
+| Período desde la búsqueda | Ícono de calendario en la barra de búsqueda: dropdown con Rango personalizado…, Año, el período actual y Todo el tiempo, sin cerrar el teclado hasta elegir | ✅ Implementado |
 | Deslizar el balance para traer cambios | Con sesión iniciada, sin búsqueda ni filtro de categoría: deslizar hacia abajo sobre el balance trae lo último de la nube. Anillo de progreso, vibración al poder soltar, ✓ al terminar o nube tachada sin respuesta (la sync sigue en segundo plano) | ✅ Implementado |
 | Lista agrupada por día | Cada grupo con su etiqueta ("Hoy"/"Ayer"/fecha) y el neto del día | ✅ Implementado |
 | Animación scroll de gráfica | Las barras se comprimen progresivamente al hacer scroll (Reanimated `interpolate`). Las etiquetas hacen crossfade de vertical a horizontal compacto. Gráfica y lista en scroll unificado (`FlatList` + `ListHeaderComponent`) | ✅ Implementado |

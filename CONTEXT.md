@@ -856,8 +856,9 @@ en "Cumplimiento (Fase 5)" arriba).
 
 Spec completo en `specs/gastos-recurrentes/` (requirements/brownfield-impact/design/tasks/
 test-plan). El usuario define un gasto/ingreso que se repite (arriendo, salario, suscripción) con
-cadencia semanal (día de semana) o mensual (día 1–31, acotado al mes real como `Debt.dueDay`,
-mismo helper `monthDate()`). Es la función Pro candidata que faltaba más allá de nube/espacios
+cadencia semanal (día de semana), mensual (día 1–31, acotado al mes real como `Debt.dueDay`,
+mismo helper `monthDate()`), cada 2 semanas (`biweekly`, ancla + 14 días) o dos veces al mes
+(`semimonthly`, dos días). Es la función Pro candidata que faltaba más allá de nube/espacios
 compartidos: funciona 100% local, sin necesitar sesión ni internet — por eso Pro ya no es
 sinónimo exacto de "lo que cuesta en Firebase" (ver 6d).
 
@@ -893,7 +894,11 @@ corre y no esconder el costo detrás de un efecto automático.
 **Notificaciones** (`src/services/notificationService.ts`): canal Android propio
 `recurring-expenses`; `scheduleRecurringReminder`/`cancelRecurringReminder` usan el trigger nativo
 `WEEKLY`/`MONTHLY` de `expo-notifications` (mismo patrón que `scheduleDebtReminder`, segunda vez
-que este proyecto usa un trigger programado por fecha en vez de disparo inmediato). **Gotcha de
+que este proyecto usa un trigger programado por fecha en vez de disparo inmediato). Con las
+cadencias nuevas: `reminderTriggers()` (`src/utils/recurring.ts`, pura) devuelve un `MONTHLY` por
+cada día de `semimonthly` y, para `biweekly` —sin trigger nativo—, las próximas 4 ocurrencias
+futuras como avisos de fecha fija a las 9:00 que se renuevan en cada arranque; el id de cada aviso
+es `recurring-reminder-<id>[-<posición>]` (posición 0 sin sufijo). **Gotcha de
 conversión:** el `weekday` de `RecurringCadence` es 0=domingo…6=sábado (como `Date.getDay()`), pero
 el trigger `WEEKLY` de `expo-notifications` usa 1=domingo…7=sábado — `scheduleRecurringReminder`
 suma `+1` al armar el trigger; documentado en el código, no quitar.
@@ -946,9 +951,15 @@ subido. Sigue exigiendo Pro como el resto del respaldo (`canUse("cloudBackup")`)
   migración; borrarlo dejó solo `{ updatedAt, deletedAt }` en la nube; uno escrito directo en la
   nube bajó, apareció en la lista y programó su alarma. No se probó entre dos teléfonos reales.
 
-**Fuera de alcance** (decisión de scope, ver `specs/gastos-recurrentes/requirements.md`):
-cadencias quincenal/semimensual (`expo-notifications` no tiene trigger nativo para eso) y
-reportes/promedios específicos de recurrentes.
+**Cadencias y reporte (2026-10-12).** `RecurringCadence` suma `biweekly {anchor}` y
+`semimonthly {days: [a, b]}`; `nextDueDate` las cubre y todo lo demás (cola, idempotencia,
+"Próxima") sale de ahí. `describeCadence` da el texto de la fila. El asistente (paso 3) ofrece las
+cuatro; "cada 2 semanas" pide cuál de las dos próximas fechas es la próxima (fija la fase) y
+"dos veces al mes" dos grillas de día (deben ser distintos). Promedios (`app/reports.tsx`) suma la
+tarjeta "fijos recurrentes": `summarizeFixedRecurring` lleva cada recurrente activo de la lista a
+su equivalente mensual (`occurrencesPerMonth`) y la muestra según el selector Gastos/Ingresos.
+Pendiente de verificar en dispositivo (no había teléfono conectado): crear un recurrente de cada
+cadencia nueva, ver sus alarmas en `dumpsys alarm` y la tarjeta en Promedios.
 
 ---
 
@@ -1709,7 +1720,7 @@ rosa `#DB2777` (Metas), rojo oscuro `#9F1239` (Deudas), rojo (Borrar historial),
   Deudas), `NuevoRecurrenteModal` (asistente de 3 pasos: lo básico, detalles, frecuencia; cadencia
   semanal/mensual y switch "el monto varía" en el último). Crear o reanudar exige `canUse("recurringExpenses")`;
   editar uno ya activo no. Al crear/editar/reanudar se programa
-  `scheduleRecurringReminder()` (canal `recurring-expenses`, trigger nativo `WEEKLY`/`MONTHLY`); al
+  `scheduleRecurringReminder()` (canal `recurring-expenses`, trigger nativo `WEEKLY`/`MONTHLY`, o fechas fijas para la cadencia quincenal); al
   pausar/eliminar, `cancelRecurringReminder()`.
 - **Detección automática**: sección con componente `AutoDetectSection`, ahora fusionada en una
   sola `Card` agrupada (antes cada fila era su propia tarjeta con borde, se revirtió):

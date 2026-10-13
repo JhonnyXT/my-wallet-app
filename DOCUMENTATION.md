@@ -452,8 +452,10 @@ Gestión) para abrir el panel:
 
 - **Crear recurrente:** Toca **"Nuevo recurrente"** → nombre, ícono, monto, tipo (gasto/ingreso),
   categoría, cuenta, en qué lista se registra y la **cadencia**: **semanal** (eliges el día de la
-  semana) o **mensual** (eliges el día del mes, del 1 al 31; si ese mes no tiene ese día, por
-  ejemplo el 31 en febrero, ese mes no se activa). Si el monto cambia cada vez (ej. una factura de
+  semana), **cada 2 semanas** (eliges el día y cuál de las dos próximas fechas es la próxima),
+  **mensual** (eliges el día del mes, del 1 al 31) o **dos veces al mes** (eliges dos días
+  distintos, por ejemplo el 15 y el 30). Si un mes no tiene ese día, por ejemplo el 31 en febrero,
+  se usa el último día del mes. Si el monto cambia cada vez (ej. una factura de
   servicios), activa **"El monto varía"**: así, al confirmarlo, siempre se abre el formulario para
   que edites el monto real antes de guardar.
 - **Pausar/Reanudar:** útil si sabes que ese cobro no va a aparecer por un tiempo (ej. te vas de
@@ -471,6 +473,10 @@ Gestión) para abrir el panel:
 
 > ℹ️ Crear un recurrente nuevo, o reanudar uno pausado, requiere plan **Pro** (o la prueba gratis
 > de 14 días). Editar o pausar uno que ya tienes activo no se bloquea aunque tu plan Pro termine.
+
+> 🔔 El aviso de "cada 2 semanas" se renueva cada vez que abres la app (Android no tiene un aviso
+> nativo para ese ritmo). Si pasas unas 8 semanas sin abrirla, el aviso se detiene, pero lo
+> vencido sigue apareciendo como "N recurrentes por confirmar" cuando vuelves.
 
 > ☁️ Si tienes sesión iniciada y plan Pro, tus recurrentes también se respaldan en la nube con el
 > resto de tus datos: al restaurar en otro teléfono vuelven a aparecer (y MyWallet reprograma sus
@@ -618,7 +624,8 @@ Toca el ícono de **gráfica** (📊) en el dock flotante, junto a la lupa. Se a
 2. **Tarjeta principal:** el promedio mensual general (todo tu historial, sin importar el período que tengas filtrado en el Dashboard), tu categoría con mayor promedio y cuántos meses se analizaron. A la derecha, un anillo muestra qué porción de tu promedio total corresponde a esa categoría top.
 3. **Categorías #2 y #3:** dos tarjetas con las siguientes categorías del ranking (si tienes al menos 3 categorías con datos).
 4. **Tendencia:** un gráfico de barras con el total gastado/recibido mes a mes. Toca el chip **"N meses ▾"** para elegir el rango de fechas que quieres ver en este gráfico — accesos rápidos de 3/6/12 meses, o elige un rango personalizado tocando el calendario (el rango completo entre el día de inicio y el de fin se resalta como una sola franja continua). Este es el único filtro de período de la pantalla y solo afecta esta tarjeta. El rango personalizado debe abarcar **al menos 2 meses distintos** — si eliges dos días dentro del mismo mes, el botón "Aplicar" se deshabilita (el gráfico de barras no tiene sentido con un solo mes para comparar).
-5. **Ranking de categorías:** la lista completa, de mayor a menor promedio mensual, con una barra de progreso relativa a la categoría top.
+5. **Gastos / ingresos fijos recurrentes** *(si tienes recurrentes activos en la lista)*: cuánto suman al mes tus recurrentes, con su peso frente a tu promedio mensual y los cinco más altos. Cada uno se lleva a "por mes" según su ritmo (uno semanal cuenta unas 4,3 veces al mes, uno cada 2 semanas unas 2,2, uno de dos veces al mes cuenta 2). Es un equivalente para comparar, no lo que cae en un mes puntual. Sigue el toggle Gastos/Ingresos.
+6. **Ranking de categorías:** la lista completa, de mayor a menor promedio mensual, con una barra de progreso relativa a la categoría top.
 
 > ℹ️ El promedio siempre se calcula sobre **todo tu historial** (a diferencia del resto de la app, que respeta el período que tengas filtrado en el Dashboard) — esto es intencional: un promedio recortado a "este mes" dejaría de ser un promedio útil.
 
@@ -811,7 +818,7 @@ Una vez al mes:
 | **Swipe-to-edit** | Deslizar una transacción del Dashboard hacia la **derecha** para revelar el botón azul de editar (ícono de lápiz) y abrir el formulario prellenado |
 | **Deuda** | Registro de una deuda (tarjeta de crédito, préstamo, etc.) con monto total, saldo pendiente, cuota mensual y día de pago recurrente. Se gestiona en Ajustes → Deudas |
 | **Patrimonio neto** | Saldo total menos el saldo pendiente de todas tus deudas activas. Aparece bajo el balance en el Dashboard solo si tienes deudas registradas |
-| **Recurrente** *(función Pro)* | Gasto o ingreso que se repite (arriendo, salario, suscripción) con cadencia semanal o mensual; MyWallet te avisa y lo registra con un toque (o editable, si el monto varía) cada vez que vence. Se gestiona en Ajustes → Recurrentes |
+| **Recurrente** *(función Pro)* | Gasto o ingreso que se repite (arriendo, salario, suscripción) con cadencia semanal, cada 2 semanas, mensual o dos veces al mes; MyWallet te avisa y lo registra con un toque (o editable, si el monto varía) cada vez que vence. Se gestiona en Ajustes → Recurrentes |
 | **Filtro por categoría** | Tap corto en una columna del CategoryChart filtra la lista a solo esa categoría. Se limpia con el botón Atrás del dispositivo o con un pull-down (deslizar la lista hacia abajo desde el tope) |
 | **Pull-down para limpiar filtro** | Gesto de deslizar la lista hacia abajo desde su posición inicial. NO recarga datos (no muestra spinner) — solo limpia el filtro de categoría activo |
 | **Ghost bar** | Línea fantasma punteada que aparece detrás del fill de una columna **con presupuesto** marcando el límite. Si te pasas del 100%, sigue indicando exactamente dónde estaba el presupuesto dentro de la barra excedida |

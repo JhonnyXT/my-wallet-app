@@ -435,9 +435,10 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
 - **Probado con el emulador** (ver "Probar en `dev`" más abajo): en Free un gasto nuevo NO sube a
   `users/{uid}/transactions` ni a `spaces/{id}/transactions`; al pasar a Pro, sube solo.
 - **Pendiente, no implementado todavía**: integración real con RevenueCat/Play Billing,
-  `restaurar compra`, `gestionar suscripción` (deep link a Play), entitlement verificado del lado
-  servidor, y actualizar landing/política de privacidad/`PLAY_DATA_SAFETY.md` (hoy siguen diciendo
-  "gratis para siempre, todas las funciones" — cambiar antes de publicar en Google Play).
+  `restaurar compra`, `gestionar suscripción` (deep link a Play) y entitlement verificado del lado
+  servidor. La landing, la política de privacidad y `PLAY_DATA_SAFETY.md` ya reflejan el plan
+  Free/Pro (`feb0e68`); revisarlas de nuevo antes de publicar en Google Play, por si cambia lo que
+  se cobra.
 
 ### Respaldo en la nube (Sync Fase 3)
 
@@ -574,12 +575,13 @@ unirse exigen plan Pro** (ver "Monetización" arriba); sin Pro, `spaceActions.ts
 ### Gastos/ingresos recurrentes (Pro, 2026-10-07)
 
 Un gasto/ingreso que se repite (arriendo, salario, suscripción) con cadencia semanal (día de
-semana) o mensual (día 1–31, acotado al mes real como `Debt.dueDay`, mismo helper `monthDate()`).
+semana), mensual (día 1–31, acotado al mes real como `Debt.dueDay`, mismo helper `monthDate()`),
+cada 2 semanas (`biweekly`, desde una fecha ancla) o dos veces al mes (`semimonthly`, dos días).
 100% local: no necesita sesión ni internet — es la función Pro que faltaba más allá de
 nube/espacios (ver "Monetización" arriba), distinta de esas dos porque no tiene costo en Firebase.
 
 - **Modelo** (`src/store/slices/recurringSlice.ts`, 10º slice de `useSettingsStore`,
-  `SETTINGS_VERSION` subió a 4): `RecurringExpense { id, name, emoji, amount (siempre positivo),
+  `SETTINGS_VERSION` 4, hoy 5 con el respaldo en la nube): `RecurringExpense { id, name, emoji, amount (siempre positivo),
   isExpense, categoryEmoji, paymentMethod, listId, cadence, amountVaries, active,
   lastHandledCycleKey, createdAt, updatedAt }`. `listId` queda fijo desde la creación — RF-012:
   nunca se registra en la lista activa del momento de confirmar, sino en la que tenía el
@@ -604,10 +606,24 @@ nube/espacios (ver "Monetización" arriba), distinta de esas dos porque no tiene
   confirmación/omisión en `active-expense.tsx`/`recurring-review.tsx`. Si una cola nueva de este
   tipo necesita recalcularse sola en respuesta a un cambio de store, este es el patrón a replicar
   (derivada + `recompute()` explícito), no agregar un `subscribe`.
+- **Cadencias** (`RecurringCadence`, `src/utils/recurring.ts`): `weekly {weekday}`, `monthly {day}`,
+  `biweekly {anchor "YYYY-MM-DD"}` (una ocurrencia real; de ahí cada 14 días, contados por UTC para
+  que el cambio de hora no desfase) y `semimonthly {days: [a, b]}` (dos días 1–31 ascendentes;
+  si ambos se acotan al mismo día de un mes corto, la fecha no se repite). `nextDueDate` cubre las
+  cuatro y de ahí salen cola de vencidos, idempotencia y "Próxima": no hay lógica por cadencia fuera
+  de ese archivo. Helpers puros: `upcomingOccurrences`, `occurrencesPerMonth`, `describeCadence`,
+  `reminderTriggers`, `summarizeFixedRecurring`.
 - **Notificaciones** (`notificationService.ts`): canal `recurring-expenses`,
-  `scheduleRecurringReminder`/`cancelRecurringReminder` con trigger nativo `WEEKLY`/`MONTHLY` de
-  `expo-notifications` (reutiliza el patrón de `scheduleDebtReminder`, primera vez que sirve para
-  otra entidad). **El `weekday` de la cadencia de la app es 0=domingo…6=sábado (como
+  `scheduleRecurringReminder`/`cancelRecurringReminder` (reutiliza el patrón de
+  `scheduleDebtReminder`, primera vez que sirve para otra entidad). `reminderTriggers()` decide cómo
+  avisar: `weekly` → un `WEEKLY` nativo; `monthly` → un `MONTHLY`; `semimonthly` → dos `MONTHLY`;
+  `biweekly` no tiene trigger nativo (cada 14 días no es semanal ni mensual), así que se programan
+  las próximas `REMINDER_DATE_SLOTS` (4) ocurrencias futuras como avisos de fecha fija a las 9:00 y se
+  renuevan en cada arranque (`syncRecurringReminders`): si la app no se abre en ~8 semanas el aviso
+  se detiene, pero los vencidos siguen apareciendo en el chip del Dashboard. Cada aviso lleva el
+  id `recurring-reminder-<id>[-<posición>]`; la posición 0 conserva el id sin sufijo para
+  reemplazar (no duplicar) lo programado antes de las cadencias nuevas, y `cancelRecurringReminder`
+  cancela todas las posiciones. **El `weekday` de la cadencia de la app es 0=domingo…6=sábado (como
   `Date.getDay()`), pero el trigger `WEEKLY` nativo de `expo-notifications` usa 1=domingo…7=sábado**
   — `scheduleRecurringReminder` suma `+1` al convertir; si se toca ese código, no quitar el `+1` ni
   reusarlo tal cual para otra cadencia semanal futura sin verificar el offset de esa API.
@@ -618,7 +634,9 @@ nube/espacios (ver "Monetización" arriba), distinta de esas dos porque no tiene
   (lenguaje visual de `DebtItem`: botones pausar/editar/eliminar explícitos) + `NuevoRecurrenteModal`,
   un asistente de 3 pasos dentro de la misma hoja (1 Lo básico: monto grande coloreado por
   gasto/ingreso + nombre/ícono; 2 Detalles: categoría/cuenta/lista como chips; 3 Frecuencia: tarjetas
-  mensual/semanal con radio, día en grilla inline, switch "el monto varía"), un solo botón principal
+  mensual/semanal/cada 2 semanas/dos veces al mes con radio, día en grilla inline, switch "el monto
+  varía"; "cada 2 semanas" pide además cuál de las dos próximas fechas es la próxima, que fija la fase),
+  un solo botón principal
   ("Siguiente"/"Crear") y "Atrás" en lugar de "Cancelar" desde el paso 2 (diseño minimalista, 2026-10-07).
   `app/active-expense.tsx` suma `from=recurring-detect` (monto fijo, confirma con un toque) y
   `from=recurring-edit` (monto variable, editable), ambos vía `recId` + `cycleKey` en la URL; el
@@ -644,9 +662,11 @@ nube/espacios (ver "Monetización" arriba), distinta de esas dos porque no tiene
   el recordatorio de los que cambiaron y llama `useRecurringQueueStore.recompute()`.
   `loadMeta` une `pushed` por colección: un meta guardado antes de existir una colección no la trae.
   Sigue exigiendo Pro como el resto del respaldo.
-- **Fuera de alcance** (decisión de scope, `specs/gastos-recurrentes/requirements.md`):
-  cadencias quincenal/semimensual (`expo-notifications` no tiene trigger nativo para eso) y
-  reportes/promedios específicos de recurrentes.
+- **Reporte de fijos** (`app/reports.tsx`, "Promedios"): tarjeta "Gastos/Ingresos fijos recurrentes"
+  con el equivalente mensual de los recurrentes ACTIVOS de la lista activa
+  (`summarizeFixedRecurring`: semanal ≈ 52/12 veces al mes, cada 2 semanas ≈ 26/12, dos veces al mes
+  = 2), su peso frente al promedio mensual y los 5 más altos. Sigue el selector Gastos/Ingresos y
+  se oculta si no hay ninguno. Es un equivalente para comparar, no lo que cae en un mes puntual.
 
 ### Reportes (`app/reports.tsx`, "Promedios")
 

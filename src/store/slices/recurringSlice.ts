@@ -3,10 +3,17 @@ import { localISOString } from "@/src/db/db";
 import { newId } from "@/src/utils/ids";
 import { addTombstone, type TombstonesSlice } from "./tombstonesSlice";
 
-/** Cadencias soportadas en esta fase — las que `expo-notifications` dispara nativamente. */
+/**
+ * Cadencias de un recurrente. `weekly`/`monthly` las dispara nativamente `expo-notifications`;
+ * `semimonthly` usa dos triggers `MONTHLY`; `biweekly` no tiene trigger nativo y se avisa con
+ * varias notificaciones de fecha fija que se renuevan en cada arranque (ver
+ * `scheduleRecurringReminder`).
+ */
 export type RecurringCadence =
   | { type: "weekly"; weekday: number } // 0=domingo … 6=sábado
-  | { type: "monthly"; day: number }; // 1–31, acotado al mes real (igual que Debt.dueDay)
+  | { type: "monthly"; day: number } // 1–31, acotado al mes real (igual que Debt.dueDay)
+  | { type: "biweekly"; anchor: string } // "YYYY-MM-DD": una ocurrencia real; de ahí cada 14 días
+  | { type: "semimonthly"; days: [number, number] }; // dos días del mes, 1–31, ascendentes
 
 export interface RecurringExpense {
   id: string;

@@ -64,8 +64,8 @@ import { moneyColors, useAppTokens } from "@/src/theme/tokens";
 import { hexToHue, hueToColors } from "@/src/utils/colorUtils";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
 import { KNOWN_BANKS } from "@/src/utils/notificationParser";
-import { WEEKDAY_LONG, WEEKDAY_SHORT } from "@/src/utils/periodCycles";
-import { upcomingDueDate } from "@/src/utils/recurring";
+import { WEEKDAY_SHORT } from "@/src/utils/periodCycles";
+import { cycleKeyOf, describeCadence, nextDueDate, upcomingDueDate } from "@/src/utils/recurring";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
@@ -2043,9 +2043,13 @@ function NuevoRecurrenteModal({
   const [categoryEmoji, setCategoryEmoji] = useState("");
   const [paymentMethod, setPaymentMethod] = useState(paymentMethods[0]?.id ?? "cash");
   const [listId, setListId] = useState(activeListId);
-  const [cadenceType, setCadenceType] = useState<"monthly" | "weekly">("monthly");
+  const [cadenceType, setCadenceType] = useState<RecurringCadence["type"]>("monthly");
   const [day, setDay] = useState(1);
   const [weekday, setWeekday] = useState(1);
+  // Dos veces al mes: los dos días. Cada 2 semanas: cuál de las dos fechas candidatas es la próxima.
+  const [dayA, setDayA] = useState(15);
+  const [dayB, setDayB] = useState(30);
+  const [startWeek, setStartWeek] = useState<0 | 1>(0);
   const [amountVaries, setAmountVaries] = useState(false);
 
   useEffect(() => {
@@ -2061,6 +2065,9 @@ function NuevoRecurrenteModal({
       setCadenceType("monthly");
       setDay(1);
       setWeekday(1);
+      setDayA(15);
+      setDayB(30);
+      setStartWeek(0);
       setAmountVaries(false);
     } else if (editTarget) {
       resetIcon(editTarget.emoji, true);
@@ -2070,9 +2077,20 @@ function NuevoRecurrenteModal({
       setCategoryEmoji(editTarget.categoryEmoji);
       setPaymentMethod(editTarget.paymentMethod);
       setListId(editTarget.listId);
-      setCadenceType(editTarget.cadence.type);
-      setDay(editTarget.cadence.type === "monthly" ? editTarget.cadence.day : 1);
-      setWeekday(editTarget.cadence.type === "weekly" ? editTarget.cadence.weekday : 1);
+      const c = editTarget.cadence;
+      setCadenceType(c.type);
+      setDay(c.type === "monthly" ? c.day : 1);
+      setDayA(c.type === "semimonthly" ? c.days[0] : 15);
+      setDayB(c.type === "semimonthly" ? c.days[1] : 30);
+      if (c.type === "weekly") setWeekday(c.weekday);
+      else if (c.type === "biweekly") {
+        // Conserva la "fase": la próxima ocurrencia real es la primera o la segunda fecha candidata.
+        const now = new Date();
+        const next = nextDueDate(c, now);
+        setWeekday(next.getDay());
+        const firstOfWeekday = nextDueDate({ type: "weekly", weekday: next.getDay() }, now);
+        setStartWeek(cycleKeyOf(next) === cycleKeyOf(firstOfWeekday) ? 0 : 1);
+      } else setWeekday(1);
       setAmountVaries(editTarget.amountVaries);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2089,13 +2107,29 @@ function NuevoRecurrenteModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, isExpense, userCategories]);
 
-  const cadence: RecurringCadence = useMemo(
-    () => (cadenceType === "monthly" ? { type: "monthly", day } : { type: "weekly", weekday }),
-    [cadenceType, day, weekday],
-  );
+  // Cada 2 semanas: las dos próximas fechas de ese día de la semana (la fase la elige el usuario).
+  const startDates = useMemo(() => {
+    const first = nextDueDate({ type: "weekly", weekday }, new Date());
+    return [first, new Date(first.getFullYear(), first.getMonth(), first.getDate() + 7)];
+  }, [weekday]);
+
+  const cadence: RecurringCadence = useMemo(() => {
+    switch (cadenceType) {
+      case "weekly":
+        return { type: "weekly", weekday };
+      case "biweekly":
+        return { type: "biweekly", anchor: cycleKeyOf(startDates[startWeek]) };
+      case "semimonthly":
+        return { type: "semimonthly", days: dayA < dayB ? [dayA, dayB] : [dayB, dayA] };
+      default:
+        return { type: "monthly", day };
+    }
+  }, [cadenceType, day, weekday, dayA, dayB, startDates, startWeek]);
 
   const hasBasics = name.trim().length > 0 && amountDisplay.replace(/\D/g, "").length > 0;
-  const canContinue = step === 0 ? hasBasics : step === 1 ? !!categoryEmoji : true;
+  const sameSemimonthlyDays = cadenceType === "semimonthly" && dayA === dayB;
+  const canContinue =
+    step === 0 ? hasBasics : step === 1 ? !!categoryEmoji : !sameSemimonthlyDays;
   const isLastStep = step === RECURRING_STEP_TITLES.length - 1;
 
   const handleCreate = () => {
@@ -2329,13 +2363,64 @@ function NuevoRecurrenteModal({
                 selected={cadenceType === "weekly"}
                 onPress={() => setCadenceType("weekly")}
               />
+              <RecurringOption
+                label="Cada 2 semanas"
+                hint="Un día fijo, de 14 en 14 días"
+                selected={cadenceType === "biweekly"}
+                onPress={() => setCadenceType("biweekly")}
+              />
+              <RecurringOption
+                label="Dos veces al mes"
+                hint="Por ejemplo el 15 y el 30"
+                selected={cadenceType === "semimonthly"}
+                onPress={() => setCadenceType("semimonthly")}
+              />
             </View>
 
-            <SheetLabel>{cadenceType === "monthly" ? "Día del mes" : "Día de la semana"}</SheetLabel>
-            {cadenceType === "monthly" ? (
-              <MonthDayGrid selected={day} onSelect={setDay} />
-            ) : (
-              <WeekdayPicker selected={weekday} onSelect={setWeekday} />
+            {cadenceType === "monthly" && (
+              <>
+                <SheetLabel>Día del mes</SheetLabel>
+                <MonthDayGrid selected={day} onSelect={setDay} />
+              </>
+            )}
+            {(cadenceType === "weekly" || cadenceType === "biweekly") && (
+              <>
+                <SheetLabel>Día de la semana</SheetLabel>
+                <WeekdayPicker selected={weekday} onSelect={setWeekday} />
+              </>
+            )}
+            {cadenceType === "biweekly" && (
+              <>
+                <SheetLabel>¿Cuándo es la próxima?</SheetLabel>
+                <RecurringChipWrap>
+                  {startDates.map((date, i) => (
+                    <RecurringChip
+                      key={cycleKeyOf(date)}
+                      emoji="📅"
+                      label={date.toLocaleDateString("es-CO", {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                      })}
+                      selected={startWeek === i}
+                      onPress={() => setStartWeek(i as 0 | 1)}
+                    />
+                  ))}
+                </RecurringChipWrap>
+              </>
+            )}
+            {cadenceType === "semimonthly" && (
+              <>
+                <SheetLabel>Primer día del mes</SheetLabel>
+                <MonthDayGrid selected={dayA} onSelect={setDayA} />
+                <SheetLabel>Segundo día del mes</SheetLabel>
+                <MonthDayGrid selected={dayB} onSelect={setDayB} />
+                {sameSemimonthlyDays && (
+                  <ThemedText variant="footnote" style={{ marginTop: 8, color: moneyColors.expense.text }}>
+                    Elige dos días distintos.
+                  </ThemedText>
+                )}
+              </>
             )}
 
             <View
@@ -2387,10 +2472,7 @@ function RecurringItem({
     `$${Math.round(v)
       .toString()
       .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
-  const cadenceLabel =
-    recurring.cadence.type === "monthly"
-      ? `Cada mes, día ${recurring.cadence.day}`
-      : `Cada ${WEEKDAY_LONG[recurring.cadence.weekday]}`;
+  const cadenceLabel = describeCadence(recurring.cadence);
   const now = new Date();
   const next = upcomingDueDate(recurring, now);
   const nextLabel = !recurring.active

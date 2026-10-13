@@ -9,6 +9,7 @@ import { DEFAULT_LIST_ID } from "@/src/constants/lists";
 import { formatCOP } from "@/src/utils/formatMoney";
 import { budgetCycle, cycleKey } from "@/src/utils/periodCycles";
 import { shortenDescription } from "@/src/utils/notificationParser/descriptionExtractor";
+import { REMINDER_DATE_SLOTS, reminderTriggers } from "@/src/utils/recurring";
 
 // Configura cómo se muestran las notificaciones cuando la app está en primer plano
 // shouldShowAlert: false → no muestra el banner in-app; solo la bandeja del sistema
@@ -365,17 +366,27 @@ export async function notifyDebtPaidOff(debtName: string, debtEmoji: string): Pr
 
 // ─── Gastos/ingresos recurrentes (Pro) ─────────────────────────────────────────
 
-/** Identificador estable por recurrente — permite cancelar/reprogramar sin acumular duplicados. */
-function recurringReminderId(recurringId: string): string {
-  return `recurring-reminder-${recurringId}`;
+/**
+ * Identificador estable por recurrente y posición del aviso (una cadencia puede programar varios:
+ * dos triggers mensuales, o varias fechas). La posición 0 conserva el id sin sufijo, así los
+ * recordatorios ya programados antes de las cadencias nuevas se reemplazan en vez de duplicarse.
+ */
+function recurringReminderId(recurringId: string, slot = 0): string {
+  return slot === 0
+    ? `recurring-reminder-${recurringId}`
+    : `recurring-reminder-${recurringId}-${slot}`;
 }
 
+/** Posiciones a cancelar: el máximo de triggers que programa cualquier cadencia. */
+const RECURRING_REMINDER_SLOTS = Math.max(REMINDER_DATE_SLOTS, 2);
+
 /**
- * Programa (o reprograma) el recordatorio de un recurrente con un trigger nativo `WEEKLY`/
- * `MONTHLY` (AlarmManager vía expo-notifications) — no depende de que la app esté corriendo.
- * `cadence.weekday` sigue la convención de la app (0=domingo…6=sábado, igual que `Date.getDay()`);
- * el trigger `WEEKLY` de expo-notifications usa 1=domingo…7=sábado, de ahí el `+ 1`.
- * Al tocar la notificación, el sistema abre la app con `data: { screen: "recurring-review" }`.
+ * Programa (o reprograma) el recordatorio de un recurrente (9:00, hora local). Los triggers nativos
+ * (`WEEKLY`/`MONTHLY`, AlarmManager vía expo-notifications) no dependen de que la app esté
+ * corriendo; la cadencia quincenal usa fechas puntuales que se renuevan en cada arranque (ver
+ * `reminderTriggers`). `weekday` sigue la convención de la app (0=domingo…6=sábado, igual que
+ * `Date.getDay()`); el trigger `WEEKLY` de expo-notifications usa 1=domingo…7=sábado, de ahí el
+ * `+ 1`. Al tocar la notificación, el sistema abre la app con `data: { screen: "recurring-review" }`.
  * Llamar tras crear/editar/reanudar un recurrente; `cancelRecurringReminder` tras pausarlo o
  * borrarlo (ver `app/settings.tsx`, que es quien orquesta esto — el slice no llama notificaciones).
  */
@@ -386,30 +397,35 @@ export async function scheduleRecurringReminder(recurring: RecurringExpense): Pr
     await cancelRecurringReminder(recurring.id);
     const amtStr = formatCOP(recurring.amount);
     const label = recurring.isExpense ? "por vencer" : "por recibir";
-    await Notifications.scheduleNotificationAsync({
-      identifier: recurringReminderId(recurring.id),
-      content: {
-        title: `"${recurring.name}" ${label}`,
-        body: `${amtStr} · Toca para confirmar`,
-        sound: true,
-        data: { screen: "recurring-review", recurringId: recurring.id },
-        ...(Platform.OS === "android" && { channelId: CHANNEL_RECURRING }),
-      },
-      trigger:
-        recurring.cadence.type === "weekly"
-          ? {
-              type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-              weekday: recurring.cadence.weekday + 1,
-              hour: 9,
-              minute: 0,
-            }
-          : {
-              type: Notifications.SchedulableTriggerInputTypes.MONTHLY,
-              day: recurring.cadence.day,
-              hour: 9,
-              minute: 0,
-            },
-    });
+    const triggers = reminderTriggers(recurring.cadence, new Date());
+    for (const [slot, t] of triggers.entries()) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: recurringReminderId(recurring.id, slot),
+        content: {
+          title: `"${recurring.name}" ${label}`,
+          body: `${amtStr} · Toca para confirmar`,
+          sound: true,
+          data: { screen: "recurring-review", recurringId: recurring.id },
+          ...(Platform.OS === "android" && { channelId: CHANNEL_RECURRING }),
+        },
+        trigger:
+          t.kind === "weekly"
+            ? {
+                type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+                weekday: t.weekday + 1,
+                hour: 9,
+                minute: 0,
+              }
+            : t.kind === "monthly"
+              ? {
+                  type: Notifications.SchedulableTriggerInputTypes.MONTHLY,
+                  day: t.day,
+                  hour: 9,
+                  minute: 0,
+                }
+              : { type: Notifications.SchedulableTriggerInputTypes.DATE, date: t.date },
+      });
+    }
   } catch (e) {
     if (__DEV__) console.error("[scheduleRecurringReminder] error:", e);
   }
@@ -429,9 +445,11 @@ export async function syncRecurringReminders(): Promise<void> {
 }
 
 export async function cancelRecurringReminder(recurringId: string): Promise<void> {
-  try {
-    await Notifications.cancelScheduledNotificationAsync(recurringReminderId(recurringId));
-  } catch {
-    // No había recordatorio programado — nada que cancelar.
+  for (let slot = 0; slot < RECURRING_REMINDER_SLOTS; slot++) {
+    try {
+      await Notifications.cancelScheduledNotificationAsync(recurringReminderId(recurringId, slot));
+    } catch {
+      // No había recordatorio en esta posición — nada que cancelar.
+    }
   }
 }

@@ -4,6 +4,7 @@ import {
   emptyMeta,
   forgetSpace,
   markPushed,
+  mergeIntoAccount,
   needsPush,
   pendingItems,
   spaceCursorKey,
@@ -74,6 +75,38 @@ describe("belongsToOtherAccount", () => {
     expect(belongsToOtherAccount(emptyMeta(), "a")).toBe(false);
     expect(belongsToOtherAccount({ ...emptyMeta(), ownerUid: "a" }, "a")).toBe(false);
     expect(belongsToOtherAccount({ ...emptyMeta(), ownerUid: "a" }, "b")).toBe(true);
+  });
+});
+
+describe("mergeIntoAccount", () => {
+  it("cuenta de verdad distinta: resetea todo menos banks", () => {
+    const prev = {
+      ...markPushed(emptyMeta(), "lists", { personal: 10 }),
+      ownerUid: "cuenta-a",
+      cursors: { transactions: 999, lists: 500 },
+      pushedDocs: { profile: 5 },
+      pushedSpaces: { s1: 3 },
+      banks: { value: ["nequi"], updatedAt: 1 },
+      lastSyncAt: 123,
+    };
+    const out = mergeIntoAccount(prev, "cuenta-b");
+    expect(out.ownerUid).toBe("cuenta-b");
+    expect(out.cursors).toEqual({});
+    expect(out.pushed.lists).toEqual({});
+    expect(out.pushedDocs).toEqual({});
+    expect(out.pushedSpaces).toEqual({});
+    // banks es del teléfono (AsyncStorage directo), no de la cuenta: se conserva.
+    expect(out.banks).toEqual({ value: ["nequi"], updatedAt: 1 });
+  });
+
+  it("sin dueño previo (dispositivo nuevo): no hay nada que resetear", () => {
+    const out = mergeIntoAccount(emptyMeta(), "cuenta-b");
+    expect(out).toEqual({ ...emptyMeta(), ownerUid: "cuenta-b" });
+  });
+
+  it("mismo dueño de antes (re-login de la misma cuenta): conserva todo el progreso", () => {
+    const prev = advanceCursor({ ...emptyMeta(), ownerUid: "cuenta-a" }, "transactions", 999);
+    expect(mergeIntoAccount(prev, "cuenta-a")).toEqual(prev);
   });
 });
 

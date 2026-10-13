@@ -62,9 +62,9 @@ import { keepLocalShared, mergeCollection, remoteDocWins, transactionsToApply } 
 import {
   advanceCursor,
   belongsToOtherAccount,
-  emptyMeta,
   forgetSpace,
   markPushed,
+  mergeIntoAccount,
   needsPush,
   pendingItems,
   trackBanks,
@@ -614,16 +614,9 @@ export async function wipeLocalData(): Promise<void> {
 }
 
 /**
- * Los datos del teléfono son de otra cuenta (RF-13): "merge" los une con la actual; "replace"
- * los borra del teléfono (solo sin pendientes) y trae los de la actual.
- *
- * "merge" resetea cursors/pushed/pushedDocs/pushedSpaces antes de guardar el ownerUid nuevo: son
- * el progreso de sync de la cuenta ANTERIOR (hasta dónde trajo, qué ya subió), y reutilizarlo tal
- * cual con la cuenta nueva deja la traída y la subida silenciosamente incompletas — un cursor
- * heredado puede ser más reciente que datos reales de la cuenta nueva aún sin bajar, y los ids
- * fijos que existen en todo dispositivo (lista "personal", métodos de pago por defecto) quedan
- * marcados como "ya subidos" sin haberse escrito nunca en la cuenta nueva. `banks` sí se conserva:
- * es configuración del teléfono, no de la cuenta.
+ * Los datos del teléfono son de otra cuenta (RF-13): "merge" los une con la actual (ver
+ * `mergeIntoAccount`, que resetea el progreso de sync de la cuenta anterior); "replace" los borra
+ * del teléfono (solo sin pendientes) y trae los de la actual.
  */
 export async function resolveAccountConflict(choice: "merge" | "replace"): Promise<void> {
   const uid = currentUid();
@@ -631,9 +624,7 @@ export async function resolveAccountConflict(choice: "merge" | "replace"): Promi
   if (choice === "replace") {
     await wipeLocalData();
   } else {
-    const prev = await loadMeta();
-    const reset = prev.ownerUid !== uid ? { ...emptyMeta(), banks: prev.banks } : prev;
-    await saveMeta({ ...reset, ownerUid: uid });
+    await saveMeta(mergeIntoAccount(await loadMeta(), uid));
   }
   await syncNow();
 }

@@ -1,5 +1,6 @@
 import type { Dictionary, Locale } from '@/i18n/config';
-import { WaitlistCta } from '../WaitlistCta';
+import { DownloadCta } from '../DownloadCta';
+import { waitlistHref } from '../WaitlistCta';
 
 export function FinalCta({ t, locale }: { t: Dictionary; locale: Locale }) {
   return (
@@ -10,7 +11,14 @@ export function FinalCta({ t, locale }: { t: Dictionary; locale: Locale }) {
           <br />
           <span className="text-mute">{t.cta.titleB}</span>
         </h2>
-        <WaitlistCta t={t.waitlist} locale={locale} note={t.cta.note} />
+        <DownloadCta t={t.download} className="gap-3" />
+        <p className="text-xs text-faint sm:text-[13px]">{t.cta.note}</p>
+        <p className="text-xs text-faint sm:text-[13px]">
+          {t.waitlist.label}{' '}
+          <a href={waitlistHref(locale)} className="text-dim underline hover:text-ink">
+            {t.waitlist.submit}
+          </a>
+        </p>
       </div>
     </section>
   );

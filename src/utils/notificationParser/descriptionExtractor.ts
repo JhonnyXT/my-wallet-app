@@ -1,19 +1,32 @@
 import { formatCOP } from "@/src/utils/formatMoney";
 
 /**
+ * Quita de un texto cualquier referencia a dígitos de tarjeta/cuenta ("con tu tarjeta débito
+ * terminada en 1234", "cuenta terminada en 5678"), sin tocar el resto del texto (montos, fechas,
+ * nombre del banco). A diferencia de `extractDescription`, NO es para mostrar: es la limpieza
+ * mínima que debe aplicarse a CUALQUIER copia del texto crudo que se vaya a persistir —incluidos
+ * los campos de debugging `rawTitle`/`rawText` de `ParsedTransaction`— para cumplir la Regla
+ * inmutable #6 ("nunca almacenar números de cuenta/tarjeta, ni en el dispositivo ni en la nube")
+ * también en esos campos, no solo en `description`.
+ */
+export function redactCardDigits(text: string): string {
+  return text
+    .replace(/,?\s*con (tu|su) tarjeta[^.]*/gi, "")
+    .replace(/(terminada|terminado|finalizada) en\s*[*\d]+/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/**
  * Extrae una descripción limpia del texto de la notificación.
  * Elimina: montos, saldos, fechas, "Bancolombia le informa", etc.
  */
 export function extractDescription(text: string, bankName: string): string {
-  let clean = text
+  let clean = redactCardDigits(text)
     // Eliminar prefijos genéricos de bancos
     .replace(/bancolombia le informa/i, "")
     .replace(/su (cuenta|tarjeta) (fue |ha sido )?/i, "")
     .replace(/transacci[oó]n (aprobada|rechazada|exitosa)?/i, "")
-    // Eliminar la referencia a la tarjeta ("con tu tarjeta débito terminada en 1234"):
-    // no aporta a la descripción y guardaría dígitos de la tarjeta (Regla inmutable #6)
-    .replace(/,?\s*con (tu|su) tarjeta[^.]*/gi, "")
-    .replace(/(terminada|terminado|finalizada) en\s*[*\d]+/gi, "")
     // Eliminar monto + contexto de saldo
     .replace(/\$[\d.,]+/g, "")
     .replace(/saldo[\s:]*[\d.,]+/gi, "")

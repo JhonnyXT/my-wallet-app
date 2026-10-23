@@ -96,10 +96,18 @@ export default function ActiveExpenseScreen() {
   }>();
   const fromBatchReview = from === "batch-review";
   const fromNotificationEdit = from === "notification-edit";
+  const pendingNotificationItems = useNotificationStore((s) => s.pendingItems);
   // Vino directo de tocar la notificación bancaria (un solo item pendiente, sin pasar
   // por la lista de revisión) — a diferencia de notification-edit, acá SÍ hay que
   // guardar en la base de datos de una (ver handleConfirm) y sacar el item de la cola.
-  const fromNotificationDetect = from === "notification-detect";
+  // Exige que notifId corresponda a un ítem REAL todavía pendiente: así una navegación a esta
+  // pantalla que no vino de tocar la notificación real (ej. un deep link `mywalletapp://` con un
+  // notifId inventado, lanzado por otra app del dispositivo) no activa el guardado directo ni el
+  // resto del comportamiento de este modo — cae al flujo normal de gasto/ingreso manual.
+  const fromNotificationDetect =
+    from === "notification-detect" &&
+    !!notifId &&
+    pendingNotificationItems.some((i) => i.id === notifId);
   const editingId = editId ? Number(editId) : null;
   const isEditMode = editingId !== null;
   const setPendingManualItem = useVoiceStore((s) => s.setPendingManualItem);

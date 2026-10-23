@@ -41,7 +41,11 @@ export interface ParsedCsvRow {
 }
 
 function escapeCell(value: string): string {
-  return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  // Evita CSV injection: si el valor empieza con un carácter que Excel/Sheets interpreta
+  // como inicio de fórmula (=,+,-,@ o tab), se prefija con un apóstrofe inocuo para la
+  // re-importación (splitCsv no depende de él) pero que fuerza texto plano en la hoja.
+  const safe = /^[=+\-@\t]/.test(value) ? `'${value}` : value;
+  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
 function parseTags(raw: string): string[] {

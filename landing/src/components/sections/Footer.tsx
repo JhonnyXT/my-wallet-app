@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { Dictionary, Locale } from '@/i18n/config';
 import { SUPPORT_EMAIL } from '@/lib/links';
+import { MadeByJoblan } from '../MadeByJoblan';
 
 export function Footer({ t, locale }: { t: Dictionary['footer']; locale: Locale }) {
   return (
@@ -20,6 +21,7 @@ export function Footer({ t, locale }: { t: Dictionary['footer']; locale: Locale 
         </a>
       </nav>
       <span className="text-xs text-faint">{t.rights}</span>
+      <MadeByJoblan label={t.madeBy} locale={locale} />
     </footer>
   );
 }

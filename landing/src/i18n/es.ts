@@ -40,7 +40,7 @@ export const es = {
     title1: 'Tu dinero,',
     title2: 'bajo control.',
     subtitle:
-      'Anota cada gasto en segundos: a mano, dictándolo o desde la notificación de tu banco. Ya puedes probarla de verdad: descarga el APK, o pruébala primero aquí abajo con datos de ejemplo.',
+      'Anota cada gasto en segundos: a mano, dictándolo o desde la notificación de tu banco. Ya puedes probarla de verdad: descarga el APK, o juega primero con la demo interactiva aquí abajo.',
     finePrint: 'Beta para Android · Gratis · Próximamente en Google Play',
     privacyLink: 'Así cuidamos tus datos',
   },
@@ -254,6 +254,7 @@ export const es = {
     deleteAccount: 'Eliminar cuenta',
     support: 'Soporte',
     rights: '© 2026 MyWallet',
+    madeBy: 'Hecho por',
   },
 };
 

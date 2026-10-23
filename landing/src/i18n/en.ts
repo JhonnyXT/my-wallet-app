@@ -40,7 +40,7 @@ export const en: Dictionary = {
     title1: 'Your money,',
     title2: 'under control.',
     subtitle:
-      'Log every expense in seconds: by hand, by voice or from your bank’s notification. You can try it for real now: download the APK, or try the demo below first with sample data.',
+      'Log every expense in seconds: by hand, by voice or from your bank’s notification. You can try it for real now: download the APK, or play with the interactive demo below first.',
     finePrint: 'Android beta · Free · Coming soon to Google Play',
     privacyLink: 'How we handle your data',
   },
@@ -254,5 +254,6 @@ export const en: Dictionary = {
     deleteAccount: 'Delete account',
     support: 'Support',
     rights: '© 2026 MyWallet',
+    madeBy: 'Made by',
   },
 };

@@ -52,7 +52,7 @@ npm run lint
   cambia, volver a verificarlas.
 - **Lista de espera**: vive en **joblan** (`joblan/joblan-web`). Los botones
   (`src/components/WaitlistCta.tsx`) llevan a
-  `joblanstudio.vercel.app/<idioma>?app=mywallet#avisame`, que llega con la app ya
+  `joblanstudio.com/<idioma>?app=mywallet#avisame`, que llega con la app ya
   elegida y guarda en el mismo segmento (`MyWallet — Waitlist`) y topic
   (`MyWallet — Lanzamiento`) de Resend de siempre. Aquí solo queda la baja:
   `/api/unsubscribe` → `unsubscribeEmail` en `src/lib/waitlist.ts` (`opt_out`

@@ -1,7 +1,7 @@
 import { Download } from 'lucide-react';
 import type { Dictionary } from '@/i18n/config';
 
-// Mismo enlace que usa joblanstudio.vercel.app en `content/labs.ts`: siempre el último release de
+// Mismo enlace que usa joblanstudio.com en `content/labs.ts`: siempre el último release de
 // GitHub, así que apuntar aquí no exige tocar esta landing cada vez que se publique una versión
 // nueva (ver AGENTS.md → "Release del APK en GitHub").
 export const APK_DOWNLOAD_URL = 'https://github.com/JhonnyXT/my-wallet-app/releases/latest/download/MyWallet.apk';

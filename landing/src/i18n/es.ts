@@ -15,18 +15,13 @@ export const es = {
     demo: 'Pruébala',
     features: 'Funciones',
     privacy: 'Privacidad',
-    download: 'Descargar APK',
+    notify: 'Avísame',
   },
   legal: {
     back: 'Volver',
   },
-  download: {
-    label: 'Pruébala ahora, es la beta real',
-    cta: 'Descargar APK',
-    hint: 'Para Android · Beta de pruebas, aún no está en Google Play',
-  },
   waitlist: {
-    label: '¿Prefieres esperar a que llegue a Google Play?',
+    label: 'Avísame cuando MyWallet llegue a Google Play',
     submit: 'Avísame',
   },
   unsubscribe: {
@@ -40,8 +35,8 @@ export const es = {
     title1: 'Tu dinero,',
     title2: 'bajo control.',
     subtitle:
-      'Anota cada gasto en segundos: a mano, dictándolo o desde la notificación de tu banco. Ya puedes probarla de verdad: descarga el APK, o juega primero con la demo interactiva aquí abajo.',
-    finePrint: 'Beta para Android · Gratis · Próximamente en Google Play',
+      'Anota cada gasto en segundos: a mano, dictándolo o desde la notificación de tu banco. Pruébala aquí abajo con la demo interactiva, o anótate para que te avisemos en cuanto llegue a Google Play.',
+    finePrint: 'Próximamente en Google Play · Gratis · Solo un email, nada de spam',
     privacyLink: 'Así cuidamos tus datos',
   },
   demo: {
@@ -245,9 +240,9 @@ export const es = {
     },
   },
   cta: {
-    titleA: 'Pruébala ya.',
-    titleB: 'Es la beta real, para Android.',
-    note: 'Para Android 7 o superior. Al instalar, Android pedirá permitir "fuentes desconocidas" (no viene de Google Play todavía).',
+    titleA: 'Sé de los primeros.',
+    titleB: 'Te avisamos el día del lanzamiento.',
+    note: 'Para Android 7 o superior. Solo usamos tu email para avisarte del lanzamiento.',
   },
   footer: {
     privacy: 'Política de privacidad',

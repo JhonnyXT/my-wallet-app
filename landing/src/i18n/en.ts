@@ -15,18 +15,13 @@ export const en: Dictionary = {
     demo: 'Try it',
     features: 'Features',
     privacy: 'Privacy',
-    download: 'Download APK',
+    notify: 'Notify me',
   },
   legal: {
     back: 'Back',
   },
-  download: {
-    label: 'Try it now, it’s the real beta',
-    cta: 'Download APK',
-    hint: 'For Android · Beta build, not on Google Play yet',
-  },
   waitlist: {
-    label: 'Prefer to wait until it’s on Google Play?',
+    label: 'Let me know when MyWallet is on Google Play',
     submit: 'Notify me',
   },
   unsubscribe: {
@@ -40,8 +35,8 @@ export const en: Dictionary = {
     title1: 'Your money,',
     title2: 'under control.',
     subtitle:
-      'Log every expense in seconds: by hand, by voice or from your bank’s notification. You can try it for real now: download the APK, or play with the interactive demo below first.',
-    finePrint: 'Android beta · Free · Coming soon to Google Play',
+      'Log every expense in seconds: by hand, by voice or from your bank’s notification. Try it below with the interactive demo, or sign up and we’ll let you know the moment it’s on Google Play.',
+    finePrint: 'Coming soon to Google Play · Free · Just your email, no spam',
     privacyLink: 'How we handle your data',
   },
   demo: {
@@ -245,9 +240,9 @@ export const en: Dictionary = {
     },
   },
   cta: {
-    titleA: 'Try it now.',
-    titleB: 'It’s the real beta, for Android.',
-    note: 'For Android 7 or later. Android will ask you to allow "unknown sources" — it doesn’t come from Google Play yet.',
+    titleA: 'Be among the first.',
+    titleB: 'We’ll let you know on launch day.',
+    note: 'For Android 7 or later. We only use your email to tell you about the launch.',
   },
   footer: {
     privacy: 'Privacy policy',

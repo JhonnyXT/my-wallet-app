@@ -20,7 +20,7 @@ export function WaitlistCta({
   className?: string;
 }) {
   return (
-    <div className={`flex w-full max-w-[480px] flex-col items-center gap-2.5 ${className}`}>
+    <div className={`flex w-full max-w-[480px] flex-col items-center gap-4 ${className}`}>
       <p className="text-[13px] font-semibold text-dim">{t.label}</p>
       <a
         href={waitlistHref(locale)}

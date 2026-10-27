@@ -1,9 +1,8 @@
 import Image from 'next/image';
 import type { Dictionary, Locale } from '@/i18n/config';
-import { APK_DOWNLOAD_URL } from './DownloadCta';
 import { LangToggle } from './LangToggle';
 
-/** Barra superior fija: logo, accesos a las secciones clave, idioma y "Descargar APK". */
+/** Barra superior fija: logo, accesos a las secciones clave, idioma y "Avísame". */
 export function Header({ t, locale }: { t: Dictionary['nav']; locale: Locale }) {
   const link = 'hidden text-sm font-semibold text-dim transition-colors hover:text-ink md:inline';
   return (
@@ -25,10 +24,10 @@ export function Header({ t, locale }: { t: Dictionary['nav']; locale: Locale }) 
           </a>
           <LangToggle current={locale} label={t.language} />
           <a
-            href={APK_DOWNLOAD_URL}
+            href="#avisame"
             className="flex h-10 items-center rounded-full bg-btn px-4 text-sm font-bold text-white transition-colors hover:bg-btn-hover"
           >
-            {t.download}
+            {t.notify}
           </a>
         </nav>
       </div>

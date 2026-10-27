@@ -7,6 +7,15 @@
 import { ALL_PRESETS, type UserCategory } from './app/categoryPresets';
 import { fuzzyIncludes } from './app/fuzzyMatch';
 
+/** Listas de la demo (réplica acotada de "Listas y gasto compartido"): el
+ * selector del Dashboard cambia entre Personal y una lista de ejemplo. Sin
+ * miembros ni "quién pagó" — eso queda fuera de la demo. */
+export type ListId = 'personal' | 'viaje';
+export const LISTS: { id: ListId; name: string; emoji: string }[] = [
+  { id: 'personal', name: 'Personal', emoji: '👤' },
+  { id: 'viaje', name: 'Viaje a Cartagena', emoji: '✈️' },
+];
+
 /** Movimiento con la convención de la app: `amount > 0` gasto, `< 0` ingreso;
  * la categoría se identifica por su emoji. `date` es hora local ISO. */
 export type DemoTx = {
@@ -17,6 +26,7 @@ export type DemoTx = {
   date: string;
   account: string;
   tags: string[];
+  list: ListId;
 };
 
 /** "Hoy" de la demo: fijo, para que los datos siempre cuadren. */
@@ -46,10 +56,20 @@ const PICKED = [
 ];
 export const USER_CATEGORIES: UserCategory[] = PICKED.map((id) => ALL_PRESETS.find((c) => c.id === id)!);
 
-export const expenseCategories = () => USER_CATEGORIES.filter((c) => c.type === 'expense');
-export const incomeCategories = () => USER_CATEGORIES.filter((c) => c.type === 'income');
+// Categorías propias de "Viaje a Cartagena" (una lista nueva trae las suyas,
+// no hereda las de Personal — igual que en la app real).
+const TRIP_PICKED = ['preset_travel', 'preset_food', 'preset_transport'];
+export const TRIP_CATEGORIES: UserCategory[] = TRIP_PICKED.map((id) => ALL_PRESETS.find((c) => c.id === id)!);
 
-export const catByEmoji = (emoji: string) => USER_CATEGORIES.find((c) => c.emoji === emoji);
+const LOOKUP_CATEGORIES: UserCategory[] = [...USER_CATEGORIES, ...TRIP_CATEGORIES.filter((c) => !USER_CATEGORIES.some((u) => u.emoji === c.emoji))];
+
+export function categoriesForList(list: ListId): UserCategory[] {
+  return list === 'viaje' ? TRIP_CATEGORIES : USER_CATEGORIES;
+}
+export const expenseCategories = (list: ListId = 'personal') => categoriesForList(list).filter((c) => c.type === 'expense');
+export const incomeCategories = (list: ListId = 'personal') => categoriesForList(list).filter((c) => c.type === 'income');
+
+export const catByEmoji = (emoji: string) => LOOKUP_CATEGORIES.find((c) => c.emoji === emoji);
 
 /** `resolveCategoryName()` de `TransactionItem.tsx`: sin categoría del usuario, "General". */
 export function categoryName(emoji: string): string {
@@ -137,22 +157,54 @@ function history(): Seed[] {
   return out;
 }
 
-export const SEED: DemoTx[] = [...SEPTEMBER, ...history()]
+const PERSONAL_SEED: DemoTx[] = [...SEPTEMBER, ...history()]
   .sort((x, y) => (x[1] < y[1] ? 1 : -1))
-  .map(([emoji, date, description, amount, account = 'cash', tags = []], i) => ({ id: i + 1, emoji, date, description, amount, account, tags }));
+  .map(([emoji, date, description, amount, account = 'cash', tags = []], i) => ({ id: i + 1, emoji, date, description, amount, account, tags, list: 'personal' }));
+
+// ─── Viaje a Cartagena (lista de ejemplo del selector) ─────────────────────────
+
+const TRIP_SEED_RAW: Seed[] = [
+  ['✈️', at(9, 2, 10, 0), 'Vuelos y hotel', 1_450_000],
+  ['🍔', at(9, 2, 13, 0), 'Almuerzo en el Centro', 85_000],
+  ['✈️', at(9, 3, 9, 0), 'Tour Islas del Rosario', 320_000],
+  ['🍔', at(9, 3, 19, 30), 'Cena en La Cevichería', 210_000],
+  ['🚗', at(9, 4, 6, 0), 'Taxi al aeropuerto', 65_000],
+];
+const TRIP_SEED: DemoTx[] = TRIP_SEED_RAW.map(([emoji, date, description, amount, account = 'cash', tags = []], i) => ({
+  id: PERSONAL_SEED.length + i + 1,
+  emoji,
+  date,
+  description,
+  amount,
+  account,
+  tags,
+  list: 'viaje',
+}));
+
+export const SEED: DemoTx[] = [...PERSONAL_SEED, ...TRIP_SEED];
 
 /** Saldo con el que el usuario de ejemplo llegó a abril (antes del historial):
  * con los movimientos de ejemplo, el balance neto arranca en $4.812.300, el
- * mismo del resto de la landing. */
-export const OPENING_BALANCE = 4_812_300 + SEED.reduce((s, t) => s + t.amount, 0);
+ * mismo del resto de la landing. Es solo de Personal: "Viaje a Cartagena" es
+ * una lista nueva, sin saldo heredado (arranca en $0, como en la app real). */
+export const OPENING_BALANCE = 4_812_300 + PERSONAL_SEED.reduce((s, t) => s + t.amount, 0);
 
-/** Presupuesto por categoría (`budgetByCategory`, por emoji) y mensual. */
+export function openingBalanceFor(list: ListId): number {
+  return list === 'viaje' ? 0 : OPENING_BALANCE;
+}
+
+/** Presupuesto por categoría (`budgetByCategory`, por emoji) y mensual: solo de
+ * Personal — una lista nueva como "Viaje a Cartagena" todavía no tiene
+ * presupuestos propios (`budgetsForList`), igual que en la app real. */
 export const BUDGETS: Record<string, number> = {
   '🍔': 600_000,
   '🚗': 300_000,
   '🎮': 120_000,
 };
 export const MONTHLY_BUDGET = 2_000_000;
+export function budgetsForList(list: ListId): Record<string, number> {
+  return list === 'viaje' ? {} : BUDGETS;
+}
 
 /** Métodos de pago por defecto (`DEFAULT_PAYMENT_METHODS`). */
 export const PAYMENT_METHODS = [

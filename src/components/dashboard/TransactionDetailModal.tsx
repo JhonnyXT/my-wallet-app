@@ -17,7 +17,7 @@ import { SELF_PAYER, type TransactionRow } from "@/src/db/db";
 import type { AppTheme } from "@/src/theme";
 import { moneyColors } from "@/src/theme/tokens";
 import type { SavingsGoal } from "@/src/store/slices/goalsSlice";
-import type { PaymentMethod, WalletList } from "@/src/store/useSettingsStore";
+import { isListReadOnly, type PaymentMethod, type WalletList } from "@/src/store/useSettingsStore";
 import {
   resolveCategory,
   formatDetailTime,
@@ -87,6 +87,8 @@ export function TransactionDetailModal({
               : (list?.members ?? []).find((m) => m.id === tx.paid_by);
           const showPayer = (list?.members?.length ?? 0) > 0;
           const when = `${dayLabel(tx.date.slice(0, 10))} · ${formatDetailTime(tx.date)}`;
+          // Lector de un espacio compartido (roles editor/lector): ve el detalle, no edita/borra.
+          const readOnly = isListReadOnly(list);
 
           return (
             <>
@@ -98,7 +100,12 @@ export function TransactionDetailModal({
                   {desc || catName}
                 </Text>
                 <Text style={styles.category}>{catName}</Text>
-                <Text style={[styles.amount, { color: isExp ? moneyColors.expense.text : moneyColors.income.text }]}>
+                <Text
+                  style={[
+                    styles.amount,
+                    { color: isExp ? moneyColors.expense.text : moneyColors.income.text },
+                  ]}
+                >
                   {isExp ? "- " : "+ "}
                   {formatDetailAmount(tx.amount)}
                 </Text>
@@ -125,32 +132,34 @@ export function TransactionDetailModal({
                 </View>
               )}
 
-              <View style={styles.actions}>
-                <PressableScale
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    onDelete(tx);
-                  }}
-                  style={[styles.actionBtn, styles.deleteBtn]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Eliminar movimiento"
-                >
-                  <Trash2 size={18} color="#DC2626" strokeWidth={2} />
-                  <Text style={[styles.actionText, { color: "#DC2626" }]}>Eliminar</Text>
-                </PressableScale>
-                <PressableScale
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    onEdit(tx);
-                  }}
-                  style={[styles.actionBtn, styles.editBtn]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Editar movimiento"
-                >
-                  <Pencil size={18} color="#FFFFFF" strokeWidth={2} />
-                  <Text style={[styles.actionText, { color: "#FFFFFF" }]}>Editar</Text>
-                </PressableScale>
-              </View>
+              {!readOnly && (
+                <View style={styles.actions}>
+                  <PressableScale
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      onDelete(tx);
+                    }}
+                    style={[styles.actionBtn, styles.deleteBtn]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Eliminar movimiento"
+                  >
+                    <Trash2 size={18} color="#DC2626" strokeWidth={2} />
+                    <Text style={[styles.actionText, { color: "#DC2626" }]}>Eliminar</Text>
+                  </PressableScale>
+                  <PressableScale
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      onEdit(tx);
+                    }}
+                    style={[styles.actionBtn, styles.editBtn]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Editar movimiento"
+                  >
+                    <Pencil size={18} color="#FFFFFF" strokeWidth={2} />
+                    <Text style={[styles.actionText, { color: "#FFFFFF" }]}>Editar</Text>
+                  </PressableScale>
+                </View>
+              )}
             </>
           );
         })()}

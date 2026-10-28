@@ -21,7 +21,7 @@ import {
   writeBatch,
   type DocumentData,
 } from "@react-native-firebase/firestore";
-import type { ListMember } from "@/src/store/slices/listsSlice";
+import type { ListMember, SpaceRole } from "@/src/store/slices/listsSlice";
 import type { RemoteDoc } from "./mappers";
 import { BATCH_SIZE, db, millis, pullPaged } from "./remote";
 import type {
@@ -30,18 +30,35 @@ import type {
   SpaceTransactionDocOrTombstone,
 } from "./spaceMappers";
 
+export type { SpaceRole };
+
+/** Máximo de miembros por espacio (protección de costo, igual que `maxMembers()` en las reglas). */
+export const MAX_SPACE_MEMBERS = 6;
+
 export interface SpaceDoc {
   ownerUid: string;
   memberUids: string[];
+  /** Quién puede editar (R1); ausente = espacio legado, todos editores (ver `firestore.rules`). */
+  editorUids: string[] | null;
   deletedAt: number | null;
 }
 
 function toSpace(data: DocumentData): SpaceDoc {
+  const memberUids: string[] = Array.isArray(data.memberUids) ? data.memberUids : [];
   return {
     ownerUid: String(data.ownerUid ?? ""),
-    memberUids: Array.isArray(data.memberUids) ? data.memberUids : [],
+    memberUids,
+    editorUids: Array.isArray(data.editorUids) ? data.editorUids : null,
     deletedAt: typeof data.deletedAt === "number" ? data.deletedAt : null,
   };
+}
+
+/** `true` = el uid puede editar en el espacio (fallback: legado sin `editorUids`, todos editores). */
+export function isSpaceEditor(
+  space: Pick<SpaceDoc, "memberUids" | "editorUids">,
+  uid: string,
+): boolean {
+  return (space.editorUids ?? space.memberUids).includes(uid);
 }
 
 const spaceRef = (spaceId: string) => doc(db(), "spaces", spaceId);
@@ -69,6 +86,8 @@ export async function createSpace(p: {
   batch.set(spaceRef(p.spaceId), {
     ownerUid: p.uid,
     memberUids: [p.uid],
+    // El dueño siempre es editor (R1).
+    editorUids: [p.uid],
     deletedAt: null,
     createdAt: p.now,
     ...stamp,
@@ -116,30 +135,57 @@ export async function createInviteDoc(
   spaceId: string,
   uid: string,
   expiresAt: number,
+  role: SpaceRole,
 ): Promise<void> {
   await setDoc(doc(db(), "inviteCodes", code), {
     spaceId,
     createdBy: uid,
+    role,
     expiresAt: Timestamp.fromMillis(expiresAt),
   });
 }
 
 export async function getInvite(
   code: string,
-): Promise<{ spaceId: string; expiresAt: number } | null> {
+): Promise<{ spaceId: string; expiresAt: number; role: SpaceRole } | null> {
   const snap = await getDocFromServer(doc(db(), "inviteCodes", code));
   if (!snap.exists()) return null;
   const data = snap.data();
-  return { spaceId: String(data.spaceId ?? ""), expiresAt: millis(data.expiresAt) };
+  return {
+    spaceId: String(data.spaceId ?? ""),
+    expiresAt: millis(data.expiresAt),
+    role: data.role === "viewer" ? "viewer" : "editor",
+  };
 }
 
 // ─── Unirse, salir, quitar ───────────────────────────────────────────────────
 
-/** Me agrego al espacio con el código (la regla lo valida, D9). */
-export async function addSelfToSpace(spaceId: string, uid: string, code: string): Promise<void> {
+/**
+ * Me agrego al espacio con el código (la regla lo valida, D9). Con un código de editor, también
+ * me agrego a `editorUids`; con uno de lector, no (R4) — las reglas rechazan lo contrario.
+ */
+export async function addSelfToSpace(
+  spaceId: string,
+  uid: string,
+  code: string,
+  role: SpaceRole,
+): Promise<void> {
   await updateDoc(spaceRef(spaceId), {
     memberUids: arrayUnion(uid),
     joinCode: code,
+    serverUpdatedAt: serverTimestamp(),
+    ...(role === "editor" ? { editorUids: arrayUnion(uid) } : {}),
+  });
+}
+
+/** Cambia el rol de alguien (solo el dueño, R3): editor lo agrega a `editorUids`, lector lo quita. */
+export async function updateMemberRole(
+  spaceId: string,
+  uid: string,
+  role: SpaceRole,
+): Promise<void> {
+  await updateDoc(spaceRef(spaceId), {
+    editorUids: role === "editor" ? arrayUnion(uid) : arrayRemove(uid),
     serverUpdatedAt: serverTimestamp(),
   });
 }

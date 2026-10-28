@@ -139,11 +139,13 @@ export function memberStatus(doc: SpaceMemberDoc): NonNullable<ListMember["statu
 /**
  * Miembros del espacio → `members` de la lista local: todos menos uno mismo (que es "Tú"),
  * incluidos los que salieron. Ordenados: los que están (se unieron, luego sin app) y al final los
- * que salieron; dentro de cada grupo, por nombre.
+ * que salieron; dentro de cada grupo, por nombre. `editorUids` (ausente = legado, todos editores,
+ * ver `firestore.rules`) decide el `role` de cada persona con la app — una sin app no tiene rol.
  */
 export function membersToLocal(
   docs: { id: string; data: SpaceMemberDoc }[],
   selfMemberId: string,
+  editorUids?: string[] | null,
 ): ListMember[] {
   const rank = { joined: 0, guest: 1, left: 2 };
   return docs
@@ -153,6 +155,13 @@ export function membersToLocal(
       name: d.data.name,
       uid: d.data.uid ?? null,
       status: memberStatus(d.data),
+      role: d.data.uid
+        ? (editorUids ?? docs.map((x) => x.data.uid).filter((u): u is string => !!u)).includes(
+            d.data.uid,
+          )
+          ? ("editor" as const)
+          : ("viewer" as const)
+        : undefined,
     }))
     .sort((a, b) => rank[a.status] - rank[b.status] || a.name.localeCompare(b.name, "es"));
 }

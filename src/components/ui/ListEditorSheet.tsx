@@ -22,7 +22,7 @@ import { PressableScale } from "@/src/components/ui/PressableScale";
 import type { UserCategory } from "@/src/constants/categoryPresets";
 import { KEYBOARD_GAP } from "@/src/constants/layout";
 import { DEFAULT_LIST_ID, LIST_EMOJIS } from "@/src/constants/lists";
-import type { ListMember, WalletList } from "@/src/store/useSettingsStore";
+import type { ListMember, SpaceRole, WalletList } from "@/src/store/useSettingsStore";
 import { useAppTokens } from "@/src/theme/tokens";
 import { newId } from "@/src/utils/ids";
 
@@ -35,12 +35,17 @@ export interface ListSharing {
   /** Esperando al servidor (crear el espacio o un código). */
   busy: boolean;
   error: string | null;
+  /** Rol con el que sale el PRÓXIMO código que se genere (roles editor/lector, R4). */
+  inviteRole: SpaceRole;
+  onChangeInviteRole: (role: SpaceRole) => void;
   /** Convertir en espacio y mostrar el código, o solo un código nuevo si ya lo es. */
   onShare: () => void;
   /** Salir del espacio (no dueño). */
   onLeave: () => void;
   /** Quitar a alguien que se unió (solo el dueño). */
   onRemoveMember: (member: ListMember) => void;
+  /** Cambiar el rol de alguien que ya se unió (solo el dueño, R3). */
+  onSetMemberRole: (member: ListMember, role: SpaceRole) => void;
 }
 
 type SaveFn = (
@@ -144,6 +149,11 @@ function EditorBody({
   const canDelete = !!list && list.id !== DEFAULT_LIST_ID && (!space || isOwner);
   const canLeave = !!space && !isOwner && !!sharing;
   const canShare = !!list && list.id !== DEFAULT_LIST_ID && !!sharing;
+  // Un lector no reparte más permiso del que tiene: su próxima invitación siempre es de lector.
+  const canInviteEditor = isOwner || space?.role !== "viewer";
+  useEffect(() => {
+    if (!canInviteEditor && sharing?.inviteRole === "editor") sharing.onChangeInviteRole("viewer");
+  }, [canInviteEditor, sharing]);
   // Personal es solo tuyo: no lleva personas.
   const canHaveMembers = !list || list.id !== DEFAULT_LIST_ID;
   const emojis = LIST_EMOJIS.includes(emoji) ? LIST_EMOJIS : [emoji, ...LIST_EMOJIS];
@@ -301,6 +311,20 @@ function EditorBody({
                       />
                     )}
                     <Text style={[styles.memberChipText, { color: c.text.primary }]}>{m.name}</Text>
+                    {joined && isOwner && (
+                      <Pressable
+                        onPress={() =>
+                          sharing?.onSetMemberRole(m, m.role === "viewer" ? "editor" : "viewer")
+                        }
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Rol de ${m.name}: ${m.role === "viewer" ? "Solo ver" : "Editor"}. Toca para cambiarlo.`}
+                      >
+                        <Text style={[styles.roleTag, { color: c.accent.default }]}>
+                          {m.role === "viewer" ? "Solo ver" : "Editor"}
+                        </Text>
+                      </Pressable>
+                    )}
                     {removable && (
                       <Pressable
                         onPress={() =>
@@ -366,6 +390,41 @@ function EditorBody({
                 ? `${isOwner ? "La creaste tú" : "Te uniste"}. Quienes tienen el punto verde registran desde su teléfono.`
                 : "Cada persona registra desde su teléfono, con su cuenta. Se necesita conexión para compartir."}
             </Text>
+            {/* Rol del próximo código (R1/R4): solo quien ya puede editar reparte permiso de editar. */}
+            {canInviteEditor && (
+              <View style={styles.roleToggle}>
+                {(["editor", "viewer"] as const).map((r) => {
+                  const selected = sharing.inviteRole === r;
+                  return (
+                    <Pressable
+                      key={r}
+                      onPress={() => sharing.onChangeInviteRole(r)}
+                      style={[
+                        styles.roleToggleBtn,
+                        {
+                          backgroundColor: selected ? c.accent.subtle : "transparent",
+                          borderColor: selected ? c.accent.default : c.border.default,
+                        },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={
+                        r === "editor" ? "Invitar como editor" : "Invitar solo para ver"
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.roleToggleText,
+                          { color: selected ? c.accent.default : c.text.secondary },
+                        ]}
+                      >
+                        {r === "editor" ? "Puede editar" : "Solo ver"}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
             <Pressable
               onPress={sharing.onShare}
               disabled={sharing.busy}
@@ -465,6 +524,17 @@ const styles = StyleSheet.create({
   },
   memberChipText: { fontSize: 14, fontWeight: "600" },
   joinedDot: { width: 7, height: 7, borderRadius: 4 },
+  roleTag: { fontSize: 11, fontWeight: "700" },
+  roleToggle: { flexDirection: "row", gap: 8, marginTop: 12 },
+  roleToggleBtn: {
+    flex: 1,
+    height: 38,
+    borderRadius: 9999,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  roleToggleText: { fontSize: 13, fontWeight: "700" },
   shareBtn: {
     marginTop: 10,
     height: 48,

@@ -90,7 +90,9 @@ const as = (uid: string) => env.authenticatedContext(uid).firestore();
 async function seedSpace(
   opts: {
     memberUids?: string[];
-    code?: { id: string; expiresAt: Timestamp; spaceId?: string };
+    /** Omitido = espacio "legado" sin este campo, para probar la compatibilidad (todos editores). */
+    editorUids?: string[];
+    code?: { id: string; expiresAt: Timestamp; spaceId?: string; role?: "editor" | "viewer" };
   } = {},
 ) {
   await env.withSecurityRulesDisabled(async (ctx) => {
@@ -98,6 +100,7 @@ async function seedSpace(
     await setDoc(doc(db, "spaces/s1"), {
       ownerUid: "ana",
       memberUids: opts.memberUids ?? ["ana"],
+      ...(opts.editorUids ? { editorUids: opts.editorUids } : {}),
       deletedAt: null,
     });
     await setDoc(doc(db, "spaces/s1/members/ana"), { name: "Ana", uid: "ana", updatedAt: 1 });
@@ -108,6 +111,7 @@ async function seedSpace(
       await setDoc(doc(db, `inviteCodes/${opts.code.id}`), {
         spaceId: opts.code.spaceId ?? "s1",
         createdBy: "ana",
+        ...(opts.code.role ? { role: opts.code.role } : {}),
         expiresAt: opts.code.expiresAt,
       });
     }
@@ -118,7 +122,12 @@ describe("spaces: crear", () => {
   it("el dueño crea espacio, miembros, config y código en un mismo lote", async () => {
     const db = as("ana");
     const batch = writeBatch(db);
-    batch.set(doc(db, "spaces/s1"), { ownerUid: "ana", memberUids: ["ana"], deletedAt: null });
+    batch.set(doc(db, "spaces/s1"), {
+      ownerUid: "ana",
+      memberUids: ["ana"],
+      editorUids: ["ana"],
+      deletedAt: null,
+    });
     batch.set(doc(db, "spaces/s1/members/ana"), { name: "Ana", uid: "ana", updatedAt: 1 });
     batch.set(doc(db, "spaces/s1/members/m_luis"), { name: "Luis", uid: null, updatedAt: 1 });
     batch.set(doc(db, "spaces/s1/config/list"), { name: "Viaje", updatedAt: 1 });
@@ -207,8 +216,14 @@ describe("spaces: leer y escribir", () => {
 });
 
 describe("spaces: unirse con código", () => {
+  // Los códigos de este describe son de editor por defecto (sin `role`, ver seedSpace): unirse
+  // también toca `editorUids` (R4). Los casos específicos de lector están en el describe de roles.
   const join = (uid: string, code: string) =>
-    updateDoc(doc(as(uid), "spaces/s1"), { memberUids: arrayUnion(uid), joinCode: code });
+    updateDoc(doc(as(uid), "spaces/s1"), {
+      memberUids: arrayUnion(uid),
+      joinCode: code,
+      editorUids: arrayUnion(uid),
+    });
 
   it("con un código vigente de este espacio, se agrega a sí mismo y crea su miembro", async () => {
     await seedSpace({ code: { id: "K7Q2MX", expiresAt: IN_7_DAYS() } });
@@ -278,6 +293,169 @@ describe("spaces: unirse con código", () => {
     await assertFails(getDocs(collection(as("beto"), "inviteCodes")));
     await assertSucceeds(
       getDocs(query(collection(as("ana"), "inviteCodes"), where("createdBy", "==", "ana"))),
+    );
+  });
+});
+
+describe("spaces: límite de miembros (R6)", () => {
+  it("el miembro número 7 no puede unirse (máximo 6)", async () => {
+    const full = ["ana", "m2", "m3", "m4", "m5", "m6"];
+    await seedSpace({
+      memberUids: full,
+      editorUids: full,
+      code: { id: "K7Q2MX", expiresAt: IN_7_DAYS() },
+    });
+    await assertFails(
+      updateDoc(doc(as("beto"), "spaces/s1"), {
+        memberUids: arrayUnion("beto"),
+        joinCode: "K7Q2MX",
+        editorUids: arrayUnion("beto"),
+      }),
+    );
+  });
+
+  it("el sexto sí puede unirse", async () => {
+    const five = ["ana", "m2", "m3", "m4", "m5"];
+    await seedSpace({
+      memberUids: five,
+      editorUids: five,
+      code: { id: "K7Q2MX", expiresAt: IN_7_DAYS() },
+    });
+    await assertSucceeds(
+      updateDoc(doc(as("beto"), "spaces/s1"), {
+        memberUids: arrayUnion("beto"),
+        joinCode: "K7Q2MX",
+        editorUids: arrayUnion("beto"),
+      }),
+    );
+  });
+});
+
+describe("spaces: roles editor/lector (R1-R5)", () => {
+  it("un código de editor agrega también a editorUids; uno de lector, no", async () => {
+    await seedSpace({
+      memberUids: ["ana"],
+      editorUids: ["ana"],
+      code: { id: "EDITOR", expiresAt: IN_7_DAYS(), role: "editor" },
+    });
+    await assertSucceeds(
+      updateDoc(doc(as("beto"), "spaces/s1"), {
+        memberUids: arrayUnion("beto"),
+        joinCode: "EDITOR",
+        editorUids: arrayUnion("beto"),
+      }),
+    );
+  });
+
+  it("con código de lector, agregarse también a editorUids se rechaza (no se autopromueve)", async () => {
+    await seedSpace({
+      memberUids: ["ana"],
+      editorUids: ["ana"],
+      code: { id: "VIEWER", expiresAt: IN_7_DAYS(), role: "viewer" },
+    });
+    await assertFails(
+      updateDoc(doc(as("beto"), "spaces/s1"), {
+        memberUids: arrayUnion("beto"),
+        joinCode: "VIEWER",
+        editorUids: arrayUnion("beto"),
+      }),
+    );
+    // Sin tocar editorUids sí se une, como lector.
+    await assertSucceeds(
+      updateDoc(doc(as("beto"), "spaces/s1"), {
+        memberUids: arrayUnion("beto"),
+        joinCode: "VIEWER",
+      }),
+    );
+  });
+
+  it("un lector no crea ni edita transacciones ni config, pero sí lee", async () => {
+    await seedSpace({ memberUids: ["ana", "beto"], editorUids: ["ana"] });
+    const db = as("beto");
+    await assertSucceeds(getDocs(collection(db, "spaces/s1/transactions")));
+    await assertSucceeds(getDoc(doc(db, "spaces/s1/config/list")));
+    await assertFails(setDoc(doc(db, "spaces/s1/transactions/t2"), STX("beto")));
+    await assertFails(setDoc(doc(db, "spaces/s1/transactions/t1"), { ...STX("ana"), amount: 5 }));
+    await assertFails(setDoc(doc(db, "spaces/s1/config/list"), { name: "x", updatedAt: 2 }));
+  });
+
+  it("un lector no agrega una persona sin app (eso es editar), pero sí se registra a sí mismo", async () => {
+    await seedSpace({ memberUids: ["ana", "beto"], editorUids: ["ana"] });
+    await assertFails(
+      setDoc(doc(as("beto"), "spaces/s1/members/m_dani"), {
+        name: "Dani",
+        uid: null,
+        updatedAt: 1,
+      }),
+    );
+    await assertSucceeds(
+      setDoc(doc(as("beto"), "spaces/s1/members/beto"), {
+        name: "Beto",
+        uid: "beto",
+        updatedAt: 1,
+      }),
+    );
+  });
+
+  it("un editor sí registra, edita y agrega personas sin app", async () => {
+    await seedSpace({ memberUids: ["ana", "beto"], editorUids: ["ana", "beto"] });
+    const db = as("beto");
+    await assertSucceeds(setDoc(doc(db, "spaces/s1/transactions/t2"), STX("beto")));
+    await assertSucceeds(setDoc(doc(db, "spaces/s1/config/list"), { name: "x", updatedAt: 2 }));
+    await assertSucceeds(
+      setDoc(doc(db, "spaces/s1/members/m_dani"), { name: "Dani", uid: null, updatedAt: 1 }),
+    );
+  });
+
+  it("solo el dueño cambia roles; un miembro no se autopromueve ni degrada a otro", async () => {
+    await seedSpace({ memberUids: ["ana", "beto", "caro"], editorUids: ["ana"] });
+    // Beto (lector) no puede agregarse a editorUids.
+    await assertFails(updateDoc(doc(as("beto"), "spaces/s1"), { editorUids: arrayUnion("beto") }));
+    // Beto tampoco puede degradar a Ana.
+    await assertFails(updateDoc(doc(as("beto"), "spaces/s1"), { editorUids: ["ana"] }));
+    // El dueño sí asciende a Beto.
+    await assertSucceeds(
+      updateDoc(doc(as("ana"), "spaces/s1"), { editorUids: arrayUnion("beto") }),
+    );
+  });
+
+  it("el dueño no se puede quitar a sí mismo de editorUids, ni meter a alguien que no es miembro", async () => {
+    await seedSpace({ memberUids: ["ana", "beto"], editorUids: ["ana"] });
+    await assertFails(updateDoc(doc(as("ana"), "spaces/s1"), { editorUids: arrayRemove("ana") }));
+    await assertFails(updateDoc(doc(as("ana"), "spaces/s1"), { editorUids: arrayUnion("caro") }));
+  });
+
+  it("legado sin editorUids: todos los miembros son editores", async () => {
+    await seedSpace({ memberUids: ["ana", "beto"] });
+    const db = as("beto");
+    await assertSucceeds(setDoc(doc(db, "spaces/s1/transactions/t2"), STX("beto")));
+  });
+
+  it("un lector solo invita como lector; invitar como editor exige ser editor", async () => {
+    await seedSpace({ memberUids: ["ana", "beto"], editorUids: ["ana"] });
+    await assertFails(
+      setDoc(doc(as("beto"), "inviteCodes/BETOED"), {
+        spaceId: "s1",
+        createdBy: "beto",
+        role: "editor",
+        expiresAt: IN_7_DAYS(),
+      }),
+    );
+    await assertSucceeds(
+      setDoc(doc(as("beto"), "inviteCodes/BETOVW"), {
+        spaceId: "s1",
+        createdBy: "beto",
+        role: "viewer",
+        expiresAt: IN_7_DAYS(),
+      }),
+    );
+    await assertSucceeds(
+      setDoc(doc(as("ana"), "inviteCodes/ANAED1"), {
+        spaceId: "s1",
+        createdBy: "ana",
+        role: "editor",
+        expiresAt: IN_7_DAYS(),
+      }),
     );
   });
 });

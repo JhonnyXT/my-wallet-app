@@ -21,11 +21,13 @@ import {
   deleteSpace,
   leaveSpace,
   removeMember,
+  setMemberRole,
   shareList,
   SpaceError,
   spaceErrorMessage,
   useSession,
   type Invite,
+  type SpaceRole,
 } from "@/src/sync";
 
 // Dos Modal apilados en Android se comportan mal: lo siguiente se abre al terminar de cerrar.
@@ -61,14 +63,9 @@ export function useListEditor({ onListChanged }: { onListChanged?: () => void } 
   }, []);
   const openNew = useCallback(() => openEditor("new"), [openEditor]);
   const openEdit = useCallback((listId: string) => openEditor(listId), [openEditor]);
-  // Unirse a un espacio compartido es de Pro: sin Pro se muestra el paywall, no la hoja del código.
-  const openJoin = useCallback(() => {
-    if (!canUse("sharedSpaces")) {
-      openPaywall("sharedSpaces");
-      return;
-    }
-    setJoinOpen(true);
-  }, []);
+  // Unirse a un espacio ya existente no exige Pro (solo crear uno): la hoja se abre siempre, y
+  // `joinWithCode` avisa ahí mismo si el teléfono ya llegó al tope de espacios gratis.
+  const openJoin = useCallback(() => setJoinOpen(true), []);
 
   const goToList = useCallback(
     (id: string) => {
@@ -111,11 +108,16 @@ export function useListEditor({ onListChanged }: { onListChanged?: () => void } 
 
   // Compartir (o un código nuevo si ya está compartida): el editor muestra la espera y el error;
   // con el código, se cierra y se abre la hoja de invitación.
+  // "Editor" por defecto: invitar como lector es la excepción, se elige explícitamente.
+  const [inviteRole, setInviteRole] = useState<SpaceRole>("editor");
+
   const handleShare = useCallback(async () => {
     const listId = editing;
     if (!listId || listId === "new" || shareBusy) return;
     setShareError(null);
-    if (!canUse("sharedSpaces")) {
+    const shared = lists.find((l) => l.id === listId)?.space;
+    // Crear el espacio (volverse dueño) es de Pro; invitar a uno que ya existe, no (R5).
+    if (!shared && !canUse("sharedSpaces")) {
       // El paywall es otra hoja: se abre cuando el editor ya terminó de cerrarse.
       setEditing(null);
       setTimeout(() => openPaywall("sharedSpaces"), AFTER_CLOSE_MS);
@@ -127,8 +129,9 @@ export function useListEditor({ onListChanged }: { onListChanged?: () => void } 
     }
     setShareBusy(true);
     try {
-      const shared = lists.find((l) => l.id === listId)?.space;
-      const code = shared ? await createInvite(listId) : await shareList(listId);
+      const code = shared
+        ? await createInvite(listId, inviteRole)
+        : await shareList(listId, inviteRole);
       setEditing(null);
       setTimeout(() => setInvite({ invite: code, listId }), AFTER_CLOSE_MS);
     } catch (e) {
@@ -136,12 +139,14 @@ export function useListEditor({ onListChanged }: { onListChanged?: () => void } 
     } finally {
       setShareBusy(false);
     }
-  }, [editing, shareBusy, uid, lists]);
+  }, [editing, shareBusy, uid, lists, inviteRole]);
 
   const sharing: ListSharing = {
     uid,
     busy: shareBusy,
     error: shareError,
+    inviteRole,
+    onChangeInviteRole: setInviteRole,
     onShare: handleShare,
     onLeave: () => {
       const id = editing;
@@ -154,6 +159,13 @@ export function useListEditor({ onListChanged }: { onListChanged?: () => void } 
       if (listId && listId !== "new") {
         setTimeout(() => setConfirmRemove({ member, listId }), AFTER_CLOSE_MS);
       }
+    },
+    onSetMemberRole: (member, role) => {
+      const listId = editing;
+      if (!listId || listId === "new") return;
+      setMemberRole(listId, member.id, role).catch((e) =>
+        Alert.alert("No se pudo cambiar el rol", errorText(e)),
+      );
     },
   };
 

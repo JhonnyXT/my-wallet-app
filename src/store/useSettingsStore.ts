@@ -41,6 +41,7 @@ import {
   type WalletList,
   type ListMember,
   type SpaceLink,
+  type SpaceRole,
 } from "./slices/listsSlice";
 import { createTombstonesSlice, type TombstonesSlice } from "./slices/tombstonesSlice";
 import {
@@ -63,9 +64,11 @@ export type {
   WalletList,
   ListMember,
   SpaceLink,
+  SpaceRole,
   RecurringCadence,
   RecurringExpense,
 };
+export { isListReadOnly } from "./slices/listsSlice";
 
 // ─── Tipo combinado del store ─────────────────────────────────────────────────
 

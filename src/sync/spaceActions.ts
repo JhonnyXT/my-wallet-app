@@ -45,19 +45,44 @@ import {
   getInvite,
   getMembers,
   getSpace,
+  isSpaceEditor,
+  MAX_SPACE_MEMBERS,
   rejoinMember,
   removeFromSpace,
+  updateMemberRole,
+  type SpaceRole,
 } from "./spacesRemote";
 
-/** Espacios compartidos = Pro (prueba o suscripción). La UI muestra el paywall antes de llegar aquí. */
+/**
+ * Crear un espacio (convertir una lista en espacio compartido) es de Pro: solo el dueño/creador
+ * paga (monetización Free/Pro, specs/espacios-roles-y-limites/, R5). Unirse e invitar a un espacio
+ * ya existente NO lo exige — cada invitación trae usuarios nuevos gratis. La UI muestra el paywall
+ * antes de llegar aquí.
+ */
 function requirePro(): void {
   if (!canUse("sharedSpaces")) throw new SpaceError("pro-required");
+}
+
+/** Cuántos espacios ajenos (no creados por mí) tengo en el teléfono, para el límite de R5. */
+function joinedSpacesCount(selfUid: string): number {
+  return withLiveActiveList(useSettingsStore.getState()).filter(
+    (l) => l.space != null && l.space.ownerUid !== selfUid,
+  ).length;
+}
+
+/** Un usuario Free puede ser invitado a hasta `FREE_MAX_JOINED_SPACES` espacios (R5). */
+export const FREE_MAX_JOINED_SPACES = 2;
+
+function requireJoinAllowance(selfUid: string): void {
+  if (canUse("sharedSpaces")) return;
+  if (joinedSpacesCount(selfUid) >= FREE_MAX_JOINED_SPACES) throw new SpaceError("pro-required");
 }
 
 export interface Invite {
   code: string;
   /** epoch ms */
   expiresAt: number;
+  role: SpaceRole;
 }
 
 export type JoinResult =
@@ -97,14 +122,14 @@ function findList(listId: string): WalletList {
 
 // ─── Invitar ─────────────────────────────────────────────────────────────────
 
-async function newInvite(spaceId: string, uid: string): Promise<Invite> {
+async function newInvite(spaceId: string, uid: string, role: SpaceRole): Promise<Invite> {
   // Un código repetido lo rechazan las reglas (no se pisa): se prueba con otro.
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = inviteCodeFromBytes(getRandomBytes(6));
     const expiresAt = Date.now() + INVITE_TTL_MS;
     try {
-      await withTimeout(createInviteDoc(code, spaceId, uid, expiresAt));
-      return { code, expiresAt };
+      await withTimeout(createInviteDoc(code, spaceId, uid, expiresAt, role));
+      return { code, expiresAt, role };
     } catch (e) {
       if (!isDenied(e) || attempt === 4) throw e;
     }
@@ -112,14 +137,21 @@ async function newInvite(spaceId: string, uid: string): Promise<Invite> {
   throw new SpaceError("unknown");
 }
 
-/** Código nuevo para invitar a alguien a una lista ya compartida (cualquier miembro). */
-export async function createInvite(listId: string): Promise<Invite> {
-  requirePro();
+/**
+ * Código nuevo para invitar a alguien a una lista ya compartida. Cualquier miembro invita, pero
+ * invitar como editor exige ser editor uno mismo (R4, no se puede reclutar con más permiso del
+ * que se tiene); las reglas lo rechazan igual, esto es solo para no intentarlo en vano.
+ */
+export async function createInvite(listId: string, role: SpaceRole = "editor"): Promise<Invite> {
   const user = requireUser();
   return guarded(async () => {
-    const link = findList(listId).space;
+    const list = findList(listId);
+    const link = list.space;
     if (!link) throw new SpaceError("unknown");
-    return newInvite(link.spaceId, user.uid);
+    if (role === "editor" && link.ownerUid !== user.uid && link.role === "viewer") {
+      throw new SpaceError("not-allowed");
+    }
+    return newInvite(link.spaceId, user.uid, role);
   });
 }
 
@@ -128,14 +160,15 @@ export async function createInvite(listId: string): Promise<Invite> {
 /**
  * Convierte la lista en espacio (D3) y devuelve el primer código. Si ya lo era, solo un código.
  * Sus movimientos se suben al espacio en segundo plano y dejan el respaldo personal (RF-16).
+ * Crear el espacio (volverse dueño) siempre exige Pro, aunque el invitado no lo necesite (R5).
  */
-export async function shareList(listId: string): Promise<Invite> {
+export async function shareList(listId: string, role: SpaceRole = "editor"): Promise<Invite> {
   requirePro();
   const user = requireUser();
   if (listId === DEFAULT_LIST_ID) throw new SpaceError("unknown");
   const invite = await guarded(async () => {
     const list = findList(listId);
-    if (list.space) return newInvite(list.space.spaceId, user.uid);
+    if (list.space) return newInvite(list.space.spaceId, user.uid, role);
 
     const now = Date.now();
     const guests = (list.members ?? []).filter((m) => m.status !== "left");
@@ -165,7 +198,7 @@ export async function shareList(listId: string): Promise<Invite> {
 
     useSettingsStore.getState().linkSpace(
       listId,
-      { spaceId, ownerUid: user.uid, selfMemberId: user.uid, sharedUpdatedAt: now },
+      { spaceId, ownerUid: user.uid, selfMemberId: user.uid, sharedUpdatedAt: now, role: "editor" },
       guests.map((g) => ({ id: g.id, name: g.name, uid: null, status: "guest" as const })),
     );
     const meta = forgetSpace(await loadMeta(), spaceId);
@@ -173,7 +206,7 @@ export async function shareList(listId: string): Promise<Invite> {
     await markListTransactionsPending(listId);
     // Sin conexión a mitad: quedan copias viejas en el respaldo personal, inofensivas (mismo uid).
     await withTimeout(deleteUserListTransactions(user.uid, listId)).catch(() => undefined);
-    return newInvite(spaceId, user.uid);
+    return newInvite(spaceId, user.uid, role);
   });
   void requestSync({ pull: false });
   return invite;
@@ -193,13 +226,15 @@ async function linkLocal(spaceId: string, selfMemberId: string): Promise<string>
   const config = await withTimeout(getConfig(spaceId));
   const members = await withTimeout(getMembers(spaceId));
   if (!space || !config) throw new SpaceError("invalid-code");
+  const authUid = getAuth().currentUser?.uid;
   const link = {
     spaceId,
     ownerUid: space.ownerUid,
     selfMemberId,
     sharedUpdatedAt: config.updatedAt,
+    role: (authUid && isSpaceEditor(space, authUid) ? "editor" : "viewer") as SpaceRole,
   };
-  const local = membersToLocal(members, selfMemberId);
+  const local = membersToLocal(members, selfMemberId, space.editorUids);
   const now = Date.now();
 
   // Una copia desconectada de este mismo espacio (salí y vuelvo): se vuelve a ligar.
@@ -255,8 +290,10 @@ async function linkLocal(spaceId: string, selfMemberId: string): Promise<string>
  * devuelve "choose" para preguntar "¿Quién eres?"; si no, termina.
  */
 export async function joinWithCode(input: string): Promise<JoinResult> {
-  requirePro();
   const user = requireUser();
+  // Unirse a un espacio ya existente no exige Pro (R5): solo crear uno (`shareList`). Un usuario
+  // Free sí tiene un tope de cuántos espacios ajenos puede tener (joinedSpacesCount).
+  requireJoinAllowance(user.uid);
   const code = normalizeInviteCode(input);
   if (!code) throw new SpaceError("invalid-code");
   const result = await guarded<JoinResult>(async () => {
@@ -271,7 +308,9 @@ export async function joinWithCode(input: string): Promise<JoinResult> {
     });
     if (space?.deletedAt != null) throw new SpaceError("invalid-code");
     if (!space?.memberUids.includes(user.uid)) {
-      await withTimeout(addSelfToSpace(spaceId, user.uid, code)).catch((e) => {
+      // Las reglas también lo rechazan (R6): esto es solo para un mensaje más claro.
+      if ((space?.memberUids.length ?? 0) >= MAX_SPACE_MEMBERS) throw new SpaceError("space-full");
+      await withTimeout(addSelfToSpace(spaceId, user.uid, code, invite.role)).catch((e) => {
         throw isDenied(e) ? new SpaceError("invalid-code", e) : e;
       });
     }
@@ -358,6 +397,24 @@ export async function removeMember(listId: string, memberId: string): Promise<vo
       m.id === memberId ? { ...m, status: "left" as const } : m,
     );
     applyRemoteSettings({ spaces: [{ kind: "members", listId, members }] });
+  });
+}
+
+/** Cambia el rol de alguien que ya se unió (solo el dueño, R3). */
+export async function setMemberRole(
+  listId: string,
+  memberId: string,
+  role: SpaceRole,
+): Promise<void> {
+  const user = requireUser();
+  await guarded(async () => {
+    const list = findList(listId);
+    const link = list.space;
+    const member = list.members?.find((m) => m.id === memberId);
+    if (!link || link.ownerUid !== user.uid) throw new SpaceError("not-allowed");
+    if (!member?.uid) return;
+    await withTimeout(updateMemberRole(link.spaceId, member.uid, role));
+    useSettingsStore.getState().setMemberRole(listId, role, member.uid);
   });
 }
 

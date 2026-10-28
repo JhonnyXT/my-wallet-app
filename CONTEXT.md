@@ -829,8 +829,9 @@ PLAN) suma "Simular fin de prueba"/"Volver a Free"/"Reiniciar plan" (gateadas co
 local (registro manual/voz/NLP, detección automática de notificaciones bancarias, categorías,
 presupuestos, metas, deudas, métodos de pago, listas múltiples y reparto de gasto sin nube,
 períodos de pago, reportes, CSV, biometría, tema oscuro) — nada de esto se gatea nunca. Pro = lo
-único que tiene costo real en Firebase: respaldo/sync en la nube (Fase 3) y espacios compartidos
-(Fase 4, incluido unirse como invitado, no solo crear/compartir).
+único que tiene costo real en Firebase: respaldo/sync en la nube (Fase 3) y **crear** un espacio
+compartido (Fase 4) — unirse o invitar a uno ya existente es gratis desde 2026-10-27 (un Free
+tiene tope de 2 espacios ajenos como invitado; detalle en `AGENTS.md` → "Espacios compartidos").
 
 **Onboarding**: paso 5 (último), `app/plan-onboarding.tsx` — "Elige cómo empezar", mismo patrón de
 layout que `login-onboarding.tsx` (ícono/título/beneficios centrados), botón "Probar Pro N días

@@ -49,7 +49,7 @@ import { router, useFocusEffect } from "expo-router";
 import { scrollBottomPadding, DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
 import { SELF_PAYER, type TransactionRow } from "@/src/db/db";
-import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { isListReadOnly, useSettingsStore } from "@/src/store/useSettingsStore";
 import { useRecurringQueueStore } from "@/src/store/useRecurringQueueStore";
 import { syncNow, useSession, useSyncStatus } from "@/src/sync";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
@@ -256,7 +256,12 @@ export default function DashboardScreen() {
         Icon: CalendarSearch,
         checked: periodView.kind === "range",
       },
-      { key: "year" as const, label: "Año", Icon: CalendarRange, checked: periodView.kind === "year" },
+      {
+        key: "year" as const,
+        label: "Año",
+        Icon: CalendarRange,
+        checked: periodView.kind === "year",
+      },
       {
         key: "cycle" as const,
         label: currentCycleLabel,
@@ -287,6 +292,8 @@ export default function DashboardScreen() {
   const lists = useSettingsStore((s) => s.lists);
   const activeListId = useSettingsStore((s) => s.activeListId);
   const activeList = lists.find((l) => l.id === activeListId) ?? lists[0];
+  // Lector de un espacio compartido (roles editor/lector): ve todo, no registra ni edita.
+  const readOnlyList = isListReadOnly(activeList);
   const listById = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists]);
   const memberNameById = useMemo(
     () => new Map(lists.flatMap((l) => (l.members ?? []).map((m) => [m.id, m.name] as const))),
@@ -687,8 +694,8 @@ export default function DashboardScreen() {
             transaction={item}
             index={index}
             dimmed={false}
-            onDelete={handleDeleteTransaction}
-            onEdit={handleEditTransaction}
+            onDelete={readOnlyList ? undefined : handleDeleteTransaction}
+            onEdit={readOnlyList ? undefined : handleEditTransaction}
             onDetail={handleDetail}
             listBadge={
               // Personal ve todas las listas: marca de dónde viene cada movimiento ajeno.
@@ -715,6 +722,7 @@ export default function DashboardScreen() {
       activeListId,
       listById,
       memberNameById,
+      readOnlyList,
     ],
   );
 

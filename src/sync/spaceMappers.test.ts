@@ -150,12 +150,18 @@ describe("miembros", () => {
   ];
 
   it("la lista local no me incluye y marca el estado de cada uno", () => {
+    // Sin `editorUids` (legado): todos los que tienen app son editores (compatibilidad, R1).
     expect(membersToLocal(docs, "uid-ana")).toEqual([
-      { id: "uid-beto", name: "Beto", uid: "uid-beto", status: "joined" },
-      { id: "m_dani", name: "Dani", uid: null, status: "guest" },
-      { id: "m_luis", name: "Luis", uid: null, status: "guest" },
-      { id: "uid-caro", name: "Caro", uid: "uid-caro", status: "left" },
+      { id: "uid-beto", name: "Beto", uid: "uid-beto", status: "joined", role: "editor" },
+      { id: "m_dani", name: "Dani", uid: null, status: "guest", role: undefined },
+      { id: "m_luis", name: "Luis", uid: null, status: "guest", role: undefined },
+      { id: "uid-caro", name: "Caro", uid: "uid-caro", status: "left", role: "editor" },
     ]);
+  });
+
+  it("con `editorUids`, un lector queda marcado role: viewer", () => {
+    const local = membersToLocal(docs, "uid-ana", ["uid-ana"]);
+    expect(local.find((m) => m.id === "uid-beto")?.role).toBe("viewer");
   });
 
   it("quien reclamó a una persona sin app tampoco se ve a sí mismo", () => {

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { UserPlus } from "lucide-react-native";
+import { openPaywall } from "@/src/billing";
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
 import { PressableScale } from "@/src/components/ui/PressableScale";
 import { SheetHeader, SheetLabel, useSheetPadding } from "@/src/components/ui/SheetParts";
@@ -65,6 +66,12 @@ export function JoinSpaceSheet({ visible, onJoined, onClose }: JoinSpaceSheetPro
         setChoose({ spaceId: result.spaceId, guests: result.guests });
       }
     } catch (e) {
+      // Tope de espacios gratis (R5): es un momento de conversión, mejor el paywall que un texto.
+      if (e instanceof SpaceError && e.kind === "pro-required") {
+        onClose();
+        openPaywall("sharedSpaces");
+        return;
+      }
       setError(message(e));
     } finally {
       setBusy(null);

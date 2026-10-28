@@ -18,9 +18,12 @@ export {
   completeJoin,
   leaveSpace,
   removeMember,
+  setMemberRole,
   deleteSpace,
+  FREE_MAX_JOINED_SPACES,
   type Invite,
   type JoinResult,
 } from "./spaceActions";
 export { SpaceError, spaceErrorMessage, type SpaceErrorKind } from "./errors";
 export { formatInviteCode, INVITE_LENGTH } from "./spaceMappers";
+export { MAX_SPACE_MEMBERS, type SpaceRole } from "./spacesRemote";

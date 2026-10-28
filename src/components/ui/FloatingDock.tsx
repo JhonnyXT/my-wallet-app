@@ -4,7 +4,7 @@
  * Al presionar "+": modal semi-transparente con opciones Ingreso / Gasto
  */
 import { useState, useMemo } from "react";
-import { View, Pressable, StyleSheet, Modal, Text, TouchableOpacity } from "react-native";
+import { Alert, View, Pressable, StyleSheet, Modal, Text, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Plus, Search, Mic, X, ArrowUp, ArrowDown, ChartColumn } from "lucide-react-native";
 import Animated, {
@@ -17,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { router, usePathname } from "expo-router";
 import { DOCK_HEIGHT, DOCK_BOTTOM_OFFSET } from "@/src/constants/layout";
 import { useExpenseStore } from "@/src/store/useExpenseStore";
+import { isListReadOnly, useSettingsStore } from "@/src/store/useSettingsStore";
 import { useUIStore } from "@/src/store/useUIStore";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
@@ -45,7 +46,19 @@ export function FloatingDock() {
 
   const bottomPos = Math.max(insets.bottom, 0) + DOCK_BOTTOM_OFFSET;
 
+  // Lector de un espacio compartido (roles editor/lector): ve todo, no registra nada ahí.
+  const readOnlyList = useSettingsStore((s) =>
+    isListReadOnly(s.lists.find((l) => l.id === s.activeListId)),
+  );
+
   async function handleAddPress() {
+    if (readOnlyList) {
+      Alert.alert(
+        "Lista de solo lectura",
+        "No puedes registrar movimientos en esta lista. Pide al dueño que te dé permiso de edición.",
+      );
+      return;
+    }
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setMenuOpen(true);
   }
@@ -87,6 +100,13 @@ export function FloatingDock() {
   }
 
   async function handleMic() {
+    if (readOnlyList) {
+      Alert.alert(
+        "Lista de solo lectura",
+        "No puedes registrar movimientos en esta lista. Pide al dueño que te dé permiso de edición.",
+      );
+      return;
+    }
     micScale.value = withSequence(
       withSpring(0.88, { damping: 10 }),
       withSpring(1.0, { damping: 14 }),

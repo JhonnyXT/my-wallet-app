@@ -1,6 +1,11 @@
 /**
- * Guardia estática de Pro: compartir, invitar y unirse a espacios, y subir el respaldo, deben
+ * Guardia estática de Pro: crear un espacio compartido (volverse dueño) y subir el respaldo deben
  * pasar por `canUse` (src/billing). Si alguien agrega una vía nueva sin la guardia, esto falla.
+ *
+ * Unirse e invitar a un espacio YA existente NO exigen Pro (monetización Free/Pro,
+ * specs/espacios-roles-y-limites/, R5): cada invitación trae usuarios nuevos gratis. Un usuario
+ * Free sí tiene un tope de cuántos espacios ajenos puede tener (`requireJoinAllowance`), y las
+ * reglas de Firestore ponen el tope de tamaño del espacio (R6) — ver firestore-tests/rules.test.ts.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -15,13 +20,23 @@ function body(source: string, name: string): string {
   return source.slice(start, next === -1 ? undefined : next);
 }
 
-describe("espacios compartidos exigen Pro", () => {
+describe("crear un espacio compartido exige Pro", () => {
   const actions = read("src/sync/spaceActions.ts");
-  for (const fn of ["shareList", "createInvite", "joinWithCode"]) {
-    it(`${fn} llama requirePro()`, () => {
-      expect(body(actions, fn)).toContain("requirePro()");
-    });
-  }
+  it("shareList llama requirePro()", () => {
+    expect(body(actions, "shareList")).toContain("requirePro()");
+  });
+});
+
+describe("unirse a un espacio exige solo el tope Free, no Pro", () => {
+  const actions = read("src/sync/spaceActions.ts");
+  it("joinWithCode llama requireJoinAllowance(), no requirePro()", () => {
+    const fn = body(actions, "joinWithCode");
+    expect(fn).toContain("requireJoinAllowance(");
+    expect(fn).not.toContain("requirePro()");
+  });
+  it("createInvite no exige Pro (cualquier miembro invita)", () => {
+    expect(body(actions, "createInvite")).not.toContain("requirePro()");
+  });
 });
 
 describe("el respaldo en la nube exige Pro", () => {

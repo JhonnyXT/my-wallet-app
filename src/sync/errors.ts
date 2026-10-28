@@ -69,8 +69,10 @@ export type SpaceErrorKind =
   | "taken"
   /** Las reglas no lo permiten (ya no es miembro, no es el dueño). */
   | "not-allowed"
-  /** Compartir, invitar y unirse a espacios es de Pro (src/billing). */
+  /** Crear un espacio (volverse dueño) es de Pro; unirse como invitado, no (src/billing, R5). */
   | "pro-required"
+  /** El espacio ya tiene el máximo de personas (R6). */
+  | "space-full"
   | "unknown";
 
 export class SpaceError extends Error {
@@ -105,7 +107,9 @@ export function spaceErrorMessage(kind: SpaceErrorKind): string {
     case "not-allowed":
       return "Ya no tienes acceso a ese espacio.";
     case "pro-required":
-      return "Compartir listas con otras personas es parte de MyWallet Pro.";
+      return "Crear una lista compartida es parte de MyWallet Pro. Unirte a una que ya existe es gratis.";
+    case "space-full":
+      return "Esta lista ya llegó a su máximo de personas.";
     default:
       return "No se pudo completar. Inténtalo de nuevo en un momento.";
   }

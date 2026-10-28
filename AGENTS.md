@@ -404,8 +404,9 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
   detección automática de notificaciones bancarias, categorías, presupuestos, metas, deudas,
   métodos de pago, listas múltiples y reparto de gasto sin nube, períodos de pago, reportes, CSV,
   biometría, tema oscuro). Pro agrupa dos cosas de naturaleza distinta: lo que tiene costo real en
-  Firebase (respaldo/sync en la nube, Sync Fase 3; espacios compartidos, Sync Fase 4, incluido
-  unirse como invitado — no solo crear) y, desde los gastos/ingresos recurrentes (2026-10-07),
+  Firebase (respaldo/sync en la nube, Sync Fase 3; **crear** un espacio compartido, Sync Fase 4 —
+  unirse e invitar a uno YA existente NO exigen Pro desde 2026-10-27, ver "Espacios compartidos"
+  más abajo, R5) y, desde los gastos/ingresos recurrentes (2026-10-07),
   funciones 100% locales que no cuestan nada en Firebase pero son la función premium de
   conveniencia que faltaba (ver "Gastos/ingresos recurrentes (Pro)" más abajo) — no todo Pro
   depende de tener cuenta/internet. El gating vive en
@@ -427,11 +428,12 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
   nuevo sin gastar lecturas de quien no paga. `useSyncStatus.phase` suma `"paused"` para ese caso
   (`AccountSection` lo etiqueta "Respaldo pausado · requiere Pro" y toca abre el paywall). Al
   ganar o perder Pro, `useEntitlementStore.subscribe` dispara una corrida de inmediato.
-- **Compartir/invitar/unirse a espacios exige Pro en el servidor del cliente**: `requirePro()` en
-  `src/sync/spaceActions.ts` (`shareList`/`createInvite`/`joinWithCode`) lanza
-  `SpaceError("pro-required")` antes de tocar Firestore. Sin backend propio, esto es solo barrera
-  de cliente (burlable con un cliente modificado); verificar compras de verdad es trabajo de
-  RevenueCat cuando exista.
+- **Crear un espacio compartido (volverse dueño) exige Pro en el servidor del cliente**:
+  `requirePro()` en `shareList()` (`src/sync/spaceActions.ts`) lanza `SpaceError("pro-required")`
+  antes de tocar Firestore. Sin backend propio, esto es solo barrera de cliente (burlable con un
+  cliente modificado); verificar compras de verdad es trabajo de RevenueCat cuando exista. Unirse
+  e invitar a un espacio ya existente NO llaman `requirePro()` (ver "Espacios compartidos" → roles
+  y límites, R5).
 - **Probado con el emulador** (ver "Probar en `dev`" más abajo): en Free un gasto nuevo NO sube a
   `users/{uid}/transactions` ni a `spaces/{id}/transactions`; al pasar a Pro, sube solo.
 - **Pendiente, no implementado todavía**: integración real con RevenueCat/Play Billing,
@@ -460,20 +462,45 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
 
 ### Espacios compartidos (Sync Fase 4)
 
-Diseño completo en `specs/sync-fase-4-espacios/` (local). Una lista (no Personal) se comparte y
-varias personas, cada una con su cuenta y su teléfono, registran en ella. **Compartir, invitar y
-unirse exigen plan Pro** (ver "Monetización" arriba); sin Pro, `spaceActions.ts` lanza
-`SpaceError("pro-required")` antes de llamar a Firestore y la UI abre el paywall.
+Diseño completo en `specs/sync-fase-4-espacios/` (local); roles editor/lector y límites
+(monetización Free/Pro) en `specs/espacios-roles-y-limites/` (local, 2026-10-27). Una lista (no
+Personal) se comparte y varias personas, cada una con su cuenta y su teléfono, registran en ella.
+**Solo crear un espacio (volverse dueño) exige Pro**: `shareList()` lanza
+`SpaceError("pro-required")` antes de llamar a Firestore y la UI abre el paywall. **Unirse e
+invitar a un espacio ya existente NO exigen Pro** (cada invitación trae usuarios nuevos gratis,
+decisión del usuario 2026-10-27) — un Free solo tiene un tope de cuántos espacios ajenos puede
+tener (`FREE_MAX_JOINED_SPACES = 2`, `spaceActions.ts`, chequeo de cliente; al llegar al tope,
+`joinWithCode` lanza `SpaceError("pro-required")` y la hoja de unirse abre el paywall).
 
-- **Modelo en Firestore**: `spaces/{id}` solo lleva la membresía (`ownerUid`, `memberUids`, `deletedAt`; las reglas la leen con `get()`); `members/{memberId}` una persona por documento, con o sin app (`uid: null` = sin app, `leftAt` = salió o la quitaron, sigue ahí para que lo que pagó cuente); `config/list` lo compartido; `transactions/{uid}` sin `list_id` ni `createdBy`. `inviteCodes/{code}` → `{ spaceId, createdBy, expiresAt }`.
+- **Modelo en Firestore**: `spaces/{id}` lleva la membresía (`ownerUid`, `memberUids`,
+  `editorUids`, `deletedAt`; las reglas la leen con `get()`); `members/{memberId}` una persona por
+  documento, con o sin app (`uid: null` = sin app, `leftAt` = salió o la quitaron, sigue ahí para
+  que lo que pagó cuente); `config/list` lo compartido; `transactions/{uid}` sin `list_id` ni
+  `createdBy`. `inviteCodes/{code}` → `{ spaceId, createdBy, expiresAt, role }`.
+- **Roles editor/lector** (`SpaceRole`, `"editor" | "viewer"`, specs/espacios-roles-y-limites/):
+  el dueño siempre es editor (`editorUids` incluido al crear). Un lector ve todo (lee transacciones,
+  config, miembros) pero no registra, edita ni borra movimientos, ni agrega personas sin app —
+  gateado en `firestore.rules` (`isEditor`/`canEdit`) y, del lado del cliente, en
+  `isListReadOnly()`/`SpaceLink.role` (`listsSlice.ts`): `active-expense.tsx` bloquea el guardado,
+  `FloatingDock` bloquea el "+"/mic, `TransactionItem` no revela swipe y `TransactionDetailModal`
+  oculta editar/eliminar cuando la lista activa es de solo lectura. El rol de cada invitación lo
+  trae el código (`ListEditorSheet` tiene el toggle "Puede editar"/"Solo ver" antes de
+  compartir/invitar); solo el dueño cambia el rol de alguien ya unido (`setMemberRole`, tag tocable
+  por persona en el editor). Un lector no puede invitar como editor (no reparte más permiso del
+  que tiene él mismo: su invitación siempre sale de lector). **Compatibilidad**: un espacio creado
+  antes de este campo no trae `editorUids` — se trata como "todos editores" (cae a `memberUids`),
+  tanto en las reglas (`isEditor`) como en el mapeo local (`membersToLocal`).
+- **Límite de miembros** (`MAX_SPACE_MEMBERS = 6`, dueño incluido): reforzado en
+  `firestore.rules` (`maxMembers()`), inviolable desde el cliente — protección de costo, no se
+  relaciona con el plan de quien se une.
 - **Qué se comparte** (decisión del usuario): nombre, ícono, categorías, "mostrar ingresos" y personas. **Período y presupuestos son de cada persona** y siguen en su respaldo `users/{uid}/lists/{id}` (que ahora también lleva `space`). Por eso una lista compartida tiene dos versiones: `updatedAt` (cualquier cambio, respaldo personal) y `space.sharedUpdatedAt` (lo compartido, `config/list`); `touchList(…, shared)` decide cuál mueve. Al traer el respaldo personal, `keepLocalShared` (`merge.ts`) no deja que una copia vieja pise lo compartido.
 - **Quién pagó entre teléfonos**: en la nube `paid_by` es el id de miembro; en el teléfono uno mismo es `SELF_PAYER`. `space.selfMemberId` es el puente (`paidByToRemote/Local`, `spaceMappers.ts`). El dueño y quien entra como "otra persona" tienen su uid como id; reclamar "soy Ana" liga el uid al miembro sin app que ya existía y **el id no cambia**: ningún movimiento se reescribe. Volver después de salir recupera el mismo miembro (`rejoinMember`), no crea otro.
 - **Código**: 6 caracteres de `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (sin 0/O/1/I), 7 días. No 6 dígitos: sin servidor que limite intentos, un millón de combinaciones se adivina. Cualquier miembro genera códigos.
 - **Motor**: después de lo personal, `pullSpaces` descubre los espacios del usuario (`where("memberUids", "array-contains", uid)`, sin filtrar `deletedAt` para no exigir índice), crea la lista de los que faltan (restaurar), trae personas, `config/list` y movimientos con cursor propio (`space:<id>`). Las listas cuyo espacio ya no aparece (salió, la quitaron, se eliminó) quedan **como listas propias** (`unlinkedList`, decisión del usuario) y sus movimientos pasan al respaldo personal. Al subir, cada movimiento pendiente va al espacio de su lista o a `users/{uid}`; si el espacio rechaza (`permission-denied`), la lista se desconecta y se reintenta como propia.
 - **Mover un movimiento de lista le da un `uid` nuevo** (`updateTransaction`, `db.ts`) y deja un tombstone con el viejo en la lista vieja: el mismo `uid` en dos lugares de la nube chocaría al restaurar (el borrado gana el empate). El `id` local no cambia.
-- **Acciones** (`spaceActions.ts`, lanzan `SpaceError`): `shareList`, `createInvite`, `joinWithCode` → `completeJoin` ("¿Quién eres?"), `leaveSpace`, `removeMember`, `deleteSpace`. Son las únicas que esperan al servidor (compartir/unirse sin conexión no se puede), con el error dentro de la hoja. Corren con `runExclusive` (sin sync a la vez); la sync que necesiten se pide al terminar, nunca adentro (se esperaría a sí misma).
+- **Acciones** (`spaceActions.ts`, lanzan `SpaceError`): `shareList`, `createInvite`, `joinWithCode` → `completeJoin` ("¿Quién eres?"), `leaveSpace`, `removeMember`, `setMemberRole` (solo el dueño), `deleteSpace`. Son las únicas que esperan al servidor (compartir/unirse sin conexión no se puede), con el error dentro de la hoja. Corren con `runExclusive` (sin sync a la vez); la sync que necesiten se pide al terminar, nunca adentro (se esperaría a sí misma).
 - **UI**: editor de lista (`ListEditorSheet` + `useListEditor`): "Compartir lista"/"Invitar a alguien" → `InviteSheet`; punto verde = se unió con la app; el dueño quita a quien se unió; quien no es dueño ve "Salir de la lista"; "Eliminar" del dueño avisa que es para todos. Tus listas: "Unirme con un código" → `JoinSpaceSheet`, "Compartida · Tú y N personas". "PAGÓ" no ofrece a quien salió salvo si es quien pagó el que se edita. El "Compartir" del menú de listas del Dashboard sigue mandando el **resumen** de la lista (texto), no un código.
-- **Reglas** (`firestore.rules`, 23 casos en `npm run test:rules`): solo miembros leen/escriben; unirse = agregarse solo a uno mismo con un código vigente de ese espacio; salir = quitarse solo a uno mismo; el dueño quita (nunca agrega) y elimina, y lee el espacio ya marcado como eliminado para poder borrarlo. Lo que no pueden impedir sin servidor: que un miembro edite o borre el movimiento de otro (a propósito, como una lista en papel).
+- **Reglas** (`firestore.rules`, 34 casos en `npm run test:rules`): solo miembros leen/escriben; solo editores crean/editan transacciones y config (R1); unirse = agregarse solo a uno mismo con un código vigente de ese espacio, sin pasar de `maxMembers()` (R6), y a `editorUids` solo si el código es de editor (R4); salir = quitarse solo a uno mismo; el dueño quita (nunca agrega), cambia roles (R3, nunca el propio) y elimina, y lee el espacio ya marcado como eliminado para poder borrarlo. Lo que no pueden impedir sin servidor: que un editor edite o borre el movimiento de otro editor (a propósito, como una lista en papel).
 - **Eliminar la cuenta** sale de los espacios ajenos y elimina los propios antes de borrar `users/{uid}`.
 
 ### Listas y gasto compartido

@@ -137,10 +137,12 @@ export function TransactionItem({
 
   // onStartShouldSetPanResponder: false → el FlatList recibe los toques primero.
   // El PanResponder sólo reclama el gesto cuando detecta un swipe horizontal claro.
+  // Sin onEdit ni onDelete (lista de solo lectura, roles editor/lector) no hay nada que revelar.
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
+      onMoveShouldSetPanResponder: (_, g) =>
+        (!!onEdit || !!onDelete) && Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
       onPanResponderMove: (_, g) => {
         if (Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy)) {
           const base =

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
+  Alert,
   View,
   Text,
   TouchableOpacity,
@@ -30,7 +31,7 @@ import * as Haptics from "expo-haptics";
 import { useExpenseStore, AccountType } from "@/src/store/useExpenseStore";
 import { useVoiceStore } from "@/src/store/useVoiceStore";
 import { useFinanceStore } from "@/src/store/useFinanceStore";
-import { useSettingsStore } from "@/src/store/useSettingsStore";
+import { isListReadOnly, useSettingsStore } from "@/src/store/useSettingsStore";
 import { useNotificationStore } from "@/src/store/useNotificationStore";
 import { useRecurringQueueStore } from "@/src/store/useRecurringQueueStore";
 import { localISOString, SELF_PAYER } from "@/src/db/db";
@@ -402,6 +403,15 @@ export default function ActiveExpenseScreen() {
     }
 
     // ── Flujo normal: guardar en la base de datos (crear o actualizar) ─────────
+    // Un lector de un espacio compartido (roles editor/lector) no registra ni edita ahí: las
+    // reglas de Firestore lo rechazarían igual, mejor avisar antes de perder el gasto localmente.
+    if (isListReadOnly(lists.find((l) => l.id === listId))) {
+      Alert.alert(
+        "Lista de solo lectura",
+        "No puedes registrar ni editar movimientos en esta lista. Pide al dueño que te dé permiso de edición.",
+      );
+      return;
+    }
     const txDate = store.date === "custom" && store.customDate ? store.customDate : new Date();
 
     const savedAmount = amount;

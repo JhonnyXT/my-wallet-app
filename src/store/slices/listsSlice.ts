@@ -8,6 +8,9 @@ import type { BudgetSlice } from "./budgetSlice";
 import type { CategoriesSlice } from "./categoriesSlice";
 import type { PrefsSlice } from "./prefsSlice";
 
+/** Quién puede editar en un espacio compartido (specs/espacios-roles-y-limites/, R1). */
+export type SpaceRole = "editor" | "viewer";
+
 /** Otra persona de una lista (tu pareja, un socio…). Tú no estás aquí: eres `paid_by = ""`. */
 export interface ListMember {
   id: string;
@@ -16,6 +19,8 @@ export interface ListMember {
   uid?: string | null;
   /** Solo en espacios: "joined" se unió con la app, "guest" sin app, "left" salió o la quitaron. */
   status?: "joined" | "guest" | "left";
+  /** Solo para quien se unió con la app (`uid` presente). El dueño siempre es "editor". */
+  role?: SpaceRole;
 }
 
 /**
@@ -30,6 +35,16 @@ export interface SpaceLink {
   selfMemberId: string;
   /** Última edición de lo compartido, epoch ms. */
   sharedUpdatedAt: number;
+  /**
+   * Mi rol en ESTE espacio (R1). El dueño siempre es "editor". Ausente (listas traídas antes de
+   * esta feature) se trata como "editor": compatibilidad, igual que `editorUids` en las reglas.
+   */
+  role?: SpaceRole;
+}
+
+/** `true` = no puedo registrar/editar/borrar en esta lista (soy lector de su espacio). */
+export function isListReadOnly(list: Pick<WalletList, "space"> | undefined): boolean {
+  return list?.space?.role === "viewer";
 }
 
 export interface WalletList {
@@ -199,6 +214,12 @@ export interface ListsSlice {
    * compartida, quitar a una persona sin app la deja "left" (`mergeSpaceMembers`).
    */
   setMembers: (listId: string, members: ListMember[]) => void;
+  /**
+   * Refleja de una vez el rol que acaba de confirmar el servidor (owner cambiando a alguien, o mi
+   * propio rol al unirme): el próximo `pull` lo vuelve a traer igual, esto es solo para no
+   * esperarlo. `uid` ausente = soy yo (toca `space.role`); si no, el miembro con ese uid.
+   */
+  setMemberRole: (listId: string, role: SpaceRole, uid?: string) => void;
   /** Liga una lista a un espacio (al compartirla o al traer uno) con sus personas. */
   linkSpace: (listId: string, space: SpaceLink, members: ListMember[]) => void;
   /** La lista deja su espacio y queda como propia (`unlinkedList`). */
@@ -287,6 +308,18 @@ export const createListsSlice: StateCreator<
       ),
     }));
   },
+
+  setMemberRole: (listId, role, uid) =>
+    set((s) => ({
+      lists: s.lists.map((l) => {
+        if (l.id !== listId || !l.space) return l;
+        if (!uid) return { ...l, space: { ...l.space, role } };
+        return {
+          ...l,
+          members: l.members?.map((m) => (m.uid === uid ? { ...m, role } : m)),
+        };
+      }),
+    })),
 
   linkSpace: (listId, space, members) => {
     if (listId === DEFAULT_LIST_ID) return;

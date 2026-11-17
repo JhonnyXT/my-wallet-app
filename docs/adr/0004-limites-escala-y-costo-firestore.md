@@ -31,12 +31,14 @@ Se revisaron todas las queries reales a Firestore (`src/sync/remote.ts`, `spaces
 
 ## Límites de tamaño/capacidad
 
-- **Miembros por espacio: SIN LÍMITE en esta rama.** `firestore.rules` no tiene ningún `maxMembers()`
-  ni equivalente — un espacio puede crecer indefinidamente. `feature/pro-billing` ya resolvió esto
-  (`MAX_SPACE_MEMBERS = 6`, reforzado en las reglas) pero esa rama no está fusionada a `master`.
-  **Si se va a producción desde `master` tal cual, este es un gap real de costo** (cada miembro
-  nuevo multiplica las lecturas de `transactions`/`members`/`config` de ese espacio) — no es una
-  falla de seguridad (nadie se cuela sin código de invitación), es un límite de capacidad ausente.
+- **Miembros por espacio: RESUELTO (2026-11-17).** Se portó `maxMembers() = 6` desde
+  `feature/pro-billing` (solo la protección de costo, sin el gating Pro ni los roles
+  editor/lector de esa rama, que son otra decisión aparte): `firestore.rules` ahora rechaza
+  unirse a un espacio que ya tiene 6 miembros. 2 tests nuevos en `rules.test.ts` ("el miembro
+  número 7 no puede unirse"/"el sexto sí puede unirse"), 26/26 `test:rules`.
+- **Espacios ajenos que un usuario puede unirse: SIN LÍMITE todavía.** `FREE_MAX_JOINED_SPACES`
+  de `feature/pro-billing` sigue atado a la decisión de monetización (gating de cliente, no de
+  reglas) — no se portó, a diferencia de `maxMembers()` que es protección de costo pura.
 - **Espacios ajenos que un usuario puede unirse: SIN LÍMITE en esta rama** (ídem, `FREE_MAX_JOINED_SPACES`
   es de `feature/pro-billing`).
 - **Código de invitación**: 7 días de vencimiento (`expiresAt <= request.time + 8 días`, reforzado
@@ -58,11 +60,9 @@ Se revisaron todas las queries reales a Firestore (`src/sync/remote.ts`, `spaces
 
 ## Consecuencias
 
-- **Antes de llevar `master` a producción real (Play Store) con espacios compartidos activos**,
-  portar el límite de miembros por espacio desde `feature/pro-billing` (aunque sea sin el gating
-  Pro, solo el `maxMembers()` de las reglas) — es protección de costo, no depende de la decisión de
-  monetización.
 - Si se agrega cualquier query nueva a Firestore, repetir este ejercicio: ¿tiene más de un campo en
   el filtro+orden? ¿Necesita paginación si la colección puede crecer sin límite conocido?
+- Al fusionar `feature/pro-billing` a futuro, el `maxMembers()` de esta rama y el de esa rama son
+  el mismo valor (6) — no debería haber conflicto real, solo el de roles/`editorUids` alrededor.
 
 Código: `firestore.rules`, `src/sync/remote.ts`, `src/sync/spacesRemote.ts`.

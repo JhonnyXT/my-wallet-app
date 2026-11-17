@@ -294,6 +294,34 @@ describe("spaces: unirse con código", () => {
   });
 });
 
+describe("spaces: límite de miembros (protección de costo)", () => {
+  it("el miembro número 7 no puede unirse (máximo 6)", async () => {
+    await seedSpace({
+      memberUids: ["ana", "m2", "m3", "m4", "m5", "m6"],
+      code: { id: "K7Q2MX", expiresAt: IN_7_DAYS() },
+    });
+    await assertFails(
+      updateDoc(doc(as("beto"), "spaces/s1"), {
+        memberUids: arrayUnion("beto"),
+        joinCode: "K7Q2MX",
+      }),
+    );
+  });
+
+  it("el sexto sí puede unirse", async () => {
+    await seedSpace({
+      memberUids: ["ana", "m2", "m3", "m4", "m5"],
+      code: { id: "K7Q2MX", expiresAt: IN_7_DAYS() },
+    });
+    await assertSucceeds(
+      updateDoc(doc(as("beto"), "spaces/s1"), {
+        memberUids: arrayUnion("beto"),
+        joinCode: "K7Q2MX",
+      }),
+    );
+  });
+});
+
 describe("spaces: reclamar a una persona sin app", () => {
   it("se liga si está libre; si ya la reclamaron, no", async () => {
     await seedSpace({ memberUids: ["ana", "beto", "caro"] });

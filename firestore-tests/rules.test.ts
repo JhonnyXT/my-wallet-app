@@ -140,6 +140,18 @@ describe("spaces: crear", () => {
     );
   });
 
+  it("un espacio no acepta campos fuera de los que el cliente real escribe (mass assignment)", async () => {
+    const db = as("ana");
+    await assertFails(
+      setDoc(doc(db, "spaces/s1"), {
+        ownerUid: "ana",
+        memberUids: ["ana"],
+        deletedAt: null,
+        editorUids: ["ana", "beto"],
+      }),
+    );
+  });
+
   it("un código no pisa otro existente, ni vence en más de 8 días, ni es de un espacio ajeno", async () => {
     await seedSpace({ code: { id: "K7Q2MX", expiresAt: IN_7_DAYS() } });
     const db = as("ana");

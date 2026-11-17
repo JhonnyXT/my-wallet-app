@@ -13,7 +13,7 @@ describe("planes", () => {
 
   it("cada función de Pro tiene explicación y hay beneficios para mostrar", () => {
     expect(FEATURE_PITCH.cloudBackup.length).toBeGreaterThan(10);
-    expect(FEATURE_PITCH.sharedSpaces.length).toBeGreaterThan(10);
+    expect(FEATURE_PITCH.recurringExpenses.length).toBeGreaterThan(10);
     expect(PRO_PERKS.length).toBeGreaterThan(0);
   });
 });

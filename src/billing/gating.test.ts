@@ -1,11 +1,11 @@
 /**
- * Guardia estática de Pro: crear un espacio compartido (volverse dueño) y subir el respaldo deben
- * pasar por `canUse` (src/billing). Si alguien agrega una vía nueva sin la guardia, esto falla.
+ * Guardia estática de Pro: subir el respaldo debe pasar por `canUse` (src/billing). Si alguien
+ * agrega una vía nueva sin la guardia, esto falla.
  *
- * Unirse e invitar a un espacio YA existente NO exigen Pro (monetización Free/Pro,
- * specs/espacios-roles-y-limites/, R5): cada invitación trae usuarios nuevos gratis. Un usuario
- * Free sí tiene un tope de cuántos espacios ajenos puede tener (`requireJoinAllowance`), y las
- * reglas de Firestore ponen el tope de tamaño del espacio (R6) — ver firestore-tests/rules.test.ts.
+ * Compartir/unirse a un espacio (crear, invitar o unirse) NO exige Pro — mismo criterio que
+ * meld-app: es gratis para cualquiera, sin tope de cuántos espacios puede tener un usuario. El
+ * único límite es el tamaño máximo de un espacio (`maxMembers` en firestore.rules, protección de
+ * costo, ver firestore-tests/rules.test.ts), que no depende del plan de quien se une.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -20,22 +20,21 @@ function body(source: string, name: string): string {
   return source.slice(start, next === -1 ? undefined : next);
 }
 
-describe("crear un espacio compartido exige Pro", () => {
+describe("compartir/unirse a un espacio es gratis, sin gating de Pro", () => {
   const actions = read("src/sync/spaceActions.ts");
-  it("shareList llama requirePro()", () => {
-    expect(body(actions, "shareList")).toContain("requirePro()");
+  it("shareList no exige Pro ni ningún tope de espacios", () => {
+    const fn = body(actions, "shareList");
+    expect(fn).not.toContain("requirePro(");
+    expect(fn).not.toContain("canUse(");
   });
-});
-
-describe("unirse a un espacio exige solo el tope Free, no Pro", () => {
-  const actions = read("src/sync/spaceActions.ts");
-  it("joinWithCode llama requireJoinAllowance(), no requirePro()", () => {
+  it("joinWithCode no exige Pro ni ningún tope de espacios", () => {
     const fn = body(actions, "joinWithCode");
-    expect(fn).toContain("requireJoinAllowance(");
-    expect(fn).not.toContain("requirePro()");
+    expect(fn).not.toContain("requireJoinAllowance(");
+    expect(fn).not.toContain("requirePro(");
+    expect(fn).not.toContain("canUse(");
   });
   it("createInvite no exige Pro (cualquier miembro invita)", () => {
-    expect(body(actions, "createInvite")).not.toContain("requirePro()");
+    expect(body(actions, "createInvite")).not.toContain("requirePro(");
   });
 });
 

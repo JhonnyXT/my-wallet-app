@@ -59,7 +59,6 @@ describe("classifySpaceError", () => {
       "invalid-code",
       "taken",
       "not-allowed",
-      "pro-required",
       "unknown",
     ] as const) {
       expect(spaceErrorMessage(kind).length).toBeGreaterThan(10);

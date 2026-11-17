@@ -46,7 +46,7 @@ export function BillingHost({ enabled }: { enabled: boolean }) {
         variant="info"
         emoji="⏰"
         title="Tu prueba de Pro terminó"
-        message={`Pasaron los ${TRIAL_DAYS} días. Volviste al plan gratuito: todo lo de tu teléfono sigue igual y tus datos están intactos. El respaldo en la nube y los espacios compartidos quedan en pausa hasta que pases a Pro.`}
+        message={`Pasaron los ${TRIAL_DAYS} días. Volviste al plan gratuito: todo lo de tu teléfono sigue igual y tus datos están intactos. El respaldo en la nube y los gastos/ingresos recurrentes quedan en pausa hasta que pases a Pro.`}
         confirmLabel="Ver planes"
         cancelLabel="Seguir gratis"
         onConfirm={() => {

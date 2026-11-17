@@ -222,7 +222,7 @@ export default function LoginOnboarding() {
         variant="info"
         emoji="☁️"
         title="Puedes hacerlo después"
-        message="Cuando quieras, inicia sesión desde Ajustes → Cuenta. El respaldo en la nube y las listas compartidas son parte de Pro, que puedes probar 14 días gratis."
+        message="Cuando quieras, inicia sesión desde Ajustes → Cuenta. Compartir listas es gratis; el respaldo en la nube es parte de Pro, que puedes probar 14 días gratis."
         confirmLabel="Entendido"
         onConfirm={() => {
           setSkipNotice(false);

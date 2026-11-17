@@ -8,7 +8,6 @@
  */
 import { getAuth, type User } from "@react-native-firebase/auth";
 import { getRandomBytes } from "expo-crypto";
-import { canUse } from "@/src/billing";
 import { DEFAULT_LIST_ID } from "@/src/constants/lists";
 import { markListTransactionsPending } from "@/src/db/db";
 import {
@@ -52,31 +51,6 @@ import {
   updateMemberRole,
   type SpaceRole,
 } from "./spacesRemote";
-
-/**
- * Crear un espacio (convertir una lista en espacio compartido) es de Pro: solo el dueño/creador
- * paga (monetización Free/Pro, specs/espacios-roles-y-limites/, R5). Unirse e invitar a un espacio
- * ya existente NO lo exige — cada invitación trae usuarios nuevos gratis. La UI muestra el paywall
- * antes de llegar aquí.
- */
-function requirePro(): void {
-  if (!canUse("sharedSpaces")) throw new SpaceError("pro-required");
-}
-
-/** Cuántos espacios ajenos (no creados por mí) tengo en el teléfono, para el límite de R5. */
-function joinedSpacesCount(selfUid: string): number {
-  return withLiveActiveList(useSettingsStore.getState()).filter(
-    (l) => l.space != null && l.space.ownerUid !== selfUid,
-  ).length;
-}
-
-/** Un usuario Free puede ser invitado a hasta `FREE_MAX_JOINED_SPACES` espacios (R5). */
-export const FREE_MAX_JOINED_SPACES = 2;
-
-function requireJoinAllowance(selfUid: string): void {
-  if (canUse("sharedSpaces")) return;
-  if (joinedSpacesCount(selfUid) >= FREE_MAX_JOINED_SPACES) throw new SpaceError("pro-required");
-}
 
 export interface Invite {
   code: string;
@@ -160,10 +134,10 @@ export async function createInvite(listId: string, role: SpaceRole = "editor"): 
 /**
  * Convierte la lista en espacio (D3) y devuelve el primer código. Si ya lo era, solo un código.
  * Sus movimientos se suben al espacio en segundo plano y dejan el respaldo personal (RF-16).
- * Crear el espacio (volverse dueño) siempre exige Pro, aunque el invitado no lo necesite (R5).
+ * Compartir/unirse es gratis para cualquiera (sin Pro) — mismo criterio que meld-app: el único
+ * límite es el tamaño máximo del espacio (maxMembers en firestore.rules, protección de costo).
  */
 export async function shareList(listId: string, role: SpaceRole = "editor"): Promise<Invite> {
-  requirePro();
   const user = requireUser();
   if (listId === DEFAULT_LIST_ID) throw new SpaceError("unknown");
   const invite = await guarded(async () => {
@@ -291,9 +265,6 @@ async function linkLocal(spaceId: string, selfMemberId: string): Promise<string>
  */
 export async function joinWithCode(input: string): Promise<JoinResult> {
   const user = requireUser();
-  // Unirse a un espacio ya existente no exige Pro (R5): solo crear uno (`shareList`). Un usuario
-  // Free sí tiene un tope de cuántos espacios ajenos puede tener (joinedSpacesCount).
-  requireJoinAllowance(user.uid);
   const code = normalizeInviteCode(input);
   if (!code) throw new SpaceError("invalid-code");
   const result = await guarded<JoinResult>(async () => {

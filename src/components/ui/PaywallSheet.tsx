@@ -65,7 +65,7 @@ export function PaywallSheet() {
       ? `Estás probando Pro: te ${daysLeft === 1 ? "queda 1 día" : `quedan ${daysLeft} días`}.`
       : feature
         ? FEATURE_PITCH[feature]
-        : "Respalda en la nube y comparte listas con quien quieras.";
+        : "Respalda en la nube y registra tus gastos recurrentes con un toque.";
 
   const periodCard = (key: BillingPeriod, title: string, badge?: string) => {
     const selected = period === key;

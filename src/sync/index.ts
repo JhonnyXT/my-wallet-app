@@ -20,7 +20,6 @@ export {
   removeMember,
   setMemberRole,
   deleteSpace,
-  FREE_MAX_JOINED_SPACES,
   type Invite,
   type JoinResult,
 } from "./spaceActions";

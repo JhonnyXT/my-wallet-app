@@ -4,7 +4,7 @@
 export type PlanTier = "free" | "pro";
 export type BillingPeriod = "monthly" | "annual";
 /** Funciones que exigen Pro. Se consultan siempre con `canUse()` (src/billing/entitlement.ts). */
-export type ProFeature = "cloudBackup" | "sharedSpaces" | "recurringExpenses";
+export type ProFeature = "cloudBackup" | "recurringExpenses";
 
 export const TRIAL_DAYS = 14;
 
@@ -32,11 +32,6 @@ export const PRO_PERKS: ProPerk[] = [
     description: "Tus movimientos a salvo y al día en todos tus dispositivos.",
   },
   {
-    emoji: "👥",
-    title: "Espacios compartidos",
-    description: "Registra gastos con tu pareja, familia o amigos en la misma lista.",
-  },
-  {
     emoji: "🔁",
     title: "Gastos recurrentes",
     description: "Arriendo, salario o suscripciones: te recordamos y registras con un toque.",
@@ -51,6 +46,5 @@ export const PRO_PERKS: ProPerk[] = [
 /** Texto corto de por qué se muestra el paywall según la función bloqueada. */
 export const FEATURE_PITCH: Record<ProFeature, string> = {
   cloudBackup: "El respaldo en la nube es parte de Pro.",
-  sharedSpaces: "Compartir listas con otras personas es parte de Pro.",
   recurringExpenses: "Los gastos e ingresos recurrentes son parte de Pro.",
 };

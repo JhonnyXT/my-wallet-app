@@ -31,7 +31,7 @@ describe("useEntitlementStore", () => {
     s.startProTrial();
     const first = useEntitlementStore.getState().trialStartedAt;
     expect(first).not.toBeNull();
-    expect(canUse("sharedSpaces")).toBe(true);
+    expect(canUse("recurringExpenses")).toBe(true);
 
     s.simulateTrialExpired();
     s.expireTrialIfDue();
@@ -67,10 +67,10 @@ describe("useEntitlementStore", () => {
     s.startProTrial();
     s.subscribePro();
     expect(useEntitlementStore.getState()).toMatchObject({ plan: "pro", trialStartedAt: null });
-    expect(canUse("sharedSpaces")).toBe(true);
+    expect(canUse("recurringExpenses")).toBe(true);
 
     useEntitlementStore.getState().setFree();
-    expect(canUse("sharedSpaces")).toBe(false);
+    expect(canUse("recurringExpenses")).toBe(false);
     // La prueba ya se usó: no se vuelve a ofrecer.
     expect(useEntitlementStore.getState().trialUsed).toBe(true);
   });

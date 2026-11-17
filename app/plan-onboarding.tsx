@@ -1,7 +1,8 @@
 /**
- * Onboarding paso 5 (último): "Elige cómo empezar". MyWallet es gratis para lo esencial; Pro suma
- * respaldo en la nube y espacios compartidos. Se puede probar 14 días sin cobro o seguir gratis, y
- * cambiarlo cuando quieras en Ajustes → Plan. La prueba es simulada hasta que exista Google Play.
+ * Onboarding paso 5 (último): "Elige cómo empezar". MyWallet es gratis para lo esencial (incluidos
+ * los espacios compartidos); Pro suma respaldo en la nube y gastos/ingresos recurrentes. Se puede
+ * probar 14 días sin cobro o seguir gratis, y cambiarlo cuando quieras en Ajustes → Plan. La
+ * prueba es simulada hasta que exista Google Play.
  */
 import { useCallback, useMemo } from "react";
 import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";

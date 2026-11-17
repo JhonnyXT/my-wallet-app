@@ -15,7 +15,7 @@ import { ChevronLeft, Sparkles, ArrowUp, AlignJustify } from "lucide-react-nativ
 import { useSharedValue, useAnimatedStyle, withTiming, Easing } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { processQuery } from "@/src/features/chat/useLocalNLP";
+import { processQuery } from "@/src/utils/chatNlp";
 import {
   initChatTables,
   createChatSession,
@@ -30,7 +30,7 @@ import {
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
 import type { ChatMessage } from "@/src/types/chat";
-import type { WeeklySummaryCard } from "@/src/features/chat/useLocalNLP";
+import type { WeeklySummaryCard } from "@/src/utils/chatNlp";
 import { ChatMessageBubble } from "@/src/components/chat/ChatMessageBubble";
 import { ChatHistoryDrawer } from "@/src/components/chat/ChatHistoryDrawer";
 import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";

@@ -423,7 +423,16 @@ async function syncOnce(uid: string, opts: { pull: boolean }): Promise<void> {
 
 /** Pide una corrida; si ya hay una, se repite al terminar (con traída si alguna la pidió). */
 export function requestSync(opts: { pull: boolean }): Promise<void> {
-  const uid = currentUid();
+  let uid: string | null;
+  try {
+    uid = currentUid();
+  } catch (e) {
+    // Red de seguridad: currentUid()/ensureFirebase() no debería lanzar, pero es una llamada
+    // nativa real (GoogleSignin.configure) — sin este catch, un fallo acá dejaría una excepción
+    // síncrona sin manejar en cada `void syncNow()`/`void requestSync(...)` de toda la capa.
+    console.warn("[sync] Error inesperado al iniciar sync:", e);
+    return Promise.resolve();
+  }
   if (!uid || suspended) return Promise.resolve();
   if (running) {
     again = { pull: (again?.pull ?? false) || opts.pull };
@@ -439,6 +448,10 @@ export function requestSync(opts: { pull: boolean }): Promise<void> {
         await syncOnce(who, next);
         next = again;
       }
+    } catch (e) {
+      // Mismo motivo: syncOnce() ya se cuida sola (try/catch propio), esto es solo por si
+      // currentUid() fallara entre vueltas del loop — nunca dejar la promesa de `running` rechazada.
+      console.warn("[sync] Error inesperado fuera de syncOnce:", e);
     } finally {
       running = null;
     }

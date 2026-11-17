@@ -36,7 +36,7 @@ import { localISOString, SELF_PAYER } from "@/src/db/db";
 
 import { checkAndNotifyBudget } from "@/src/services/notificationService";
 import { NewCategoryModal } from "@/app/category-onboarding";
-import { PaymentMethodsSection } from "@/app/settings";
+import { PaymentMethodsSection } from "@/src/components/settings/PaymentMethodsSection";
 import type { UserCategory } from "@/src/constants/categoryPresets";
 import { processVoiceInput } from "@/src/utils/voiceParser";
 import { formatMoneyInput } from "@/src/utils/formatMoney";

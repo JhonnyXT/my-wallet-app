@@ -35,7 +35,7 @@ export const es = {
     title1: 'Tu dinero,',
     title2: 'bajo control.',
     subtitle:
-      'Anota cada gasto en segundos: a mano, dictándolo o desde la notificación de tu banco. No te lo contamos: pruébala aquí abajo, es la app funcionando con datos de ejemplo.',
+      'Anota cada gasto en segundos: a mano, dictándolo o desde la notificación de tu banco. Pruébala aquí abajo con la demo interactiva, o anótate para que te avisemos en cuanto llegue a Google Play.',
     finePrint: 'Próximamente en Google Play · Gratis · Solo un email, nada de spam',
     privacyLink: 'Así cuidamos tus datos',
   },
@@ -256,6 +256,7 @@ export const es = {
     deleteAccount: 'Eliminar cuenta',
     support: 'Soporte',
     rights: '© 2026 MyWallet',
+    madeBy: 'Hecho por',
   },
 };
 

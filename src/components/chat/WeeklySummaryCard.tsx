@@ -11,7 +11,7 @@ import Svg, {
 import { TrendingUp, TrendingDown } from "lucide-react-native";
 import { useTheme } from "@/src/context/ThemeContext";
 import type { AppTheme } from "@/src/theme";
-import type { WeeklySummaryCard as WeeklySummaryCardType } from "@/src/features/chat/useLocalNLP";
+import type { WeeklySummaryCard as WeeklySummaryCardType } from "@/src/utils/chatNlp";
 import { CARD_W, BLUE_CHAT } from "@/src/components/chat/chatConstants";
 import { smoothPath } from "@/src/utils/chatHelpers";
 

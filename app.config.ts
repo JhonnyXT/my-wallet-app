@@ -63,7 +63,7 @@ const config: ExpoConfig = {
   // Versión visible (versionName), semver MAJOR.MINOR.PATCH: PATCH = arreglos, MINOR = funciones
   // nuevas compatibles, MAJOR = cambios grandes. 1.0.0 = lanzamiento en Google Play (los 1.x de
   // antes eran builds de prueba). Al cambiarla, subir también `version` de package.json.
-  version: "1.0.0",
+  version: "1.1.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: current.scheme,

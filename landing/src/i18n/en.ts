@@ -35,8 +35,8 @@ export const en: Dictionary = {
     title1: 'Your money,',
     title2: 'under control.',
     subtitle:
-      'Log every expense in seconds: by hand, by voice or from your bank’s notification. Don’t take our word for it: try it right below, it’s the app running with sample data.',
-    finePrint: 'Coming soon to Google Play · Free · The app is in Spanish, in Colombian pesos',
+      'Log every expense in seconds: by hand, by voice or from your bank’s notification. Try it below with the interactive demo, or sign up and we’ll let you know the moment it’s on Google Play.',
+    finePrint: 'Coming soon to Google Play · Free · Just your email, no spam',
     privacyLink: 'How we handle your data',
   },
   demo: {
@@ -256,5 +256,6 @@ export const en: Dictionary = {
     deleteAccount: 'Delete account',
     support: 'Support',
     rights: '© 2026 MyWallet',
+    madeBy: 'Made by',
   },
 };

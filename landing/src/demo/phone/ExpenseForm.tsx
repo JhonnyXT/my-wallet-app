@@ -173,7 +173,7 @@ export function ExpenseForm({ api }: { api: DemoApi }) {
     if (digits >= 6) return { fontSize: 56, lineHeight: '64px', letterSpacing: -2 };
     return {};
   };
-  const cats = isExpense ? expenseCategories() : incomeCategories();
+  const cats = isExpense ? expenseCategories(state.activeList) : incomeCategories(state.activeList);
   const divider: CSSProperties = { height: 1, background: t.border, transform: 'scaleY(0.5)' };
   const cardRow: CSSProperties = { ...row, justifyContent: 'center', gap: 12, padding: '14px 0', width: '100%' };
   const sectionLabel: CSSProperties = { fontSize: 11, fontWeight: 700, color: t.textSub, letterSpacing: 1, textTransform: 'uppercase', marginTop: 24, marginBottom: 12 };

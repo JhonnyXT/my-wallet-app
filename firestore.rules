@@ -8,9 +8,10 @@ rules_version = '2';
 // (npm run test:rules).
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Protección de costo (R6): tamaño máximo de un espacio, dueño incluido. El límite de cuántos
-    // espacios puede tener/unirse un usuario Free es solo de la app (no hay contador server-side
-    // sin Cloud Functions); este es el único tope que las reglas pueden hacer cumplir.
+    // Protección de costo (R6): tamaño máximo de un espacio, dueño incluido. Cuántos espacios
+    // puede tener/unirse un usuario no se controla aquí (no hay contador server-side sin Cloud
+    // Functions, y desde 2026-11-17 compartir es gratis para cualquiera); este es el único tope
+    // que las reglas pueden hacer cumplir.
     function maxMembers() {
       return 6;
     }
@@ -71,6 +72,7 @@ service cloud.firestore {
       // Descubrir mis espacios: query con where("memberUids", "array-contains", uid).
       allow list: if signedIn() && request.auth.uid in resource.data.memberUids;
       allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['ownerUid', 'memberUids', 'editorUids', 'deletedAt', 'createdAt', 'serverUpdatedAt'])
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.memberUids == [request.auth.uid]
         // El dueño siempre es editor (R1).

@@ -13,7 +13,9 @@ import {
   categoryName,
   guessCategoryEmoji,
   localISOString,
+  openingBalanceFor,
   type DemoTx,
+  type ListId,
 } from './data';
 
 // ─── Tipos ─────────────────────────────────────────────────────────────────────
@@ -67,6 +69,8 @@ export type State = {
   stack: Screen[];
   txs: DemoTx[];
   nextId: number;
+  /** Lista activa del selector del Dashboard ("Personal ▾"). */
+  activeList: ListId;
   period: PeriodFilter;
   typeFilter: 'expense' | 'income' | null;
   categoryFilter: { emoji: string; name: string } | null;
@@ -93,6 +97,7 @@ type Action =
   | { type: 'back' }
   | { type: 'home' }
   | { type: 'overlay'; overlay: Overlay | null }
+  | { type: 'switchList'; list: ListId }
   | { type: 'toggleType'; filter: 'expense' | 'income' }
   | { type: 'categoryFilter'; emoji: string }
   | { type: 'clearCategoryFilter' }
@@ -188,17 +193,22 @@ export const normalize = (text: string) =>
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '');
 
-export const allTimeBalance = (txs: DemoTx[]) => OPENING_BALANCE - txs.reduce((s, t) => s + t.amount, 0);
+export const allTimeBalance = (txs: DemoTx[], opening: number = OPENING_BALANCE) => opening - txs.reduce((s, t) => s + t.amount, 0);
+
+/** El panel lateral narra siempre sobre Personal (no sabe de listas): si el
+ * visitante cambia a "Viaje a Cartagena" en el teléfono, estas cifras no se
+ * mueven con ese cambio. */
+const personalOnly = (txs: DemoTx[]) => txs.filter((t) => t.list === 'personal');
 
 /** Gasto del mes actual por emoji (presupuestos del panel lateral y notificaciones). */
 export function monthSpentBy(txs: DemoTx[]): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const t of applyPeriod(txs, { type: 'quick', label: 'Este mes' })) if (t.amount > 0) out[t.emoji] = (out[t.emoji] ?? 0) + t.amount;
+  for (const t of applyPeriod(personalOnly(txs), { type: 'quick', label: 'Este mes' })) if (t.amount > 0) out[t.emoji] = (out[t.emoji] ?? 0) + t.amount;
   return out;
 }
 
 export function monthTotals(txs: DemoTx[]) {
-  const month = applyPeriod(txs, { type: 'quick', label: 'Este mes' });
+  const month = applyPeriod(personalOnly(txs), { type: 'quick', label: 'Este mes' });
   return {
     expense: month.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0),
     income: month.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0),
@@ -209,6 +219,7 @@ export function monthTotals(txs: DemoTx[]) {
 /** `queryCategoryMonthlyAverages()`: total por categoría entre los meses con
  * al menos un movimiento de cualquier categoría. */
 export function categoryAverages(txs: DemoTx[], type: 'expense' | 'income') {
+  txs = personalOnly(txs);
   const months = Math.max(new Set(txs.map((t) => t.date.slice(0, 7))).size, 1);
   const totals: Record<string, number> = {};
   for (const t of txs) {
@@ -223,6 +234,7 @@ export function categoryAverages(txs: DemoTx[], type: 'expense' | 'income') {
 
 /** `queryMonthlyTotalsInRange()` para los últimos 6 meses (rango por defecto de Tendencia). */
 export function monthlyTotals(txs: DemoTx[], type: 'expense' | 'income') {
+  txs = personalOnly(txs);
   const out: { year: number; month: number; total: number }[] = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(TODAY.getFullYear(), TODAY.getMonth() - i, 1);
@@ -253,6 +265,7 @@ const initial = (): State => ({
   stack: ['home'],
   txs: SEED,
   nextId: 1000,
+  activeList: 'personal',
   period: { type: 'quick', label: 'Este mes' },
   typeFilter: null,
   categoryFilter: null,
@@ -273,12 +286,16 @@ const initial = (): State => ({
 const nowISO = () => localISOString(new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate(), new Date().getHours(), new Date().getMinutes()));
 
 function goHome(state: State, txs: DemoTx[], fresh: DemoTx[], source: Source): State {
+  // El balance narrado en el aviso es el de la lista activa (si estás viendo
+  // "Viaje a Cartagena", el antes/después es el de ese bolsillo, no el de Personal).
+  const scoped = (arr: DemoTx[]) => arr.filter((t) => t.list === state.activeList);
+  const opening = openingBalanceFor(state.activeList);
   return {
     ...state,
     txs,
     stack: ['home'],
     overlay: null,
-    event: fresh.length ? { kind: 'saved', source, txs: fresh, from: allTimeBalance(state.txs), to: allTimeBalance(txs) } : { kind: 'intro' },
+    event: fresh.length ? { kind: 'saved', source, txs: fresh, from: allTimeBalance(scoped(state.txs), opening), to: allTimeBalance(scoped(txs), opening) } : { kind: 'intro' },
   };
 }
 
@@ -302,6 +319,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, stack: ['home'], overlay: null, batch: [] };
     case 'overlay':
       return { ...state, overlay: action.overlay };
+    case 'switchList':
+      return { ...state, activeList: action.list, typeFilter: null, categoryFilter: null, overlay: null, event: { kind: 'intro' } };
 
     case 'toggleType': {
       const on = state.typeFilter === action.filter;
@@ -316,12 +335,14 @@ function reducer(state: State, action: Action): State {
       if (index < 0) return state;
       const tx = state.txs[index];
       const txs = state.txs.filter((t) => t.id !== action.id);
+      const scoped = (arr: DemoTx[]) => arr.filter((t) => t.list === state.activeList);
+      const opening = openingBalanceFor(state.activeList);
       return {
         ...state,
         txs,
         overlay: null,
         lastDeleted: { tx, index },
-        event: { kind: 'deleted', tx, from: allTimeBalance(state.txs), to: allTimeBalance(txs) },
+        event: { kind: 'deleted', tx, from: allTimeBalance(scoped(state.txs), opening), to: allTimeBalance(scoped(txs), opening) },
       };
     }
     case 'restore': {
@@ -346,7 +367,7 @@ function reducer(state: State, action: Action): State {
       const date = f.date ?? nowISO();
       const signed = f.isExpense ? f.amount : -f.amount;
       const description = f.note.trim() || (f.isExpense ? 'Gasto' : 'Ingreso');
-      const tx: DemoTx = { id: state.nextId, emoji: f.emoji, amount: signed, description, date, account: f.account, tags: f.tags };
+      const tx: DemoTx = { id: state.nextId, emoji: f.emoji, amount: signed, description, date, account: f.account, tags: f.tags, list: state.activeList };
       const txs = [tx, ...state.txs].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id));
       // `notification-detect`: al guardar, el ítem sale de la cola.
       const pending = f.notifId ? state.pending.filter((p) => p.id !== f.notifId) : state.pending;
@@ -420,6 +441,7 @@ function reducer(state: State, action: Action): State {
         date: b.date,
         account: 'cash',
         tags: [],
+        list: 'personal' as const,
       }));
       const txs = [...fresh, ...state.txs];
       return { ...goHome(state, txs, fresh, 'voice'), batch: [], nextId: state.nextId + fresh.length };
@@ -477,6 +499,7 @@ function reducer(state: State, action: Action): State {
         date: p.date,
         account: 'savings',
         tags: [],
+        list: 'personal' as const,
       }));
       const txs = [...fresh, ...state.txs].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
       return { ...goHome(state, txs, fresh, 'bank'), pending: [], nextId: state.nextId + fresh.length };

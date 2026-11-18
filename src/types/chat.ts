@@ -1,4 +1,4 @@
-import type { WeeklySummaryCard } from "@/src/features/chat/useLocalNLP";
+import type { WeeklySummaryCard } from "@/src/utils/chatNlp";
 import type { ChatSessionRow } from "@/src/db/chatDb";
 
 // ─── Mensaje individual del chat ──────────────────────────────────────────────

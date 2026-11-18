@@ -23,7 +23,10 @@ export function Header({ t, locale }: { t: Dictionary['nav']; locale: Locale }) 
             {t.privacy}
           </a>
           <LangToggle current={locale} label={t.language} />
-          <a href="#avisame" className="flex h-10 items-center rounded-full bg-btn px-4 text-sm font-bold text-white transition-colors hover:bg-btn-hover">
+          <a
+            href="#avisame"
+            className="flex h-10 items-center rounded-full bg-btn px-4 text-sm font-bold text-white transition-colors hover:bg-btn-hover"
+          >
             {t.notify}
           </a>
         </nav>

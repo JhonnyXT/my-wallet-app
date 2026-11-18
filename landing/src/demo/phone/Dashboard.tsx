@@ -2,13 +2,13 @@
 
 // Réplica de `app/(tabs)/index.tsx` + `FloatingDock.tsx` (tema oscuro).
 
-import { ArrowDown, ArrowUp, Bell, Calendar, ChartColumn, Mic, Plus, Search, Settings, X } from 'lucide-react';
-import { useMemo, useRef, useState, type CSSProperties } from 'react';
-import { TODAY, expenseCategories, incomeCategories } from '../data';
+import { ArrowDown, ArrowUp, Bell, Calendar, ChartColumn, Check, ChevronDown, Mic, Plus, Search, Settings, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { LISTS, TODAY, budgetsForList, expenseCategories, incomeCategories, openingBalanceFor } from '../data';
 import { allTimeBalance, applyPeriod, isCurrentPeriod, periodLabel, type DemoApi } from '../useDemo';
 import { CategoryChart } from './CategoryChart';
 import { TransactionItem } from './TransactionItem';
-import { NAV_H, Portal, PressableScale, Touchable, bal, col, row, t, usePhone } from './ui';
+import { BLUE, NAV_H, Portal, PressableScale, Touchable, bal, col, row, t, usePhone } from './ui';
 
 const DOCK_HEIGHT = 64;
 const DOCK_BOTTOM_OFFSET = 24;
@@ -161,10 +161,82 @@ function Dock({ api }: { api: DemoApi }) {
 
 const headerBtn: CSSProperties = { width: 40, height: 40, borderRadius: 9999, background: t.itemBg, display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
+// ─── ListSwitcher ("Personal ▾", réplica de `ListMenu.tsx`) ────────────────────
+
+function ListSwitcher({ api }: { api: DemoApi }) {
+  const { state, dispatch } = api;
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const active = LISTS.find((l) => l.id === state.activeList) ?? LISTS[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative', zIndex: 20 }}>
+      <Touchable
+        onPress={() => setOpen((v) => !v)}
+        label={open ? 'Cerrar selector de listas' : 'Cambiar de lista'}
+        style={{ ...row, gap: 6, borderRadius: 9999, padding: '8px 12px 8px 10px', background: t.itemBg }}
+      >
+        <span style={{ fontSize: 15, lineHeight: '18px' }}>{active.emoji}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: -0.1 }}>{active.name}</span>
+        <ChevronDown size={15} color={t.textSub} strokeWidth={2.4} />
+      </Touchable>
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            marginTop: 8,
+            minWidth: 200,
+            background: t.surface,
+            borderRadius: 16,
+            padding: 6,
+            boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
+            animation: 'popup-in 160ms both',
+          }}
+        >
+          {LISTS.map((l) => (
+            <Touchable
+              key={l.id}
+              onPress={() => {
+                dispatch({ type: 'switchList', list: l.id });
+                setOpen(false);
+              }}
+              style={{ ...row, justifyContent: 'space-between', gap: 10, borderRadius: 10, padding: '10px 10px' }}
+              className="hover:bg-white/5"
+            >
+              <span style={{ ...row, gap: 8 }}>
+                <span style={{ fontSize: 16, lineHeight: '19px' }}>{l.emoji}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{l.name}</span>
+              </span>
+              {l.id === state.activeList && <Check size={16} color={BLUE} strokeWidth={2.6} />}
+            </Touchable>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Dashboard({ api }: { api: DemoApi }) {
   const { state, dispatch } = api;
   const { scale } = usePhone();
-  const { txs, period, typeFilter, categoryFilter } = state;
+  const { period, typeFilter, categoryFilter, activeList } = state;
+
+  // ── Alcance por lista (LIST_SCOPE_SQL simplificado): cada lista ve solo lo suyo ──
+  const txs = useMemo(() => state.txs.filter((x) => x.list === activeList), [state.txs, activeList]);
+  const listBudgets = budgetsForList(activeList);
+  const monthlyBudget = activeList === 'personal' ? state.monthlyBudget : 0;
+  const openingBalance = openingBalanceFor(activeList);
 
   // ── Filtros (useTransactionFilters) ──
   const filtered = useMemo(() => applyPeriod(txs, period), [txs, period]);
@@ -182,12 +254,12 @@ export function Dashboard({ api }: { api: DemoApi }) {
   // BALANCE NETO sigue el período visto (`periodNet` del hook real), no el histórico —
   // el saldo de todo el historial queda como texto chico debajo ("Saldo total").
   const periodNet = filtered.reduce((s, x) => s - x.amount, 0);
-  const allTime = allTimeBalance(txs);
+  const allTime = allTimeBalance(txs, openingBalance);
   const monthlyExpense = current
     ? txs.filter((x) => new Date(x.date) >= new Date(TODAY.getFullYear(), TODAY.getMonth(), 1) && x.amount > 0).reduce((s, x) => s + x.amount, 0)
     : 0;
-  const budgetPct = state.monthlyBudget > 0 && current ? Math.min(Math.round((monthlyExpense / state.monthlyBudget) * 100), 100) : 0;
-  const overBudget = state.monthlyBudget > 0 && current ? Math.max(monthlyExpense - state.monthlyBudget, 0) : 0;
+  const budgetPct = monthlyBudget > 0 && current ? Math.min(Math.round((monthlyExpense / monthlyBudget) * 100), 100) : 0;
+  const overBudget = monthlyBudget > 0 && current ? Math.max(monthlyExpense - monthlyBudget, 0) : 0;
   const stats = useMemo(() => {
     const map: Record<string, number> = {};
     for (const x of filtered) {
@@ -199,10 +271,10 @@ export function Dashboard({ api }: { api: DemoApi }) {
       .sort((a, b) => b.total - a.total);
   }, [filtered, typeFilter]);
   const allEmojis = useMemo(() => {
-    const cats = (typeFilter === 'income' ? incomeCategories() : expenseCategories()).map((c) => c.emoji);
+    const cats = (typeFilter === 'income' ? incomeCategories(activeList) : expenseCategories(activeList)).map((c) => c.emoji);
     const known = new Set(cats);
     return [...cats, ...new Set(txs.map((x) => x.emoji).filter((e) => !known.has(e) && e !== '💸'))];
-  }, [txs, typeFilter]);
+  }, [txs, typeFilter, activeList]);
   const isNewPeriod = filtered.length === 0 && current;
 
   // ── Scroll: compresión de la gráfica y parallax del balance ──
@@ -232,6 +304,11 @@ export function Dashboard({ api }: { api: DemoApi }) {
     <div style={{ position: 'absolute', inset: 0, background: t.bg, display: 'flex', flexDirection: 'column', paddingTop: 28 }}>
       {/* Header fijo */}
       <div style={{ position: 'relative', padding: '64px 28px 20px' }}>
+        {/* Selector de lista ("Personal ▾"): cambia entre Personal y la lista de
+            ejemplo "Viaje a Cartagena" (réplica acotada, sin miembros ni "quién pagó"). */}
+        <div style={{ position: 'absolute', top: 14, left: 20, zIndex: 20 }}>
+          <ListSwitcher api={api} />
+        </div>
         {/* Calendario y ajustes: fuera de la demo, solo se muestran (sin punto rojo:
             el período nunca cambia de su valor predeterminado en la demo). */}
         <div style={{ position: 'absolute', top: 14, right: 20, zIndex: 10, ...row, gap: 4 }}>
@@ -272,7 +349,7 @@ export function Dashboard({ api }: { api: DemoApi }) {
 
         <div style={{ ...col, gap: 10, alignItems: 'center' }}>
           <div style={{ ...col, gap: 8, alignItems: 'center', transform: `translateY(${-5 * parallax}px) scale(${1 - 0.06 * parallax})` }}>
-            {state.monthlyBudget > 0 && typeFilter === null && current && overBudget > 0 && (
+            {monthlyBudget > 0 && typeFilter === null && current && overBudget > 0 && (
               <span style={{ background: 'rgba(220,38,38,0.18)', padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, color: '#DC2626', letterSpacing: 0.2 }}>
                 {bal(overBudget)} sobre tu pago
               </span>
@@ -286,9 +363,12 @@ export function Dashboard({ api }: { api: DemoApi }) {
                 style={{ fontSize: 56, fontWeight: 800, letterSpacing: -2.5, color: periodNet < 0 ? '#DC2626' : t.text }}
               />
             </span>
-            {/* Saldo total (todo el historial): se muestra siempre, ya que la demo no tiene
-                una vista "Todo el tiempo" donde coincidiría con el balance de arriba. */}
-            <span style={{ fontSize: 12, fontWeight: 600, color: t.textSub, marginTop: -4 }}>Saldo total: {bal(allTime)}</span>
+            {/* Saldo total (todo el historial): se muestra siempre en Personal, ya que la demo
+                no tiene una vista "Todo el tiempo" donde coincidiría con el balance de arriba.
+                En una lista nueva como "Viaje a Cartagena" no aporta (arrancó en $0). */}
+            {activeList === 'personal' && (
+              <span style={{ fontSize: 12, fontWeight: 600, color: t.textSub, marginTop: -4 }}>Saldo total: {bal(allTime)}</span>
+            )}
             <div style={{ ...row, gap: 6, background: t.itemBg, borderRadius: 999, padding: 5, marginTop: 2 }}>
               <Touchable onPress={() => dispatch({ type: 'toggleType', filter: 'expense' })} style={pill(typeFilter !== 'income', '#FEE2E2')} label="Filtrar gastos">
                 <ArrowDown size={13} strokeWidth={2.8} color={typeFilter !== 'income' ? '#E53E3E' : t.textSub} />
@@ -307,13 +387,13 @@ export function Dashboard({ api }: { api: DemoApi }) {
                 />
               </Touchable>
             </div>
-            {state.monthlyBudget > 0 && typeFilter === null && current && (
+            {monthlyBudget > 0 && typeFilter === null && current && (
               <div style={{ ...col, gap: 5, alignSelf: 'stretch', marginTop: 4 }}>
                 <div style={{ height: 4, background: t.border, borderRadius: 9999, overflow: 'hidden' }}>
                   <div style={{ height: 4, borderRadius: 9999, background: '#2D5BFF', width: `${budgetPct}%`, transition: 'width 400ms ease-out' }} />
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 500, color: t.textSub, letterSpacing: 0.1, textAlign: 'center' }}>
-                  {budgetPct}% de {bal(state.monthlyBudget)} · recibido {bal(incomeTotal)}
+                  {budgetPct}% de {bal(monthlyBudget)} · recibido {bal(incomeTotal)}
                 </span>
               </div>
             )}
@@ -363,7 +443,7 @@ export function Dashboard({ api }: { api: DemoApi }) {
               <CategoryChart
                 stats={stats}
                 allEmojis={allEmojis}
-                budgets={typeFilter === 'income' ? {} : state.budgets}
+                budgets={typeFilter === 'income' ? {} : listBudgets}
                 isIncomeMode={typeFilter === 'income'}
                 animKey={`${typeFilter ?? 'all'}-${chipLabel}`}
                 scrollY={scrollY}

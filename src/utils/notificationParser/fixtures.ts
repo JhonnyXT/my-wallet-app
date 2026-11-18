@@ -60,6 +60,14 @@ export const NOTIFICATION_FIXTURES: NotificationFixture[] = [
     expected: { kind: "parsed", amount: 80000, isExpense: false },
   },
   {
+    label:
+      "Nequi — transferencia recibida con 'transfirió', sin 'envió'/'recibiste' ni en título ni en texto (SÍ debe registrarse como ingreso, no gasto — bug reportado 2026-11-18)",
+    packageName: "com.nequi.MobileApp",
+    title: "Nequi",
+    text: "Juan Pérez te transfirió $90.000 a tu cuenta de Nequi.",
+    expected: { kind: "parsed", amount: 90000, isExpense: false },
+  },
+  {
     label: "Bancolombia — compra confirmada (SÍ debe registrarse como gasto)",
     packageName: "co.com.bancolombia.personas.superapp",
     title: "Bancolombia te informa",

@@ -89,9 +89,12 @@ service cloud.firestore {
       match /members/{memberId} {
         allow read: if isMember(id) || isOwner(id);
         allow create: if canWrite(id)
+          && request.resource.data.keys().hasOnly(['name', 'uid', 'joinedAt', 'leftAt', 'updatedAt', 'serverUpdatedAt'])
           && (request.resource.data.get('uid', null) == null
             || request.resource.data.uid == request.auth.uid);
-        allow update: if canWrite(id) && (
+        allow update: if canWrite(id)
+          && request.resource.data.keys().hasOnly(['name', 'uid', 'joinedAt', 'leftAt', 'updatedAt', 'serverUpdatedAt'])
+          && (
           // Reclamar a una persona sin app ("soy Ana"): solo si sigue libre.
           (resource.data.get('uid', null) == null
             && request.resource.data.get('uid', null) == request.auth.uid)
@@ -107,7 +110,8 @@ service cloud.firestore {
       // Lo compartido de la lista: nombre, ícono, categorías, mostrar ingresos.
       match /config/{doc} {
         allow read: if isMember(id) || isOwner(id);
-        allow create, update: if canWrite(id);
+        allow create, update: if canWrite(id)
+          && request.resource.data.keys().hasOnly(['name', 'emoji', 'categories', 'showIncome', 'updatedAt', 'serverUpdatedAt']);
         allow delete: if isOwner(id);
       }
 
@@ -115,7 +119,10 @@ service cloud.firestore {
       // en papel. Borrar de verdad solo el dueño, al eliminar el espacio.
       match /transactions/{tx} {
         allow read: if isMember(id) || isOwner(id);
-        allow create, update: if isMember(id);
+        allow create, update: if isMember(id)
+          && request.resource.data.keys().hasOnly(
+            ['amount', 'description', 'category_emoji', 'date', 'tags', 'payment_method', 'paid_by', 'updatedAt', 'deletedAt', 'serverUpdatedAt']
+          );
         allow delete: if isOwner(id);
       }
     }

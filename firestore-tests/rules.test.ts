@@ -179,6 +179,35 @@ describe("spaces: crear", () => {
   });
 });
 
+describe("spaces: protección de mass assignment en subcolecciones", () => {
+  it("un movimiento no acepta campos fuera de los que el cliente real escribe", async () => {
+    await seedSpace({ memberUids: ["ana", "beto"] });
+    const db = as("beto");
+    await assertFails(setDoc(doc(db, "spaces/s1/transactions/t2"), { ...STX("beto"), listId: "x" }));
+  });
+
+  it("config/list no acepta campos fuera de los que el cliente real escribe", async () => {
+    await seedSpace({ memberUids: ["ana", "beto"] });
+    const db = as("beto");
+    await assertFails(
+      setDoc(doc(db, "spaces/s1/config/list"), { name: "Viaje 2", updatedAt: 2, ownerUid: "beto" }),
+    );
+  });
+
+  it("un miembro no acepta campos fuera de los que el cliente real escribe", async () => {
+    await seedSpace({ memberUids: ["ana", "beto"] });
+    const db = as("beto");
+    await assertFails(
+      setDoc(doc(db, "spaces/s1/members/beto"), {
+        name: "Beto",
+        uid: "beto",
+        updatedAt: 1,
+        isOwner: true,
+      }),
+    );
+  });
+});
+
 describe("spaces: leer y escribir", () => {
   it("un miembro lee todo y registra o edita cualquier movimiento", async () => {
     await seedSpace({ memberUids: ["ana", "beto"] });

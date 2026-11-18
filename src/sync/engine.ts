@@ -624,16 +624,8 @@ export async function deleteAccountAndCloudData(): Promise<void> {
 
 /**
  * Cerrar sesión (T9). "keep" no toca nada local. "wipe" deja el teléfono como recién instalado,
- * solo si no hay cambios sin respaldar (RF-12): si los hay, no cierra sesión y devuelve cuántos.
- *
- * Se chequean los pendientes dos veces: antes y después de `signOut()`. Este último hace red
- * (Firebase + Google Sign-In) y no bloquea el resto de la app mientras corre (Regla inmutable #1
- * — ver AccountSection), así que en esa ventana puede entrar un cambio local nuevo (ej. una
- * notificación bancaria detectada en background). Sin el segundo chequeo, `wipeLocalData()` lo
- * borraría sin haberse respaldado nunca, justo lo que el primer chequeo pretendía impedir. Si el
- * segundo chequeo bloquea, la sesión YA se cerró (no se puede deshacer `signOut()`) pero los datos
- * locales se conservan intactos sin borrar — `alreadySignedOut` se lo indica a quien llama, para
- * no decirle "conéctate" a alguien que ya salió.
+ * solo si no hay cambios sin respaldar (RF-12). Ver docs/adr/0006 — el doble chequeo de pendientes
+ * (antes y después de signOut()) no es redundante, no quitarlo sin leer el ADR.
  */
 export async function signOutWith(
   mode: "keep" | "wipe",

@@ -66,7 +66,6 @@ const ACCOUNT_OPTIONS: { key: AccountType; label: string }[] = [
   { key: "savings", label: "Ahorros" },
   { key: "credit", label: "Tarjeta" },
 ];
-const SUGGESTED_TAGS = ["#viaje", "#trabajo", "#comida", "#salud", "#ocio"];
 
 type LucideIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 
@@ -196,7 +195,6 @@ export default function ActiveExpenseScreen() {
     [userCategories],
   );
 
-  const [tagInput, setTagInput] = useState("");
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [descOpen, setDescOpen] = useState(false);
   // El transcript (voz o entrada rápida) es la descripción solo mientras no se edite la nota: si
@@ -300,8 +298,6 @@ export default function ActiveExpenseScreen() {
   // del mínimo de accesibilidad. En modo claro se usa un verde más oscuro solo para
   // texto/monto; en oscuro el GREEN original ya tiene contraste de sobra (8.31:1).
   const accent = isExpense ? RED : theme.isDark ? GREEN : "#15803D";
-  const accentBg = isExpense ? "#FEF2F2" : "#F0FDF4";
-  const accentText = isExpense ? "#B91C1C" : "#15803D";
   const titleVerb = isEditMode ? "Editar" : fromRecurring ? "Confirmar" : "Nuevo";
   const title = `${titleVerb} ${isExpense ? "Gasto" : "Ingreso"}`;
 
@@ -409,6 +405,12 @@ export default function ActiveExpenseScreen() {
     const savedEmoji = store.categoryEmoji;
     const savedIsExp = isExpense;
     const description = noteText || (isExpense ? "Gasto" : "Ingreso");
+    // Sin UI para crear/editar tags en este formulario (se quitó, ver AGENTS.md → auditoría de
+    // simplicidad 2026-11-18): la búsqueda ya encuentra #tag escrito directo en la descripción
+    // (extractTagsFromTx cae a ella cuando la columna tags está vacía). Al editar SÍ hace falta
+    // reenviar store.tags (prellenado arriba desde la transacción real): si no, updateTransaction
+    // borraría los tags que ya tenía guardados. Una transacción nueva nunca tuvo tags, por eso
+    // ahí no hace falta reenviar nada.
 
     if (isEditMode && editingId !== null) {
       await updateTx(
@@ -427,7 +429,7 @@ export default function ActiveExpenseScreen() {
         isExpense ? amount : -amount,
         description,
         store.categoryEmoji,
-        store.tags,
+        undefined,
         txDate,
         store.account,
         listId,
@@ -482,14 +484,6 @@ export default function ActiveExpenseScreen() {
     navigateAfterSave();
   }
 
-  function handleAddTag() {
-    const t = tagInput.trim().replace(/^#/, "");
-    if (t) {
-      store.addTag(`#${t}`);
-      setTagInput("");
-    }
-  }
-
   const effectiveDate = store.date === "custom" && store.customDate ? store.customDate : new Date();
   const dateLabel = effectiveDate.toLocaleDateString("es-CO", {
     day: "2-digit",
@@ -505,7 +499,6 @@ export default function ActiveExpenseScreen() {
           type: o.key,
           emoji: undefined as string | undefined,
         }));
-  const displayTags = store.tags.length > 0 ? store.tags : SUGGESTED_TAGS;
   const displayAmt =
     store.amount > 0
       ? `${isExpense ? "−" : "+"} ${fmtCOP(store.amount)}`
@@ -619,7 +612,7 @@ export default function ActiveExpenseScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── Descripción + tags — solo visible al tocar la fila de arriba ── */}
+        {/* ── Descripción — solo visible al tocar la fila de arriba ── */}
         {descOpen && (
           <Animated.View entering={descEntering} exiting={descExiting} style={st.descPanel}>
             <TouchableOpacity
@@ -646,46 +639,6 @@ export default function ActiveExpenseScreen() {
               placeholder={noteplaceholder}
               textAlignVertical="top"
             />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={st.tagsRow}
-              keyboardShouldPersistTaps="handled"
-            >
-              {displayTags.map((tag) => {
-                const on = store.tags.includes(tag);
-                return (
-                  <TouchableOpacity
-                    key={tag}
-                    activeOpacity={0.7}
-                    onPress={() => (on ? store.removeTag(tag) : store.addTag(tag))}
-                    style={[
-                      st.tagPill,
-                      on
-                        ? { backgroundColor: accentBg, borderColor: accentBg }
-                        : { backgroundColor: theme.bg, borderColor: theme.border },
-                    ]}
-                  >
-                    <Text style={[st.tagText, { color: on ? accentText : theme.textSub }]}>
-                      {tag}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-              <View style={st.tagInput}>
-                <Plus size={11} color={theme.textTertiary} strokeWidth={2} />
-                <TextInput
-                  value={tagInput}
-                  onChangeText={setTagInput}
-                  onSubmitEditing={handleAddTag}
-                  placeholder="tag"
-                  placeholderTextColor={theme.textTertiary}
-                  style={[st.tagInputText, { color: theme.text }]}
-                  returnKeyType="done"
-                  autoCapitalize="none"
-                />
-              </View>
-            </ScrollView>
           </Animated.View>
         )}
 
@@ -1038,7 +991,7 @@ function buildS(t: AppTheme) {
       maxWidth: "82%",
     },
 
-    // ── Panel colapsable descripción + tags ─────────────────────────────────
+    // ── Panel colapsable de descripción ─────────────────────────────────────
     descPanel: {
       marginTop: 12,
       borderRadius: 16,
@@ -1069,29 +1022,6 @@ function buildS(t: AppTheme) {
       backgroundColor: "transparent",
       textAlignVertical: "top",
     },
-    tagsRow: {
-      paddingHorizontal: 16,
-      paddingBottom: 14,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    tagPill: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 9999, borderWidth: 1 },
-    tagText: { fontSize: 12, fontWeight: "500" },
-    tagInput: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-      paddingVertical: 7,
-      paddingHorizontal: 12,
-      backgroundColor: t.bg,
-      borderRadius: 9999,
-      borderWidth: 1,
-      borderColor: t.border,
-      borderStyle: "dashed",
-    },
-    tagInputText: { fontSize: 12, minWidth: 36, maxWidth: 80, padding: 0 },
-
     // ── Secciones categoría / cuenta ─────────────────────────────────────────
     sectionLabel: {
       fontSize: 11,

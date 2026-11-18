@@ -13,6 +13,12 @@ export interface ActiveExpense {
   note: string;
   rawTranscript: string;
   account: AccountType;
+  /**
+   * Tags ya guardados de la transacción que se está editando (sin UI para crearlos/editarlos
+   * desde acá — se quitó, ver auditoría de simplicidad 2026-11-18). Solo existen para que
+   * editar una transacción vieja con tags no se los borre al guardar; `active-expense.tsx` los
+   * prellena en modo edición y los reenvía tal cual a `updateTransaction`.
+   */
   tags: string[];
 }
 
@@ -25,8 +31,6 @@ interface ExpenseStore extends ActiveExpense {
   setCustomDate: (d: Date) => void;
   setNote: (n: string) => void;
   setAccount: (a: AccountType) => void;
-  addTag: (tag: string) => void;
-  removeTag: (tag: string) => void;
   setFromVoice: (data: Partial<ActiveExpense>) => void;
   reset: () => void;
 }
@@ -45,7 +49,7 @@ const DEFAULTS: ActiveExpense = {
 };
 
 function initialState(): ActiveExpense {
-  return { ...DEFAULTS, tags: [] };
+  return { ...DEFAULTS };
 }
 
 export const useExpenseStore = create<ExpenseStore>((set) => ({
@@ -58,8 +62,6 @@ export const useExpenseStore = create<ExpenseStore>((set) => ({
   setCustomDate: (customDate) => set({ customDate, date: "custom" }),
   setNote: (note) => set({ note }),
   setAccount: (account) => set({ account }),
-  addTag: (tag) => set((s) => ({ tags: s.tags.includes(tag) ? s.tags : [...s.tags, tag] })),
-  removeTag: (tag) => set((s) => ({ tags: s.tags.filter((t) => t !== tag) })),
   setFromVoice: (data) => set((s) => ({ ...s, ...data })),
   reset: () => set(initialState()),
 }));

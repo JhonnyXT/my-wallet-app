@@ -44,7 +44,6 @@ import {
   PiggyBank,
   Repeat,
   Share2,
-  Target,
   Trash2,
   Upload,
   Wallet,
@@ -60,9 +59,9 @@ import {
   CategoriesSheet,
   EditCategoryModal,
 } from "@/src/components/settings/CategoriesSection";
-import { DEBT_COLOR, DebtsSection } from "@/src/components/settings/DebtsSection";
+import { DEBT_COLOR } from "@/src/components/settings/DebtsSection";
+import { CommitmentsSection } from "@/src/components/settings/CommitmentsSection";
 import { RECURRING_COLOR, RecurringSection } from "@/src/components/settings/RecurringSection";
-import { SavingsGoalsSection } from "@/src/components/settings/GoalsSection";
 import { PaymentMethodsSection } from "@/src/components/settings/PaymentMethodsSection";
 import { InputModal, SelectorModal, SettingsSheet } from "@/src/components/settings/SettingsShared";
 import { catSheet } from "@/src/components/settings/settingsStyles";
@@ -97,7 +96,6 @@ export default function SettingsScreen() {
   const budgetAlertsEnabled = useSettingsStore((s) => s.budgetAlertsEnabled);
   const budgetAlertThreshold = useSettingsStore((s) => s.budgetAlertThreshold);
   const setBudgetAlertsEnabled = useSettingsStore((s) => s.setBudgetAlertsEnabled);
-  const setBudgetAlertThreshold = useSettingsStore((s) => s.setBudgetAlertThreshold);
 
   // Handler: al activar alertas de presupuesto, validar permiso de notificaciones
   const handleBudgetAlertToggle = useCallback(
@@ -122,8 +120,7 @@ export default function SettingsScreen() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCatBudgetModal, setShowCatBudgetModal] = useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
-  const [showGoalsModal, setShowGoalsModal] = useState(false);
-  const [showDebtsModal, setShowDebtsModal] = useState(false);
+  const [showCommitmentsModal, setShowCommitmentsModal] = useState(false);
   const [showRecurringModal, setShowRecurringModal] = useState(false);
   const [editingCat, setEditingCat] = useState<UserCategory | null>(null);
   const [deleteCatDialog, setDeleteCatDialog] = useState<{ id: string; name: string } | null>(null);
@@ -320,19 +317,11 @@ export default function SettingsScreen() {
             />
             <Divider inset={tokens.spacing.md * 2 + 34} />
             <ListRow
-              label="Metas de ahorro"
-              icon={<Target size={16} color="#FFFFFF" strokeWidth={2} />}
-              iconBg="#DB2777"
-              showChevron
-              onPress={() => setShowGoalsModal(true)}
-            />
-            <Divider inset={tokens.spacing.md * 2 + 34} />
-            <ListRow
-              label="Deudas"
+              label="Compromisos"
               icon={<HandCoins size={16} color="#FFFFFF" strokeWidth={2} />}
               iconBg={DEBT_COLOR}
               showChevron
-              onPress={() => setShowDebtsModal(true)}
+              onPress={() => setShowCommitmentsModal(true)}
             />
             <Divider inset={tokens.spacing.md * 2 + 34} />
             <ListRow
@@ -455,22 +444,14 @@ export default function SettingsScreen() {
         <PaymentMethodsSection />
       </SettingsSheet>
 
-      {/* ── Hoja: Metas de ahorro ─────────────────── */}
+      {/* ── Hoja: Compromisos (deudas + metas de ahorro) ──────────── */}
       <SettingsSheet
-        visible={showGoalsModal}
-        title="Metas de ahorro"
-        onClose={() => setShowGoalsModal(false)}
+        visible={showCommitmentsModal}
+        title="Compromisos"
+        subtitle="Lo que debes y lo que estás ahorrando"
+        onClose={() => setShowCommitmentsModal(false)}
       >
-        <SavingsGoalsSection />
-      </SettingsSheet>
-
-      {/* ── Hoja: Deudas ──────────────────────────── */}
-      <SettingsSheet
-        visible={showDebtsModal}
-        title="Deudas"
-        onClose={() => setShowDebtsModal(false)}
-      >
-        <DebtsSection />
+        <CommitmentsSection />
       </SettingsSheet>
 
       {/* ── Hoja: Recurrentes ─────────────────────── */}
@@ -528,7 +509,6 @@ export default function SettingsScreen() {
           enabled={budgetAlertsEnabled}
           threshold={budgetAlertThreshold}
           onToggle={handleBudgetAlertToggle}
-          onThresholdChange={setBudgetAlertThreshold}
         />
         {userCategories.filter((c) => c.type === "expense").length > 0 ? (
           <View>

@@ -147,8 +147,6 @@ export default function DashboardScreen() {
   const setExpenseCategory = useExpenseStore((s) => s.setCategory);
   const paymentMethods = useSettingsStore((s) => s.paymentMethods);
   const savingsGoals = useSettingsStore((s) => s.savingsGoals);
-  const debts = useSettingsStore((s) => s.debts);
-  const totalDebt = useMemo(() => debts.reduce((sum, d) => sum + d.remainingAmount, 0), [debts]);
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   // ── Detalle de transacción (long-press) ──────────────────────────────────
@@ -342,9 +340,6 @@ export default function DashboardScreen() {
     Haptics.selectionAsync();
     router.push("/recurring-review");
   }, []);
-
-  // Las deudas son del día a día: el patrimonio neto solo se muestra en Personal.
-  const listDebt = activeListId === DEFAULT_LIST_ID ? totalDebt : 0;
 
   // ── Búsqueda ──────────────────────────────────────────────────────────────
   const baseSearchBottom = Math.max(insets.bottom, 0) + DOCK_BOTTOM_OFFSET + DOCK_HEIGHT + 10;
@@ -1075,16 +1070,10 @@ export default function DashboardScreen() {
               style={[styles.balanceAmount, shownBalance < 0 && styles.balanceNegative]}
             />
 
-            {/* Saldo total (todo el historial) y patrimonio neto (saldo − deudas
-                pendientes, solo si hay deudas activas). */}
-            {!isSearching && !categoryFilter && (periodView.kind !== "all" || listDebt > 0) && (
+            {/* Saldo total: todo el historial, para no perderlo al mirar otro período. */}
+            {!isSearching && !categoryFilter && periodView.kind !== "all" && (
               <Text style={styles.netWorthText}>
-                {[
-                  periodView.kind !== "all" && `Saldo total: ${formatBalance(allTimeNetBalance)}`,
-                  listDebt > 0 && `Patrimonio neto: ${formatBalance(allTimeNetBalance - listDebt)}`,
-                ]
-                  .filter(Boolean)
-                  .join("  ·  ")}
+                Saldo total: {formatBalance(allTimeNetBalance)}
               </Text>
             )}
 

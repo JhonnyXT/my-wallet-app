@@ -9,7 +9,6 @@ export default function TabLayout() {
       {/* Tabs sin tab bar nativo — el dock es overlay independiente */}
       <Tabs tabBar={() => null} screenOptions={{ headerShown: false }}>
         <Tabs.Screen name="index" />
-        <Tabs.Screen name="chat" />
         <Tabs.Screen name="wallet" options={{ href: null }} />
       </Tabs>
 

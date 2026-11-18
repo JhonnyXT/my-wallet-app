@@ -101,7 +101,6 @@ export default function ReportsScreen() {
   const hasData = items.length > 0;
   const months = averages?.months ?? 0;
   const topItem = items[0];
-  const secondaryItems = items.slice(1, 3);
   const totalAvg = items.reduce((s, i) => s + i.avgMonthly, 0);
   const topSharePct = totalAvg > 0 && topItem ? topItem.avgMonthly / totalAvg : 0;
   const ringOffset = RING_CIRC * (1 - topSharePct);
@@ -219,26 +218,11 @@ export default function ReportsScreen() {
               </Card>
             </Enter>
 
-            {/* ── Tarjetas secundarias: #2 y #3 ───────────────────────────── */}
-            {secondaryItems.length > 0 ? (
-              <Enter index={2}>
-                <View style={{ flexDirection: "row", gap: tokens.spacing.sm }}>
-                  {secondaryItems.map((item) => (
-                    <SecondaryStatCard
-                      key={item.emoji}
-                      item={item}
-                      maxAvg={maxItemAvg}
-                      name={getCategoryName(item.emoji, userCategories)}
-                    />
-                  ))}
-                </View>
-              </Enter>
-            ) : null}
           </>
         ) : null}
 
         {/* ── Tendencia: barras mensuales + selector interno ─────────────── */}
-        <Enter index={3}>
+        <Enter index={2}>
           <Card style={{ borderRadius: tokens.radius.xl }}>
             <View style={styles.trendHeader}>
               <View>
@@ -300,7 +284,7 @@ export default function ReportsScreen() {
         </Enter>
 
         {/* ── Ranking completo ────────────────────────────────────────────── */}
-        <Enter index={4}>
+        <Enter index={3}>
           <Card padded={false}>
             <View style={{ padding: tokens.spacing.md, paddingBottom: tokens.spacing.sm }}>
               <ThemedText variant="footnote" color="secondary" style={styles.eyebrow}>
@@ -418,53 +402,6 @@ function HeroStatRow({ icon, label, value }: { icon: string; label: string; valu
         </ThemedText>
       </View>
     </View>
-  );
-}
-
-function SecondaryStatCard({
-  item,
-  maxAvg,
-  name,
-}: {
-  item: CategoryAverage;
-  maxAvg: number;
-  name: string;
-}) {
-  const tokens = useAppTokens();
-  const pct = maxAvg > 0 ? Math.max(Math.round((item.avgMonthly / maxAvg) * 100), 4) : 0;
-  return (
-    <Card style={{ flex: 1, borderRadius: tokens.radius.xl, gap: tokens.spacing.xs }}>
-      <ThemedText variant="body" style={{ fontWeight: "600", fontSize: 14 }} numberOfLines={1}>
-        {name}
-      </ThemedText>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.spacing.xs }}>
-        <ThemedText style={{ fontSize: 16 }}>{item.emoji}</ThemedText>
-        <ThemedText variant="headline" style={{ fontSize: 16 }} numberOfLines={1}>
-          {formatCOP(item.avgMonthly)}
-        </ThemedText>
-      </View>
-      <ThemedText variant="footnote" color="secondary" style={{ fontSize: 11 }}>
-        Promedio mensual
-      </ThemedText>
-      <View
-        style={{
-          height: 5,
-          borderRadius: tokens.radius.full,
-          backgroundColor: tokens.colors.surface.elevated,
-          overflow: "hidden",
-          marginTop: 2,
-        }}
-      >
-        <View
-          style={{
-            width: `${pct}%`,
-            height: "100%",
-            borderRadius: tokens.radius.full,
-            backgroundColor: tokens.colors.accent.default,
-          }}
-        />
-      </View>
-    </Card>
   );
 }
 

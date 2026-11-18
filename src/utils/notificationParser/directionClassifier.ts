@@ -51,8 +51,17 @@ export function classifyDirection(text: string): {
     "deposito",
     "transferencia recibida",
     "llegaron",
+    "te llegó",
     "te enviaron",
     "te envió",
+    // "transfirió"/"transfirieron" en 3ra persona = alguien más te transfirió a ti (ingreso);
+    // la acción propia del usuario se frasea distinto ("transferiste", no cubierto aquí porque
+    // ya cae en "enviaste"/"salida"). shortenDescription() ya reconocía este verbo para nombrar
+    // la transacción (ver su regex de "remitente antes del verbo"); faltaba acá, en la
+    // clasificación gasto/ingreso misma — bug real: una transferencia recibida fraseada así caía
+    // al heurístico por defecto (gasto) en vez de ingreso (reportado 2026-11-18).
+    "transfirió",
+    "transfirieron",
     "transferencia entrante",
     "crédito",
     "credito",

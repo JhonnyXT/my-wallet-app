@@ -403,37 +403,32 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
 - **Qué es Free y qué es Pro**: todo lo local es gratis para siempre (registro manual/voz/NLP,
   detección automática de notificaciones bancarias, categorías, presupuestos, metas, deudas,
   métodos de pago, listas múltiples y reparto de gasto sin nube, períodos de pago, reportes, CSV,
-  biometría, tema oscuro). Pro agrupa dos cosas de naturaleza distinta: lo que tiene costo real en
-  Firebase (respaldo/sync en la nube, Sync Fase 3; **crear** un espacio compartido, Sync Fase 4 —
-  unirse e invitar a uno YA existente NO exigen Pro desde 2026-10-27, ver "Espacios compartidos"
-  más abajo, R5) y, desde los gastos/ingresos recurrentes (2026-10-07),
-  funciones 100% locales que no cuestan nada en Firebase pero son la función premium de
-  conveniencia que faltaba (ver "Gastos/ingresos recurrentes (Pro)" más abajo) — no todo Pro
-  depende de tener cuenta/internet. El gating vive en
-  `canUse("cloudBackup" | "sharedSpaces" | "recurringExpenses")`, nunca en la UI sola.
+  biometría, tema oscuro). **Los espacios compartidos (crear, unirse, invitar) también son
+  gratis para cualquiera desde 2026-11-17** (decisión del usuario, mismo criterio que `meld-app`):
+  el único límite es `maxMembers() = 6` en `firestore.rules`, protección de costo que no depende
+  del plan de quien se une — ver "Espacios compartidos" más abajo. Pro queda en el respaldo/sync en
+  la nube (Sync Fase 3, costo real en Firebase) y los gastos/ingresos recurrentes (2026-10-07,
+  función 100% local que no cuesta nada en Firebase pero es la función premium de conveniencia que
+  faltaba, ver "Gastos/ingresos recurrentes (Pro)" más abajo) — no todo Pro depende de tener
+  cuenta/internet. El gating vive en `canUse("cloudBackup" | "recurringExpenses")`, nunca en la UI
+  sola.
 - **Precios** (COP, Play Console permite precios por país): mensual $14.900, anual $99.900
   (ahorra 44 %), prueba de 14 días. Constantes en `src/billing/plans.ts`
   (`PRICES_COP`/`TRIAL_DAYS`/`ANNUAL_SAVINGS_PCT`), nunca hardcodeadas en una pantalla.
 - **`PaywallSheet`** (hoja global, montada en `BillingHost` en `_layout.tsx`): beneficios +
   mensual/anual + CTA ("Probar N días gratis" si no se usó la prueba, si no "Suscribirme"/
   "Próximamente en Google Play" en `prod`). Se abre con `openPaywall(feature?)` desde cualquier
-  función bloqueada (ej. `useListEditor.tsx` al compartir/unirse sin Pro) o desde `PlanSection`
-  en Ajustes. `BillingHost` también muestra el `ConfirmDialog` de "tu prueba terminó" (revisa el
-  vencimiento al abrir la app y al volver a primer plano, `AppState`).
+  función bloqueada (hoy solo `cloudBackup`/`recurringExpenses`, ya no compartir) o desde
+  `PlanSection` en Ajustes. `BillingHost` también muestra el `ConfirmDialog` de "tu prueba terminó"
+  (revisa el vencimiento al abrir la app y al volver a primer plano, `AppState`).
 - **Onboarding**: paso 5 (último), `app/plan-onboarding.tsx` — "Elige cómo empezar", probar Pro o
-  seguir gratis. `login-onboarding.tsx` (paso 0) ya no promete respaldo/listas compartidas como
-  gratis: aclara que son Pro (14 días de prueba).
+  seguir gratis. `login-onboarding.tsx` (paso 0) aclara que compartir es gratis y solo el respaldo
+  en la nube es Pro (14 días de prueba).
 - **Sin Pro, el respaldo no se corta de golpe**: `syncOnce` (`engine.ts`) sigue trayendo (nunca
   sube) como mucho cada `FREE_PULL_MIN_INTERVAL_MS` (6 h), para poder restaurar en un teléfono
   nuevo sin gastar lecturas de quien no paga. `useSyncStatus.phase` suma `"paused"` para ese caso
   (`AccountSection` lo etiqueta "Respaldo pausado · requiere Pro" y toca abre el paywall). Al
   ganar o perder Pro, `useEntitlementStore.subscribe` dispara una corrida de inmediato.
-- **Crear un espacio compartido (volverse dueño) exige Pro en el servidor del cliente**:
-  `requirePro()` en `shareList()` (`src/sync/spaceActions.ts`) lanza `SpaceError("pro-required")`
-  antes de tocar Firestore. Sin backend propio, esto es solo barrera de cliente (burlable con un
-  cliente modificado); verificar compras de verdad es trabajo de RevenueCat cuando exista. Unirse
-  e invitar a un espacio ya existente NO llaman `requirePro()` (ver "Espacios compartidos" → roles
-  y límites, R5).
 - **Probado con el emulador** (ver "Probar en `dev`" más abajo): en Free un gasto nuevo NO sube a
   `users/{uid}/transactions` ni a `spaces/{id}/transactions`; al pasar a Pro, sube solo.
 - **Pendiente, no implementado todavía**: integración real con RevenueCat/Play Billing,
@@ -444,7 +439,7 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
 
 ### Respaldo en la nube (Sync Fase 3)
 
-- **Motor (`src/sync/engine.ts`)**: una corrida a la vez, **traer → unir → subir**, y solo sube con plan Pro (`canUse("cloudBackup")`; ver "Monetización" arriba). Se dispara al iniciar sesión (y al abrir la app con sesión, vía `onAuthStateChanged`), al volver a primer plano (máx. 1 vez cada 30 s), con `syncNow()` (deslizar en el Dashboard, tocar el estado en Ajustes, restaurar) y tras cambios locales (solo subir, 3 s de espera para agrupar). `startSync()` se llama una vez en el bootstrap de `_layout.tsx`. Sin conexión: cada llamada de red tiene tope de 30 s y reintenta cada 60 s; ninguna pantalla espera.
+- **Motor (`src/sync/engine.ts`)**: una corrida a la vez, **traer → unir → subir**. `push(uid, meta, pro)` corre SIEMPRE, con o sin Pro — adentro, el bloque de `SETTINGS_KINDS`/perfil/ajustes/transacciones personales (todo lo que va a `users/{uid}/**`) queda detrás de `if (pro)`; `pushSpaceConfigs`/las transacciones de una lista con `list.space` se suben siempre, sin gating (2026-11-17: compartir es gratis, ver "Monetización" arriba). `lastSyncAt` solo se actualiza cuando hubo Pro o un pull real (`pullDue`) — si no, el throttle de 6 h de Free (`FREE_PULL_MIN_INTERVAL_MS`) se rompería con cada push de espacio. Se dispara al iniciar sesión (y al abrir la app con sesión, vía `onAuthStateChanged`), al volver a primer plano (máx. 1 vez cada 30 s), con `syncNow()` (deslizar en el Dashboard, tocar el estado en Ajustes, restaurar) y tras cambios locales (solo subir, 3 s de espera para agrupar). `startSync()` se llama una vez en el bootstrap de `_layout.tsx`. Sin conexión: cada llamada de red tiene tope de 30 s y reintenta cada 60 s; ninguna pantalla espera.
 - **Cambios locales sin acoplar capas**: `db.ts` llama `emitLocalChange()` (`src/utils/localChanges.ts`) en cada escritura del usuario; el motor lo escucha. `useSettingsStore` se observa con `subscribe` solo en los campos que se respaldan, y nunca mientras la sync aplica lo traído (`applying`), para no entrar en bucle.
 - **Qué está pendiente de subir**: transacciones por `sync_state`; ítems de ajustes por `meta.pushed[kind][id]` (versión subida, en `mywallet-sync-meta` de AsyncStorage, `metaStore.ts`); perfil/ajustes por `profileUpdatedAt`/`settingsUpdatedAt` (store v3); bancos (AsyncStorage directo) comparando contra el último valor visto.
 - **Traer**: `getDocsFromServer` con `serverUpdatedAt >= cursor` (hora del servidor; un reloj de teléfono atrasado no hace perder ediciones), por páginas. Conflictos con `pickWinner` (`updatedAt`). La lista activa traída se aplica a `defaultPeriod`/`userCategories`/`budgetByCategory` (`applySettingsPatch`, `src/store/remoteSettings.ts`); si llega borrada, la app vuelve a Personal. El upsert de transacciones repite la regla de `pickWinner` en SQL como última barrera.
@@ -462,15 +457,16 @@ Reglas vigentes. El historial de cómo se llegó a cada una (fechas, intentos re
 
 ### Espacios compartidos (Sync Fase 4)
 
-Diseño completo en `specs/sync-fase-4-espacios/` (local); roles editor/lector y límites
-(monetización Free/Pro) en `specs/espacios-roles-y-limites/` (local, 2026-10-27). Una lista (no
-Personal) se comparte y varias personas, cada una con su cuenta y su teléfono, registran en ella.
-**Solo crear un espacio (volverse dueño) exige Pro**: `shareList()` lanza
-`SpaceError("pro-required")` antes de llamar a Firestore y la UI abre el paywall. **Unirse e
-invitar a un espacio ya existente NO exigen Pro** (cada invitación trae usuarios nuevos gratis,
-decisión del usuario 2026-10-27) — un Free solo tiene un tope de cuántos espacios ajenos puede
-tener (`FREE_MAX_JOINED_SPACES = 2`, `spaceActions.ts`, chequeo de cliente; al llegar al tope,
-`joinWithCode` lanza `SpaceError("pro-required")` y la hoja de unirse abre el paywall).
+Diseño completo en `specs/sync-fase-4-espacios/` (local); roles editor/lector y límites en
+`specs/espacios-roles-y-limites/` (local, 2026-10-27). Una lista (no Personal) se comparte y varias
+personas, cada una con su cuenta y su teléfono, registran en ella. **Crear, unirse e invitar a un
+espacio son gratis para cualquiera desde 2026-11-17** (decisión del usuario, mismo criterio que
+`meld-app`: compartir no exige Pro en ningún punto, sin tope de cuántos espacios puede tener un
+usuario) — `shareList()`/`joinWithCode()`/`createInvite()` ya no llaman `canUse()` ni lanzan
+`SpaceError("pro-required")` (ese valor de `SpaceErrorKind` se eliminó, nadie lo lanza). El único
+límite es de tamaño: `maxMembers() = 6` en `firestore.rules`, protección de costo pura, reforzada
+del lado del servidor y verificada también en el cliente para dar un mensaje más claro
+(`SpaceError("space-full")`).
 
 - **Modelo en Firestore**: `spaces/{id}` lleva la membresía (`ownerUid`, `memberUids`,
   `editorUids`, `deletedAt`; las reglas la leen con `get()`); `members/{memberId}` una persona por

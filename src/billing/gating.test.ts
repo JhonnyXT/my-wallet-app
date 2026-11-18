@@ -38,10 +38,19 @@ describe("compartir/unirse a un espacio es gratis, sin gating de Pro", () => {
   });
 });
 
-describe("el respaldo en la nube exige Pro", () => {
+describe("el respaldo en la nube exige Pro (los espacios compartidos no)", () => {
   const engine = read("src/sync/engine.ts");
-  it("syncOnce consulta canUse('cloudBackup') y solo sube con Pro", () => {
+  it("syncOnce consulta canUse('cloudBackup') y lo pasa a push()", () => {
     expect(engine).toContain('canUse("cloudBackup")');
-    expect(engine).toMatch(/if \(pro\) \{[\s\S]*?await push\(uid, meta\)/);
+    expect(engine).toMatch(/await push\(uid, meta, pro\)/);
+  });
+  it("push() solo sube el respaldo personal (SETTINGS_KINDS) si pro es true", () => {
+    const start = engine.indexOf("async function push(");
+    expect(start).toBeGreaterThan(-1);
+    const fn = engine.slice(start, engine.indexOf("\n// ─── Pendientes", start));
+    // La guarda `if (pro) {` cubre el bloque de SETTINGS_KINDS (respaldo personal); pushSpaceConfigs
+    // y el loop de transacciones de espacio quedan fuera, para que corran siempre.
+    expect(fn).toMatch(/if \(pro\) \{[\s\S]*SETTINGS_KINDS/);
+    expect(fn.indexOf("pushSpaceConfigs")).toBeGreaterThan(fn.indexOf("SETTINGS_KINDS"));
   });
 });

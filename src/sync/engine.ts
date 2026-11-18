@@ -284,79 +284,89 @@ async function unlinkLost(listIds: string[], meta: SyncMeta): Promise<SyncMeta> 
 
 // ─── Subir ───────────────────────────────────────────────────────────────────
 
-async function push(uid: string, meta: SyncMeta): Promise<SyncMeta> {
-  const state = useSettingsStore.getState();
-  const ops: PushOp[] = [];
-  const versions: Partial<Record<TombstoneKind, Record<string, number>>> = {};
+/**
+ * `pro` separa lo que exige Pro (respaldo personal: users/{uid}/*, incluidas las transacciones de
+ * listas sin espacio) de lo que es gratis para cualquiera (espacios compartidos, 2026-11-17): la
+ * config y los movimientos de una lista con `list.space` se suben siempre, sin importar el plan.
+ */
+async function push(uid: string, meta: SyncMeta, pro: boolean): Promise<SyncMeta> {
+  if (pro) {
+    const state = useSettingsStore.getState();
+    const ops: PushOp[] = [];
+    const versions: Partial<Record<TombstoneKind, Record<string, number>>> = {};
 
-  for (const kind of SETTINGS_KINDS) {
-    const items = (kind === "lists" ? withLiveActiveList(state) : state[kind]) as {
-      id: string;
-      updatedAt: number;
-    }[];
-    const { upserts, deletes } = pendingItems(items, state.tombstones[kind], meta.pushed[kind]);
-    const v: Record<string, number> = {};
-    for (const item of upserts) {
-      ops.push({ kind, id: item.id, data: itemToDoc(item) });
-      v[item.id] = item.updatedAt;
+    for (const kind of SETTINGS_KINDS) {
+      const items = (kind === "lists" ? withLiveActiveList(state) : state[kind]) as {
+        id: string;
+        updatedAt: number;
+      }[];
+      const { upserts, deletes } = pendingItems(items, state.tombstones[kind], meta.pushed[kind]);
+      const v: Record<string, number> = {};
+      for (const item of upserts) {
+        ops.push({ kind, id: item.id, data: itemToDoc(item) });
+        v[item.id] = item.updatedAt;
+      }
+      for (const del of deletes) {
+        ops.push({ kind, id: del.id, data: tombstoneDoc(del.deletedAt) });
+        v[del.id] = del.deletedAt;
+      }
+      versions[kind] = v;
     }
-    for (const del of deletes) {
-      ops.push({ kind, id: del.id, data: tombstoneDoc(del.deletedAt) });
-      v[del.id] = del.deletedAt;
+
+    const profileVersion = state.profileUpdatedAt;
+    const pushProfile = needsPush(meta.pushedDocs.profile, profileVersion);
+    if (pushProfile) {
+      ops.push({
+        kind: "profile",
+        id: "profile",
+        data: {
+          userName: state.userName,
+          darkMode: state.darkMode,
+          onboardingDone: state.hasCompletedOnboarding,
+          updatedAt: profileVersion,
+        },
+      });
     }
-    versions[kind] = v;
+    const settingsVersion = Math.max(state.settingsUpdatedAt, meta.banks?.updatedAt ?? 0);
+    const pushSettings = needsPush(meta.pushedDocs.settings, settingsVersion);
+    if (pushSettings) {
+      ops.push({
+        kind: "settings",
+        id: "settings",
+        data: {
+          budgetAlertsEnabled: state.budgetAlertsEnabled,
+          budgetAlertThreshold: state.budgetAlertThreshold,
+          allowedBanks: meta.banks?.value ?? [],
+          updatedAt: settingsVersion,
+        },
+      });
+    }
+
+    if (ops.length > 0) {
+      await withTimeout(pushBatch(uid, ops));
+      for (const kind of SETTINGS_KINDS) meta = markPushed(meta, kind, versions[kind] ?? {});
+      meta = {
+        ...meta,
+        pushedDocs: {
+          ...meta.pushedDocs,
+          ...(pushProfile ? { profile: profileVersion } : {}),
+          ...(pushSettings ? { settings: settingsVersion } : {}),
+        },
+      };
+      await saveMeta(meta);
+    }
   }
 
-  const profileVersion = state.profileUpdatedAt;
-  const pushProfile = needsPush(meta.pushedDocs.profile, profileVersion);
-  if (pushProfile) {
-    ops.push({
-      kind: "profile",
-      id: "profile",
-      data: {
-        userName: state.userName,
-        darkMode: state.darkMode,
-        onboardingDone: state.hasCompletedOnboarding,
-        updatedAt: profileVersion,
-      },
-    });
-  }
-  const settingsVersion = Math.max(state.settingsUpdatedAt, meta.banks?.updatedAt ?? 0);
-  const pushSettings = needsPush(meta.pushedDocs.settings, settingsVersion);
-  if (pushSettings) {
-    ops.push({
-      kind: "settings",
-      id: "settings",
-      data: {
-        budgetAlertsEnabled: state.budgetAlertsEnabled,
-        budgetAlertThreshold: state.budgetAlertThreshold,
-        allowedBanks: meta.banks?.value ?? [],
-        updatedAt: settingsVersion,
-      },
-    });
-  }
-
-  if (ops.length > 0) {
-    await withTimeout(pushBatch(uid, ops));
-    for (const kind of SETTINGS_KINDS) meta = markPushed(meta, kind, versions[kind] ?? {});
-    meta = {
-      ...meta,
-      pushedDocs: {
-        ...meta.pushedDocs,
-        ...(pushProfile ? { profile: profileVersion } : {}),
-        ...(pushSettings ? { settings: settingsVersion } : {}),
-      },
-    };
-    await saveMeta(meta);
-  }
-
-  // Lo compartido de las listas compartidas (Fase 4).
+  // Lo compartido de las listas compartidas (Fase 4) — siempre, sin importar el plan.
   const configs = await pushSpaceConfigs(meta, withLiveActiveList(useSettingsStore.getState()));
   meta = await unlinkLost(configs.lost, configs.meta);
   await saveMeta(meta);
 
-  // Transacciones por lotes, cada una a su lugar: el espacio de su lista, o el respaldo personal.
-  // Una editada durante la subida sigue pendiente y sale en la próxima.
+  // Transacciones por lotes, cada una a su lugar: el espacio de su lista (siempre), o el respaldo
+  // personal (solo con Pro). Una editada durante la subida sigue pendiente y sale en la próxima.
+  // Sin Pro, las personales nunca se marcan `synced` y vuelven a salir en cada ronda — acotado por
+  // el tope de 50 rondas (no es un loop infinito), solo desperdicia lecturas si hay 400+ pendientes
+  // personales Y de espacio a la vez; no vale la pena una query SQL nueva solo para ese caso raro.
   for (let round = 0; round < 50; round++) {
     const rows = await getPendingTransactions(BATCH_SIZE);
     if (rows.length === 0) break;
@@ -368,7 +378,7 @@ async function push(uid: string, meta: SyncMeta): Promise<SyncMeta> {
       if (list?.space) bySpaceList.set(list.id, [...(bySpaceList.get(list.id) ?? []), r]);
       else personal.push(r);
     }
-    if (personal.length > 0) {
+    if (pro && personal.length > 0) {
       await withTimeout(
         pushBatch(
           uid,
@@ -394,6 +404,9 @@ async function push(uid: string, meta: SyncMeta): Promise<SyncMeta> {
     // Perdí el acceso a un espacio: sus movimientos vuelven a salir, ahora al respaldo personal.
     meta = await unlinkLost(lost, meta);
     if (rows.length < BATCH_SIZE && lost.length === 0) break;
+    // Sin Pro y sin nada de espacio pendiente: lo que queda es solo personal, que no se va a subir
+    // esta corrida — cortar ya en vez de agotar las 50 rondas sin hacer progreso real.
+    if (!pro && bySpaceList.size === 0) break;
   }
   return meta;
 }
@@ -436,28 +449,27 @@ async function syncOnce(uid: string, opts: { pull: boolean }): Promise<void> {
     status.set({ phase: "needs-decision" });
     return;
   }
-  // Respaldo en la nube = Pro (prueba o suscripción). Sin Pro: nunca se sube, y solo se trae
-  // de vez en cuando para restaurar lo que ya estuviera guardado. Lo local sigue intacto.
+  // Respaldo PERSONAL en la nube = Pro (prueba o suscripción). Sin Pro: nunca se sube, y solo se
+  // trae de vez en cuando para restaurar lo que ya estuviera guardado. Lo local sigue intacto.
+  // Los espacios compartidos son gratis para cualquiera (2026-11-17): push() corre siempre, con o
+  // sin Pro — adentro decide qué subir según `pro` (ver su comentario).
   await waitForEntitlementHydration();
   const pro = canUse("cloudBackup");
   const pullDue =
     opts.pull && (pro || !meta.lastSyncAt || Date.now() - meta.lastSyncAt > FREE_PULL_MIN_INTERVAL_MS);
-  if (!pro && !pullDue) {
-    status.set({ phase: "paused", pending: await countPending(meta) });
-    return;
-  }
   status.set({ phase: "syncing" });
   try {
     meta = trackBanks(meta, parseBanks(await AsyncStorage.getItem(ALLOWED_BANKS_KEY)), Date.now());
     if (pullDue) meta = await pull(uid, meta);
-    if (pro) {
-      if (!meta.tombstonesStripped) {
-        await markSyncedTombstonesPending();
-        meta = { ...meta, tombstonesStripped: true };
-      }
-      meta = await push(uid, meta);
+    if (pro && !meta.tombstonesStripped) {
+      await markSyncedTombstonesPending();
+      meta = { ...meta, tombstonesStripped: true };
     }
-    meta = { ...meta, ownerUid: uid, lastSyncAt: Date.now() };
+    meta = await push(uid, meta, pro);
+    // lastSyncAt mide "hace cuánto hubo un pull real", para el throttle de 6h de Free
+    // (FREE_PULL_MIN_INTERVAL_MS) — con Pro se actualiza siempre (como antes); sin Pro, solo
+    // cuando pullDue fue true, o el throttle se rompe (un push-only sin Pro no cuenta como pull).
+    meta = { ...meta, ownerUid: uid, lastSyncAt: pro || pullDue ? Date.now() : meta.lastSyncAt };
     await saveMeta(meta);
     status.set({
       phase: pro ? "idle" : "paused",

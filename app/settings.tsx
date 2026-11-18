@@ -94,7 +94,6 @@ export default function SettingsScreen() {
   const budgetAlertsEnabled = useSettingsStore((s) => s.budgetAlertsEnabled);
   const budgetAlertThreshold = useSettingsStore((s) => s.budgetAlertThreshold);
   const setBudgetAlertsEnabled = useSettingsStore((s) => s.setBudgetAlertsEnabled);
-  const setBudgetAlertThreshold = useSettingsStore((s) => s.setBudgetAlertThreshold);
 
   // Handler: al activar alertas de presupuesto, validar permiso de notificaciones
   const handleBudgetAlertToggle = useCallback(
@@ -501,7 +500,6 @@ export default function SettingsScreen() {
           enabled={budgetAlertsEnabled}
           threshold={budgetAlertThreshold}
           onToggle={handleBudgetAlertToggle}
-          onThresholdChange={setBudgetAlertThreshold}
         />
         {userCategories.filter((c) => c.type === "expense").length > 0 ? (
           <View>

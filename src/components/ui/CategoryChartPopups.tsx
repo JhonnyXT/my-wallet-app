@@ -19,7 +19,7 @@ import {
   getCategoryDisplayName,
   type BudgetEditState,
   type PopupState,
-} from "@/src/components/ui/CategoryChart";
+} from "@/src/components/ui/categoryChartShared";
 
 // ─── Hoja de edición del presupuesto de una categoría ────────────────────────
 export function BudgetEditModal({

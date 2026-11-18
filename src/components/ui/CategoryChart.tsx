@@ -33,11 +33,12 @@ import ReAnimated, {
 } from "react-native-reanimated";
 import { useEffect, useRef, useState } from "react";
 import * as Haptics from "expo-haptics";
-import { getCategoryColor, getCategoryName } from "@/src/constants/theme";
+import { getCategoryColor } from "@/src/constants/theme";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { useAllListCategories } from "@/src/hooks/useAllListCategories";
 import { useTheme } from "@/src/context/ThemeContext";
 import { BudgetEditModal, CategoryPopup } from "@/src/components/ui/CategoryChartPopups";
+import { getCategoryDisplayName, type BudgetEditState, type PopupState } from "@/src/components/ui/categoryChartShared";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -64,23 +65,6 @@ interface CategoryChartProps {
   isIncomeMode?: boolean; // barras verdes proporcionales, sin presupuesto ni editar
   animationKey?: string; // cambia para re-disparar entrada escalonada de barras
   scrollY?: SharedValue<number>; // reservado para animación futura — no usado actualmente
-}
-
-export interface BudgetEditState {
-  emoji: string;
-  currentBudget: number; // límite ya guardado (0 si no hay)
-  spent: number; // monto gastado este mes en esa categoría
-}
-
-export interface PopupState {
-  emoji: string;
-  total: number;
-  budget?: number;
-  /** posición izquierda del popup relativa al chart container */
-  xHint: number;
-  /** qué opción está resaltada según el deslizamiento */
-  selection: "up" | "down" | null;
-  isIncomeMode?: boolean;
 }
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
@@ -153,31 +137,6 @@ function fmtAmount(n: number): string {
     return `${Number.isInteger(v) ? v : v.toFixed(1)}k`;
   }
   return `${Math.round(n)}`;
-}
-
-export function fmtCOP(n: number): string {
-  return `$ ${Math.round(n)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
-}
-
-export function getCategoryDisplayName(
-  emoji: string,
-  userCats?: import("@/src/constants/categoryPresets").UserCategory[],
-  goals?: { emoji: string; name: string }[],
-): string {
-  const raw = getCategoryName(emoji, userCats);
-  if (raw === emoji) {
-    // getCategoryName no encontró un nombre → buscar en metas primero
-    if (goals) {
-      const goalMatch = goals.find((g) => g.emoji === emoji);
-      if (goalMatch)
-        return goalMatch.name.charAt(0).toUpperCase() + goalMatch.name.slice(1).toLowerCase();
-    }
-    // Fallback genérico para evitar mostrar el emoji como nombre
-    return "General";
-  }
-  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
 }
 
 // ─── Barra con datos + PanResponder ──────────────────────────────────────────

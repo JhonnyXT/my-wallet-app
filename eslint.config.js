@@ -14,6 +14,15 @@ module.exports = defineConfig([
       "react/no-unescaped-entities": "off",
     },
   },
+  {
+    // jest/*.js son helpers de setup para jest.config.js (ej. jest.mock() a nivel de módulo),
+    // no archivos *.test.ts — no caen en el matcher de test files de eslint-config-expo que ya
+    // define los globals de Jest.
+    files: ["jest/**/*.js"],
+    languageOptions: {
+      globals: { jest: "readonly" },
+    },
+  },
   // Desactiva las reglas de estilo de ESLint que compiten con Prettier —
   // Prettier es la única fuente de verdad para formato (comillas, indentación,
   // punto y coma, etc.), ESLint solo para correctitud.

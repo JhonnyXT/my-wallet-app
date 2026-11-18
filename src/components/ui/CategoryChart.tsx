@@ -179,11 +179,8 @@ function AnimatedBar({
   const localScrollY = useSharedValue(0);
   const sv = scrollY ?? localScrollY;
 
-  // Altura visible del fill = animación de entrada ∩ compresión por scroll. Nunca se anima
-  // `height` (layout): todo va con transforms en GPU. Un solo `scaleY` aplastaba también las
-  // esquinas (radio de 18px quedaba en ~4px en una barra corta), así que el fill son tres
-  // piezas: tapa inferior y superior de tamaño fijo (esquinas siempre redondas) y un cuerpo
-  // que se estira entre ellas. Con menos de 2·RADIUS se escala el conjunto entero.
+  // Altura visible del fill = animación de entrada ∩ compresión por scroll.
+  // Ver docs/adr/0007 — no simplificar a `height` ni a un solo `scaleY` sin leerlo.
   const fillH_ = useDerivedValue(() => {
     "worklet";
     const ratio = interpolate(sv.value, [0, COMPRESS_END], [0, 1], Extrapolation.CLAMP);

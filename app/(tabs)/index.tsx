@@ -449,9 +449,7 @@ export default function DashboardScreen() {
   const pullMode = atTop && !!categoryFilter;
 
   // ── Deslizar el balance para traer cambios ───────────────────────────────
-  // El balance y la lista bajan con el dedo, con una resistencia que crece (curva de goma);
-  // pasado PULL_HOLD_OFFSET, al soltar se quedan ahí con el indicador girando y vuelven a subir
-  // con un resorte al terminar. La fila de íconos de arriba no se mueve.
+  // Ver AGENTS.md → "Dashboard" → "Deslizar el balance para traer cambios".
   const syncEnabled = !!sessionUser && !categoryFilter && !isSearching;
   const [syncPhase, setSyncPhase] = useState<SyncPullPhase>("idle");
   const syncPhaseRef = useRef<SyncPullPhase>("idle");
@@ -459,8 +457,8 @@ export default function DashboardScreen() {
     syncPhaseRef.current = phase;
     setSyncPhase(phase);
   }, []);
-  // Cuánto bajó el contenido y cuánto falta para soltar y traer. Reanimated (hilo de UI): el
-  // balance tiene animaciones de Reanimated adentro que pisaban un `Animated` de RN desde JS.
+  // Cuánto bajó el contenido y cuánto falta para soltar y traer (Reanimated, no Animated de RN:
+  // ver AGENTS.md → "Dashboard" por qué).
   const pullOffset = useSharedValue(0);
   const pullProgress = useSharedValue(0);
   const syncArmedRef = useRef(false);

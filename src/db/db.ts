@@ -33,10 +33,8 @@ export const SELF_PAYER = "";
 
 export { DEFAULT_LIST_ID };
 
-// Lista activa. Personal es TODO tu dinero: ve sus movimientos y los de las otras listas que
-// pagaste tú (lo que pagó otro miembro de "Opa!" no salió de tu bolsillo); otra lista (un
-// viaje, un negocio…) ve todos los suyos. Lo nuevo se guarda en la activa salvo que se indique
-// otra. La fija `useFinanceStore.loadTransactions()` (tras rehidratar los ajustes).
+// Lista activa — ver AGENTS.md → "Listas y gasto compartido" → "Alcance por lista en SQLite".
+// La fija `useFinanceStore.loadTransactions()` (tras rehidratar los ajustes).
 let _activeListId = DEFAULT_LIST_ID;
 
 /**
@@ -183,11 +181,8 @@ export async function updateTransaction(
   const before = await db.getFirstAsync<TransactionRow>(`SELECT * FROM transactions WHERE id = ?`, [
     id,
   ]);
-  // Mover de lista (Sync Fase 4, spec D5): el movimiento sale de donde vivía en la nube (respaldo
-  // personal o un espacio) y entra en otro lugar. Un mismo `uid` en dos lugares chocaría al traer
-  // (el borrado gana el empate), así que la fila recibe un `uid` nuevo y en su lugar queda un
-  // tombstone con el viejo y la lista vieja, que la sync sube a donde vivía. El `id` local no
-  // cambia (editId, "Deshacer todo").
+  // Mover de lista le da un `uid` nuevo (deja tombstone con el viejo) — ver AGENTS.md →
+  // "Espacios compartidos" → "Mover un movimiento de lista le da un uid nuevo".
   const moved =
     !!before && before.deleted_at == null && listId != null && listId !== before.list_id;
   const update = () =>

@@ -23,12 +23,7 @@ const TRAVEL_KEYWORDS = [
 const TRAVEL_TAG = "#viaje";
 
 // ─── Mapa de categorías (gastos + ingresos) ───────────────────────────────────
-// `type` es obligatorio: algunas palabras se repiten entre gasto e ingreso con
-// significado distinto (ej. "mensualidad" es una suscripción que pagas O el
-// salario que recibes; "regalo" es un regalo que compras O plata que te
-// regalan) — sin filtrar por tipo, `extractCategory` podía asignarle una
-// categoría de gasto a un ingreso real (o viceversa) solo por coincidir en la
-// palabra. Bug real encontrado 2026-09-23.
+// `type` obligatorio por entrada. Ver AGENTS.md → "Categorías, NLP y voz".
 const CATEGORY_MAP: {
   keywords: string[];
   emoji: string;
@@ -523,12 +518,7 @@ function extractIsExpense(text: string): boolean | undefined {
     "sueldo",
     "nomina",
     "quincena",
-    // "mensualidad" NO va aquí — es ambigua (pagas una mensualidad de
-    // Netflix, o recibes tu mensualidad de sueldo): como señal aislada e
-    // incondicional pisaba un verbo de gasto explícito en la misma frase
-    // ("pagué mi mensualidad de Netflix" se leía como ingreso). "salario"/
-    // "sueldo"/"nomina"/"recibi" ya cubren el caso real de ingreso sin
-    // ambigüedad — bug real encontrado 2026-09-23.
+    // "mensualidad" NO va aquí a propósito — ver AGENTS.md → "Categorías, NLP y voz".
     "ganancia",
     "vendi",
     "venta",

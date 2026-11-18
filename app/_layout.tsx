@@ -33,11 +33,8 @@ export const unstable_settings = {
 
 SplashScreen.preventAutoHideAsync();
 
-/** Prellena useExpenseStore con los datos de un item detectado — mismo criterio
- *  que `notification-review.tsx` (`pendingToReview`/`handleEdit`): descripción =
- *  versión corta tipo "Compra en RAPPI CO · $45.000" (no el texto crudo de la
- *  notificación bancaria), categoría adivinada por palabras clave sobre el
- *  texto crudo, fecha real de detección (no "hoy"). */
+/** Prellena useExpenseStore con los datos de un item detectado. Ver AGENTS.md → "Gotchas
+ *  críticos" → "Deep link desde notificación push" / "Confidence-aware push". */
 function prefillExpenseFromPendingItem(item: PendingNotificationItem) {
   const { userCategories, savingsGoals } = useSettingsStore.getState();
   const rawDescription = item.description || item.bankName;
@@ -59,13 +56,7 @@ function prefillExpenseFromPendingItem(item: PendingNotificationItem) {
 
 /**
  * Resuelve a dónde navegar al tocar una notificación de transacción bancaria.
- * Si el `itemId` de la notificación sigue siendo el ÚNICO pendiente en la cola,
- * salta la lista de revisión y va directo al formulario ya prellenado — menos
- * fricción para el caso común (una sola transacción a la vez). Si hay más de un
- * item pendiente (llegaron más notificaciones sin revisar mientras tanto) o el
- * item ya no existe (se guardó/descartó desde otro lado), cae al comportamiento
- * de siempre: la lista de revisión completa — ahí sí hace falta ver todas para
- * saber a cuál corresponde cada una.
+ * Ver AGENTS.md → "Gotchas críticos" → "Deep link desde notificación push".
  */
 async function resolveBankNotificationTarget(
   data: Record<string, unknown> | undefined,
@@ -110,13 +101,8 @@ export default function RootLayout() {
       if (data?.screen === "notification-review") {
         router.push(await resolveBankNotificationTarget(data));
       } else {
-        // Arranque en frío normal (ícono del launcher, no deep link): forzar
-        // siempre el dashboard como destino, nunca la última pantalla en la que
-        // el usuario estaba antes de que Android matara el proceso. Sin esto,
-        // en algunos dispositivos (confirmado en Samsung/OneUI) el Stack puede
-        // resolver su ruta inicial hacia la última pantalla visitada en vez de
-        // "(tabs)". Es invisible para el usuario: ocurre bajo el splash, que no
-        // hace fade out hasta que el bootstrap termine.
+        // Arranque en frío normal: fuerza el dashboard como destino — ver AGENTS.md →
+        // "Navegación y arranque" → "Splash sin flash de la pantalla anterior".
         router.replace("/(tabs)");
       }
     });
@@ -139,12 +125,7 @@ export default function RootLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // El splash JS (<AnimatedSplash>) se monta de inmediato al renderizar (ver abajo,
-  // no depende de appReady), así que ya cubre el Stack antes de que el splash nativo
-  // se oculte — se puede ocultar el nativo apenas React pinta el primer frame, sin
-  // esperar a que termine el bootstrap (DB, notificaciones, etc.), que sigue en
-  // paralelo. Antes se ocultaba el splash nativo y solo DESPUÉS se montaba el splash
-  // JS (mismo efecto), dejando un hueco de uno o más frames donde se veía el Stack.
+  // Ver AGENTS.md → "Navegación y arranque" → "Splash sin flash de la pantalla anterior".
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);

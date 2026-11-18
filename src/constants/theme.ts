@@ -20,13 +20,7 @@ export const BUDGET_WARNING_THRESHOLD = 90;
 
 /**
  * @deprecated Usar `categoryPresets.ts` + `userCategories` del store.
- * Mapas de palabras clave → emoji para el fallback de `guessCategoryEmoji`,
- * separados por tipo — mantener así: algunas palabras se repiten entre gasto
- * e ingreso con significados distintos (ej. "mensualidad" es una suscripción
- * que pagas o el salario que recibes; "regalo" es un regalo que compras o
- * plata que te regalan), así que buscar en un solo mapa sin filtrar por tipo
- * hace que un ingreso real caiga en una categoría de gasto (o viceversa) solo
- * por coincidir en la palabra — bug real encontrado 2026-09-23.
+ * Separado por tipo a propósito — ver AGENTS.md → "Categorías, NLP y voz".
  * Mantener solo como fallback; no extender con nuevas categorías.
  */
 export const EXPENSE_CATEGORY_MAP: Record<string, string> = {
@@ -218,17 +212,8 @@ export const ALL_INCOME_EMOJIS: string[] = ["💼", "💻", "📈", "🎁", "�
 
 /**
  * Detecta categoría por keywords. Consulta primero las categorías del usuario,
- * luego el mapa legacy como fallback.
- *
- * `isExpense`, si se conoce, filtra ambas fuentes a solo categorías de ese
- * tipo — algunas palabras clave se repiten entre gasto e ingreso con
- * significado distinto (ej. "mensualidad" es una suscripción que pagas O el
- * salario que recibes; "regalo" es un regalo que compras O plata que te
- * regalan). Sin este filtro, un ingreso real podía caer en una categoría de
- * gasto (o viceversa) solo por coincidir en la palabra, con el gasto/ingreso
- * decidiendo el orden de búsqueda arbitrariamente — bug real encontrado
- * 2026-09-23. Si no se pasa `isExpense` (llamador no lo sabe con certeza),
- * se busca en ambos tipos como antes.
+ * luego el mapa legacy como fallback. `isExpense`, si se conoce, filtra ambas
+ * fuentes a solo categorías de ese tipo — ver AGENTS.md → "Categorías, NLP y voz".
  */
 export function guessCategoryEmoji(
   description: string,

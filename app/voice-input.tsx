@@ -254,9 +254,8 @@ export default function VoiceInputScreen() {
   );
 
   // ─── Listeners de voz ────────────────────────────────────────────────────
-  // IMPORTANTE: no incluir `status` en las deps para evitar que se limpien
-  // los listeners justo cuando status cambia a "processing".
-  // Se usa statusRef para leer el valor actual sin stale closure.
+  // No incluir `status` en las deps (se usa statusRef) — ver AGENTS.md → "Categorías, NLP y voz"
+  // → "app/voice-input.tsx: el stop por silencio no debe perder el dictado".
   useEffect(() => {
     if (!SpeechModule) return;
 
@@ -268,15 +267,8 @@ export default function VoiceInputScreen() {
         silenceStopRef.current = false;
       }),
 
-      // Bug fix: antes, si nuestro propio timer de silencio llamaba a
-      // `SpeechModule.stop()` y el módulo nativo terminaba sin emitir un
-      // "result" con `isFinal:true` (pasa en algunos dispositivos/versiones
-      // de Android), este listener solo hacía `setStatus("idle")` — el
-      // dictado se perdía en silencio, sin llamar nunca a `handleDone()`.
-      // Ahora, si el "end" llega justo después de nuestro stop por silencio
-      // (`silenceStopRef`), se procesa con el transcript acumulado en vez de
-      // descartarlo. Un stop MANUAL (botón de pausa) no dispara este flag,
-      // así que sigue quedando en pausa como antes — no se auto-envía.
+      // Si el "end" llega tras nuestro stop por silencio, procesa el transcript acumulado en
+      // vez de descartarlo (ver AGENTS.md, misma sección). Un stop manual no dispara el flag.
       SpeechModule.addListener("end", () => {
         if (statusRef.current === "processing") return;
         const wasSilenceStop = silenceStopRef.current;
@@ -302,10 +294,7 @@ export default function VoiceInputScreen() {
         transcriptTextRef.current = text;
 
         if (event.isFinal) {
-          // Limpiar el ref ANTES de handleDone: si el "end" llega justo
-          // después (statusRef aún no se actualizó a "processing" por el
-          // retraso normal de React), el guard de `pending` en el listener
-          // de "end" lo encuentra vacío y no vuelve a procesar el mismo texto.
+          // Vaciar el ref ANTES de handleDone (ver AGENTS.md, misma sección).
           transcriptTextRef.current = "";
           handleDone(text);
         } else {

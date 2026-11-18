@@ -76,7 +76,7 @@ export const pressScale = 0.97;
 
 // ─── Color anidado (light/dark) ────────────────────────────────────────────────
 // Reutiliza el acento existente de la app (#135BEC / #4B82EF) en vez de inventar
-// uno nuevo — regla inmutable #8 de AGENTS.md (botón primario fijo #135BEC).
+// uno nuevo — regla inmutable #7 de AGENTS.md (botón primario fijo #135BEC).
 
 export const tokenColors = {
   light: {

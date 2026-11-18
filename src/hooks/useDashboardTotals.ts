@@ -93,14 +93,9 @@ export function useDashboardTotals({
     [filteredTransactions],
   );
 
-  // Balance REAL de la persona — siempre sobre todo el historial, sin importar el
-  // período que esté viendo en la gráfica/lista. `netBalance` (arriba) queda acotado
-  // al filtro de período (y, durante una búsqueda, al resultado de esa búsqueda —
-  // eso sí es intencional, "neto de lo que encontraste"), así que al cambiar de mes
-  // — o cuando el mes nuevo todavía no tiene transacciones — se iba a $0 en vez de
-  // seguir mostrando cuánta plata tiene la persona en realidad. Pedido explícito del
-  // usuario (2026-09-02): el Dashboard usa este valor para "BALANCE NETO"/"Patrimonio
-  // neto" en vez de `netBalance` cuando no está buscando.
+  // Balance real sobre todo el historial, sin importar el período visto — ver AGENTS.md →
+  // "Dashboard" → "BALANCE NETO es el neto del período visto" (por qué existe aparte de
+  // `netBalance`).
   const allTimeNetBalance = useMemo(() => {
     const income = transactions
       .filter((t) => t.amount < 0)

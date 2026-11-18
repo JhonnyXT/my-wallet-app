@@ -31,11 +31,8 @@ const INTENT_RULES: readonly { intent: NotificationIntent; patterns: RegExp[] }[
   {
     intent: "payment_reminder",
     patterns: [
-      // Invitaciones a completar un pago de factura — todavía NO son
-      // transacciones confirmadas. Genérico para todos los bancos (se
-      // detectó originalmente en Nu: "Tienes un pago por $X. Completa tu
-      // pago de forma fácil y segura en tu app Nu." para una factura de
-      // servicios que el usuario aún no había pagado).
+      // Invitaciones a completar un pago de factura, todavía NO confirmadas —
+      // ver AGENTS.md → "Gotchas críticos" → "notificationParser/".
       /tienes\s+un\s+pago\s+(pendiente|por)/i,
       /completa\s+tu\s+pago/i,
       /finaliza\s+tu\s+(pago|compra)/i,

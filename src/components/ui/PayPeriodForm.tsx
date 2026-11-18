@@ -1,12 +1,6 @@
 /**
- * PayPeriodForm — "cada cuánto y cuánto te pagan": frecuencia (semanal, cada 2 semanas,
- * varias veces al mes, mensual con día de inicio, todo el tiempo), sus ajustes y el pago
- * esperado. Cada ajuste abre una "página" dentro del mismo formulario (no una hoja encima
- * de otra: dos Modal apilados en Android se comportan mal).
- *
- * Lo usan la hoja "Pago y período" (DefaultPeriodSheet: Ajustes y menú del calendario) y
- * el paso del onboarding (app/pay-onboarding.tsx). Mantiene su propio borrador desde
- * `initial`: para reiniciarlo, el padre lo remonta con otra `key`.
+ * PayPeriodForm — "cada cuánto y cuánto te pagan". Ver AGENTS.md → "Sistema de diseño y
+ * componentes UI" → "PayPeriodForm navega por 'páginas' internas" para el detalle completo.
  */
 import { useMemo, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";

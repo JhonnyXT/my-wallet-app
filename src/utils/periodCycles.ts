@@ -116,10 +116,8 @@ function daysInMonth(year: number, month: number): number {
 }
 
 /**
- * Construye una fecha con `day` acotado a los días reales del mes (year/month ya pueden
- * venir fuera de 0–11/del año actual, `Date` los normaliza igual). Sin este clamp,
- * `new Date(year, month, 30)` en febrero se desborda al 2 de marzo en vez de quedarse en
- * el mes pedido: `startDay`/`days` admiten 1–31, pero no todos los meses tienen esos días.
+ * Construye una fecha con `day` acotado a los días reales del mes. Ver AGENTS.md →
+ * "Dashboard" → "startDay (mensual) y days (varias veces al mes) admiten 1–31...".
  */
 function monthDate(year: number, month: number, day: number): Date {
   return new Date(year, month, Math.min(day, daysInMonth(year, month)));

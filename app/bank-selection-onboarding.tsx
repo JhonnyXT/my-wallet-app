@@ -1,11 +1,8 @@
 /**
  * bank-selection-onboarding.tsx — Tercer y último paso del onboarding: elegir de
  * qué bancos detectar transacciones automáticamente. Comparte la misma fuente de
- * verdad (ALLOWED_BANKS_KEY) que el selector de Settings → AutoDetectSection, así
- * que lo que se guarda acá es exactamente lo que se vería/editaría después ahí.
- * Convención de ALLOWED_BANKS_KEY: array vacío = "todos los bancos" (sin restricción).
- * Por eso, si el usuario no elige ningún banco acá, no se guarda un array vacío —
- * se apaga AUTO_DETECT_ENABLED_KEY en su lugar (ver handleSave).
+ * verdad (ALLOWED_BANKS_KEY) que el selector de Settings → AutoDetectSection.
+ * Convención de ALLOWED_BANKS_KEY (vacío = "todos"): ver docs/adr/0008.
  *
  * La ilustración reusa el mismo lenguaje visual (tarjetas flotantes banco → MyWallet)
  * de notification-onboarding.tsx, para que se lea como la continuación del mismo flujo.
@@ -151,16 +148,7 @@ export default function BankSelectionOnboarding() {
     });
   }, []);
 
-  // El flujo de onboarding llega aquí con la pila [category-onboarding,
-  // notification-onboarding, bank-selection-onboarding] (cada paso hace `push`,
-  // no `replace`, para que el botón "atrás" de cada pantalla funcione). Un
-  // `replace` simple aquí solo reemplaza este último escalón, dejando
-  // "(tabs)" apilado ENCIMA de category-onboarding/notification-onboarding en
-  // vez de como raíz — el siguiente `router.dismissAll()` (ej. al guardar un
-  // gasto) volvía a category-onboarding en lugar del dashboard. `dismissAll()`
-  // primero colapsa la pila a su base (category-onboarding, la ruta que
-  // reemplazó a "(tabs)" al iniciar el onboarding) y luego el `replace` deja
-  // "(tabs)" como única pantalla.
+  // dismissAll() antes de replace — ver AGENTS.md → "Navegación y arranque" → "Onboarding".
   const goToApp = useCallback(() => {
     router.dismissAll();
     router.replace("/(tabs)");
@@ -168,9 +156,7 @@ export default function BankSelectionOnboarding() {
 
   const handleSave = useCallback(async () => {
     if (selected.size === 0) {
-      // Ningún banco elegido: no hay forma de representar "ninguno" con
-      // ALLOWED_BANKS_KEY (vacío ahí significa "todos" en el resto de la app),
-      // así que lo correcto es apagar la detección por completo.
+      // Ningún banco elegido: ver docs/adr/0008 (por qué no se guarda un array vacío).
       await AsyncStorage.setItem(AUTO_DETECT_ENABLED_KEY, "false");
     } else {
       const allSelected = selected.size === KNOWN_BANKS.length;

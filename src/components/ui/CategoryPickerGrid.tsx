@@ -207,10 +207,7 @@ function CategoryTile({
   // normal, incluso en la primera interacción. onPanResponderTerminationRequest:true
   // deja que el ScrollView padre se quede con el gesto si detecta scroll vertical.
   //
-  // IMPORTANTE: se recrea en cada render (sin useRef) — envolverlo en useRef lo crea
-  // una sola vez y sus callbacks quedan con `emojiIdx` congelado al valor del primer
-  // render, por lo que el swipe siempre calculaba el próximo índice desde 0 en vez
-  // del índice actual (bug: se quedaba alternando entre el 1° y 2°/último emoji).
+  // IMPORTANTE: se recrea en cada render a propósito, sin useRef — ver docs/adr/0009.
   const pan = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onPanResponderTerminationRequest: () => true,

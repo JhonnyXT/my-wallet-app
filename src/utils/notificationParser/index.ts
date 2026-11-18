@@ -17,10 +17,8 @@
  *   descriptionExtractor.ts  — limpia el texto para dejar solo la descripción
  *   bankPatterns.ts          — un patrón por banco (o el genérico) que combina lo anterior
  *   parseNotification.ts     — orquesta el pipeline completo (API pública)
- *   fixtures.ts              — casos reales/sintéticos con resultado esperado,
- *                              para verificación manual hoy y para envolver en
- *                              tests automáticos cuando se configure un test
- *                              runner (deuda técnica pendiente, ver AGENTS.md)
+ *   fixtures.ts              — casos reales/sintéticos con resultado esperado, uno por
+ *                              `it()` en parseNotification.test.ts
  */
 
 export { parseNotification, getBankConfig } from "./parseNotification";

@@ -1,12 +1,6 @@
 /**
- * RollingNumber — contador tipo odómetro (cuentakilómetros).
- *
- * Cada dígito tiene su propia columna vertical con los números 0-9 apilados tres
- * veces. En reposo se muestra la copia del medio; cuando el dígito cambia, la
- * columna gira siempre HACIA ADELANTE hasta la tercera copia (efecto ruleta, al
- * menos una vuelta si el dígito baja) y al terminar salta invisible a la copia
- * del medio. Las columnas arrancan escalonadas de izquierda a derecha.
- * Reanimated en el UI thread (60fps, sin bloquear el JS thread).
+ * RollingNumber — contador tipo odómetro (cuentakilómetros). Ver AGENTS.md → "Sistema de
+ * diseño y componentes UI" → "RollingNumber" para el detalle del efecto de ruleta.
  *
  * Formato COP: separadores de miles con "." intercalados entre las columnas.
  * Cuando el conteo de dígitos cambia, las nuevas columnas/separadores

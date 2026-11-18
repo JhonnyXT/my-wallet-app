@@ -46,32 +46,10 @@ export function extractDescription(text: string, bankName: string): string {
 }
 
 /**
- * Reduce una descripción ya limpia (`extractDescription`) a una etiqueta corta
- * para la notificación push: "Compra en RAPPI CO", "Recibiste de Juan Pérez".
- *
- * El verbo (Compra/Pago/Retiro vs Recibiste/Ingreso/Consignación) lo decide
- * `isExpense` — YA clasificado por `classifyDirection` — no una keyword suelta
- * del texto. Bancos distintos frasean la misma acción distinto ("enviaron" es
- * ingreso en Nequi cuando alguien te manda plata, pero sería gasto si el
- * usuario es quien envía), así que solo `isExpense` decide la dirección; las
- * keywords dentro de cada rama solo eligen el verbo más específico posible.
- *
- * La contraparte (comercio/persona) se extrae de la última frase preposicional
- * ("en X" / "a X" / "de X" / "Comercio: X") del texto ya limpio. Si no hay
- * ninguna, se devuelve solo el verbo — nunca texto vacío ni crashea.
- *
- * Excepción — transferencias entrantes con el remitente ANTES del verbo
- * ("Bancolombia te envió...", "Juan Pérez te transfirió..."): ahí no hay
- * "de X"/"a X" al final, el nombre está al principio. Sin este caso, esas
- * notificaciones caían al genérico "Ingreso" sin decir quién mandó la plata
- * (bug real: es exactamente el fixture "Nu — transferencia entrante de otro
- * banco" de `fixtures.ts`). Solo aplica a ingresos — nadie te "envía" un
- * gasto tuyo.
- *
- * Siempre incluye el monto al final ("Recibiste de Juan Pérez · $80.000",
- * "Compra en RAPPI CO · $45.000") — a pedido del usuario, la etiqueta debe
- * leerse completa sola: quién/dónde Y cuánto, sin depender de que el monto
- * también se muestre aparte en otro elemento de la pantalla.
+ * Reduce una descripción ya limpia (`extractDescription`) a una etiqueta corta para la
+ * notificación push: "Compra en RAPPI CO · $45.000", "Recibiste de Juan Pérez · $80.000".
+ * Ver AGENTS.md → "Gotchas críticos" → "shortenDescription()" para el detalle del verbo,
+ * la extracción de la contraparte y la excepción de remitente-antes-del-verbo.
  */
 export function shortenDescription(description: string, isExpense: boolean, amount: number): string {
   const trimmed = description.replace(/\.+$/, "").trim();
@@ -94,19 +72,14 @@ export function shortenDescription(description: string, isExpense: boolean, amou
   }
 
   if (!isExpense) {
-    // `\b` no sirve como límite tras una vocal acentuada ("envió", "transfirió"):
-    // en JS, \w es solo ASCII, así que "ó" no cuenta como carácter de palabra y
-    // \b nunca coincide justo después — se usa un lookahead de espacio/fin de
-    // texto en su lugar.
+    // Lookahead `(?=\s|$)` en vez de `\b` — ver AGENTS.md → "shortenDescription()".
     const senderFirstMatch = trimmed.match(
       /^([A-Za-zÁÉÍÓÚÑáéíóúñ][\wÁÉÍÓÚÑáéíóúñ.]*(?:\s+[A-Za-zÁÉÍÓÚÑáéíóúñ][\wÁÉÍÓÚÑáéíóúñ.]*)*)\s+te\s+(envi[oó]|enviaron|transfiri[oó]|pag[oó])(?=\s|$)/i,
     );
     if (senderFirstMatch) return `${verb} de ${senderFirstMatch[1].trim()} · ${amountLabel}`;
   }
 
-  // Comercio justo después del verbo ("compra en APPLE.COM/BILL por…"): se prueba antes
-  // que la frase preposicional final porque admite puntos en el nombre y corta en el
-  // conector siguiente ("por", "con"…), que en Nu quedan colgando tras quitar el monto.
+  // Comercio justo después del verbo — ver AGENTS.md → "shortenDescription()".
   if (isExpense) {
     const merchantMatch = trimmed.match(
       /\b(?:compra|compraste|pago|pagaste|retiro)\s+(?:por\s+)?(en|a)\s+(.+?)(?=\s+(?:por|con|el|desde)(?:\s|$)|[,;]|\.(?:\s|$)|$)/i,

@@ -102,13 +102,9 @@ export default function ActiveExpenseScreen() {
   const fromNotificationEdit = from === "notification-edit";
   const pendingNotificationItems = useNotificationStore((s) => s.pendingItems);
   const recurringExpenses = useSettingsStore((s) => s.recurringExpenses);
-  // Vino directo de tocar la notificación bancaria (un solo item pendiente, sin pasar
-  // por la lista de revisión) — a diferencia de notification-edit, acá SÍ hay que
-  // guardar en la base de datos de una (ver handleConfirm) y sacar el item de la cola.
-  // Exige que notifId corresponda a un ítem REAL todavía pendiente: así una navegación a esta
-  // pantalla que no vino de tocar la notificación real (ej. un deep link `mywalletapp://` con un
-  // notifId inventado, lanzado por otra app del dispositivo) no activa el guardado directo ni el
-  // resto del comportamiento de este modo — cae al flujo normal de gasto/ingreso manual.
+  // Modo "notification-detect": ver AGENTS.md → "Gotchas críticos" → "Deep link desde
+  // notificación push". Exige que notifId sea un ítem REAL todavía pendiente, para que un deep
+  // link con un notifId inventado (otra app del dispositivo) no dispare el guardado directo.
   const fromNotificationDetect =
     from === "notification-detect" &&
     !!notifId &&
@@ -219,9 +215,7 @@ export default function ActiveExpenseScreen() {
   const noteRef = useRef<TextInput>(null);
 
   // ─── Modo edición: prellenar con una transacción existente ────────────────
-  // Ref en vez de dependencia de `transactions` en el efecto: solo debe correr una
-  // vez al abrir la pantalla, nunca de nuevo mientras el usuario edita (la lista
-  // de transacciones cambia de referencia en cada carga y reiniciaría el form).
+  // Guard por ref, no por dependencia de `transactions` — ver AGENTS.md → "Edición".
   const editInitDone = useRef(false);
   useEffect(() => {
     if (!isEditMode || editInitDone.current) return;
@@ -342,10 +336,8 @@ export default function ActiveExpenseScreen() {
     if (parsed._categoryDetected && parsed.categoryEmoji && parsed.categoryName)
       store.setCategory(parsed.categoryEmoji, parsed.categoryName);
 
-    // Tipo ingreso/gasto: ya NO se detecta desde el texto libre — el usuario ya
-    // eligió el tipo al abrir la pantalla (o con los pills gasto/ingreso), y
-    // cambiarlo solo porque el texto contiene una palabra clave era sorpresivo
-    // (ej. escribir "recibí un descuento" podía voltear un gasto a ingreso).
+    // Tipo ingreso/gasto: no se toca desde el texto libre — ver AGENTS.md → "Formulario de
+    // gasto/ingreso" (el parser NLP reactivo).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.note]);
 
@@ -353,8 +345,7 @@ export default function ActiveExpenseScreen() {
     const current = store.amount > 0 ? formatMoneyInput(String(Math.round(store.amount))) : "";
     setAmountDisplay(current);
     setAmountEditing(true);
-    // autoFocus del campo pide el teclado al montarse; este segundo intento cubre teléfonos
-    // lentos (en un moto e7 el foco a los 50 ms llegaba antes de que el campo existiera).
+    // Segundo focus() además del autoFocus — ver AGENTS.md → "Formulario de gasto/ingreso".
     setTimeout(() => amountInputRef.current?.focus(), 250);
   }
 

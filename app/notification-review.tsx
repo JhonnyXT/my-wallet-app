@@ -50,12 +50,8 @@ function pendingToReview(
   userCategories: UserCategory[],
   savingsGoals: SavingsGoal[],
 ): ReviewItem {
-  // La categoría se adivina sobre el texto crudo del banco (más palabras clave
-  // disponibles, ej. nombres de comercio) pero lo que se muestra/guarda como
-  // descripción es la versión corta tipo "Compra en RAPPI CO · $45.000" — la
-  // completa ("Bancolombia le informa Compra por... Comercio: NETFLIX
-  // $38.900") se veía tal cual la notificación del banco, no legible como
-  // nota de una transacción.
+  // Categoría adivinada sobre el texto crudo, descripción mostrada/guardada en versión corta
+  // — ver AGENTS.md → "Gotchas críticos" → "shortenDescription()".
   const rawDescription = item.description || item.bankName;
   const description = item.description
     ? shortenDescription(item.description, item.isExpense, item.amount)
@@ -68,9 +64,7 @@ function pendingToReview(
     categoryEmoji,
     categoryName: resolveCategory(categoryEmoji, userCategories, savingsGoals),
     isExpense: item.isExpense,
-    // Detectada desde una notificación bancaria: nunca es efectivo — "savings"
-    // (id por defecto de "Ahorros") es el fallback más cercano a la realidad,
-    // a pedido del usuario (2026-09-02); se puede corregir con el botón ✏️.
+    // Cuenta por defecto "savings" — ver AGENTS.md → "Gotchas críticos" (3 lugares que la usan).
     paymentMethod: "savings",
     bankName: item.bankName,
     confidence: item.confidence,
@@ -232,16 +226,14 @@ export default function NotificationReviewScreen() {
 
   const handleEdit = useCallback(
     (item: ReviewItem) => {
-      // Pre-popular useExpenseStore con los datos actuales del item — incluida la
-      // fecha real de detección, no la de hoy (bug reportado: se abría siempre
-      // con la fecha actual sin importar cuándo llegó la notificación).
+      // Prellena con la fecha real de detección (`detectedAt`), no la de hoy — ver AGENTS.md →
+      // "Gotchas críticos" → "detectedAt es la hora real...". Cuenta por defecto "savings",
+      // misma sección.
       expenseStore.setIsExpense(item.isExpense);
       expenseStore.setAmount(item.amount);
       expenseStore.setNote(item.description);
       expenseStore.setCategory(item.categoryEmoji, item.categoryName);
       expenseStore.setCustomDate(new Date(item.date));
-      // Detectada desde notificación bancaria: nunca es efectivo — "savings" (Ahorros)
-      // es el default más cercano a la realidad, a pedido del usuario (2026-09-02).
       expenseStore.setAccount("savings");
       setEditingItemId(item.id);
       router.push("/active-expense?from=notification-edit");

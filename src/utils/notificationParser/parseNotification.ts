@@ -13,14 +13,9 @@ import type { ParsedTransaction } from "./types";
  *     recordatorio de pago pendiente, publicidad, actualización de app)
  *   - no se puede extraer un monto válido
  *
- * `postedAt`: momento real en que Android posteó la notificación (StatusBarNotification.postTime,
- * expuesto por react-native-android-notification-listener como `notification.time` — ver
- * notificationHeadlessTask.ts). Por defecto usa "ahora" si no se pasa (tests/fixtures no lo
- * necesitan). Pasarlo explícitamente es importante: el listener de Android puede re-entregar
- * notificaciones YA EXISTENTES al reconectar el servicio (ej. tras el ANR/kill de batería ya
- * documentado en AGENTS.md para Samsung/OneUI) — sin `postedAt`, cada reconexión reescribiría
- * `detectedAt` a "ahora", mostrando siempre la fecha actual al editar el ítem sin importar cuándo
- * llegó la transacción real.
+ * `postedAt`: momento real en que Android posteó la notificación (default "ahora" para
+ * tests/fixtures, que no lo necesitan). Ver AGENTS.md → "Gotchas críticos" → "detectedAt es la
+ * hora real en que el banco posteó la notificación" (por qué importa pasarlo explícito).
  */
 export function parseNotification(
   packageName: string,

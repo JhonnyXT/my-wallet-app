@@ -22,9 +22,8 @@ interface NotificationState {
 
   /**
    * Agrega una transacción detectada a la cola (evita duplicados por monto+banco en <2 min).
-   * Devuelve el id del item (el nuevo, o el del duplicado existente) y si realmente se agregó:
-   * `notificationHeadlessTask.ts` solo manda la push cuando `isNew` — Android puede entregar
-   * la misma notificación bancaria dos veces (post + update) y cada entrega disparaba su push.
+   * Devuelve `{ id, isNew }` — ver AGENTS.md → "Gotchas críticos" → "Deep link desde
+   * notificación push" (por qué `isNew` importa para la push).
    */
   addPendingItem: (item: ParsedTransaction) => { id: string; isNew: boolean };
 
@@ -85,13 +84,9 @@ export const useNotificationStore = create<NotificationState>()(
 );
 
 /**
- * Busca un item pendiente por id, esperando primero a que `persist` termine de
- * rehidratar desde AsyncStorage si todavía no lo hizo. Necesario en `app/_layout.tsx`
- * al resolver el deep link de una notificación bancaria en un cold start (app matada,
- * el usuario toca la notificación): ese código puede correr antes de que la
- * rehidratación async del store termine, y sin esperarla el item "no existiría"
- * aunque sí esté en AsyncStorage. Timeout de seguridad por si la rehidratación ya
- * terminó pero el flag no se actualizó a tiempo, o queda colgada por algún motivo.
+ * Busca un item pendiente por id, esperando primero la rehidratación de `persist` si
+ * todavía no terminó. Ver AGENTS.md → "Gotchas críticos" → "Deep link desde notificación
+ * push". Timeout de seguridad por si la rehidratación queda colgada.
  */
 export async function getPendingItemAfterHydration(
   id: string,
@@ -101,10 +96,9 @@ export async function getPendingItemAfterHydration(
 }
 
 /**
- * Espera a que `persist` termine de rehidratar la cola desde AsyncStorage. En HeadlessJS
- * (cold start) hay que llamarla antes de `addPendingItem`: si se agrega antes de hidratar,
- * la rehidratación pisa el estado y se pierde el item, y el chequeo de duplicados no ve la
- * cola real.
+ * Espera a que `persist` termine de rehidratar la cola desde AsyncStorage. Ver AGENTS.md →
+ * "Gotchas críticos" → "Deep link desde notificación push" (por qué hay que esperarla antes
+ * de `addPendingItem` en HeadlessJS).
  */
 export async function waitForNotificationStoreHydration(): Promise<void> {
   if (useNotificationStore.persist.hasHydrated()) return;

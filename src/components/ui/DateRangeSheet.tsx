@@ -282,12 +282,8 @@ export function DateRangeSheet({
           const isToday = isSameDay(date, today);
           const inMonth = isSameMonth(date, viewMonth);
           const col = i % 7;
-          // Barra continua: se redondea solo donde el rango realmente empieza/termina (el día
-          // de inicio/fin, el borde de la fila al saltar de semana, o cuando la celda vecina
-          // está vacía — mes anterior/siguiente fuera de vista, ej. "1 año" con el inicio en
-          // otro mes: sin esto el primer/último día visible quedaba con una esquina cuadrada
-          // pegada a la nada); el resto de las uniones quedan cuadradas para que se vea como
-          // una sola franja, no como celdas sueltas.
+          // Barra continua — ver AGENTS.md → "Sistema de diseño y componentes UI" →
+          // "DateRangeSheet dibuja el rango como una barra continua".
           const prevIsBlank = i === 0 || grid[i - 1] === null;
           const nextIsBlank = i === grid.length - 1 || grid[i + 1] === null;
           const roundLeft = isStart || col === 0 || prevIsBlank;
@@ -308,8 +304,7 @@ export function DateRangeSheet({
                     { backgroundColor: tokens.colors.accent.default },
                     roundLeft && s.connectorRoundLeft,
                     roundRight && s.connectorRoundRight,
-                    // Las celdas miden 100/7 % (bordes en fracciones de píxel): sin este
-                    // solape de 1px, el redondeo dejaba una rendija vertical entre días.
+                    // Solape de 1px — misma sección de AGENTS.md.
                     !roundLeft && { left: -1 },
                     !roundRight && { right: -1 },
                   ]}

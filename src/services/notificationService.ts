@@ -151,10 +151,8 @@ export async function checkAndNotifyBudget(
   const threshold = store.budgetAlertThreshold / 100;
   const isOver = ratio >= 1.0;
 
-  // Claves compuestas para permitir dos notificaciones por categoría por ciclo de presupuesto:
-  // una al cruzar el umbral, otra al superar el 100%. Cada lista tiene sus presupuestos: fuera
-  // de Personal la clave lleva la lista, para que el mismo emoji en dos listas no choque
-  // (Personal conserva las claves de siempre).
+  // Claves compuestas con prefijo por lista — ver AGENTS.md → "Notificaciones y detección
+  // automática" y → "Listas y gasto compartido" (presupuestos por lista).
   const list = store.lists.find((l) => l.id === store.activeListId);
   const inOtherList = store.activeListId !== DEFAULT_LIST_ID && !!list;
   const prefix = inOtherList ? `${store.activeListId}|` : "";
@@ -226,29 +224,10 @@ export async function checkAndNotifyGoalCompleted(
 // ─── Transacción bancaria detectada ──────────────────────────────────────────
 
 /**
- * Dispara una notificación push cuando el HeadlessTask detecta una transacción.
- * Al tocar la notificación el sistema abre la app con la URL mywalletapp://notification-review.
- * Se puede llamar desde HeadlessJS (sin React) porque solo usa la API nativa.
- *
- * El texto se ajusta según `confidence` (viene de `parseNotification`): con
- * confianza `high` se afirma como un hecho ("detectado"); con `medium`/`low`
- * se redacta como algo a confirmar ("posible") para no sonar más seguro de lo
- * que el parser realmente está. El item queda en la cola de `useNotificationStore`
- * y nunca se guarda en el historial sin que el usuario lo confirme — ya sea en
- * `notification-review.tsx` (varios items pendientes) o directo en
- * `active-expense.tsx` prellenado (2026-09-02, ver `app/_layout.tsx`: si al tocar
- * la notificación este `itemId` sigue siendo el único pendiente, salta la lista y
- * abre el formulario ya cargado con monto/categoría/fecha).
- *
- * El título es una etiqueta corta (tipo + banco), sin el monto. El cuerpo usa
- * `shortenDescription` (ej. "Compra en RAPPI CO · $45.000" / "Recibiste de
- * Juan Pérez · $80.000" — YA incluye el monto, no se concatena aparte) en vez
- * de la descripción completa — el verbo lo decide `isExpense`, ya clasificado,
- * no la keyword suelta del banco (que varía y puede ser ambigua, ej.
- * "enviaron" es ingreso cuando alguien te manda plata). Esta misma versión
- * corta (no la completa capturada del banco) es también la que queda como
- * nota al editar/guardar el ítem en `notification-review.tsx` (2026-09-23,
- * antes se mostraba el texto casi tal cual lo mandó el banco).
+ * Dispara una notificación push cuando el HeadlessTask detecta una transacción. Se puede llamar
+ * desde HeadlessJS (sin React) porque solo usa la API nativa. Textos y flujo de confirmación:
+ * ver AGENTS.md → "Gotchas críticos" → "Textos de la notificación push" y "Deep link desde
+ * notificación push".
  */
 export async function notifyBankTransaction(
   amount: number,
@@ -305,12 +284,8 @@ function debtReminderId(debtId: string): string {
 }
 
 /**
- * Programa (o reprograma) el recordatorio mensual de pago de una deuda usando un
- * trigger `MONTHLY` nativo (AlarmManager vía expo-notifications) — no depende de que
- * la app esté corriendo, a diferencia del listener de notificaciones bancarias.
- * Nota: si `dueDay` no existe en un mes dado (ej. 31 en febrero), ese mes no dispara
- * — limitación del propio trigger MONTHLY del sistema, no un bug de la app.
- * Llamar tras crear/editar una deuda; `cancelDebtReminder` tras liquidarla o borrarla.
+ * Programa (o reprograma) el recordatorio mensual de pago de una deuda.
+ * Ver AGENTS.md → "Deudas y metas" (trigger MONTHLY y su limitación con dueDay=31).
  */
 export async function scheduleDebtReminder(debt: Debt): Promise<void> {
   if (!useSettingsStore.getState().notificationsEnabled) return;

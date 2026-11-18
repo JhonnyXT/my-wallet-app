@@ -1,11 +1,8 @@
 /**
  * bank-selection-onboarding.tsx — Tercer y último paso del onboarding: elegir de
  * qué bancos detectar transacciones automáticamente. Comparte la misma fuente de
- * verdad (ALLOWED_BANKS_KEY) que el selector de Settings → AutoDetectSection, así
- * que lo que se guarda acá es exactamente lo que se vería/editaría después ahí.
- * Convención de ALLOWED_BANKS_KEY: array vacío = "todos los bancos" (sin restricción).
- * Por eso, si el usuario no elige ningún banco acá, no se guarda un array vacío —
- * se apaga AUTO_DETECT_ENABLED_KEY en su lugar (ver handleSave).
+ * verdad (ALLOWED_BANKS_KEY) que el selector de Settings → AutoDetectSection.
+ * Convención de ALLOWED_BANKS_KEY (vacío = "todos"): ver docs/adr/0008.
  *
  * La ilustración reusa el mismo lenguaje visual (tarjetas flotantes banco → MyWallet)
  * de notification-onboarding.tsx, para que se lea como la continuación del mismo flujo.
@@ -152,16 +149,15 @@ export default function BankSelectionOnboarding() {
   }, []);
 
   // Último paso antes de los planes (`plan-onboarding`, que cierra el onboarding); usa `push`
-  // como el resto para que "atrás" funcione.
+  // como el resto para que "atrás" funcione. El `dismissAll()` + `replace` real al dashboard
+  // (ver AGENTS.md → "Navegación y arranque" → "Onboarding") queda en `plan-onboarding`.
   const goToPlans = useCallback(() => {
     router.push("/plan-onboarding");
   }, [router]);
 
   const handleSave = useCallback(async () => {
     if (selected.size === 0) {
-      // Ningún banco elegido: no hay forma de representar "ninguno" con
-      // ALLOWED_BANKS_KEY (vacío ahí significa "todos" en el resto de la app),
-      // así que lo correcto es apagar la detección por completo.
+      // Ningún banco elegido: ver docs/adr/0008 (por qué no se guarda un array vacío).
       await AsyncStorage.setItem(AUTO_DETECT_ENABLED_KEY, "false");
     } else {
       const allSelected = selected.size === KNOWN_BANKS.length;

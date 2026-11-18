@@ -75,30 +75,20 @@ export async function notificationHeadlessTask(taskData: { notification: string 
 
     if (!text && !title) return;
 
-    // 4. Parsear la notificación — se pasa el postTime real de Android
-    //    (StatusBarNotification.postTime, ms desde epoch) en vez de dejar que
-    //    parseNotification() use "ahora": el listener puede re-entregar una
-    //    notificación YA EXISTENTE al reconectar el servicio (kill de batería,
-    //    ver gotcha de ANR en AGENTS.md), y sin esto detectedAt terminaba
-    //    siendo siempre el momento de la reconexión, no el de la transacción
-    //    real — el bug reportado 2026-09-02 ("siempre sale la fecha actual").
+    // 4. Parsear la notificación con el postTime real de Android — ver AGENTS.md →
+    //    "Gotchas críticos" → "detectedAt es la hora real en que el banco posteó la notificación".
     const postedMs = Number(notification.time);
     const postedAt = Number.isFinite(postedMs) && postedMs > 0 ? new Date(postedMs) : new Date();
     const parsed = parseNotification(notification.app, title, text, postedAt);
     if (!parsed) return;
 
-    // 5. Agregar a la cola de pendientes (acceso directo al store, sin hooks). Se espera
-    //    la rehidratación para que el chequeo de duplicados vea la cola real.
+    // 5. Agregar a la cola de pendientes — ver AGENTS.md → "Deep link desde notificación push"
+    //    (por qué se espera la rehidratación antes, y por qué solo se notifica si `isNew`).
     await waitForNotificationStoreHydration();
     const { id: itemId, isNew } = useNotificationStore.getState().addPendingItem(parsed);
-    // Android entrega a veces la misma notificación del banco dos veces (post + update):
-    // la cola ya la descartó como duplicado, así que tampoco se repite la push.
     if (!isNew) return;
 
-    // 6. Notificación push al usuario para que sepa que hay una transacción pendiente.
-    //    El wording se ajusta según parsed.confidence (ver notifyBankTransaction). Se
-    //    manda el itemId para que, si sigue siendo el único pendiente al tocarla,
-    //    app/_layout.tsx pueda ir directo al formulario prellenado.
+    // 6. Notificación push al usuario — ver AGENTS.md, misma sección.
     await notifyBankTransaction(
       parsed.amount,
       parsed.description,

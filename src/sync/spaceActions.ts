@@ -1,10 +1,6 @@
 /**
- * Acciones de espacios compartidos que pide la UI (Sync Fase 4, spec D3/D4/D7). A diferencia del
- * motor, esperan la respuesta del servidor: compartir o unirse sin conexión no se puede hacer (no
- * hay otra forma de validar un código), y la UI lo dice (RF-04). Nada más de la app espera esto.
- *
- * Todas lanzan `SpaceError`. Corren sin ninguna sync a la vez (`runExclusive`); la que hace falta
- * después se pide al terminar, nunca adentro (esperarla adentro sería esperarse a sí misma).
+ * Acciones de espacios compartidos que pide la UI. Ver AGENTS.md → "Espacios compartidos" →
+ * "Acciones" (por qué esperan al servidor y corren con `runExclusive`).
  */
 import { getAuth, type User } from "@react-native-firebase/auth";
 import { getRandomBytes } from "expo-crypto";

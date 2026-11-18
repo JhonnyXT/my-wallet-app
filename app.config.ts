@@ -79,13 +79,10 @@ const config: ExpoConfig = {
     // del splash real — justo el bug reportado 2026-09-02.
     backgroundColor: "#135BEC",
   },
-  ios: {
-    supportsTablet: false,
-    bundleIdentifier: current.package,
-    infoPlist: {
-      ITSAppUsesNonExemptEncryption: false,
-    },
-  },
+  // 100% Android (AGENTS.md → Clasificación del proyecto): sin bloques `ios`/`web` a propósito,
+  // no son plataformas soportadas — se quitaron en la auditoría de simplicidad (2026-11-18) por
+  // ser config sin usar ni probar. Si algún día se agrega otra plataforma, es una decisión nueva,
+  // no volver a poner esto "por si acaso".
   android: {
     package: current.package,
     googleServicesFile,
@@ -109,11 +106,6 @@ const config: ExpoConfig = {
       foregroundImage: "./assets/images/adaptive-icon.png",
       backgroundColor: current.iconBackground,
     },
-  },
-  web: {
-    bundler: "metro",
-    output: "static",
-    favicon: "./assets/images/favicon.png",
   },
   plugins: [
     "expo-router",

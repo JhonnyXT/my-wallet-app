@@ -14,11 +14,7 @@ import {
   Keyboard,
 } from "react-native";
 import Reanimated, {
-  useAnimatedReaction,
-  useAnimatedRef,
   runOnJS,
-  runOnUI,
-  scrollTo,
   FadeInDown,
   FadeOutUp,
   LinearTransition,
@@ -103,8 +99,6 @@ import { TransactionDetailModal } from "@/src/components/dashboard/TransactionDe
 type TxRow = ReturnType<typeof useFinanceStore.getState>["transactions"][0];
 type ListRowItem = DayGroupRow<TxRow>;
 
-/** Arrastre (px) desde el tope de la lista que quita el filtro de categoría al soltar. */
-const PULL_CLEAR_DISTANCE = 90;
 // Deslizar el balance para traer cambios: el contenido baja con resistencia de goma (cada px
 // cuesta más que el anterior, con tope PULL_MAX_OFFSET); soltar pasado PULL_HOLD_OFFSET trae.
 const PULL_MAX_OFFSET = 150;
@@ -421,27 +415,11 @@ export default function DashboardScreen() {
     return () => sub.remove();
   }, [categoryFilter, clearCategoryFilter]);
 
-  // ── Pull-down para salir del filtro de categoría ─────────────────────────
-  // En Android el ScrollView nativo se queda con cualquier arrastre vertical (incluido el
-  // estiramiento del borde) y cancela los toques de JS antes de que un PanResponder llegue
-  // a su umbral: el pull-down casi nunca se activaba. Por eso, con filtro activo y la lista
-  // en el tope, el scroll nativo se desactiva y el gesto entero lo maneja JS: hacia abajo
-  // anima el emoji del encabezado → "x" y suelta pasado el umbral quita el filtro; hacia
-  // arriba desplaza la lista a mano, y al despegarse del tope el scroll nativo vuelve.
-  const listRef = useAnimatedRef<Reanimated.FlatList<ListRowItem>>();
-  const [atTop, setAtTop] = useState(true);
-  useAnimatedReaction(
-    () => scrollY.value <= 4,
-    (isTop, prev) => {
-      "worklet";
-      if (isTop !== prev) runOnJS(setAtTop)(isTop);
-    },
-    [scrollY],
-  );
-  // Deslizar hacia abajo sobre la LISTA solo quita el filtro de categoría. Traer cambios de la
-  // cuenta (Sync Fase 3/4) es deslizar sobre el BALANCE: ver syncPan más abajo.
+  // Para quitar un filtro de categoría ya está la "x" junto al chip del encabezado — antes
+  // también había un gesto de deslizar la lista hacia abajo para lo mismo; se quitó (auditoría
+  // de simplicidad, 2026-11-18): dos formas de hacer la misma acción, sin ninguna señal de cuál
+  // ibas a obtener al deslizar (se confundía con el pull-to-sync del balance, ver syncPan).
   const { user: sessionUser } = useSession();
-  const pullMode = atTop && !!categoryFilter;
 
   // ── Deslizar el balance para traer cambios ───────────────────────────────
   // Ver AGENTS.md → "Dashboard" → "Deslizar el balance para traer cambios".
@@ -553,65 +531,6 @@ export default function DashboardScreen() {
     [syncEnabled, pullOffset, pullProgress, pullToSync, setPhase, springPullOffset],
   );
 
-  // 0 → 1 a los PULL_CLEAR_DISTANCE px: alimenta la transición emoji → "x" del encabezado.
-  const pullDownProgress = useRef(new Animated.Value(0)).current;
-  const pullArmedRef = useRef(false);
-  const resetPullDownProgress = useCallback(() => {
-    pullArmedRef.current = false;
-    Animated.spring(pullDownProgress, {
-      toValue: 0,
-      useNativeDriver: true,
-      speed: 20,
-      bounciness: 4,
-    }).start();
-  }, [pullDownProgress]);
-
-  const scrollListTo = useCallback(
-    (y: number, animated: boolean) => {
-      runOnUI(() => {
-        "worklet";
-        scrollTo(listRef, 0, y, animated);
-      })();
-    },
-    [listRef],
-  );
-
-  const pullDownPan = useMemo(
-    () =>
-      PanResponder.create({
-        // Captura solo gestos verticales: taps y swipes horizontales de las filas siguen igual.
-        onMoveShouldSetPanResponderCapture: (_, gs) =>
-          pullMode && Math.abs(gs.dy) > 6 && Math.abs(gs.dy) > Math.abs(gs.dx) * 1.2,
-        onPanResponderTerminationRequest: () => true,
-        onPanResponderMove: (_, gs) => {
-          if (gs.dy <= 0) {
-            pullDownProgress.setValue(0);
-            scrollListTo(-gs.dy, false);
-            return;
-          }
-          const progress = Math.min(gs.dy / PULL_CLEAR_DISTANCE, 1);
-          pullDownProgress.setValue(progress);
-          const armed = progress >= 1;
-          if (armed !== pullArmedRef.current) {
-            pullArmedRef.current = armed;
-            if (armed) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          }
-        },
-        onPanResponderRelease: (_, gs) => {
-          const armed = pullArmedRef.current;
-          resetPullDownProgress();
-          if (gs.dy < 0) {
-            // Conserva algo de inercia del gesto al soltar hacia arriba.
-            scrollListTo(Math.max(-gs.dy - gs.vy * 220, 0), true);
-          } else if (armed) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            clearCategoryFilter();
-          }
-        },
-        onPanResponderTerminate: resetPullDownProgress,
-      }),
-    [pullMode, clearCategoryFilter, pullDownProgress, resetPullDownProgress, scrollListTo],
-  );
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   function handleNewTransactionFromChart(emoji: string, categoryName: string) {
@@ -834,115 +753,30 @@ export default function DashboardScreen() {
         <View style={styles.headerActions}>
           <NotificationBadgeBtn />
           {/* Filtro de categoría activo: su emoji + "x" para salir (mismo patrón que el
-              botón de período con filtro). */}
+              botón de período con filtro). Antes el emoji también se transformaba en esta
+              misma "x" al deslizar la lista hacia abajo — se quitó ese gesto (auditoría de
+              simplicidad, 2026-11-18): esta "x" ya resuelve lo mismo con un solo toque. */}
           {categoryFilter && (
             <Reanimated.View
               entering={reducedMotion ? undefined : FadeInDown.duration(200)}
               exiting={reducedMotion ? undefined : FadeOutUp.duration(160)}
               style={[styles.periodBtnGroup, styles.periodBtnGroupActive]}
             >
-              {/* Al deslizar la lista hacia abajo, el emoji se transforma en una "x" roja
-                  (pullDownProgress 0 → 1); al soltar pasado el umbral se quita el filtro. */}
-              <Animated.View
-                style={[
-                  styles.settingsBtn,
-                  {
-                    transform: [
-                      {
-                        scale: pullDownProgress.interpolate({
-                          inputRange: [0, 0.9, 1],
-                          outputRange: [1, 1.04, 1.12],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-                accessible
-                accessibilityLabel={`Filtro: ${categoryFilter.name}`}
-              >
-                <Animated.View
-                  style={[styles.catFilterDangerBg, { opacity: pullDownProgress }]}
-                  pointerEvents="none"
-                />
-                <Animated.Text
-                  style={[
-                    styles.catFilterHeaderEmoji,
-                    {
-                      opacity: pullDownProgress.interpolate({
-                        inputRange: [0, 0.6],
-                        outputRange: [1, 0],
-                        extrapolate: "clamp",
-                      }),
-                      transform: [
-                        {
-                          scale: pullDownProgress.interpolate({
-                            inputRange: [0, 0.6],
-                            outputRange: [1, 0.4],
-                            extrapolate: "clamp",
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  {categoryFilter.emoji}
-                </Animated.Text>
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    styles.catFilterPullX,
-                    {
-                      opacity: pullDownProgress.interpolate({
-                        inputRange: [0.4, 1],
-                        outputRange: [0, 1],
-                        extrapolate: "clamp",
-                      }),
-                      transform: [
-                        {
-                          scale: pullDownProgress.interpolate({
-                            inputRange: [0.4, 1],
-                            outputRange: [0.4, 1],
-                            extrapolate: "clamp",
-                          }),
-                        },
-                        {
-                          rotate: pullDownProgress.interpolate({
-                            inputRange: [0.4, 1],
-                            outputRange: ["-90deg", "0deg"],
-                            extrapolate: "clamp",
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  <X size={20} color="#DC2626" strokeWidth={2.8} />
-                </Animated.View>
-              </Animated.View>
-              {/* Durante el pull-down el emoji ya se vuelve la "x": esta se oculta para no
-                  mostrar dos. */}
-              <Animated.View
-                style={{
-                  opacity: pullDownProgress.interpolate({
-                    inputRange: [0, 0.25],
-                    outputRange: [1, 0],
-                    extrapolate: "clamp",
-                  }),
+              <View style={styles.settingsBtn} accessible accessibilityLabel={`Filtro: ${categoryFilter.name}`}>
+                <Text style={styles.catFilterHeaderEmoji}>{categoryFilter.emoji}</Text>
+              </View>
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  clearCategoryFilter();
                 }}
+                hitSlop={8}
+                style={styles.clearFilterBtn}
+                accessibilityRole="button"
+                accessibilityLabel={`Quitar filtro de categoría ${categoryFilter.name}`}
               >
-                <Pressable
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    clearCategoryFilter();
-                  }}
-                  hitSlop={8}
-                  style={styles.clearFilterBtn}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Quitar filtro de categoría ${categoryFilter.name}`}
-                >
-                  <X size={14} color={theme.textSub} strokeWidth={2.4} />
-                </Pressable>
-              </Animated.View>
+                <X size={14} color={theme.textSub} strokeWidth={2.4} />
+              </Pressable>
             </Reanimated.View>
           )}
           {/* Período: toque = mostrar/ocultar la tira; toque largo = menú. Con un
@@ -1151,11 +985,9 @@ export default function DashboardScreen() {
       {/* ══════════════════════════════════════════════════════════════
           LISTA — gráfica + transacciones en un solo scroll unificado
           ══════════════════════════════════════════════════════════════ */}
-      <View style={styles.list} {...pullDownPan.panHandlers}>
+      <View style={styles.list}>
         <Reanimated.View style={[styles.list, pulledStyle]}>
           <Reanimated.FlatList
-            ref={listRef}
-            scrollEnabled={!pullMode}
             data={listRows}
             keyExtractor={keyExtractor}
             renderItem={renderItem}
@@ -1698,16 +1530,6 @@ function createStyles(t: AppTheme) {
     catFilterHeaderEmoji: {
       fontSize: 18,
       lineHeight: 22,
-    },
-    catFilterDangerBg: {
-      ...StyleSheet.absoluteFillObject,
-      borderRadius: 9999,
-      backgroundColor: t.isDark ? "rgba(220,38,38,0.22)" : "#FEE2E2",
-    },
-    catFilterPullX: {
-      ...StyleSheet.absoluteFillObject,
-      alignItems: "center",
-      justifyContent: "center",
     },
 
     // ── Cabecera de sección ─────────────────────────────────────────────────

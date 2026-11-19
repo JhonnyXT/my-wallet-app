@@ -45,7 +45,6 @@ export function Reports({ api }: { api: DemoApi }) {
   const { months, items } = categoryAverages(state.txs, type);
   const trend = monthlyTotals(state.txs, type);
   const top = items[0];
-  const secondary = items.slice(1, 3);
   const totalAvg = items.reduce((s, i) => s + i.avgMonthly, 0);
   const share = totalAvg > 0 && top ? top.avgMonthly / totalAvg : 0;
   const maxAvg = top?.avgMonthly ?? 0;
@@ -128,30 +127,10 @@ export function Reports({ api }: { api: DemoApi }) {
                 </div>
               </Card>
             </Enter>
-
-            {secondary.length > 0 && (
-              <Enter index={2}>
-                <div style={{ ...row, gap: 8, alignItems: 'stretch' }}>
-                  {secondary.map((item) => (
-                    <Card key={item.emoji} style={{ flex: 1, minWidth: 0, borderRadius: 24, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      <span style={{ ...body, fontWeight: 600, fontSize: 14, ...ellipsis }}>{categoryName(item.emoji)}</span>
-                      <span style={{ ...row, gap: 4 }}>
-                        <span style={{ fontSize: 16 }}>{item.emoji}</span>
-                        <span style={{ ...headline, fontSize: 16, ...ellipsis }}>{cop(item.avgMonthly)}</span>
-                      </span>
-                      <span style={{ ...footnote, fontSize: 11 }}>Promedio mensual</span>
-                      <div style={{ marginTop: 2 }}>
-                        <Bar pct={pctOf(item.avgMonthly)} h={5} />
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </Enter>
-            )}
           </>
         )}
 
-        <Enter index={3}>
+        <Enter index={2}>
           <Card style={{ borderRadius: 24 }}>
             <div style={{ ...row, alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
               <div>
@@ -178,7 +157,7 @@ export function Reports({ api }: { api: DemoApi }) {
           </Card>
         </Enter>
 
-        <Enter index={4}>
+        <Enter index={3}>
           <Card style={{ padding: 0 }}>
             <div style={{ padding: '16px 16px 8px' }}>
               <span style={{ ...footnote, fontWeight: 700, letterSpacing: 0.4, textTransform: 'uppercase' }}>Ranking de categorías</span>

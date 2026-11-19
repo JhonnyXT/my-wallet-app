@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Pencil, Trash2 } from "lucide-react-native";
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
@@ -492,7 +492,13 @@ function DebtItem({
 
 // ─── Sección principal de deudas ───────────────────────────────────────────────
 
-export function DebtsSection() {
+/** Permite a un padre (CommitmentsSection) abrir "Nueva deuda" desde un botón combinado. */
+export interface DebtsSectionHandle {
+  openCreate: () => void;
+}
+
+export const DebtsSection = forwardRef<DebtsSectionHandle, { showAddButton?: boolean }>(
+  function DebtsSection({ showAddButton = true }, ref) {
   const tokens = useAppTokens();
   const debts = useSettingsStore((st) => st.debts);
   const removeDebt = useSettingsStore((st) => st.removeDebt);
@@ -501,6 +507,8 @@ export function DebtsSection() {
   const [editDebt, setEditDebt] = useState<Debt | null>(null);
   const [abonarDebt, setAbonarDebt] = useState<Debt | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ id: string; name: string } | null>(null);
+
+  useImperativeHandle(ref, () => ({ openCreate: () => setShowNuevaDeuda(true) }), []);
 
   return (
     <>
@@ -533,11 +541,13 @@ export function DebtsSection() {
         </>
       )}
 
-      <SheetAddButton
-        label="Nueva deuda"
-        onPress={() => setShowNuevaDeuda(true)}
-        style={{ marginTop: 4 }}
-      />
+      {showAddButton && (
+        <SheetAddButton
+          label="Nueva deuda"
+          onPress={() => setShowNuevaDeuda(true)}
+          style={{ marginTop: 4 }}
+        />
+      )}
 
       <NuevaDeudaModal visible={showNuevaDeuda} onClose={() => setShowNuevaDeuda(false)} />
       <NuevaDeudaModal
@@ -568,4 +578,4 @@ export function DebtsSection() {
       />
     </>
   );
-}
+});

@@ -65,16 +65,25 @@ React Native solo transpila paquetes que *empiezan* `react-native/` o `@react-na
 con el guion pegado (`react-native-reanimated`, `react-native-worklets`, `lucide-react-native`)
 quedan excluidos por default y hay que agregarlos a mano o Jest no puede parsear su ESM.
 
-### Por qué `src/db/` (SQLite) sigue sin mock propio
+### `src/db/` (SQLite): revisado el 2026-11-18, con motor real en vez de mock
 
-Un mock de `expo-sqlite` que imite fielmente el motor real (transacciones, WAL, el comportamiento
-exacto de los `UPDATE`/`INSERT` con los índices y `LIST_SCOPE_SQL`) es alto esfuerzo y alto
-riesgo de divergir del comportamiento real sin que nadie lo note — exactamente el tipo de falso
-positivo que esta deuda técnica buscaba evitar. `src/db/listScope.test.ts` ya cubre estáticamente
-el único invariante realmente crítico (ninguna lectura de `transactions` se salta
-`LIST_SCOPE_SQL`); el resto del CRUD de `db.ts` se sigue verificando en dispositivo real (como ya
-indicaba `AGENTS.md` para cualquier test que toque `src/db/` transitivamente: mockear solo la
-función puntual usada, nunca arrastrar `expo-sqlite`).
+La razón original para dejar `src/db/` sin tests seguía en pie (un mock de `expo-sqlite` que
+imite fielmente transacciones/WAL/`UPDATE`-`INSERT` es alto esfuerzo y alto riesgo de divergir sin
+que nadie lo note), pero el usuario pidió hacerlos igual. La solución no fue escribir ese mock:
+**`better-sqlite3`** (devDependency, nunca viaja a la app ni al APK) corre SQL de verdad contra un
+archivo temporal por test — mismo motor SQLite, distinto binding que `expo-sqlite` (JSI vs. nativo
+de Node), así que no hay mock inventado que pueda divergir del comportamiento real.
+
+`jest/sqliteTestAdapter.ts` implementa la misma superficie async que usa `db.ts`/`queries.ts`
+(`execAsync`/`runAsync`/`getAllAsync`/`getFirstAsync`/`withTransactionAsync`) sobre ese motor,
+inyectada mockeando `expo-sqlite` y usando `jest.resetModules()` para que el `_db` cacheado a
+nivel de módulo nunca se comparta entre tests. `src/db/db.test.ts`/`src/db/queries.test.ts` cubren
+el alcance por lista, mover una transacción de lista (uid nuevo + tombstone), atomicidad de
+`insertTransactionBatch`, conflictos de `applyRemoteTransactions`, `markTransactionsSynced`
+optimista, `purgeSyncedTombstones`, y el denominador compartido de
+`queryCategoryMonthlyAverages`. `src/db/listScope.test.ts` sigue aparte (guardia estática de
+`LIST_SCOPE_SQL`, no necesita motor real). El CRUD completo se sigue verificando también en
+dispositivo real — estos tests no lo reemplazan, lo complementan.
 
 ## Consecuencias
 
@@ -86,7 +95,9 @@ función puntual usada, nunca arrastrar `expo-sqlite`).
 - Un componente nuevo que use Reanimated o AsyncStorage no necesita mockear nada aparte — ya es
   global vía `jest/setupMocks.js`. Un paquete RN nuevo con ESM sin transpilar (error "Cannot use
   import statement outside a module") necesita sumarse a `transformIgnorePatterns`.
-- No reintentar mockear `expo-sqlite` para probar `db.ts` directamente sin una razón de peso
-  nueva — la decisión fue dejarlo fuera a propósito, no por falta de tiempo.
+- `better-sqlite3`/`@types/better-sqlite3` son devDependencies agregadas el 2026-11-18 solo para
+  los tests de `src/db/` — no mockear `expo-sqlite` a mano para esto, usar
+  `jest/sqliteTestAdapter.ts`, que ya resuelve la superficie async necesaria sobre ese motor real.
 
-Código: `jest.config.js`, `jest/setupMocks.js`, `package.json` → `overrides`.
+Código: `jest.config.js`, `jest/setupMocks.js`, `jest/sqliteTestAdapter.ts`, `package.json` →
+`overrides`.

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Pencil, Trash2 } from "lucide-react-native";
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
@@ -398,7 +398,14 @@ function GoalItem({
 }
 
 // ─── Sección principal de metas ───────────────────────────────────────────────
-export function SavingsGoalsSection() {
+
+/** Permite a un padre (CommitmentsSection) abrir "Nueva meta" desde un botón combinado. */
+export interface GoalsSectionHandle {
+  openCreate: () => void;
+}
+
+export const SavingsGoalsSection = forwardRef<GoalsSectionHandle, { showAddButton?: boolean }>(
+  function SavingsGoalsSection({ showAddButton = true }, ref) {
   const tokens = useAppTokens();
   const savingsGoals = useSettingsStore((st) => st.savingsGoals);
   const removeSavingsGoal = useSettingsStore((st) => st.removeSavingsGoal);
@@ -407,6 +414,8 @@ export function SavingsGoalsSection() {
   const [editGoal, setEditGoal] = useState<SavingsGoal | null>(null);
   const [abonarGoal, setAbonarGoal] = useState<SavingsGoal | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ id: string; name: string } | null>(null);
+
+  useImperativeHandle(ref, () => ({ openCreate: () => setShowNuevaMeta(true) }), []);
 
   return (
     <>
@@ -439,11 +448,13 @@ export function SavingsGoalsSection() {
         </>
       )}
 
-      <SheetAddButton
-        label="Nueva meta"
-        onPress={() => setShowNuevaMeta(true)}
-        style={{ marginTop: 4 }}
-      />
+      {showAddButton && (
+        <SheetAddButton
+          label="Nueva meta"
+          onPress={() => setShowNuevaMeta(true)}
+          style={{ marginTop: 4 }}
+        />
+      )}
 
       <NuevaMetaModal visible={showNuevaMeta} onClose={() => setShowNuevaMeta(false)} />
       <NuevaMetaModal
@@ -471,4 +482,4 @@ export function SavingsGoalsSection() {
       />
     </>
   );
-}
+});

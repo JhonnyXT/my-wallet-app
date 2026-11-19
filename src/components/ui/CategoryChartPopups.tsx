@@ -11,7 +11,7 @@ import { ArrowUp, ArrowDown } from "lucide-react-native";
 import { useSettingsStore } from "@/src/store/useSettingsStore";
 import { formatMoneyInput } from "@/src/utils/formatMoney";
 import { useTheme } from "@/src/context/ThemeContext";
-import { moneyColors } from "@/src/theme/tokens";
+import { moneyColors, useAppTokens } from "@/src/theme/tokens";
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
 import { SheetActions, SheetHeader, useSheetPadding } from "@/src/components/ui/SheetParts";
 import {
@@ -131,6 +131,8 @@ export function BudgetEditModal({
 
 // ─── Popup (tooltip flotante, Stitch design) ─────────────────────────────────
 export function CategoryPopup({ popup }: { popup: PopupState }) {
+  const { isDark } = useTheme();
+  const tokens = useAppTokens();
   const { total, budget, selection, isIncomeMode } = popup;
   const remaining = budget !== undefined ? budget - total : undefined;
   const overBudget = remaining !== undefined && remaining < 0;
@@ -143,7 +145,8 @@ export function CategoryPopup({ popup }: { popup: PopupState }) {
       : `${fmtCOP(remaining!)} restante`;
   }
 
-  const ACCENT = "#135BEC";
+  const ACCENT = tokens.colors.accent.default;
+  const inactiveColor = isDark ? tokens.colors.text.secondary : "#94A3B8";
   const upActive = selection === "up";
   const downActive = selection === "down";
 
@@ -157,18 +160,31 @@ export function CategoryPopup({ popup }: { popup: PopupState }) {
     ]).start();
   }, [scale, opacity]);
 
+  const cardStyle = [
+    popupStyles.card,
+    {
+      backgroundColor: isDark ? tokens.colors.surface.secondary : "#FFFFFF",
+      borderColor: isDark ? tokens.colors.border.default : "rgba(0,0,0,0.06)",
+    },
+  ];
+  const rowActiveStyle = { backgroundColor: isDark ? tokens.colors.accent.subtle : "#EEF3FF" };
+  const dividerStyle = {
+    backgroundColor: isDark ? tokens.colors.border.default : "rgba(0,0,0,0.08)",
+  };
+  const centerTextColor = isDark ? tokens.colors.text.primary : "#0F172A";
+
   return (
-    <Animated.View style={[popupStyles.card, { transform: [{ scale }], opacity }]}>
+    <Animated.View style={[cardStyle, { transform: [{ scale }], opacity }]}>
       {/* ── Fila superior: ↑ Editar presupuesto — solo en modo gastos ── */}
       {!isIncomeMode && (
         <>
-          <View style={[popupStyles.row, upActive && popupStyles.rowActive]}>
-            <ArrowUp size={13} color={upActive ? ACCENT : "#94A3B8"} strokeWidth={2.5} />
-            <Text style={[popupStyles.rowLabel, upActive && popupStyles.rowLabelActive]}>
+          <View style={[popupStyles.row, upActive && rowActiveStyle]}>
+            <ArrowUp size={13} color={upActive ? ACCENT : inactiveColor} strokeWidth={2.5} />
+            <Text style={[popupStyles.rowLabel, { color: inactiveColor }, upActive && { color: ACCENT }]}>
               {budget !== undefined && budget > 0 ? "EDITAR\nPRESUPUESTO" : "AGREGAR\nPRESUPUESTO"}
             </Text>
           </View>
-          <View style={popupStyles.divider} />
+          <View style={[popupStyles.divider, dividerStyle]} />
         </>
       )}
 
@@ -177,6 +193,7 @@ export function CategoryPopup({ popup }: { popup: PopupState }) {
         <Text
           style={[
             popupStyles.centerText,
+            { color: centerTextColor },
             overBudget && { color: "#DC2626" },
             isIncomeMode && { color: moneyColors.income.text },
           ]}
@@ -185,12 +202,12 @@ export function CategoryPopup({ popup }: { popup: PopupState }) {
           {centerText}
         </Text>
       </View>
-      <View style={popupStyles.divider} />
+      <View style={[popupStyles.divider, dividerStyle]} />
 
       {/* ── Fila inferior: ↓ Nueva transacción ──────────────────── */}
-      <View style={[popupStyles.row, downActive && popupStyles.rowActive]}>
-        <ArrowDown size={13} color={downActive ? ACCENT : "#94A3B8"} strokeWidth={2.5} />
-        <Text style={[popupStyles.rowLabel, downActive && popupStyles.rowLabelActive]}>
+      <View style={[popupStyles.row, downActive && rowActiveStyle]}>
+        <ArrowDown size={13} color={downActive ? ACCENT : inactiveColor} strokeWidth={2.5} />
+        <Text style={[popupStyles.rowLabel, { color: inactiveColor }, downActive && { color: ACCENT }]}>
           {"NUEVA\nTRANSACCIÓN"}
         </Text>
       </View>
@@ -201,7 +218,6 @@ export function CategoryPopup({ popup }: { popup: PopupState }) {
 // ─── Estilos del popup ────────────────────────────────────────────────────────
 const popupStyles = StyleSheet.create({
   card: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     paddingVertical: 4,
     shadowColor: "#000",
@@ -211,7 +227,6 @@ const popupStyles = StyleSheet.create({
     elevation: 10,
     // Borde sutil
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.06)",
     overflow: "hidden",
   },
   row: {
@@ -221,22 +236,14 @@ const popupStyles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  rowActive: {
-    backgroundColor: "#EEF3FF",
-  },
   rowLabel: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#94A3B8",
     letterSpacing: 0.4,
     lineHeight: 15,
   },
-  rowLabelActive: {
-    color: "#135BEC",
-  },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: "rgba(0,0,0,0.08)",
     marginHorizontal: 0,
   },
   centerRow: {
@@ -253,7 +260,6 @@ const popupStyles = StyleSheet.create({
   centerText: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#0F172A",
     letterSpacing: -0.3,
     flexShrink: 1,
   },

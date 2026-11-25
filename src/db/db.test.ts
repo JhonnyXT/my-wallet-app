@@ -184,8 +184,14 @@ describe("src/db/db.ts", () => {
     it("markTransactionsSynced solo marca si updated_at no cambió mientras se subía", async () => {
       const row = await db.insertTransaction(100, "A", "💰");
       // Simula una edición que llegó DURANTE la subida: la versión que se intenta confirmar
-      // (updated_at original) ya quedó vieja.
+      // (updated_at original) ya quedó vieja. Se fuerza el nuevo updated_at a mano (en vez de
+      // confiar en que Date.now() avance entre las dos llamadas) para que el test no sea flaky
+      // en una máquina rápida donde ambas caen en el mismo milisegundo.
       await db.updateTransaction(row.id, 150, "A editada", "💰");
+      await handle.adapter.runAsync("UPDATE transactions SET updated_at = ? WHERE uid = ?", [
+        row.updated_at + 1000,
+        row.uid,
+      ]);
 
       await db.markTransactionsSynced([{ uid: row.uid, updated_at: row.updated_at }]);
       const stillPending = await handle.adapter.getFirstAsync<{ sync_state: string }>(

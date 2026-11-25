@@ -39,7 +39,7 @@ import { NewCategoryModal } from "@/app/category-onboarding";
 import { PaymentMethodsSection } from "@/src/components/settings/PaymentMethodsSection";
 import type { UserCategory } from "@/src/constants/categoryPresets";
 import { processVoiceInput } from "@/src/utils/voiceParser";
-import { formatMoneyInput } from "@/src/utils/formatMoney";
+import { formatMoneyInput, formatCOP as fmtCOP } from "@/src/utils/formatMoney";
 import { resolveCategory } from "@/src/utils/transactionFormatters";
 import { useTheme } from "@/src/context/ThemeContext";
 import { CalendarSheet } from "@/src/components/ui/CalendarSheet";
@@ -74,13 +74,6 @@ const PAYMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   debit: CreditCard,
   savings: Landmark,
 };
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-function fmtCOP(n: number) {
-  return `$ ${Math.round(n)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
-}
 
 // ─── Pantalla ─────────────────────────────────────────────────────────────────
 export default function ActiveExpenseScreen() {
@@ -496,6 +489,7 @@ export default function ActiveExpenseScreen() {
                   onBlur={handleAmountBlur}
                   onSubmitEditing={handleAmountBlur}
                   keyboardType="number-pad"
+                  maxLength={19} // MAX_AMOUNT_DIGITS (15) + hasta 4 puntos de miles
                   style={[
                     st.amountInput,
                     { color: accent },

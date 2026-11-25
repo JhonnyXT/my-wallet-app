@@ -14,6 +14,11 @@ describe("formatMoneyInput", () => {
     expect(formatMoneyInput("")).toBe("");
     expect(formatMoneyInput("abc")).toBe("");
   });
+
+  it("recorta a MAX_AMOUNT_DIGITS para no desbordar a notación exponencial (QA 2026-11-25)", () => {
+    expect(formatMoneyInput("9".repeat(30))).toBe(formatMoneyInput("9".repeat(15)));
+    expect(formatMoneyInput("9".repeat(30)).replace(/\./g, "")).toHaveLength(15);
+  });
 });
 
 describe("formatMoneyDisplay", () => {
@@ -30,6 +35,12 @@ describe("formatMoneyDisplay", () => {
   it("devuelve '0' para valores nulos, cero o negativos", () => {
     expect(formatMoneyDisplay(0)).toBe("0");
     expect(formatMoneyDisplay(-500)).toBe("0");
+  });
+
+  it("nunca cae en notación exponencial con valores extremos (QA 2026-11-25: '1e+21')", () => {
+    expect(formatMoneyDisplay(1e21)).not.toContain("e");
+    expect(formatMoneyDisplay(1e21)).not.toContain("E");
+    expect(formatMoneyDisplay(Number.MAX_SAFE_INTEGER + 100)).not.toContain("e");
   });
 });
 

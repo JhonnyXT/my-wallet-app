@@ -351,7 +351,7 @@ export function Dashboard({ api }: { api: DemoApi }) {
           <div style={{ ...col, gap: 8, alignItems: 'center', transform: `translateY(${-5 * parallax}px) scale(${1 - 0.06 * parallax})` }}>
             {monthlyBudget > 0 && typeFilter === null && current && overBudget > 0 && (
               <span style={{ background: 'rgba(220,38,38,0.18)', padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, color: '#DC2626', letterSpacing: 0.2 }}>
-                {bal(overBudget)} sobre tu pago
+                {bal(overBudget)} excedido del pago
               </span>
             )}
             <span style={{ fontSize: 11, fontWeight: 700, color: t.textSub, letterSpacing: 2, textTransform: 'uppercase', textAlign: 'center' }}>BALANCE NETO</span>

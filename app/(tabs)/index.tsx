@@ -859,7 +859,7 @@ export default function DashboardScreen() {
             {showPayBar && overBudgetAmount > 0 && (
               <View style={styles.overBudgetBanner}>
                 <Text style={styles.overBudgetText}>
-                  {formatBalance(overBudgetAmount)} sobre tu pago
+                  {formatBalance(overBudgetAmount)} excedido del pago
                 </Text>
               </View>
             )}

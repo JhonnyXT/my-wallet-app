@@ -9,6 +9,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   Keyboard,
+  BackHandler,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -44,6 +45,7 @@ import { resolveCategory } from "@/src/utils/transactionFormatters";
 import { useTheme } from "@/src/context/ThemeContext";
 import { CalendarSheet } from "@/src/components/ui/CalendarSheet";
 import { BottomSheet } from "@/src/components/ui/BottomSheet";
+import { ConfirmDialog } from "@/src/components/ui/ConfirmDialog";
 import { PressableScale } from "@/src/components/ui/PressableScale";
 import type { AppTheme } from "@/src/theme";
 
@@ -175,6 +177,7 @@ export default function ActiveExpenseScreen() {
     store.setNote(text);
   };
   const [amountEditing, setAmountEditing] = useState(false);
+  const [amountHint, setAmountHint] = useState(false);
   const [amountDisplay, setAmountDisplay] = useState("");
   const [showNewCatModal, setShowNewCatModal] = useState(false);
   const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false);
@@ -184,6 +187,16 @@ export default function ActiveExpenseScreen() {
   // ─── Modo edición: prellenar con una transacción existente ────────────────
   // Guard por ref, no por dependencia de `transactions` — ver AGENTS.md → "Edición".
   const editInitDone = useRef(false);
+  // Snapshot del valor original al prellenar, para saber si hay cambios sin guardar al cerrar.
+  const editSnapshotRef = useRef<{
+    amount: number;
+    note: string;
+    categoryEmoji: string;
+    account: AccountType;
+    tags: string[];
+    listId?: string;
+    paidBy: string;
+  } | null>(null);
   useEffect(() => {
     if (!isEditMode || editInitDone.current) return;
     const tx = transactions.find((t) => t.id === editingId);
@@ -192,6 +205,24 @@ export default function ActiveExpenseScreen() {
     setListId(tx.list_id);
     setPaidBy(tx.paid_by);
     const catName = resolveCategory(tx.category_emoji, userCategories, savingsGoals);
+    const parsedTags = tx.tags
+      ? (() => {
+          try {
+            return JSON.parse(tx.tags) as string[];
+          } catch {
+            return [];
+          }
+        })()
+      : [];
+    editSnapshotRef.current = {
+      amount: Math.abs(tx.amount),
+      note: tx.description,
+      categoryEmoji: tx.category_emoji,
+      account: (tx.payment_method || "cash") as AccountType,
+      tags: parsedTags,
+      listId: tx.list_id,
+      paidBy: tx.paid_by,
+    };
     store.setFromVoice({
       amount: Math.abs(tx.amount),
       isExpense: tx.amount >= 0,
@@ -202,15 +233,7 @@ export default function ActiveExpenseScreen() {
       note: tx.description,
       rawTranscript: "",
       account: (tx.payment_method || "cash") as AccountType,
-      tags: tx.tags
-        ? (() => {
-            try {
-              return JSON.parse(tx.tags) as string[];
-            } catch {
-              return [];
-            }
-          })()
-        : [],
+      tags: parsedTags,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, editingId, transactions]);
@@ -308,7 +331,13 @@ export default function ActiveExpenseScreen() {
     // en onBlur, que llega después de este toque): se toma directo del campo.
     const amount = amountEditing ? parseFloat(amountDisplay.replace(/\D/g, "")) || 0 : store.amount;
     if (amountEditing) handleAmountBlur();
-    if (amount <= 0) return;
+    if (amount <= 0) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      if (!amountEditing) handleAmountTap();
+      setAmountHint(true);
+      setTimeout(() => setAmountHint(false), 2500);
+      return;
+    }
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     // ── Modo batch-review / notification-edit: no guardar en DB, devolver a la pantalla de revisión ──
@@ -395,7 +424,7 @@ export default function ActiveExpenseScreen() {
     navigateAfterSave();
   }
 
-  function handleClose() {
+  function discardAndClose() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // Cerrar sin guardar una transacción detectada NO debe descartarla de la cola —
     // el usuario puede querer revisarla después desde notification-review; solo se
@@ -403,6 +432,58 @@ export default function ActiveExpenseScreen() {
     store.reset();
     navigateAfterSave();
   }
+
+  // batch-review/notification-edit/notification-detect ya tienen su propio camino para "salir
+  // sin perder nada" (quedan en su cola para revisar después) — el aviso de abajo es solo para
+  // una transacción nueva o una edición normal, donde cerrar de verdad tira los datos a la basura.
+  function hasUnsavedChanges(): boolean {
+    if (fromBatchReview || fromNotificationEdit || fromNotificationDetect) return false;
+    // Con el teclado del importe abierto, lo tecleado todavía no pasó al store (igual que en
+    // handleConfirm): hay que mirar amountDisplay, no store.amount, o un monto recién escrito
+    // no cuenta como cambio.
+    const currentAmount = amountEditing
+      ? parseFloat(amountDisplay.replace(/\D/g, "")) || 0
+      : store.amount;
+    if (isEditMode) {
+      const snap = editSnapshotRef.current;
+      if (!snap) return false;
+      return (
+        currentAmount !== snap.amount ||
+        store.note !== snap.note ||
+        store.categoryEmoji !== snap.categoryEmoji ||
+        store.account !== snap.account ||
+        listId !== snap.listId ||
+        paidBy !== snap.paidBy ||
+        JSON.stringify(store.tags) !== JSON.stringify(snap.tags)
+      );
+    }
+    return currentAmount > 0 || store.note.trim().length > 0 || store.tags.length > 0;
+  }
+
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
+
+  function handleClose() {
+    if (hasUnsavedChanges()) {
+      setConfirmDiscardOpen(true);
+      return;
+    }
+    discardAndClose();
+  }
+
+  // Botón Atrás físico/gesto: sin esto, React Navigation cierra la pantalla directo sin pasar
+  // por handleClose() (solo cableado a la X).
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  hasUnsavedChangesRef.current = hasUnsavedChanges;
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (hasUnsavedChangesRef.current()) {
+        setConfirmDiscardOpen(true);
+        return true; // consumido: no dejar que el back por defecto cierre sin avisar
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, []);
 
   function handleAddTag() {
     const t = tagInput.trim().replace(/^#/, "");
@@ -473,7 +554,9 @@ export default function ActiveExpenseScreen() {
       >
         {/* ── TARJETA: importe + descripción + fecha ─────────────────────── */}
         <View style={st.card}>
-          <Text style={st.cardLabel}>IMPORTE</Text>
+          <Text style={[st.cardLabel, amountHint && { color: "#F59E0B" }]}>
+            {amountHint ? "ESCRIBÍ UN MONTO PARA GUARDAR" : "IMPORTE"}
+          </Text>
           <View style={st.amountBlock}>
             {amountEditing ? (
               <View style={st.amountEditRow}>
@@ -812,7 +895,6 @@ export default function ActiveExpenseScreen() {
         />
         <PressableScale
           onPress={handleConfirm}
-          disabled={!canSave}
           style={[st.saveBtn, !canSave && st.saveBtnOff]}
           accessibilityLabel="Guardar"
           accessibilityRole="button"
@@ -862,6 +944,24 @@ export default function ActiveExpenseScreen() {
           <PaymentMethodsSection />
         </ScrollView>
       </BottomSheet>
+
+      <ConfirmDialog
+        visible={confirmDiscardOpen}
+        variant="warning"
+        title="¿Descartar cambios?"
+        message={
+          isEditMode
+            ? "Esta edición todavía no se guardó. Si salís ahora, se pierden los cambios."
+            : "Este gasto/ingreso todavía no se guardó. Si salís ahora, se pierde lo que cargaste."
+        }
+        confirmLabel="Descartar"
+        cancelLabel="Seguir editando"
+        onConfirm={() => {
+          setConfirmDiscardOpen(false);
+          discardAndClose();
+        }}
+        onCancel={() => setConfirmDiscardOpen(false)}
+      />
     </KeyboardAvoidingView>
   );
 }

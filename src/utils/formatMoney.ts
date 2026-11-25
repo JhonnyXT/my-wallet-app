@@ -1,9 +1,7 @@
 /**
- * Tope de dígitos para cualquier campo de monto (QA 2026-11-25: sin tope, un monto de 21
- * nueves terminaba mostrándose como "1e+21" — `Math.round(value).toString()` de JS pasa a
- * notación exponencial a partir de 1e21, rompiendo la Regla inmutable #2). 15 dígitos
- * (999 billones) es muchísimo más de lo que cualquier monto real necesita, y queda lejos de
- * ese umbral.
+ * Tope de dígitos para cualquier campo de monto: sin tope, un número lo bastante largo hace
+ * que `Math.round(value).toString()` de JS caiga en notación exponencial ("1e+21") a partir de
+ * 1e21, rompiendo la Regla inmutable #2. 15 dígitos (999 billones) queda lejos de ese umbral.
  */
 export const MAX_AMOUNT_DIGITS = 15;
 

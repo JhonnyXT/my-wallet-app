@@ -42,13 +42,14 @@ import {
   Moon,
   PiggyBank,
   Share2,
+  ShieldCheck,
   Trash2,
   Upload,
   Wallet,
   X,
 } from "lucide-react-native";
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { AutoDetectSection } from "@/src/components/settings/AutoDetectSection";
 import { BiometricLockRow } from "@/src/components/settings/BiometricLockRow";
@@ -345,6 +346,14 @@ export default function SettingsScreen() {
               iconBg={tokens.colors.state.danger}
               destructive
               onPress={handleClearData}
+            />
+            <Divider inset={tokens.spacing.md * 2 + 34} />
+            <ListRow
+              label="Privacidad"
+              icon={<ShieldCheck size={16} color="#FFFFFF" strokeWidth={2} />}
+              iconBg="#0D9488"
+              showChevron
+              onPress={() => Linking.openURL("https://usemywallet.vercel.app/es/privacy")}
             />
             <Divider inset={tokens.spacing.md * 2 + 34} />
             <ListRow

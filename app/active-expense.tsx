@@ -38,7 +38,7 @@ import { localISOString, SELF_PAYER } from "@/src/db/db";
 import { checkAndNotifyBudget } from "@/src/services/notificationService";
 import { NewCategoryModal } from "@/app/category-onboarding";
 import { PaymentMethodsSection } from "@/src/components/settings/PaymentMethodsSection";
-import type { UserCategory } from "@/src/constants/categoryPresets";
+import { EXPENSE_PRESETS, INCOME_PRESETS, type UserCategory } from "@/src/constants/categoryPresets";
 import { processVoiceInput } from "@/src/utils/voiceParser";
 import { formatMoneyInput, formatCOP as fmtCOP } from "@/src/utils/formatMoney";
 import { resolveCategory } from "@/src/utils/transactionFormatters";
@@ -140,30 +140,23 @@ export default function ActiveExpenseScreen() {
     if (paidBy !== SELF_PAYER && !listMembers.some((m) => m.id === paidBy)) setPaidBy(SELF_PAYER);
   }, [listMembers, paidBy]);
 
-  const expenseCatOptions = useMemo(
-    () =>
-      userCategories
-        .filter((c) => c.type === "expense")
-        .map((c) => ({
-          key: c.emoji,
-          label: c.name,
-          colorBg: c.colorBg,
-          colorAccent: c.colorAccent,
-        })),
-    [userCategories],
-  );
-  const incomeCatOptions = useMemo(
-    () =>
-      userCategories
-        .filter((c) => c.type === "income")
-        .map((c) => ({
-          key: c.emoji,
-          label: c.name,
-          colorBg: c.colorBg,
-          colorAccent: c.colorAccent,
-        })),
-    [userCategories],
-  );
+  const toCatOption = (c: UserCategory) => ({
+    key: c.emoji,
+    label: c.name,
+    colorBg: c.colorBg,
+    colorAccent: c.colorAccent,
+  });
+  // Una lista con categorías solo del otro tipo (ej. creada eligiendo únicamente categorías
+  // de gasto) deja el formulario de ingreso sin ninguna opción salvo "+ Nueva": se completa
+  // con el catálogo predefinido para no obligar a crear una desde cero.
+  const expenseCatOptions = useMemo(() => {
+    const own = userCategories.filter((c) => c.type === "expense");
+    return (own.length > 0 ? own : EXPENSE_PRESETS).map(toCatOption);
+  }, [userCategories]);
+  const incomeCatOptions = useMemo(() => {
+    const own = userCategories.filter((c) => c.type === "income");
+    return (own.length > 0 ? own : INCOME_PRESETS).map(toCatOption);
+  }, [userCategories]);
 
   const [tagInput, setTagInput] = useState("");
   const [calendarOpen, setCalendarOpen] = useState(false);

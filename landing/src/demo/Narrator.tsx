@@ -138,10 +138,12 @@ export function Narrator({ api, t }: { api: DemoApi; t: T }) {
   let title = '';
   let body = '';
   let extra: React.ReactNode = null;
+  let langNote = '';
 
   switch (ev.kind) {
     case 'intro':
       ({ eyebrow, title, body } = e.intro);
+      langNote = e.intro.langNote;
       break;
     case 'filterType':
       eyebrow = e.filterType.eyebrow;
@@ -276,6 +278,7 @@ export function Narrator({ api, t }: { api: DemoApi; t: T }) {
         <span className="font-mono text-xs font-bold tracking-[0.12em] text-accent uppercase">{eyebrow}</span>
         <h3 className="text-2xl leading-tight font-extrabold tracking-[-0.02em]">{title}</h3>
         <p className="text-[15px] leading-relaxed text-dim">{body}</p>
+        {langNote && <span className="self-start rounded-full border border-line bg-surface-2 px-3 py-1 text-xs font-semibold text-ink">🇪🇸 {langNote}</span>}
         {extra}
         {top(state) === 'voice' && <Dictation api={api} t={t} />}
       </div>

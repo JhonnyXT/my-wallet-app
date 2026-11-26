@@ -72,6 +72,7 @@ export const es = {
         eyebrow: 'Pruébala aquí',
         title: 'Es la app de verdad, con datos de ejemplo.',
         body: 'Toca las píldoras de gasto e ingreso o una columna de la gráfica, desliza un movimiento a la izquierda para borrarlo, usa + para anotar o el micrófono para dictar. Los botones de la barra de abajo del teléfono funcionan. Nada se guarda: al recargar vuelve a empezar.',
+        langNote: '',
       },
       filterType: {
         eyebrow: 'Filtro',

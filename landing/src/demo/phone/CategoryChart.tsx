@@ -6,7 +6,7 @@
 
 import { useRef } from 'react';
 import { categoryColor } from '../data';
-import { HScroll } from './ui';
+import { HScroll, t } from './ui';
 
 export type CategoryStat = { emoji: string; total: number };
 
@@ -315,8 +315,27 @@ export function CategoryChart({
       ];
 
   let delay = 0;
+  // Pista de que la gráfica se puede arrastrar/deslizar: en el teléfono real el scroll táctil
+  // se nota solo, pero en la demo web (mouse) no hay esa señal — un degradado en el borde
+  // derecho, visible solo cuando hay más columnas que caben, lo indica (QA web 2026-11-25).
+  const scrollable = ordered.length * (BAR_W + BAR_GAP) > 320;
   return (
     <div style={{ height: CHART_H, position: 'relative' }}>
+      {scrollable && (
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 12,
+            width: 32,
+            background: `linear-gradient(to right, transparent, ${t.bg})`,
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}
+        />
+      )}
       <HScroll style={{ height: CHART_H }}>
         <div
           style={{

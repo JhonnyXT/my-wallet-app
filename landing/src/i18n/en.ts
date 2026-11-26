@@ -71,7 +71,8 @@ export const en: Dictionary = {
       intro: {
         eyebrow: 'Try it here',
         title: 'This is the real app, with sample data.',
-        body: 'Tap the expense and income pills or a chart column, swipe a transaction left to delete it, use + to log or the mic to dictate. The phone’s bottom bar buttons work. Nothing is saved: reloading starts over. (The app itself is in Spanish.)',
+        body: 'Tap the expense and income pills or a chart column, swipe a transaction left to delete it, use + to log or the mic to dictate. The phone’s bottom bar buttons work. Nothing is saved: reloading starts over.',
+        langNote: 'Heads up: the app itself is in Spanish.',
       },
       filterType: {
         eyebrow: 'Filter',

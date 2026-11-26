@@ -120,6 +120,7 @@ export function ExpenseForm({ api }: { api: DemoApi }) {
 
   const [amountEditing, setAmountEditing] = useState(false);
   const [amountDisplay, setAmountDisplay] = useState('');
+  const [amountHint, setAmountHint] = useState(false);
   const [descOpen, setDescOpen] = useState(false);
   const [descClosing, setDescClosing] = useState(false);
   const [tagInput, setTagInput] = useState('');
@@ -199,7 +200,9 @@ export function ExpenseForm({ api }: { api: DemoApi }) {
       <div className="[scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ flex: 1, overflowY: 'auto', padding: '20px 24px 140px' }}>
         {/* Tarjeta: importe + descripción + fecha */}
         <div style={{ background: t.surface, borderRadius: 20, padding: '20px 20px 4px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: t.textSub, textAlign: 'center', letterSpacing: 1 }}>IMPORTE</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: amountHint ? '#F59E0B' : t.textSub, textAlign: 'center', letterSpacing: 1 }}>
+            {amountHint ? 'ESCRIBÍ UN MONTO PARA GUARDAR' : 'IMPORTE'}
+          </div>
           <div style={{ ...col, alignItems: 'center', justifyContent: 'center', padding: '8px 0 14px', width: '100%' }}>
             {amountEditing ? (
               <div style={{ ...row, alignItems: 'baseline', justifyContent: 'center', gap: 4, width: '100%' }}>
@@ -438,8 +441,17 @@ export function ExpenseForm({ api }: { api: DemoApi }) {
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: `32px 24px ${NAV_H + 12}px` }}>
         <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(to bottom, ${t.bg}00 0%, ${t.bg} 45%, ${t.bg} 100%)`, pointerEvents: 'none' }} />
         <PressableScale
-          onPress={() => dispatch({ type: 'saveForm' })}
-          disabled={disabled}
+          onPress={() => {
+            if (disabled) {
+              setAmountEditing(true);
+              setAmountDisplay(f.amount > 0 ? moneyInput(String(Math.round(f.amount))) : '');
+              setTimeout(() => amountRef.current?.focus({ preventScroll: true }), 50);
+              setAmountHint(true);
+              setTimeout(() => setAmountHint(false), 2500);
+              return;
+            }
+            dispatch({ type: 'saveForm' });
+          }}
           label="Guardar"
           style={{
             position: 'relative',

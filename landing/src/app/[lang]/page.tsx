@@ -1,6 +1,6 @@
+import dynamic from 'next/dynamic';
 import { notFound } from 'next/navigation';
 import { Header } from '@/components/Header';
-import { DemoSection } from '@/demo/DemoSection';
 import { Bancos } from '@/components/sections/Bancos';
 import { Control } from '@/components/sections/Control';
 import { Detalles } from '@/components/sections/Detalles';
@@ -14,6 +14,15 @@ import { Registro } from '@/components/sections/Registro';
 import { Divider } from '@/components/sections/shared';
 import { Voz } from '@/components/sections/Voz';
 import { getDictionary, hasLocale } from '@/i18n/config';
+
+// La demo interactiva es, con diferencia, el JS más pesado de la página (~400KB entre
+// Narrator/DemoPhone/CategoryChart): en una conexión lenta competía con el hero por el
+// mismo bundle inicial aunque queda más abajo en la página. Separarla en su propio chunk
+// (QA web 2026-11-25, carga de 8s en 3G simulada) no cambia el SSR ni el SEO — Next sigue
+// prerenderizando su HTML, solo deja de bloquear el bundle principal para hidratarla.
+const DemoSection = dynamic(() => import('@/demo/DemoSection').then((m) => m.DemoSection), {
+  loading: () => <div style={{ minHeight: 820, width: '100%' }} />,
+});
 
 export default async function Home({ params }: PageProps<'/[lang]'>) {
   const { lang } = await params;
